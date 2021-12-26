@@ -1,0 +1,16 @@
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\BotCH.exe.config
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\BotCH.exe
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\BotCH.pdb
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.csproj.AssemblyReference.cache
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.Properties.Resources.resources
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.csproj.GenerateResource.cache
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.csproj.CoreCompileInputs.cache
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.exe
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.pdb
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.BotForm.resources
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\Memory.dll
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\System.Security.Principal.Windows.dll
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\VAMemory.dll
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\Memory.xml
+D:\cpp\CSharpBot\BotCH\BotCH\bin\Debug\System.Security.Principal.Windows.xml
+D:\cpp\CSharpBot\BotCH\BotCH\obj\Debug\BotCH.csproj.CopyComplete
