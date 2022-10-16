@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Windows.Forms;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Memory;
 
 namespace BotCH
 {
@@ -24,36 +19,38 @@ namespace BotCH
 
                 try
                 {
-                    name = SetProccesName(number);
-                } catch
+                    name = Reader.SetProccesName(number);
+                }
+                catch
                 {
-                    statusConnection = false;
+                    Reader.statusConnection = false;
 
                     return "Process not found";
                 }
-                
-                currentPID = number;
-                statusConnection = true;
 
-                return "Connected to " + name + " PID = " + currentPID;
+                Reader.currentPID = number;
+                Reader.statusConnection = true;
+
+                return "Connected to " + name + " PID = " + Reader.currentPID;
             }
             else
             {
-                SetProccesName(0);
+                Reader.SetProccesName(0);
                 Process[] localAll = Process.GetProcesses();
 
                 foreach (var s in localAll)
                 {
-                    if (s.ProcessName.ToLower() == processName.ToLower())
+                    if (s.ProcessName.ToLower() == Reader.processName.ToLower())
                     {
-                        currentPID = s.Id;
-                        statusConnection = true;
+                        Reader.currentPID = s.Id;
+                        Reader.statusConnection = true;
 
-                        return "Connected to " + processName + " PID = " + currentPID;
+                        return "Connected to " + Reader.processName + " PID = " + Reader.currentPID;
 
                     }
                 }
-                statusConnection = false;
+
+                Reader.statusConnection = false;
 
                 return "Can't find Elementclient process";
             }
@@ -61,36 +58,37 @@ namespace BotCH
 
         public static string SetProccesName(int pid)
         {
-            if(pid == 0)
+            if (pid == 0)
             {
-                processName = "elementclient";
+                Reader.processName = "elementclient";
                 return "elementclient";
-            } 
+            }
             else
             {
                 try
                 {
-                    processName = Process.GetProcessById(pid).ProcessName;
-                    return processName;
+                    Reader.processName = Process.GetProcessById(pid).ProcessName;
+
+                    return Reader.processName;
                 }
                 catch (Exception ex)
                 {
                     throw ex;
                 }
-                
+
             }
         }
-
 
         public static uint Read_uint32(uint address)
         {
             try
             {
-                currentProcess = new VAMemory(processName);
+                currentProcess = new VAMemory(Reader.processName);
                 uint value = currentProcess.ReadUInt32((IntPtr)address);
 
                 return value;
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 MessageBox.Show("Connect to client first.");
 
@@ -100,37 +98,48 @@ namespace BotCH
 
         public static uint ReadGameAddress()
         {
-            if (statusConnection)
+            if (Reader.statusConnection)
             {
-                uint gameAdrress = Read_uint32(0xC7662C);
-                gameAdrress = Read_uint32(gameAdrress + 0x1C);
+                uint gameAdrress = Reader.Read_uint32(0x9B3EEC);
+                gameAdrress = Reader.Read_uint32(gameAdrress + 0x1C);
 
                 return gameAdrress;
-            } else
+            }
+            else
             {
                 MessageBox.Show("Connect to client first.");
                 return 0;
             }
-            
 
-            
+
+
+        }
+
+        public static uint GetPersStruct()
+        {
+            uint value = Reader.ReadGameAddress();
+
+            if (value != 0)
+            {
+                return Reader.Read_uint32(value + 0x20);
+            }
+
+            throw new Exception("Не найден GameAddress");
         }
 
         public static int GetPersHP()
         {
-
-            uint value = ReadGameAddress();
+            uint value = Reader.GetPersStruct();
 
             if (value != 0)
             {
-                value = Read_uint32(value + 0x2C);
-                value = Read_uint32(value + 0x4A8);
+                value = Reader.Read_uint32(value + 0x46C);
             }
 
             return Convert.ToInt32(value);
         }
 
-        
+
 
     }
 }

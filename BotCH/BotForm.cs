@@ -42,6 +42,7 @@ namespace BotCH
             {
                 textBoxPID.BackColor = Color.Red;
             }
+
             PersInfo.ShowPersInfoLabels();
         }
 
@@ -77,7 +78,7 @@ namespace BotCH
         private void Button1_Click(object sender, EventArgs e)
         {
             VAMemory currentProcess = new VAMemory(Reader.processName);
-            currentProcess.WriteUInt32((IntPtr)0x2415397C, 2148552024);
+            textBoxPID.Text = currentProcess.ReadUInt32((IntPtr)0x1235A304).ToString();
 
 
         }
