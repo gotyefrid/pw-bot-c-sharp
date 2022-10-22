@@ -31,3 +31,16 @@ C:\Users\Testpc\Desktop\repos\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.CopyCo
 C:\Users\Testpc\Desktop\repos\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.exe
 C:\Users\Testpc\Desktop\repos\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.pdb
 C:\Users\Testpc\Desktop\repos\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.AssemblyReference.cache
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\bin\Debug\BotCH.exe.config
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\bin\Debug\BotCH.exe
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\bin\Debug\BotCH.pdb
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.AssemblyReference.cache
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.SuggestedBindingRedirects.cache
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.BotForm.resources
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.Properties.Resources.resources
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.GenerateResource.cache
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.CoreCompileInputs.cache
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.csproj.CopyComplete
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.exe
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\obj\Debug\BotCH.pdb
+C:\Program Files (x86)\OpenServer\domains\pw-bot-c-sharp\BotCH\bin\Debug\VAMemory.dll
