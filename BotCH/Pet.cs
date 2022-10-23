@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace BotCH
 {
@@ -60,7 +59,10 @@ namespace BotCH
 
                         if (Pet.IsNeedToBeFeed())
                         {
-                            Action.FeedPet();
+                            if (Reader.IsFeedPetAvailable())
+                            {
+                                Action.FeedPet();
+                            }
                         }
                     }
 

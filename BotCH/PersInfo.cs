@@ -38,7 +38,10 @@ namespace BotCH
 
             if (PersInfo.GetPersHPPercent() < Convert.ToInt32(form.textBoxHPusage.Text))
             {
-                Action.PotHP();
+                if (Reader.IsPotHPAvailable())
+                {
+                    Action.PotHP();
+                }
             }
         }
 

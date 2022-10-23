@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BotCH
@@ -14,22 +15,28 @@ namespace BotCH
             {
                 while (Bot.active)
                 {
-                    Reader.IsPetInvited();
-                    //form.label8.Text = Reader.IsPetInvited().ToString();
-                    if (form.checkBoxCheckId.Checked == true)
+                    if (Reader.IsExistTarget())
                     {
-                        if (Bot.SearchMobIdInList())
+                        if (form.checkBoxCheckId.Checked == true)
                         {
-                            Bot.KillMobActions();
+                            uint isExistMobAttackingMe = Reader.IsExistMobAttackingMe();
+
+                            if (Bot.SearchCurrentMobIdInList() || isExistMobAttackingMe != 0)
+                            {
+                                Bot.KillMobActions();
+                                Bot.GetLoot();
+                            }
                         }
                         else
                         {
-                            Action.ChangeTarget();
+                            Bot.KillMobActions();
+                            Bot.GetLoot();
                         }
                     }
                     else
                     {
-                        Bot.KillMobActions();
+                        Action.ChangeTarget();
+                        Thread.Sleep(600);
                     }
 
                     Logger.setLog("Waiting");
@@ -43,16 +50,23 @@ namespace BotCH
             {
                 for (int i = 0; i < 3; i++)
                 {
-                    Logger.setLog("Pick up loot " + (i+1));
+                    Logger.setLog("Pick up loot " + (i + 1));
                     Action.PickUpLoot();
                     Thread.Sleep(600);
                 }
-            }     
+            }
         }
 
-        private static bool SearchMobIdInList()
+        private static bool SearchCurrentMobIdInList()
         {
-            return true;
+            string[] mobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
+
+            if (mobsIds.Contains(Reader.GetTargetId()))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static void KillMobActions()
@@ -62,11 +76,6 @@ namespace BotCH
             if (Reader.GetTargetId() != "0")
             {
                 Bot.Attack();
-                Bot.GetLoot();
-            }
-            else
-            {
-                Action.ChangeTarget();
             }
         }
 
@@ -83,7 +92,14 @@ namespace BotCH
 
                 if (form.checkBoxUseSword.Checked == true)
                 {
-                    Action.AttackBySword();
+                    if (Reader.GetCurrentMobDistance() > 3.5)
+                    {
+                        while (Reader.GetCurrentMobDistance() > 3.5)
+                        {
+                            Action.AttackBySword();
+                        }
+                    }
+
                 }
             }
 

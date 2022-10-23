@@ -1,16 +1,13 @@
 ﻿using System;
 using System.Drawing;
-using System.Threading;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace BotCH
 {
     public partial class BotForm : Form
     {
-        public static bool teee()
-        {
-            return true;
-        }
+        public static INIManager IniManager = new INIManager("config.ini");
         public BotForm()
         {
             InitializeComponent();
@@ -19,18 +16,20 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
-            Resolver.RegisterDependencyResolver();
             PersInfo.form = this;
             Reader.form = this;
             Bot.form = this;
             Logger.form = this;
             Pet.form = this;
+            Action.form = this;
             this.cageSelect.SelectedIndex = 0;
             this.stopButton.Enabled = false;
+            this.InitParamsFromIniConfig();
         }
 
         private void ConnectButton_Click(object sender, EventArgs e)
         {
+            this.labelState.Text = IniManager.ReadINI("main", "test");
             if (this.textBoxPID.Text == String.Empty)
             {
                 this.textBoxPID.Text = "0";
@@ -43,13 +42,14 @@ namespace BotCH
                 this.textBoxPID.BackColor = Color.LightGreen;
                 this.textBoxPID.Text = Reader.currentPID.ToString();
                 this.textBoxPID.Enabled = false;
+                PersInfo.ShowPersInfoLabels();
+                this.checkBoxUnfrezze.Visible = true;
+
             }
             else
             {
                 this.textBoxPID.BackColor = Color.Red;
             }
-
-            PersInfo.ShowPersInfoLabels();
         }
 
         /// <summary>
@@ -90,6 +90,7 @@ namespace BotCH
             }
 
 
+
             this.startButton.Enabled = false;
             this.stopButton.Enabled = true;
 
@@ -98,17 +99,22 @@ namespace BotCH
             Bot.Run();
         }
 
-        private void Button1_Click(object sender, EventArgs e)
+        private void InitParamsFromIniConfig()
         {
-            VAMemory currentProcess = new VAMemory(Reader.processName);
-            textBoxPID.Text = currentProcess.ReadUInt32((IntPtr)0x1235A304).ToString();
-
-
+            this.textBoxHPusage.Text = IniManager.ReadINI("settings", "useHp");
+            this.textBoxMPusage.Text = IniManager.ReadINI("settings", "useMp");
+            this.textBoxHealPetUsage.Text = IniManager.ReadINI("settings", "useHealPet");
+            this.checkBoxUseSkill.Checked = IniManager.ReadINI("settings", "checkBoxUseSkill") == "1";
+            this.checkBoxUseSkill.Checked = IniManager.ReadINI("settings", "checkBoxUseSkill") == "1";
+            this.checkBoxUseSword.Checked = IniManager.ReadINI("settings", "checkBoxUseSword") == "1";
+            this.checkBoxLooting.Checked = IniManager.ReadINI("settings", "checkBoxLooting") == "1";
+            this.checkBoxCheckId.Checked = IniManager.ReadINI("settings", "checkBoxCheckId") == "1";
+            this.cageSelect.SelectedIndex = int.Parse(IniManager.ReadINI("settings", "selectCage")) - 1;
         }
 
-        private void donationsToolStripMenuItem_Click(object sender, EventArgs e)
+        private void checkBoxUnfrezze_CheckedChanged(object sender, EventArgs e)
         {
-
+            Writer.UnFreezeeWindow();
         }
     }
 

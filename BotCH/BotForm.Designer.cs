@@ -44,6 +44,7 @@
             this.donationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabMain = new System.Windows.Forms.TabPage();
+            this.checkBoxUnfrezze = new System.Windows.Forms.CheckBox();
             this.labelState = new System.Windows.Forms.Label();
             this.labelTextPetHP = new System.Windows.Forms.Label();
             this.labelTextMP = new System.Windows.Forms.Label();
@@ -63,6 +64,7 @@
             this.textBoxHPusage = new System.Windows.Forms.TextBox();
             this.labelTextUseHP = new System.Windows.Forms.Label();
             this.tabKeys = new System.Windows.Forms.TabPage();
+            this.checkBoxTargetByTab = new System.Windows.Forms.CheckBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -193,7 +195,7 @@
             this.aboutToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(377, 30);
+            this.menuStrip1.Size = new System.Drawing.Size(377, 28);
             this.menuStrip1.TabIndex = 12;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -202,7 +204,7 @@
             this.aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.donationsToolStripMenuItem});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             this.aboutToolStripMenuItem.Text = "About";
             // 
             // donationsToolStripMenuItem
@@ -210,7 +212,6 @@
             this.donationsToolStripMenuItem.Name = "donationsToolStripMenuItem";
             this.donationsToolStripMenuItem.Size = new System.Drawing.Size(160, 26);
             this.donationsToolStripMenuItem.Text = "Donations";
-            this.donationsToolStripMenuItem.Click += new System.EventHandler(this.donationsToolStripMenuItem_Click);
             // 
             // tabControl1
             // 
@@ -228,6 +229,7 @@
             // 
             // tabMain
             // 
+            this.tabMain.Controls.Add(this.checkBoxUnfrezze);
             this.tabMain.Controls.Add(this.labelState);
             this.tabMain.Controls.Add(this.labelTextPetHP);
             this.tabMain.Controls.Add(this.labelTextMP);
@@ -249,6 +251,19 @@
             this.tabMain.TabIndex = 0;
             this.tabMain.Text = "Main";
             this.tabMain.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxUnfrezze
+            // 
+            this.checkBoxUnfrezze.AutoSize = true;
+            this.checkBoxUnfrezze.Font = new System.Drawing.Font("Microsoft Sans Serif", 5F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxUnfrezze.Location = new System.Drawing.Point(295, 9);
+            this.checkBoxUnfrezze.Name = "checkBoxUnfrezze";
+            this.checkBoxUnfrezze.Size = new System.Drawing.Size(68, 17);
+            this.checkBoxUnfrezze.TabIndex = 16;
+            this.checkBoxUnfrezze.Text = "UnFreeze";
+            this.checkBoxUnfrezze.UseVisualStyleBackColor = true;
+            this.checkBoxUnfrezze.Visible = false;
+            this.checkBoxUnfrezze.CheckedChanged += new System.EventHandler(this.checkBoxUnfrezze_CheckedChanged);
             // 
             // labelState
             // 
@@ -295,6 +310,7 @@
             // 
             // tabSettings
             // 
+            this.tabSettings.Controls.Add(this.checkBoxTargetByTab);
             this.tabSettings.Controls.Add(this.textBoxHealPetUsage);
             this.tabSettings.Controls.Add(this.labelTextHealPet);
             this.tabSettings.Controls.Add(this.checkBoxClickerMode);
@@ -456,6 +472,16 @@
             this.tabKeys.Text = "Keys";
             this.tabKeys.UseVisualStyleBackColor = true;
             // 
+            // checkBoxTargetByTab
+            // 
+            this.checkBoxTargetByTab.AutoSize = true;
+            this.checkBoxTargetByTab.Location = new System.Drawing.Point(27, 254);
+            this.checkBoxTargetByTab.Name = "checkBoxTargetByTab";
+            this.checkBoxTargetByTab.Size = new System.Drawing.Size(117, 20);
+            this.checkBoxTargetByTab.TabIndex = 25;
+            this.checkBoxTargetByTab.Text = "Target by TAB";
+            this.checkBoxTargetByTab.UseVisualStyleBackColor = true;
+            // 
             // BotForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -517,6 +543,8 @@
         public System.Windows.Forms.CheckBox checkBoxUseSword;
         public System.Windows.Forms.Label labelState;
         public System.Windows.Forms.TextBox textBoxHealPetUsage;
+        public System.Windows.Forms.CheckBox checkBoxUnfrezze;
+        public System.Windows.Forms.CheckBox checkBoxTargetByTab;
     }
 }
 

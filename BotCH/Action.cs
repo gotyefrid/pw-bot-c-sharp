@@ -13,6 +13,7 @@ namespace BotCH
 
         private const int WM_KEYDOWN = 0x0100;
         private const int WM_KEYUP = 0x0101;
+        public static BotForm form;
 
         private static void ClickKey(Keys key)
         {
@@ -41,9 +42,39 @@ namespace BotCH
             });
         }
 
+        public static void EscapeClick()
+        {
+            Action.ClickKey(Keys.Escape);
+        }
         public static void ChangeTarget()
         {
+            uint id = Reader.IsExistMobAttackingMe();
+
+            if (id != 0)
+            {
+                Writer.TargetMob(id);
+                return;
+            }
+
+            if (Action.form.checkBoxTargetByTab.Checked)
+            {
+                Action.ChangeTargetByTab();
+            }
+            else
+            {
+                Action.ChangeTargetByInject();
+            }
+        }
+
+        private static void ChangeTargetByTab()
+        {
             Action.ClickKey(Keys.Tab);
+        }
+        private static void ChangeTargetByInject()
+        {
+            string[] mobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
+
+            Writer.TargetFirstMobFromArray(mobsIds);
         }
 
         public static void AttackBySword()

@@ -2,25 +2,40 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using System.Windows.Forms;
+using System.Threading.Tasks;
 
 namespace BotCH
 {
     class Reader
     {
-        private const uint BASEADDR_OFFSET = 0x9B3EEC;
-        private const uint GAMEADDR_OFFSET = 0x1C;
+        protected const uint BASEADDR_OFFSET = 0x9B3EEC;
+        protected const uint GAMEADDR_OFFSET = 0x1C;
+        protected const uint UNZREEFE_ADDR = 0x9B4A04;
 
-        private const uint PERS_STRUCT_OFFSET = 0x20;
-        private const uint HP_OFFSET = 0x46C;
-        private const uint MP_OFFSET = 0x470;
-        private const uint MAX_HP_OFFSET = 0x4A4;
-        private const uint TARGETID_OFFSET = 0xAF0;
-        private const uint CURRENT_PETID_OFFSET = 0x38;
+        protected const uint PERS_STRUCT_OFFSET = 0x20;
+        protected const uint PERS_WID_OFFSET = 0x458;
+        protected const uint PERS_HP_OFFSET = 0x46C;
+        protected const uint PERS_MP_OFFSET = 0x470;
+        protected const uint PERS_MAX_HP_OFFSET = 0x4A4;
+        protected const uint PERS_TARGETID_OFFSET = 0xAF0;
+        protected const uint PERS_COOLDOWN_FEED_PET_OFFSET = 0x9EC;
+        protected const uint PERS_COOLDOWN_POT_HP_OFFSET = 0x9B4;
+        protected const uint PERS_LOC_X = 0x3C;
+        protected const uint PERS_LOC_Z = 0x40;
+        protected const uint PERS_LOC_Y = 0x44;
 
-        private const uint PET_STRUCT_OFFSET = 0xE60;
-        private const uint PET_HP_OFFSET = 0x1C;
-        private const uint PET_FEED_STATUS_OFFSET = 0x8;
+        protected const uint PET_STRUCT_OFFSET = 0xE60;
+        protected const uint PET_CURRENT_PETID_OFFSET = 0x38;
+        protected const uint PET_HP_OFFSET = 0x1C;
+        protected const uint PET_FEED_STATUS_OFFSET = 0x8;
+
+        protected const uint MOB_OFFSET_1 = 0x8;
+        protected const uint MOB_OFFSET_2 = 0x24;
+        protected const uint MOB_STRUCT = 0x18;
+        protected const uint MOB_WID = 0x11C;
+        protected const uint MOB_DIST = 0x270;
+        protected const uint MOB_MOVE = 0x2BC;
+        protected const uint MOB_TARGET_OFFSET = 0x2D4;
 
         public static Dictionary<int, uint> cages = new Dictionary<int, uint>
         {
@@ -36,7 +51,7 @@ namespace BotCH
         public static int currentPID = 0;
         public static bool statusConnection;
         public static Process process;
-        private static VAMemory currentProcess;
+        protected static VAMemory VAM;
 
         public static string SetPID(int number)
         {
@@ -58,6 +73,8 @@ namespace BotCH
                 Reader.currentPID = number;
                 Reader.statusConnection = true;
 
+                Reader.VAM = new VAMemory(Reader.processName);
+
                 return "Connected to " + name + " PID = " + Reader.currentPID;
             }
             else
@@ -73,6 +90,7 @@ namespace BotCH
                         Reader.process = oneProcess;
                         Reader.statusConnection = true;
 
+                        Reader.VAM = new VAMemory(Reader.processName);
 
                         return "Connected to " + Reader.processName + " PID = " + Reader.currentPID;
 
@@ -112,10 +130,7 @@ namespace BotCH
         {
             try
             {
-                currentProcess = new VAMemory(Reader.processName);
-                uint value = currentProcess.ReadUInt32((IntPtr)address);
-
-                return value;
+                return Reader.VAM.ReadUInt32((IntPtr)address);
             }
             catch (Exception ex)
             {
@@ -127,8 +142,7 @@ namespace BotCH
         {
             try
             {
-                currentProcess = new VAMemory(Reader.processName);
-                float value = currentProcess.ReadFloat((IntPtr)address);
+                float value = Reader.VAM.ReadFloat((IntPtr)address);
 
                 return value;
             }
@@ -151,8 +165,37 @@ namespace BotCH
             {
                 return 0;
             }
+        }
+        public static uint GetCurrentMobStruct()
+        {
+            for (uint i = 0; i <= 768; i++)
+            {
+                uint value = Reader.Read_uint32(ReadGameAddress() + Reader.MOB_OFFSET_1);
+                value = Reader.Read_uint32(value + Reader.MOB_OFFSET_2);
+                value = Reader.Read_uint32(value + Reader.MOB_STRUCT);
+                string offset = (i * 4).ToString("X");
+                value = Reader.Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
 
+                if (value != 0)
+                {
+                    uint mobStruct = Reader.Read_uint32(value + 0x4);
+                    value = Reader.Read_uint32(mobStruct + Reader.MOB_WID);
 
+                    if (value == Convert.ToUInt32(Reader.GetTargetId()))
+                    {
+                        return mobStruct;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        public static float GetCurrentMobDistance()
+        {
+            uint value = Reader.GetCurrentMobStruct();
+
+            return Reader.Read_float(value + Reader.MOB_DIST);
 
         }
 
@@ -228,7 +271,7 @@ namespace BotCH
 
             if (value != 0)
             {
-                value = Reader.Read_uint32(value + Reader.HP_OFFSET);
+                value = Reader.Read_uint32(value + Reader.PERS_HP_OFFSET);
             }
 
             return Convert.ToInt32(value);
@@ -240,10 +283,22 @@ namespace BotCH
 
             if (value != 0)
             {
-                value = Reader.Read_uint32(value + Reader.MP_OFFSET);
+                value = Reader.Read_uint32(value + Reader.PERS_MP_OFFSET);
             }
 
             return Convert.ToInt32(value);
+        }
+
+        public static uint GetCurrentPetId()
+        {
+            uint value = Reader.GetPetStructWithoutCage();
+
+            if (value != 0)
+            {
+                return Reader.Read_uint32(value + Reader.PET_CURRENT_PETID_OFFSET);
+            }
+
+            return 0;
         }
 
         public static bool IsPetInvited()
@@ -252,7 +307,7 @@ namespace BotCH
 
             if (value != 0)
             {
-                value = Reader.Read_uint32(value + Reader.CURRENT_PETID_OFFSET);
+                value = Reader.Read_uint32(value + Reader.PET_CURRENT_PETID_OFFSET);
             }
 
             if (value != 0)
@@ -263,16 +318,27 @@ namespace BotCH
             return false;
         }
 
-        public static String GetTargetId()
+        public static string GetTargetId()
         {
             uint value = Reader.GetPersStruct();
 
             if (value != 0)
             {
-                value = Reader.Read_uint32(value + Reader.TARGETID_OFFSET);
+                value = Reader.Read_uint32(value + Reader.PERS_TARGETID_OFFSET);
             }
 
             return value.ToString();
+        }
+        public static uint GetTargetIdAddres()
+        {
+            uint value = Reader.GetPersStruct();
+
+            if (value != 0)
+            {
+                return value + Reader.PERS_TARGETID_OFFSET;
+            }
+
+            return 0;
         }
 
         public static int GetPersMaxHP()
@@ -281,11 +347,61 @@ namespace BotCH
 
             if (value != 0)
             {
-                value = Reader.Read_uint32(value + Reader.MAX_HP_OFFSET);
+                value = Reader.Read_uint32(value + Reader.PERS_MAX_HP_OFFSET);
             }
 
             return Convert.ToInt32(value);
         }
 
+        public static bool IsFeedPetAvailable()
+        {
+            uint value = Reader.GetPersStruct();
+            value = Reader.Read_uint32(value + Reader.PERS_COOLDOWN_FEED_PET_OFFSET);
+
+            return value == 0;
+        }
+        public static bool IsPotHPAvailable()
+        {
+            uint value = Reader.GetPersStruct();
+            value = Reader.Read_uint32(value + Reader.PERS_COOLDOWN_POT_HP_OFFSET);
+
+            return value == 0;
+        }
+        public static uint IsExistMobAttackingMe()
+        {
+            for (uint i = 0; i <= 768; i++)
+            {
+                uint value = Reader.Read_uint32(ReadGameAddress() + Reader.MOB_OFFSET_1);
+                value = Reader.Read_uint32(value + Reader.MOB_OFFSET_2);
+                value = Reader.Read_uint32(value + Reader.MOB_STRUCT);
+                string offset = (i * 4).ToString("X");
+                value = Reader.Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
+
+                if (value != 0)
+                {
+                    uint mobStruct = Reader.Read_uint32(value + 0x4);
+                    value = Reader.Read_uint32(mobStruct + Reader.MOB_TARGET_OFFSET);
+
+                    if (value == Reader.GetMyPersWID() || value == Reader.GetCurrentPetId() )
+                    {
+                        return Reader.Read_uint32(mobStruct + Reader.MOB_WID); ;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        public static uint GetMyPersWID()
+        {
+            uint value = Reader.GetPersStruct();
+
+            return Reader.Read_uint32(value + Reader.PERS_WID_OFFSET);
+        }
+
+        public static bool IsExistTarget()
+        {
+            return Reader.GetTargetId() != "0";
+        }
     }
 }
