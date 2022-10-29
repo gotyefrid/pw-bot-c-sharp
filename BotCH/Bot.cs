@@ -22,9 +22,9 @@ namespace BotCH
             {
                 try
                 {
-                    //Logger.setLog("Making list of alive mobs");
-                    //MobsAround = MobReader.GetActualListMobsOffsetsInArray();
-                    //Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+                    Logger.setLog("Making list of alive mobs");
+                    MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+                    Logger.setLog("Around us " + MobsAround.Count() + " mobs");
 
                     while (active)
                     {
@@ -84,7 +84,7 @@ namespace BotCH
         public static void ChangeTarget()
         {
             Logger.setLog("Find agressive mob who beat me");
-            uint id = MobReader.IsExistMobAttackingMe();
+            uint id = MobReader.IsExistMobAttackingMe(MobsAround);
 
             if (id != 0)
             {
