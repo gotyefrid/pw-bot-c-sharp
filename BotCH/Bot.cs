@@ -178,14 +178,18 @@ namespace BotCH
 
                 while (MobReader.GetMobDistance(mobId) > 4)
                 {
-                    if (i == 3)
+                    float beforeDist = MobReader.GetMobDistance(mobId);
+
+                    if (beforeDist <= MobReader.GetMobDistance(mobId))
                     {
-                        Logger.setLog("Going to mob");
-                        break;
+                        Action.AttackBySword();
                     }
 
-                    Action.AttackBySword();
-                    Thread.Sleep(1000);
+                    if (i == 0)
+                    {
+                        Logger.setLog("Going to mob");
+                    }
+
                     i++;
                 }
 
