@@ -90,7 +90,7 @@ namespace BotCH
         {
             if (form.checkBoxLooting.Checked == true)
             {
-                int n = 3;
+                int n = 4;
 
                 Logger.setLog("Pick up loot " + n + " times");
 
@@ -126,6 +126,7 @@ namespace BotCH
         private static void KillMobActions(uint mobId)
         {
             Logger.setLog("Killing mob");
+            int i = 0;
 
             while (TargetMobEntity.WID == mobId)
             {
@@ -134,7 +135,10 @@ namespace BotCH
                     return;
                 }
 
-                Action.AttackByPet();
+                if (i == 0)
+                {
+                    Action.AttackByPet();
+                }
 
                 if (form.checkBoxUseSkill.Checked == true)
                 {
@@ -145,6 +149,8 @@ namespace BotCH
                 {
                     Action.AttackBySword();
                 }
+
+                i++;
             }
         }
 
