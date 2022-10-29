@@ -44,6 +44,7 @@
             this.donationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabMain = new System.Windows.Forms.TabPage();
+            this.buttonFindBaseAddr = new System.Windows.Forms.Button();
             this.checkBoxUnfrezze = new System.Windows.Forms.CheckBox();
             this.labelTextPetHP = new System.Windows.Forms.Label();
             this.labelTextMP = new System.Windows.Forms.Label();
@@ -65,7 +66,6 @@
             this.tabKeys = new System.Windows.Forms.TabPage();
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
-            this.buttonFindBaseAddr = new System.Windows.Forms.Button();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -262,6 +262,16 @@
             this.tabMain.TabIndex = 0;
             this.tabMain.Text = "Main";
             this.tabMain.UseVisualStyleBackColor = true;
+            // 
+            // buttonFindBaseAddr
+            // 
+            this.buttonFindBaseAddr.Location = new System.Drawing.Point(8, 382);
+            this.buttonFindBaseAddr.Name = "buttonFindBaseAddr";
+            this.buttonFindBaseAddr.Size = new System.Drawing.Size(152, 23);
+            this.buttonFindBaseAddr.TabIndex = 17;
+            this.buttonFindBaseAddr.Text = "Find BaseAddress";
+            this.buttonFindBaseAddr.UseVisualStyleBackColor = true;
+            this.buttonFindBaseAddr.Click += new System.EventHandler(this.buttonFindBaseAddr_Click);
             // 
             // checkBoxUnfrezze
             // 
@@ -487,7 +497,7 @@
             this.tabKeys.Name = "tabKeys";
             this.tabKeys.Size = new System.Drawing.Size(367, 411);
             this.tabKeys.TabIndex = 2;
-            this.tabKeys.Text = "Keys";
+            this.tabKeys.Text = "Log";
             this.tabKeys.UseVisualStyleBackColor = true;
             // 
             // richTextBoxLogBox
@@ -508,16 +518,6 @@
             this.labelState.Size = new System.Drawing.Size(375, 16);
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
-            // 
-            // buttonFindBaseAddr
-            // 
-            this.buttonFindBaseAddr.Location = new System.Drawing.Point(8, 382);
-            this.buttonFindBaseAddr.Name = "buttonFindBaseAddr";
-            this.buttonFindBaseAddr.Size = new System.Drawing.Size(152, 23);
-            this.buttonFindBaseAddr.TabIndex = 17;
-            this.buttonFindBaseAddr.Text = "Find BaseAddress";
-            this.buttonFindBaseAddr.UseVisualStyleBackColor = true;
-            this.buttonFindBaseAddr.Click += new System.EventHandler(this.buttonFindBaseAddr_Click);
             // 
             // BotForm
             // 
