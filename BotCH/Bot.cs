@@ -182,6 +182,11 @@ namespace BotCH
 
                 while (MobReader.GetMobDistance(mobId) > 4)
                 {
+                    if (TargetMobEntity.WID == 0)
+                    {
+                        break;
+                    }
+
                     float beforeDist = MobReader.GetMobDistance(mobId);
 
                     if (beforeDist <= MobReader.GetMobDistance(mobId))
