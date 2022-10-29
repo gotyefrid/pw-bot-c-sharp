@@ -134,8 +134,6 @@ namespace BotCH
                     return;
                 }
 
-                Logger.setLog("While " + TargetMobEntity.WID + " == " + mobId);
-
                 Action.AttackByPet();
 
                 if (form.checkBoxUseSkill.Checked == true)
