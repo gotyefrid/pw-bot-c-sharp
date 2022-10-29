@@ -28,22 +28,27 @@ namespace BotCH
 
             PostMessage(Reader.process.MainWindowHandle, WM_KEYDOWN, (IntPtr)key, IntPtr.Zero);
             PostMessage(Reader.process.MainWindowHandle, WM_KEYUP, (IntPtr)key, IntPtr.Zero);
-            Logger.setLog("Press " + key);
+
+            if (Logger.KeyLogger)
+            {
+                Logger.setLog("Press " + key);
+            }
+
             Thread.Sleep(200);
         }
 
-        private static void ClickCombineKeys(Keys key1, Keys key2, bool needCastingCheck = true)
+        private static void ClickCombineKeys(Keys key1, Keys key2)
         {
-            //if (needCastingCheck)
-            //{
-            //    WaitForCasting();
-            //}
-
             PostMessage(Reader.process.MainWindowHandle, WM_SYSKEYDOWN, (IntPtr)key1, IntPtr.Zero);
             PostMessage(Reader.process.MainWindowHandle, WM_KEYDOWN, (IntPtr)key2, IntPtr.Zero);
             PostMessage(Reader.process.MainWindowHandle, WM_SYSKEYUP, (IntPtr)key1, IntPtr.Zero);
             //PostMessage(Reader.process.MainWindowHandle, WM_KEYUP, (IntPtr)key2, IntPtr.Zero);
-            Logger.setLog("Press " + key1 + " + " + key2);
+
+            if (Logger.KeyLogger)
+            {
+                Logger.setLog("Press " + key1 + " + " + key2);
+            }
+
             Thread.Sleep(500);
         }
 
@@ -98,7 +103,7 @@ namespace BotCH
 
         public static void AttackByPet()
         {
-            Action.ClickCombineKeys(Keys.Menu, Keys.D1, false);
+            Action.ClickCombineKeys(Keys.Menu, Keys.D1);
         }
 
         public static void AttackBySkill()
