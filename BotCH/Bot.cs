@@ -14,7 +14,6 @@ namespace BotCH
         public static bool active = false;
         public static BotForm form;
         private static uint AgressiveMob = 0;
-        private static Dictionary<uint, string> MobsAround;
 
         public async static void Run()
         {
@@ -22,10 +21,6 @@ namespace BotCH
             {
                 try
                 {
-                    //Logger.setLog("Making list of alive mobs");
-                    //MobsAround = MobReader.GetActualListMobsOffsetsInArray();
-                    //Logger.setLog("Around us " + MobsAround.Count() + " mobs");
-
                     while (active)
                     {
                         Logger.setLog("New Loop");
