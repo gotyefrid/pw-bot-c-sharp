@@ -1,4 +1,5 @@
-﻿using BotCH.MemoryHelpers;
+﻿using BotCH.Entity;
+using BotCH.MemoryHelpers;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -48,6 +49,7 @@ namespace BotCH
                     this.textBoxPID.Text = Reader.currentPID.ToString();
                     this.textBoxPID.Enabled = false;
                     PersInfo.ShowPersInfoLabels();
+                    IniManager.Write("offset", "persHp", MyPersEntity.MaxHP.ToString());
                     this.checkBoxUnfrezze.Visible = true;
                     Logger.setLog("----------------------");
                     Logger.setLog("Status connection TRUE");

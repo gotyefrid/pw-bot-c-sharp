@@ -1,10 +1,4 @@
 ﻿using BotCH.MemoryHelpers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BotCH.Entity
 {
@@ -20,13 +14,19 @@ namespace BotCH.Entity
         public const uint ACTION_DIES = 4;
         public const uint ACTION_MOVES = 5;
 
-        public static uint WID { 
+        public static uint WID
+        {
             get { return PersReader.GetMyPersWID(); }
         }
 
         public static bool IsUsingSkill
         {
             get { return PersReader.GetFlagUseSkill(); }
+        }
+
+        public static int MaxHP
+        {
+            get { return PersReader.GetPersMaxHP(); }
         }
     }
 }
