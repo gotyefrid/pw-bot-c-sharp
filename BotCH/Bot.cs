@@ -180,7 +180,6 @@ namespace BotCH
                     }
 
                     Action.AttackBySword();
-                    Thread.Sleep(1000);
                     i++;
                 }
 
