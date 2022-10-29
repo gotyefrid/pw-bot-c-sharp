@@ -1,11 +1,8 @@
 ﻿using BotCH.Entity;
 using BotCH.MemoryHelpers;
-using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Forms;
 
 namespace BotCH
 {
@@ -19,41 +16,28 @@ namespace BotCH
         {
             await Task.Run(() =>
             {
-                try
+                while (active)
                 {
-                    while (active)
+                    Logger.setLog("New Loop");
+
+                    if (PersReader.IsExistTarget())
                     {
-                        Logger.setLog("New Loop");
-
-                        if (PersReader.IsExistTarget())
+                        if (form.checkBoxCheckId.Checked == true)
                         {
-                            if (form.checkBoxCheckId.Checked == true)
+                            bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
+
+                            bool isMobInList = SearchCurrentMobIdInList();
+
+                            if (isMobInList || isAgressiveMobAttackMeNow)
                             {
-                                bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
-
-                                bool isMobInList = SearchCurrentMobIdInList();
-
-                                if (isMobInList || isAgressiveMobAttackMeNow)
+                                if (!isMobInList && isAgressiveMobAttackMeNow)
                                 {
-                                    if (!isMobInList && isAgressiveMobAttackMeNow)
-                                    {
-                                        Logger.setLog("Killing mob because it attaking me!");
-                                    }
-
-                                    if (form.checkBoxLooting.Checked == true)
-                                    {
-                                        Action.AttackByPet();
-                                        ComeCloser(TargetMobEntity.WID);
-                                    }
-
-                                    KillMobActions(TargetMobEntity.WID);
-                                    GetLoot();
+                                    Logger.setLog("Killing mob because it attaking me!");
                                 }
-                            }
-                            else
-                            {
+
                                 if (form.checkBoxLooting.Checked == true)
                                 {
+                                    Action.AttackByPet();
                                     ComeCloser(TargetMobEntity.WID);
                                 }
 
@@ -61,17 +45,20 @@ namespace BotCH
                                 GetLoot();
                             }
                         }
+                        else
+                        {
+                            if (form.checkBoxLooting.Checked == true)
+                            {
+                                ComeCloser(TargetMobEntity.WID);
+                            }
 
-                        ChangeTarget();
-                        Thread.Sleep(300);
+                            KillMobActions(TargetMobEntity.WID);
+                            GetLoot();
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    active = false;
-                    MessageBox.Show(ex.Message);
 
-                    throw ex;
+                    ChangeTarget();
+                    Thread.Sleep(300);
                 }
             });
         }
