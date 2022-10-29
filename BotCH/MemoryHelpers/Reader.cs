@@ -72,18 +72,9 @@ namespace BotCH.MemoryHelpers
             }
             else
             {
-                try
-                {
-                    processName = Process.GetProcessById(pid).ProcessName;
+                processName = Process.GetProcessById(pid).ProcessName;
 
-                    return processName;
-                }
-                catch (Exception ex)
-                {
-                    Logger.setLog(ex.Message);
-                    throw ex;
-                }
-
+                return processName;
             }
         }
 
@@ -93,26 +84,15 @@ namespace BotCH.MemoryHelpers
             {
                 return VAMemoryClass.ReadUInt32((IntPtr)address);
             }
-            catch (Exception ex)
+            catch (OverflowException)
             {
-                Logger.setLog(ex.Message);
-                throw ex;
+                return 0;
             }
         }
 
         public static float Read_float(uint address)
         {
-            try
-            {
-                float value = VAMemoryClass.ReadFloat((IntPtr)address);
-
-                return value;
-            }
-            catch (Exception ex)
-            {
-                Logger.setLog(ex.Message);
-                throw ex;
-            }
+            return VAMemoryClass.ReadFloat((IntPtr)address);
         }
 
         public static uint ReadGameAddress()
