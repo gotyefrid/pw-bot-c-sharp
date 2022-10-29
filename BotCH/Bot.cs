@@ -79,7 +79,7 @@ namespace BotCH
         public static void ChangeTarget()
         {
             Logger.setLog("Find agressive mob who beat me");
-            uint id = MobReader.IsExistMobAttackingMe();
+            uint id = MobReader.IsExistMobAttackingMe(MobsAround);
 
             if (id != 0)
             {
