@@ -67,11 +67,17 @@
     <Compile Include="BotForm.Designer.cs">
       <DependentUpon>BotForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Entity\MyPersEntity.cs" />
+    <Compile Include="Entity\TargetEntity.cs" />
+    <Compile Include="MemoryHelpers\OffsetFinder.cs" />
+    <Compile Include="MemoryHelpers\MobReader.cs" />
+    <Compile Include="MemoryHelpers\Offset.cs" />
     <Compile Include="IniHelper.cs" />
     <Compile Include="Logger.cs" />
+    <Compile Include="MemoryHelpers\PersReader.cs" />
     <Compile Include="Pet.cs" />
-    <Compile Include="Writer.cs" />
-    <Compile Include="Reader.cs" />
+    <Compile Include="MemoryHelpers\Writer.cs" />
+    <Compile Include="MemoryHelpers\Reader.cs" />
     <Compile Include="PersInfo.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

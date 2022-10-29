@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BotCH.MemoryHelpers;
+using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,25 +12,57 @@ namespace BotCH
         [DllImport("User32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         public static extern bool PostMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-        private const int WM_KEYDOWN = 0x0100;
-        private const int WM_KEYUP = 0x0101;
         public static BotForm form;
 
-        private static void ClickKey(Keys key)
+        private const int WM_KEYDOWN = 0x0100;
+        private const int WM_KEYUP = 0x0101;
+        private const int WM_SYSKEYDOWN = 0x0104;
+        private const int WM_SYSKEYUP = 0x0105;
+
+        private static void ClickKey(Keys key, bool needCastingCheck = true)
         {
+            if (needCastingCheck)
+            {
+                WaitForCasting();
+            }
+
             PostMessage(Reader.process.MainWindowHandle, WM_KEYDOWN, (IntPtr)key, IntPtr.Zero);
             PostMessage(Reader.process.MainWindowHandle, WM_KEYUP, (IntPtr)key, IntPtr.Zero);
+            Logger.setLog("Press " + key);
             Thread.Sleep(200);
         }
 
-        private static void ClickCombineKeys(Keys key1, Keys key2)
+        private static void ClickCombineKeys(Keys key1, Keys key2, bool needCastingCheck = true)
         {
-            PostMessage(Reader.process.MainWindowHandle, WM_KEYDOWN, (IntPtr)key1, IntPtr.Zero);
+            //if (needCastingCheck)
+            //{
+            //    WaitForCasting();
+            //}
+
+            PostMessage(Reader.process.MainWindowHandle, WM_SYSKEYDOWN, (IntPtr)key1, IntPtr.Zero);
             PostMessage(Reader.process.MainWindowHandle, WM_KEYDOWN, (IntPtr)key2, IntPtr.Zero);
-            PostMessage(Reader.process.MainWindowHandle, WM_KEYUP, (IntPtr)key1, IntPtr.Zero);
-            PostMessage(Reader.process.MainWindowHandle, WM_KEYUP, (IntPtr)key2, IntPtr.Zero);
+            PostMessage(Reader.process.MainWindowHandle, WM_SYSKEYUP, (IntPtr)key1, IntPtr.Zero);
+            //PostMessage(Reader.process.MainWindowHandle, WM_KEYUP, (IntPtr)key2, IntPtr.Zero);
+            Logger.setLog("Press " + key1 + " + " + key2);
             Thread.Sleep(500);
         }
+
+        public static void WaitForCasting()
+        {
+            int i = 0;
+
+            while (PersReader.GetFlagUseSkill())
+            {
+                if (i == 0)
+                {
+                    Logger.setLog("Waiting for skill is active");
+                }
+
+                Thread.Sleep(1000);
+                i++;
+            }
+        }
+
         public static async void EscapeClicks()
         {
             await Task.Run(() =>
@@ -42,35 +75,16 @@ namespace BotCH
             });
         }
 
-        public static void EscapeClick()
+        public static void EscapeClick(bool needCastingCheck = false)
         {
-            Action.ClickKey(Keys.Escape);
-        }
-        public static void ChangeTarget()
-        {
-            uint id = Reader.IsExistMobAttackingMe();
-
-            if (id != 0)
-            {
-                Writer.TargetMob(id);
-                return;
-            }
-
-            if (Action.form.checkBoxTargetByTab.Checked)
-            {
-                Action.ChangeTargetByTab();
-            }
-            else
-            {
-                Action.ChangeTargetByInject();
-            }
+            Action.ClickKey(Keys.Escape, needCastingCheck);
         }
 
-        private static void ChangeTargetByTab()
+        public static void ChangeTargetByTab()
         {
             Action.ClickKey(Keys.Tab);
         }
-        private static void ChangeTargetByInject()
+        public static void ChangeTargetByInject()
         {
             string[] mobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
 
@@ -84,7 +98,7 @@ namespace BotCH
 
         public static void AttackByPet()
         {
-            Action.ClickCombineKeys(Keys.Menu, Keys.D1);
+            Action.ClickCombineKeys(Keys.Menu, Keys.D1, false);
         }
 
         public static void AttackBySkill()

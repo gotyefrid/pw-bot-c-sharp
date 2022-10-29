@@ -1,6 +1,11 @@
-﻿using System.Linq;
+﻿using BotCH.Entity;
+using BotCH.MemoryHelpers;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace BotCH
 {
@@ -8,49 +13,108 @@ namespace BotCH
     {
         public static bool active = false;
         public static BotForm form;
+        private static uint AgressiveMob = 0;
+        private static Dictionary<uint, string> MobsAround;
 
         public async static void Run()
         {
             await Task.Run(() =>
             {
-                while (Bot.active)
+                try
                 {
-                    if (Reader.IsExistTarget())
-                    {
-                        if (form.checkBoxCheckId.Checked == true)
-                        {
-                            uint isExistMobAttackingMe = Reader.IsExistMobAttackingMe();
+                    //Logger.setLog("Making list of alive mobs");
+                    //MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+                    //Logger.setLog("Around us " + MobsAround.Count() + " mobs");
 
-                            if (Bot.SearchCurrentMobIdInList() || isExistMobAttackingMe != 0)
+                    while (active)
+                    {
+                        Logger.setLog("New Loop");
+
+                        if (PersReader.IsExistTarget())
+                        {
+                            if (form.checkBoxCheckId.Checked == true)
                             {
-                                Bot.KillMobActions();
-                                Bot.GetLoot();
+                                bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
+
+                                bool isMobInList = SearchCurrentMobIdInList();
+
+                                if (isMobInList || isAgressiveMobAttackMeNow)
+                                {
+                                    if (!isMobInList && isAgressiveMobAttackMeNow)
+                                    {
+                                        Logger.setLog("Killing mob because it attaking me!");
+                                    }
+
+                                    if (form.checkBoxLooting.Checked == true)
+                                    {
+                                        Action.AttackByPet();
+                                        ComeCloser(TargetMobEntity.WID);
+                                    }
+
+                                    KillMobActions(TargetMobEntity.WID);
+                                    GetLoot();
+                                }
+                            }
+                            else
+                            {
+                                if (form.checkBoxLooting.Checked == true)
+                                {
+                                    ComeCloser(TargetMobEntity.WID);
+                                }
+
+                                KillMobActions(TargetMobEntity.WID);
+                                GetLoot();
                             }
                         }
-                        else
-                        {
-                            Bot.KillMobActions();
-                            Bot.GetLoot();
-                        }
-                    }
-                    else
-                    {
-                        Action.ChangeTarget();
-                        Thread.Sleep(600);
-                    }
 
-                    Logger.setLog("Waiting");
+                        ChangeTarget();
+                        Thread.Sleep(300);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    active = false;
+                    MessageBox.Show(ex.Message);
+
+                    throw ex;
                 }
             });
+        }
+
+        public static void ChangeTarget()
+        {
+            Logger.setLog("Find agressive mob who beat me");
+            uint id = MobReader.IsExistMobAttackingMe();
+
+            if (id != 0)
+            {
+                AgressiveMob = id;
+                Logger.setLog("Found the mob who is attacking me now: " + id);
+                Logger.setLog("Choose mob in target who attaking me");
+                Writer.TargetMob(id);
+                return;
+            }
+            else
+            {
+                Logger.setLog("Not Found agressive mob");
+                AgressiveMob = 0;
+            }
+
+            Logger.setLog("Change mob by click TAB");
+            Action.ChangeTargetByTab();
         }
 
         private static void GetLoot()
         {
             if (form.checkBoxLooting.Checked == true)
             {
-                for (int i = 0; i < 3; i++)
+                int n = 3;
+
+                Logger.setLog("Pick up loot " + n + " times");
+
+                for (int i = 0; i < n; i++)
                 {
-                    Logger.setLog("Pick up loot " + (i + 1));
+                    Action.WaitForCasting();
                     Action.PickUpLoot();
                     Thread.Sleep(600);
                 }
@@ -61,28 +125,35 @@ namespace BotCH
         {
             string[] mobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
 
-            if (mobsIds.Contains(Reader.GetTargetId()))
+            uint currTargetId = TargetMobEntity.WID;
+
+            if (mobsIds.Contains(currTargetId.ToString()))
             {
+                Logger.setLog("Current mob in target exist in my INI file");
+
                 return true;
             }
+            else
+            {
+                Logger.setLog("Current mob in target not exist in my INI file");
 
-            return false;
+                return false;
+            }
         }
 
-        private static void KillMobActions()
+        private static void KillMobActions(uint mobId)
         {
             Logger.setLog("Killing mob");
 
-            if (Reader.GetTargetId() != "0")
+            while (TargetMobEntity.WID == mobId)
             {
-                Bot.Attack();
-            }
-        }
+                if (TargetMobEntity.WID == 0)
+                {
+                    return;
+                }
 
-        private static void Attack()
-        {
-            while (Reader.GetTargetId() != "0")
-            {
+                Logger.setLog("While " + TargetMobEntity.WID + " == " + mobId);
+
                 Action.AttackByPet();
 
                 if (form.checkBoxUseSkill.Checked == true)
@@ -92,15 +163,53 @@ namespace BotCH
 
                 if (form.checkBoxUseSword.Checked == true)
                 {
-                    if (Reader.GetCurrentMobDistance() > 3.5)
+                    Action.AttackBySword();
+                }
+            }
+        }
+
+        private static void ComeCloser(uint mobId)
+        {
+            Logger.setLog("Come closer to mob");
+
+            if (MobReader.GetMobDistance(mobId) > 3.5)
+            {
+                int i = 0;
+
+                while (MobReader.GetMobDistance(mobId) > 4)
+                {
+                    if (i == 3)
                     {
-                        while (Reader.GetCurrentMobDistance() > 3.5)
-                        {
-                            Action.AttackBySword();
-                        }
+                        Logger.setLog("Going to mob");
+                        break;
                     }
 
+                    Action.AttackBySword();
+                    Thread.Sleep(1000);
+                    i++;
                 }
+
+                Logger.setLog("Came!");
+
+                if (form.checkBoxUseSkill.Checked == true)
+                {
+                    Action.AttackBySkill();
+                    Logger.setLog("Clicked skill");
+                    Thread.Sleep(500);
+                }
+                else
+                {
+                    Action.HealPet();
+                    Logger.setLog("Clicked heal pet");
+                    //Thread.Sleep(500);
+                    //Action.EscapeClick();
+                    //Logger.setLog("Clicked ESC");
+                }
+
+            }
+            else
+            {
+                Logger.setLog("I already near the mob");
             }
 
         }

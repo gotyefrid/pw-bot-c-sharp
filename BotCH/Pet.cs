@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BotCH.MemoryHelpers;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,11 +11,11 @@ namespace BotCH
 
         public static bool IsInvited()
         {
-            return Reader.IsPetInvited();
+            return PersReader.IsPetInvited();
         }
         public static bool IsAlive()
         {
-            return Reader.GetPetHpPercent() != 0;
+            return PersReader.GetPetHpPercent() != 0;
         }
 
         public static void Invite()
@@ -31,7 +32,7 @@ namespace BotCH
 
         public static bool IsNeedToBeFeed()
         {
-            if (Reader.GetPetFeedStatus() > 0)
+            if (PersReader.GetPetFeedStatus() > 0)
             {
                 return true;
             }
@@ -48,18 +49,18 @@ namespace BotCH
                     if (!Pet.IsInvited())
                     {
                         Pet.Invite();
-                        Thread.Sleep(3000);
+                        Thread.Sleep(1000);
                     }
                     else
                     {
-                        if (Reader.GetPetHpPercent() < Convert.ToInt32(form.textBoxHealPetUsage.Text))
+                        if (PersReader.GetPetHpPercent() < Convert.ToInt32(form.textBoxHealPetUsage.Text))
                         {
                             Action.HealPet();
                         }
 
                         if (Pet.IsNeedToBeFeed())
                         {
-                            if (Reader.IsFeedPetAvailable())
+                            if (PersReader.IsFeedPetAvailable())
                             {
                                 Action.FeedPet();
                             }

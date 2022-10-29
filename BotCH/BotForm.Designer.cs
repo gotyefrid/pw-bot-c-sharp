@@ -45,7 +45,6 @@
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabMain = new System.Windows.Forms.TabPage();
             this.checkBoxUnfrezze = new System.Windows.Forms.CheckBox();
-            this.labelState = new System.Windows.Forms.Label();
             this.labelTextPetHP = new System.Windows.Forms.Label();
             this.labelTextMP = new System.Windows.Forms.Label();
             this.labelTextHP = new System.Windows.Forms.Label();
@@ -64,19 +63,23 @@
             this.textBoxHPusage = new System.Windows.Forms.TextBox();
             this.labelTextUseHP = new System.Windows.Forms.Label();
             this.tabKeys = new System.Windows.Forms.TabPage();
-            this.checkBoxTargetByTab = new System.Windows.Forms.CheckBox();
+            this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
+            this.labelState = new System.Windows.Forms.Label();
+            this.buttonFindBaseAddr = new System.Windows.Forms.Button();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
             this.tabSettings.SuspendLayout();
+            this.tabKeys.SuspendLayout();
             this.SuspendLayout();
             // 
             // startButton
             // 
-            this.startButton.Location = new System.Drawing.Point(7, 141);
+            this.startButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.startButton.Location = new System.Drawing.Point(21, 233);
             this.startButton.Margin = new System.Windows.Forms.Padding(4);
             this.startButton.Name = "startButton";
-            this.startButton.Size = new System.Drawing.Size(100, 28);
+            this.startButton.Size = new System.Drawing.Size(141, 59);
             this.startButton.TabIndex = 0;
             this.startButton.Text = "Start";
             this.startButton.UseVisualStyleBackColor = true;
@@ -85,10 +88,11 @@
             // labelHpPers
             // 
             this.labelHpPers.AutoSize = true;
-            this.labelHpPers.Location = new System.Drawing.Point(49, 58);
+            this.labelHpPers.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelHpPers.Location = new System.Drawing.Point(152, 64);
             this.labelHpPers.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelHpPers.Name = "labelHpPers";
-            this.labelHpPers.Size = new System.Drawing.Size(57, 16);
+            this.labelHpPers.Size = new System.Drawing.Size(73, 20);
             this.labelHpPers.TabIndex = 1;
             this.labelHpPers.Text = "HP Pers";
             // 
@@ -105,6 +109,7 @@
             // 
             // connectButton
             // 
+            this.connectButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.connectButton.Location = new System.Drawing.Point(4, 4);
             this.connectButton.Margin = new System.Windows.Forms.Padding(4);
             this.connectButton.Name = "connectButton";
@@ -127,19 +132,21 @@
             // labelTargetId
             // 
             this.labelTargetId.AutoSize = true;
-            this.labelTargetId.Location = new System.Drawing.Point(16, 106);
+            this.labelTargetId.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelTargetId.Location = new System.Drawing.Point(83, 181);
             this.labelTargetId.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelTargetId.Name = "labelTargetId";
-            this.labelTargetId.Size = new System.Drawing.Size(63, 16);
+            this.labelTargetId.Size = new System.Drawing.Size(79, 20);
             this.labelTargetId.TabIndex = 5;
             this.labelTargetId.Text = "Target ID";
             // 
             // stopButton
             // 
-            this.stopButton.Location = new System.Drawing.Point(115, 141);
+            this.stopButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.stopButton.Location = new System.Drawing.Point(204, 233);
             this.stopButton.Margin = new System.Windows.Forms.Padding(4);
             this.stopButton.Name = "stopButton";
-            this.stopButton.Size = new System.Drawing.Size(100, 28);
+            this.stopButton.Size = new System.Drawing.Size(141, 59);
             this.stopButton.TabIndex = 6;
             this.stopButton.Text = "Stop";
             this.stopButton.UseVisualStyleBackColor = true;
@@ -148,26 +155,29 @@
             // labelMpPers
             // 
             this.labelMpPers.AutoSize = true;
-            this.labelMpPers.Location = new System.Drawing.Point(49, 74);
+            this.labelMpPers.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelMpPers.Location = new System.Drawing.Point(152, 90);
             this.labelMpPers.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelMpPers.Name = "labelMpPers";
-            this.labelMpPers.Size = new System.Drawing.Size(58, 16);
+            this.labelMpPers.Size = new System.Drawing.Size(74, 20);
             this.labelMpPers.TabIndex = 8;
             this.labelMpPers.Text = "MP Pers";
             // 
             // labelHpPet
             // 
             this.labelHpPet.AutoSize = true;
-            this.labelHpPet.Location = new System.Drawing.Point(210, 58);
+            this.labelHpPet.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelHpPet.Location = new System.Drawing.Point(185, 119);
             this.labelHpPet.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelHpPet.Name = "labelHpPet";
-            this.labelHpPet.Size = new System.Drawing.Size(49, 16);
+            this.labelHpPet.Size = new System.Drawing.Size(63, 20);
             this.labelHpPet.TabIndex = 9;
             this.labelHpPet.Text = "HP Pet";
             // 
             // cageSelect
             // 
             this.cageSelect.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cageSelect.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.cageSelect.FormattingEnabled = true;
             this.cageSelect.Items.AddRange(new object[] {
             "1",
@@ -175,17 +185,18 @@
             "3",
             "4",
             "5"});
-            this.cageSelect.Location = new System.Drawing.Point(267, 185);
+            this.cageSelect.Location = new System.Drawing.Point(168, 220);
             this.cageSelect.Name = "cageSelect";
-            this.cageSelect.Size = new System.Drawing.Size(79, 24);
+            this.cageSelect.Size = new System.Drawing.Size(79, 28);
             this.cageSelect.TabIndex = 10;
             // 
             // targetIdTextBox
             // 
-            this.targetIdTextBox.Location = new System.Drawing.Point(86, 103);
+            this.targetIdTextBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.targetIdTextBox.Location = new System.Drawing.Point(169, 178);
             this.targetIdTextBox.Name = "targetIdTextBox";
             this.targetIdTextBox.ReadOnly = true;
-            this.targetIdTextBox.Size = new System.Drawing.Size(100, 22);
+            this.targetIdTextBox.Size = new System.Drawing.Size(119, 26);
             this.targetIdTextBox.TabIndex = 11;
             // 
             // menuStrip1
@@ -195,7 +206,7 @@
             this.aboutToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(377, 28);
+            this.menuStrip1.Size = new System.Drawing.Size(375, 28);
             this.menuStrip1.TabIndex = 12;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -224,13 +235,13 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 33);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(377, 459);
+            this.tabControl1.Size = new System.Drawing.Size(375, 440);
             this.tabControl1.TabIndex = 13;
             // 
             // tabMain
             // 
+            this.tabMain.Controls.Add(this.buttonFindBaseAddr);
             this.tabMain.Controls.Add(this.checkBoxUnfrezze);
-            this.tabMain.Controls.Add(this.labelState);
             this.tabMain.Controls.Add(this.labelTextPetHP);
             this.tabMain.Controls.Add(this.labelTextMP);
             this.tabMain.Controls.Add(this.labelTextHP);
@@ -247,7 +258,7 @@
             this.tabMain.Location = new System.Drawing.Point(4, 25);
             this.tabMain.Name = "tabMain";
             this.tabMain.Padding = new System.Windows.Forms.Padding(3);
-            this.tabMain.Size = new System.Drawing.Size(369, 430);
+            this.tabMain.Size = new System.Drawing.Size(367, 411);
             this.tabMain.TabIndex = 0;
             this.tabMain.Text = "Main";
             this.tabMain.UseVisualStyleBackColor = true;
@@ -265,34 +276,27 @@
             this.checkBoxUnfrezze.Visible = false;
             this.checkBoxUnfrezze.CheckedChanged += new System.EventHandler(this.checkBoxUnfrezze_CheckedChanged);
             // 
-            // labelState
-            // 
-            this.labelState.AutoSize = true;
-            this.labelState.Location = new System.Drawing.Point(7, 411);
-            this.labelState.Name = "labelState";
-            this.labelState.Size = new System.Drawing.Size(38, 16);
-            this.labelState.TabIndex = 15;
-            this.labelState.Text = "State";
-            // 
             // labelTextPetHP
             // 
             this.labelTextPetHP.AutoSize = true;
+            this.labelTextPetHP.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.labelTextPetHP.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(255)))), ((int)(((byte)(128)))), ((int)(((byte)(128)))));
-            this.labelTextPetHP.Location = new System.Drawing.Point(153, 58);
+            this.labelTextPetHP.Location = new System.Drawing.Point(114, 119);
             this.labelTextPetHP.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelTextPetHP.Name = "labelTextPetHP";
-            this.labelTextPetHP.Size = new System.Drawing.Size(49, 16);
+            this.labelTextPetHP.Size = new System.Drawing.Size(63, 20);
             this.labelTextPetHP.TabIndex = 14;
             this.labelTextPetHP.Text = "HP Pet";
             // 
             // labelTextMP
             // 
             this.labelTextMP.AutoSize = true;
+            this.labelTextMP.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.labelTextMP.ForeColor = System.Drawing.Color.Blue;
-            this.labelTextMP.Location = new System.Drawing.Point(16, 74);
+            this.labelTextMP.Location = new System.Drawing.Point(113, 90);
             this.labelTextMP.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelTextMP.Name = "labelTextMP";
-            this.labelTextMP.Size = new System.Drawing.Size(27, 16);
+            this.labelTextMP.Size = new System.Drawing.Size(34, 20);
             this.labelTextMP.TabIndex = 13;
             this.labelTextMP.Text = "MP";
             // 
@@ -300,17 +304,17 @@
             // 
             this.labelTextHP.AutoSize = true;
             this.labelTextHP.BackColor = System.Drawing.Color.Transparent;
+            this.labelTextHP.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.labelTextHP.ForeColor = System.Drawing.Color.Red;
-            this.labelTextHP.Location = new System.Drawing.Point(16, 58);
+            this.labelTextHP.Location = new System.Drawing.Point(114, 64);
             this.labelTextHP.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.labelTextHP.Name = "labelTextHP";
-            this.labelTextHP.Size = new System.Drawing.Size(26, 16);
+            this.labelTextHP.Size = new System.Drawing.Size(33, 20);
             this.labelTextHP.TabIndex = 12;
             this.labelTextHP.Text = "HP";
             // 
             // tabSettings
             // 
-            this.tabSettings.Controls.Add(this.checkBoxTargetByTab);
             this.tabSettings.Controls.Add(this.textBoxHealPetUsage);
             this.tabSettings.Controls.Add(this.labelTextHealPet);
             this.tabSettings.Controls.Add(this.checkBoxClickerMode);
@@ -328,35 +332,38 @@
             this.tabSettings.Location = new System.Drawing.Point(4, 25);
             this.tabSettings.Name = "tabSettings";
             this.tabSettings.Padding = new System.Windows.Forms.Padding(3);
-            this.tabSettings.Size = new System.Drawing.Size(369, 430);
+            this.tabSettings.Size = new System.Drawing.Size(367, 411);
             this.tabSettings.TabIndex = 1;
             this.tabSettings.Text = "Settings";
             this.tabSettings.UseVisualStyleBackColor = true;
             // 
             // textBoxHealPetUsage
             // 
-            this.textBoxHealPetUsage.Location = new System.Drawing.Point(106, 187);
+            this.textBoxHealPetUsage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.textBoxHealPetUsage.Location = new System.Drawing.Point(159, 188);
             this.textBoxHealPetUsage.Name = "textBoxHealPetUsage";
-            this.textBoxHealPetUsage.Size = new System.Drawing.Size(100, 22);
+            this.textBoxHealPetUsage.Size = new System.Drawing.Size(100, 26);
             this.textBoxHealPetUsage.TabIndex = 24;
             this.textBoxHealPetUsage.Text = "90";
             // 
             // labelTextHealPet
             // 
             this.labelTextHealPet.AutoSize = true;
-            this.labelTextHealPet.Location = new System.Drawing.Point(29, 190);
+            this.labelTextHealPet.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelTextHealPet.Location = new System.Drawing.Point(23, 191);
             this.labelTextHealPet.Name = "labelTextHealPet";
-            this.labelTextHealPet.Size = new System.Drawing.Size(72, 16);
+            this.labelTextHealPet.Size = new System.Drawing.Size(113, 20);
             this.labelTextHealPet.TabIndex = 23;
-            this.labelTextHealPet.Text = "Heal Pet < ";
+            this.labelTextHealPet.Text = "Heal Pet <, %";
             // 
             // checkBoxClickerMode
             // 
             this.checkBoxClickerMode.AutoSize = true;
-            this.checkBoxClickerMode.Location = new System.Drawing.Point(225, 119);
+            this.checkBoxClickerMode.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxClickerMode.Location = new System.Drawing.Point(159, 145);
             this.checkBoxClickerMode.Name = "checkBoxClickerMode";
             this.checkBoxClickerMode.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxClickerMode.Size = new System.Drawing.Size(108, 20);
+            this.checkBoxClickerMode.Size = new System.Drawing.Size(129, 24);
             this.checkBoxClickerMode.TabIndex = 22;
             this.checkBoxClickerMode.Text = "Clicker Mode";
             this.checkBoxClickerMode.UseVisualStyleBackColor = true;
@@ -364,10 +371,11 @@
             // checkBoxKillMobs
             // 
             this.checkBoxKillMobs.AutoSize = true;
-            this.checkBoxKillMobs.Location = new System.Drawing.Point(27, 145);
+            this.checkBoxKillMobs.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxKillMobs.Location = new System.Drawing.Point(56, 145);
             this.checkBoxKillMobs.Name = "checkBoxKillMobs";
             this.checkBoxKillMobs.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxKillMobs.Size = new System.Drawing.Size(83, 20);
+            this.checkBoxKillMobs.Size = new System.Drawing.Size(100, 24);
             this.checkBoxKillMobs.TabIndex = 21;
             this.checkBoxKillMobs.Text = "Kill Mobs";
             this.checkBoxKillMobs.UseVisualStyleBackColor = true;
@@ -375,10 +383,13 @@
             // checkBoxCheckId
             // 
             this.checkBoxCheckId.AutoSize = true;
-            this.checkBoxCheckId.Location = new System.Drawing.Point(115, 119);
+            this.checkBoxCheckId.Checked = true;
+            this.checkBoxCheckId.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxCheckId.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxCheckId.Location = new System.Drawing.Point(159, 117);
             this.checkBoxCheckId.Name = "checkBoxCheckId";
             this.checkBoxCheckId.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxCheckId.Size = new System.Drawing.Size(83, 20);
+            this.checkBoxCheckId.Size = new System.Drawing.Size(100, 24);
             this.checkBoxCheckId.TabIndex = 20;
             this.checkBoxCheckId.Text = "Check ID";
             this.checkBoxCheckId.UseVisualStyleBackColor = true;
@@ -388,10 +399,11 @@
             this.checkBoxLooting.AutoSize = true;
             this.checkBoxLooting.Checked = true;
             this.checkBoxLooting.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxLooting.Location = new System.Drawing.Point(27, 119);
+            this.checkBoxLooting.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxLooting.Location = new System.Drawing.Point(56, 117);
             this.checkBoxLooting.Name = "checkBoxLooting";
             this.checkBoxLooting.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxLooting.Size = new System.Drawing.Size(73, 20);
+            this.checkBoxLooting.Size = new System.Drawing.Size(86, 24);
             this.checkBoxLooting.TabIndex = 19;
             this.checkBoxLooting.Text = "Looting";
             this.checkBoxLooting.UseVisualStyleBackColor = true;
@@ -399,12 +411,11 @@
             // checkBoxUseSword
             // 
             this.checkBoxUseSword.AutoSize = true;
-            this.checkBoxUseSword.Checked = true;
-            this.checkBoxUseSword.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxUseSword.Location = new System.Drawing.Point(115, 93);
+            this.checkBoxUseSword.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxUseSword.Location = new System.Drawing.Point(159, 91);
             this.checkBoxUseSword.Name = "checkBoxUseSword";
             this.checkBoxUseSword.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxUseSword.Size = new System.Drawing.Size(95, 20);
+            this.checkBoxUseSword.Size = new System.Drawing.Size(113, 24);
             this.checkBoxUseSword.TabIndex = 18;
             this.checkBoxUseSword.Text = "Use Sword";
             this.checkBoxUseSword.UseVisualStyleBackColor = true;
@@ -412,10 +423,11 @@
             // checkBoxUseSkill
             // 
             this.checkBoxUseSkill.AutoSize = true;
-            this.checkBoxUseSkill.Location = new System.Drawing.Point(27, 93);
+            this.checkBoxUseSkill.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxUseSkill.Location = new System.Drawing.Point(56, 91);
             this.checkBoxUseSkill.Name = "checkBoxUseSkill";
             this.checkBoxUseSkill.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxUseSkill.Size = new System.Drawing.Size(82, 20);
+            this.checkBoxUseSkill.Size = new System.Drawing.Size(97, 24);
             this.checkBoxUseSkill.TabIndex = 17;
             this.checkBoxUseSkill.Text = "Use Skill";
             this.checkBoxUseSkill.UseVisualStyleBackColor = true;
@@ -423,75 +435,102 @@
             // labelTextCage
             // 
             this.labelTextCage.AutoSize = true;
-            this.labelTextCage.Location = new System.Drawing.Point(221, 190);
+            this.labelTextCage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelTextCage.Location = new System.Drawing.Point(88, 223);
             this.labelTextCage.Name = "labelTextCage";
-            this.labelTextCage.Size = new System.Drawing.Size(40, 16);
+            this.labelTextCage.Size = new System.Drawing.Size(48, 20);
             this.labelTextCage.TabIndex = 16;
             this.labelTextCage.Text = "Cage";
             // 
             // textBoxMPusage
             // 
-            this.textBoxMPusage.Location = new System.Drawing.Point(128, 49);
+            this.textBoxMPusage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.textBoxMPusage.Location = new System.Drawing.Point(168, 47);
             this.textBoxMPusage.Name = "textBoxMPusage";
-            this.textBoxMPusage.Size = new System.Drawing.Size(100, 22);
+            this.textBoxMPusage.Size = new System.Drawing.Size(100, 26);
             this.textBoxMPusage.TabIndex = 14;
             this.textBoxMPusage.Text = "100";
             // 
             // labelTextUseMP
             // 
             this.labelTextUseMP.AutoSize = true;
-            this.labelTextUseMP.Location = new System.Drawing.Point(30, 52);
+            this.labelTextUseMP.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelTextUseMP.Location = new System.Drawing.Point(8, 49);
             this.labelTextUseMP.Name = "labelTextUseMP";
-            this.labelTextUseMP.Size = new System.Drawing.Size(93, 16);
+            this.labelTextUseMP.Size = new System.Drawing.Size(148, 20);
             this.labelTextUseMP.TabIndex = 13;
-            this.labelTextUseMP.Text = "Use MP key < ";
+            this.labelTextUseMP.Text = "Use MP key <, MP";
             // 
             // textBoxHPusage
             // 
-            this.textBoxHPusage.Location = new System.Drawing.Point(128, 15);
+            this.textBoxHPusage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.textBoxHPusage.Location = new System.Drawing.Point(168, 15);
             this.textBoxHPusage.Name = "textBoxHPusage";
-            this.textBoxHPusage.Size = new System.Drawing.Size(100, 22);
+            this.textBoxHPusage.Size = new System.Drawing.Size(100, 26);
             this.textBoxHPusage.TabIndex = 12;
             this.textBoxHPusage.Text = "80";
             // 
             // labelTextUseHP
             // 
             this.labelTextUseHP.AutoSize = true;
-            this.labelTextUseHP.Location = new System.Drawing.Point(30, 18);
+            this.labelTextUseHP.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelTextUseHP.Location = new System.Drawing.Point(9, 18);
             this.labelTextUseHP.Name = "labelTextUseHP";
-            this.labelTextUseHP.Size = new System.Drawing.Size(92, 16);
+            this.labelTextUseHP.Size = new System.Drawing.Size(137, 20);
             this.labelTextUseHP.TabIndex = 11;
-            this.labelTextUseHP.Text = "Use HP key < ";
+            this.labelTextUseHP.Text = "Use HP key <, %";
             // 
             // tabKeys
             // 
+            this.tabKeys.Controls.Add(this.richTextBoxLogBox);
             this.tabKeys.Location = new System.Drawing.Point(4, 25);
             this.tabKeys.Name = "tabKeys";
-            this.tabKeys.Size = new System.Drawing.Size(369, 430);
+            this.tabKeys.Size = new System.Drawing.Size(367, 411);
             this.tabKeys.TabIndex = 2;
             this.tabKeys.Text = "Keys";
             this.tabKeys.UseVisualStyleBackColor = true;
             // 
-            // checkBoxTargetByTab
+            // richTextBoxLogBox
             // 
-            this.checkBoxTargetByTab.AutoSize = true;
-            this.checkBoxTargetByTab.Location = new System.Drawing.Point(27, 254);
-            this.checkBoxTargetByTab.Name = "checkBoxTargetByTab";
-            this.checkBoxTargetByTab.Size = new System.Drawing.Size(117, 20);
-            this.checkBoxTargetByTab.TabIndex = 25;
-            this.checkBoxTargetByTab.Text = "Target by TAB";
-            this.checkBoxTargetByTab.UseVisualStyleBackColor = true;
+            this.richTextBoxLogBox.Location = new System.Drawing.Point(8, 14);
+            this.richTextBoxLogBox.Name = "richTextBoxLogBox";
+            this.richTextBoxLogBox.ReadOnly = true;
+            this.richTextBoxLogBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedBoth;
+            this.richTextBoxLogBox.Size = new System.Drawing.Size(338, 379);
+            this.richTextBoxLogBox.TabIndex = 0;
+            this.richTextBoxLogBox.Text = "";
+            // 
+            // labelState
+            // 
+            this.labelState.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.labelState.Location = new System.Drawing.Point(0, 484);
+            this.labelState.Name = "labelState";
+            this.labelState.Size = new System.Drawing.Size(375, 16);
+            this.labelState.TabIndex = 15;
+            this.labelState.Text = "State";
+            // 
+            // buttonFindBaseAddr
+            // 
+            this.buttonFindBaseAddr.Location = new System.Drawing.Point(8, 382);
+            this.buttonFindBaseAddr.Name = "buttonFindBaseAddr";
+            this.buttonFindBaseAddr.Size = new System.Drawing.Size(152, 23);
+            this.buttonFindBaseAddr.TabIndex = 17;
+            this.buttonFindBaseAddr.Text = "Find BaseAddress";
+            this.buttonFindBaseAddr.UseVisualStyleBackColor = true;
+            this.buttonFindBaseAddr.Click += new System.EventHandler(this.buttonFindBaseAddr_Click);
             // 
             // BotForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(377, 491);
+            this.ClientSize = new System.Drawing.Size(375, 500);
             this.Controls.Add(this.tabControl1);
+            this.Controls.Add(this.labelState);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "BotForm";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Bot";
             this.Load += new System.EventHandler(this.BotForm_Load);
             this.menuStrip1.ResumeLayout(false);
@@ -501,6 +540,7 @@
             this.tabMain.PerformLayout();
             this.tabSettings.ResumeLayout(false);
             this.tabSettings.PerformLayout();
+            this.tabKeys.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -544,7 +584,8 @@
         public System.Windows.Forms.Label labelState;
         public System.Windows.Forms.TextBox textBoxHealPetUsage;
         public System.Windows.Forms.CheckBox checkBoxUnfrezze;
-        public System.Windows.Forms.CheckBox checkBoxTargetByTab;
+        public System.Windows.Forms.RichTextBox richTextBoxLogBox;
+        private System.Windows.Forms.Button buttonFindBaseAddr;
     }
 }
 

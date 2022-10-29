@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BotCH.MemoryHelpers;
+using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,11 +19,11 @@ namespace BotCH
             {
                 while (Reader.statusConnection)
                 {
-                    PersInfo.form.labelHpPers.Text = Reader.GetPersHP().ToString();
-                    PersInfo.form.labelMpPers.Text = Reader.GetPersMP().ToString();
-                    PersInfo.form.labelHpPet.Text = Reader.GetPetHpPercent().ToString();
-                    PersInfo.form.targetIdTextBox.Text = Reader.GetTargetId().ToString();
-                    PersInfo.PotEnergyBanks();
+                    form.labelHpPers.Text = PersReader.GetPersHP().ToString();
+                    form.labelMpPers.Text = PersReader.GetPersMP().ToString();
+                    form.labelHpPet.Text = PersReader.GetPetHpPercent().ToString();
+                    form.targetIdTextBox.Text = PersReader.GetTargetId().ToString();
+                    PotEnergyBanks();
 
                     Thread.Sleep(1000);
                 }
@@ -31,14 +32,14 @@ namespace BotCH
 
         public static void PotEnergyBanks()
         {
-            if (Reader.GetPersMP() < Convert.ToInt32(form.textBoxMPusage.Text))
+            if (PersReader.GetPersMP() < Convert.ToInt32(form.textBoxMPusage.Text))
             {
                 Action.PotMP();
             }
 
-            if (PersInfo.GetPersHPPercent() < Convert.ToInt32(form.textBoxHPusage.Text))
+            if (GetPersHPPercent() < Convert.ToInt32(form.textBoxHPusage.Text))
             {
-                if (Reader.IsPotHPAvailable())
+                if (PersReader.IsPotHPAvailable())
                 {
                     Action.PotHP();
                 }
@@ -47,8 +48,8 @@ namespace BotCH
 
         public static int GetPersHPPercent()
         {
-            int currentHp = Reader.GetPersHP();
-            int maxHp = Reader.GetPersMaxHP();
+            int currentHp = PersReader.GetPersHP();
+            int maxHp = PersReader.GetPersMaxHP();
             double percent = (100 * currentHp) / maxHp;
 
             return (int)Math.Round(percent);

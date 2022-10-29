@@ -2,7 +2,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace BotCH
+namespace BotCH.MemoryHelpers
 {
     class Writer : Reader
     {
@@ -10,10 +10,10 @@ namespace BotCH
         {
             foreach (string id in idsArray)
             {
-                Reader.VAM.WriteUInt32((IntPtr)Reader.GetTargetIdAddres(), uint.Parse(id));
+                VAMemoryClass.WriteUInt32((IntPtr)PersReader.GetTargetIdAddres(), uint.Parse(id));
                 Thread.Sleep(200);
 
-                if (uint.Parse(Reader.GetTargetId()) != 0)
+                if (PersReader.GetTargetId() != 0)
                 {
                     return;
                 }
@@ -21,7 +21,7 @@ namespace BotCH
         }
         public static void TargetMob(uint id)
         {
-            Reader.VAM.WriteUInt32((IntPtr)Reader.GetTargetIdAddres(), id);
+            VAMemoryClass.WriteUInt32((IntPtr)PersReader.GetTargetIdAddres(), id);
         }
 
         public static async void UnFreezeeWindow()
@@ -30,7 +30,8 @@ namespace BotCH
             {
                 while (form.checkBoxUnfrezze.Checked)
                 {
-                    Reader.VAM.WriteInt32((IntPtr)Reader.UNZREEFE_ADDR, 1);
+                    uint baseAdrress = Read_uint32(Offset.GetBaseAddress());
+                    VAMemoryClass.WriteInt32((IntPtr)(baseAdrress + Offset.UNZREEFE_OFFSET), 1);
                     Thread.Sleep(1000);
                 }
             });

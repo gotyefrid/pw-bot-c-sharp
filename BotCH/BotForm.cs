@@ -1,13 +1,15 @@
-﻿using System;
+﻿using BotCH.MemoryHelpers;
+using System;
+using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
 
 namespace BotCH
 {
     public partial class BotForm : Form
     {
-        public static INIManager IniManager = new INIManager("config.ini");
+        public const string configName = "config.ini";
+        public static INIManager IniManager = new INIManager(configName);
         public BotForm()
         {
             InitializeComponent();
@@ -16,39 +18,49 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
+            ToolTip t = new ToolTip();
+            t.SetToolTip(this.buttonFindBaseAddr, "Open game, enter to Character and set your MAX HP to " + configName);
             PersInfo.form = this;
             Reader.form = this;
             Bot.form = this;
             Logger.form = this;
             Pet.form = this;
             Action.form = this;
-            this.cageSelect.SelectedIndex = 0;
+            this.cageSelect.SelectedIndex = 1;
             this.stopButton.Enabled = false;
             this.InitParamsFromIniConfig();
         }
 
         private void ConnectButton_Click(object sender, EventArgs e)
         {
-            this.labelState.Text = IniManager.ReadINI("main", "test");
-            if (this.textBoxPID.Text == String.Empty)
+            try
             {
-                this.textBoxPID.Text = "0";
+                if (this.textBoxPID.Text == String.Empty)
+                {
+                    this.textBoxPID.Text = "0";
+                }
+
+                this.connectionPidLabel.Text = Reader.SetPID(int.Parse(this.textBoxPID.Text));
+
+                if (Reader.statusConnection)
+                {
+                    this.textBoxPID.BackColor = Color.LightGreen;
+                    this.textBoxPID.Text = Reader.currentPID.ToString();
+                    this.textBoxPID.Enabled = false;
+                    PersInfo.ShowPersInfoLabels();
+                    this.checkBoxUnfrezze.Visible = true;
+                    Logger.setLog("----------------------");
+                    Logger.setLog("Status connection TRUE");
+                }
+                else
+                {
+                    Logger.setLog("Status connection FALSE");
+                    this.textBoxPID.BackColor = Color.Red;
+                }
             }
-
-            this.connectionPidLabel.Text = Reader.SetPID(int.Parse(this.textBoxPID.Text));
-
-            if (Reader.statusConnection)
+            catch (Exception mainError)
             {
-                this.textBoxPID.BackColor = Color.LightGreen;
-                this.textBoxPID.Text = Reader.currentPID.ToString();
-                this.textBoxPID.Enabled = false;
-                PersInfo.ShowPersInfoLabels();
-                this.checkBoxUnfrezze.Visible = true;
-
-            }
-            else
-            {
-                this.textBoxPID.BackColor = Color.Red;
+                MessageBox.Show(mainError.Message);
             }
         }
 
@@ -76,7 +88,6 @@ namespace BotCH
             Bot.active = false;
             this.startButton.Enabled = true;
             this.stopButton.Enabled = false;
-            Action.EscapeClicks();
             this.labelState.Text = "Bot stopped";
         }
 
@@ -89,14 +100,13 @@ namespace BotCH
                 return;
             }
 
-
-
             this.startButton.Enabled = false;
             this.stopButton.Enabled = true;
 
             Bot.active = true;
             Pet.CheckingStatusPet();
             Bot.Run();
+            Logger.setLog("Start boting");
         }
 
         private void InitParamsFromIniConfig()
@@ -115,6 +125,20 @@ namespace BotCH
         private void checkBoxUnfrezze_CheckedChanged(object sender, EventArgs e)
         {
             Writer.UnFreezeeWindow();
+        }
+
+        private void buttonFindBaseAddr_Click(object sender, EventArgs e)
+        {
+            Reader.SetPID(int.Parse(this.textBoxPID.Text));
+
+            if (OffsetFinder.GetBaseAddress())
+            {
+                MessageBox.Show("Succsesfully founded and writed!");
+            }
+            else
+            {
+                MessageBox.Show("Not found, try yourself, and write it to " + configName);
+            }
         }
     }
 
