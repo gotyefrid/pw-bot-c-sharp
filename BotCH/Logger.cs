@@ -8,6 +8,7 @@ namespace BotCH
     {
         public static BotForm form;
         public static StreamWriter log = new StreamWriter("log.txt", true);
+        public static bool KeyLogger = false;
 
         public static void setLog(string text)
         {
