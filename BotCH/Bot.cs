@@ -83,6 +83,14 @@ namespace BotCH
 
         public static void ChangeTarget()
         {
+            FindAgressiveMobAroud();
+
+            Logger.setLog("Change mob by click TAB");
+            Action.ChangeTargetByTab();
+        }
+
+        public static void FindAgressiveMobAroud()
+        {
             Logger.setLog("Find agressive mob who beat me");
             uint id = MobReader.IsExistMobAttackingMe(MobsAround);
 
@@ -99,9 +107,6 @@ namespace BotCH
                 Logger.setLog("Not Found agressive mob");
                 AgressiveMob = 0;
             }
-
-            Logger.setLog("Change mob by click TAB");
-            Action.ChangeTargetByTab();
         }
 
         private static void GetLoot()
