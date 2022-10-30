@@ -38,7 +38,7 @@ namespace BotCH
                                 if (form.checkBoxLooting.Checked == true)
                                 {
                                     Action.AttackByPet();
-                                    ComeCloser(TargetMobEntity.WID);
+                                    //ComeCloser(TargetMobEntity.WID);
                                 }
 
                                 KillMobActions(TargetMobEntity.WID);
@@ -49,7 +49,7 @@ namespace BotCH
                         {
                             if (form.checkBoxLooting.Checked == true)
                             {
-                                ComeCloser(TargetMobEntity.WID);
+                                //ComeCloser(TargetMobEntity.WID);
                             }
 
                             KillMobActions(TargetMobEntity.WID);
@@ -65,7 +65,7 @@ namespace BotCH
 
         public static void ChangeTarget()
         {
-            FindAgressiveMobAroud();
+            //FindAgressiveMobAroud();
 
             Logger.setLog("Change mob by click TAB");
             Action.ChangeTargetByTab();
