@@ -66,6 +66,7 @@
             this.tabKeys = new System.Windows.Forms.TabPage();
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
+            this.checkBoxEnableLog = new System.Windows.Forms.CheckBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -215,7 +216,7 @@
             this.aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.donationsToolStripMenuItem});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
             this.aboutToolStripMenuItem.Text = "About";
             // 
             // donationsToolStripMenuItem
@@ -271,6 +272,7 @@
             this.buttonFindBaseAddr.TabIndex = 17;
             this.buttonFindBaseAddr.Text = "Find BaseAddress";
             this.buttonFindBaseAddr.UseVisualStyleBackColor = true;
+            this.buttonFindBaseAddr.Visible = false;
             this.buttonFindBaseAddr.Click += new System.EventHandler(this.buttonFindBaseAddr_Click);
             // 
             // checkBoxUnfrezze
@@ -350,7 +352,7 @@
             // textBoxHealPetUsage
             // 
             this.textBoxHealPetUsage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.textBoxHealPetUsage.Location = new System.Drawing.Point(159, 188);
+            this.textBoxHealPetUsage.Location = new System.Drawing.Point(168, 188);
             this.textBoxHealPetUsage.Name = "textBoxHealPetUsage";
             this.textBoxHealPetUsage.Size = new System.Drawing.Size(100, 26);
             this.textBoxHealPetUsage.TabIndex = 24;
@@ -360,7 +362,7 @@
             // 
             this.labelTextHealPet.AutoSize = true;
             this.labelTextHealPet.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.labelTextHealPet.Location = new System.Drawing.Point(23, 191);
+            this.labelTextHealPet.Location = new System.Drawing.Point(9, 191);
             this.labelTextHealPet.Name = "labelTextHealPet";
             this.labelTextHealPet.Size = new System.Drawing.Size(113, 20);
             this.labelTextHealPet.TabIndex = 23;
@@ -370,25 +372,27 @@
             // 
             this.checkBoxClickerMode.AutoSize = true;
             this.checkBoxClickerMode.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxClickerMode.Location = new System.Drawing.Point(159, 145);
+            this.checkBoxClickerMode.Location = new System.Drawing.Point(168, 145);
             this.checkBoxClickerMode.Name = "checkBoxClickerMode";
             this.checkBoxClickerMode.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxClickerMode.Size = new System.Drawing.Size(129, 24);
             this.checkBoxClickerMode.TabIndex = 22;
             this.checkBoxClickerMode.Text = "Clicker Mode";
             this.checkBoxClickerMode.UseVisualStyleBackColor = true;
+            this.checkBoxClickerMode.Visible = false;
             // 
             // checkBoxKillMobs
             // 
             this.checkBoxKillMobs.AutoSize = true;
             this.checkBoxKillMobs.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxKillMobs.Location = new System.Drawing.Point(56, 145);
+            this.checkBoxKillMobs.Location = new System.Drawing.Point(12, 145);
             this.checkBoxKillMobs.Name = "checkBoxKillMobs";
             this.checkBoxKillMobs.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxKillMobs.Size = new System.Drawing.Size(100, 24);
             this.checkBoxKillMobs.TabIndex = 21;
             this.checkBoxKillMobs.Text = "Kill Mobs";
             this.checkBoxKillMobs.UseVisualStyleBackColor = true;
+            this.checkBoxKillMobs.Visible = false;
             // 
             // checkBoxCheckId
             // 
@@ -396,7 +400,7 @@
             this.checkBoxCheckId.Checked = true;
             this.checkBoxCheckId.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxCheckId.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxCheckId.Location = new System.Drawing.Point(159, 117);
+            this.checkBoxCheckId.Location = new System.Drawing.Point(168, 117);
             this.checkBoxCheckId.Name = "checkBoxCheckId";
             this.checkBoxCheckId.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxCheckId.Size = new System.Drawing.Size(100, 24);
@@ -410,7 +414,7 @@
             this.checkBoxLooting.Checked = true;
             this.checkBoxLooting.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxLooting.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxLooting.Location = new System.Drawing.Point(56, 117);
+            this.checkBoxLooting.Location = new System.Drawing.Point(13, 117);
             this.checkBoxLooting.Name = "checkBoxLooting";
             this.checkBoxLooting.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxLooting.Size = new System.Drawing.Size(86, 24);
@@ -422,7 +426,7 @@
             // 
             this.checkBoxUseSword.AutoSize = true;
             this.checkBoxUseSword.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxUseSword.Location = new System.Drawing.Point(159, 91);
+            this.checkBoxUseSword.Location = new System.Drawing.Point(168, 91);
             this.checkBoxUseSword.Name = "checkBoxUseSword";
             this.checkBoxUseSword.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxUseSword.Size = new System.Drawing.Size(113, 24);
@@ -434,7 +438,7 @@
             // 
             this.checkBoxUseSkill.AutoSize = true;
             this.checkBoxUseSkill.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxUseSkill.Location = new System.Drawing.Point(56, 91);
+            this.checkBoxUseSkill.Location = new System.Drawing.Point(13, 91);
             this.checkBoxUseSkill.Name = "checkBoxUseSkill";
             this.checkBoxUseSkill.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxUseSkill.Size = new System.Drawing.Size(97, 24);
@@ -446,7 +450,7 @@
             // 
             this.labelTextCage.AutoSize = true;
             this.labelTextCage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.labelTextCage.Location = new System.Drawing.Point(88, 223);
+            this.labelTextCage.Location = new System.Drawing.Point(9, 223);
             this.labelTextCage.Name = "labelTextCage";
             this.labelTextCage.Size = new System.Drawing.Size(48, 20);
             this.labelTextCage.TabIndex = 16;
@@ -492,6 +496,7 @@
             // 
             // tabKeys
             // 
+            this.tabKeys.Controls.Add(this.checkBoxEnableLog);
             this.tabKeys.Controls.Add(this.richTextBoxLogBox);
             this.tabKeys.Location = new System.Drawing.Point(4, 25);
             this.tabKeys.Name = "tabKeys";
@@ -502,11 +507,11 @@
             // 
             // richTextBoxLogBox
             // 
-            this.richTextBoxLogBox.Location = new System.Drawing.Point(8, 14);
+            this.richTextBoxLogBox.Location = new System.Drawing.Point(8, 33);
             this.richTextBoxLogBox.Name = "richTextBoxLogBox";
             this.richTextBoxLogBox.ReadOnly = true;
             this.richTextBoxLogBox.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.ForcedBoth;
-            this.richTextBoxLogBox.Size = new System.Drawing.Size(338, 379);
+            this.richTextBoxLogBox.Size = new System.Drawing.Size(338, 360);
             this.richTextBoxLogBox.TabIndex = 0;
             this.richTextBoxLogBox.Text = "";
             // 
@@ -518,6 +523,16 @@
             this.labelState.Size = new System.Drawing.Size(375, 16);
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
+            // 
+            // checkBoxEnableLog
+            // 
+            this.checkBoxEnableLog.AutoSize = true;
+            this.checkBoxEnableLog.Location = new System.Drawing.Point(9, 7);
+            this.checkBoxEnableLog.Name = "checkBoxEnableLog";
+            this.checkBoxEnableLog.Size = new System.Drawing.Size(98, 20);
+            this.checkBoxEnableLog.TabIndex = 1;
+            this.checkBoxEnableLog.Text = "Enable Log";
+            this.checkBoxEnableLog.UseVisualStyleBackColor = true;
             // 
             // BotForm
             // 
@@ -541,6 +556,7 @@
             this.tabSettings.ResumeLayout(false);
             this.tabSettings.PerformLayout();
             this.tabKeys.ResumeLayout(false);
+            this.tabKeys.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -586,6 +602,7 @@
         public System.Windows.Forms.CheckBox checkBoxUnfrezze;
         public System.Windows.Forms.RichTextBox richTextBoxLogBox;
         private System.Windows.Forms.Button buttonFindBaseAddr;
+        private System.Windows.Forms.CheckBox checkBoxEnableLog;
     }
 }
 

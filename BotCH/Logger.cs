@@ -1,29 +1,39 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Windows.Forms;
 
 namespace BotCH
 {
     public class Logger
     {
         public static BotForm form;
-        public static StreamWriter log = new StreamWriter("log.txt", true);
+        public static List<string> logCache;
         public static bool KeyLogger = false;
 
         public static void setLog(string text)
         {
             form.labelState.Text = text;
 
-            InsertToLogFile(text);
-            form.richTextBoxLogBox.AppendText("\r\n" + text);
-            form.richTextBoxLogBox.ScrollToCaret();
-        }
+            if (form.checkBoxEnableLog.Checked)
+            {
+                form.richTextBoxLogBox.AppendText("\r\n" + text);
+                form.richTextBoxLogBox.ScrollToCaret();
 
+                logCache.Add(text);
+
+                if (logCache.Count > 100)
+                {
+                    InsertToLogFile(text);
+                    logCache.Clear();
+                }
+            }
+        }
 
         private static void InsertToLogFile(string text)
         {
+            StreamWriter logFile = new StreamWriter("logFile.txt", true);
             string str = DateTime.Now.ToString("G");
-            log.WriteLine(str + ": " + text);
+            logFile.WriteLine(str + ": " + text);
         }
     }
 }
