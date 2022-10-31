@@ -174,20 +174,20 @@ namespace BotCH
         {
             Logger.setLog("Come closer to mob");
 
-            if (MobReader.GetMobDistance(mobId) > 3.5)
+            if (MobReader.GetMobDistance(mobId, MobsAround) > 3.5)
             {
                 int i = 0;
 
-                while (MobReader.GetMobDistance(mobId) > 4)
+                float beforeDist;
+
+                while ((beforeDist = MobReader.GetMobDistance(mobId, MobsAround)) > 4)
                 {
                     if (TargetMobEntity.WID == 0)
                     {
                         break;
                     }
 
-                    float beforeDist = MobReader.GetMobDistance(mobId);
-
-                    if (beforeDist <= MobReader.GetMobDistance(mobId))
+                    if (beforeDist <= MobReader.GetMobDistance(mobId, MobsAround))
                     {
                         Action.AttackBySword();
                     }
