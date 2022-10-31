@@ -19,7 +19,7 @@ namespace BotCH
                 form.richTextBoxLogBox.AppendText("\r\n" + text);
                 form.richTextBoxLogBox.ScrollToCaret();
 
-                logCache.Add(text);
+                AddToLogCache(text);
 
                 if (logCache.Count > 100)
                 {
@@ -29,12 +29,10 @@ namespace BotCH
             }
         }
 
-        public static void InsertTextToLogFile(string text)
+        public static void AddToLogCache(string text)
         {
-            StreamWriter logFile = new StreamWriter("logFile.txt", true);
             string str = DateTime.Now.ToString("G");
-            logFile.WriteLine(str + ": " + text);
-            logFile.Close();
+            logCache.Add(str + ": " + text);
         }
 
         public static void InsertListToLogFile(IList<string> list)
@@ -43,8 +41,7 @@ namespace BotCH
 
             foreach (string item in list)
             {
-                string str = DateTime.Now.ToString("G");
-                logFile.WriteLine(str + ": " + item);
+                logFile.WriteLine(item);
             }
 
             logFile.Close();
