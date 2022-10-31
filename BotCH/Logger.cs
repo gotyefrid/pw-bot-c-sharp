@@ -14,9 +14,9 @@ namespace BotCH
         {
             form.labelState.Text = text;
 
-            InsertToLogFile(text);
-            form.richTextBoxLogBox.AppendText("\r\n" + text);
-            form.richTextBoxLogBox.ScrollToCaret();
+            //InsertToLogFile(text);
+            //form.richTextBoxLogBox.AppendText("\r\n" + text);
+            //form.richTextBoxLogBox.ScrollToCaret();
         }
 
 
