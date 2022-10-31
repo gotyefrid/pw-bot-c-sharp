@@ -7,7 +7,7 @@ namespace BotCH
     public class Logger
     {
         public static BotForm form;
-        public static List<string> logCache = new List<string>;
+        public static List<string> logCache = new List<string>();
         public static bool KeyLogger = false;
 
         public static void setLog(string text)
