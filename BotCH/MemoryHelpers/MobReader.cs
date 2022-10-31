@@ -31,9 +31,43 @@ namespace BotCH.MemoryHelpers
             return 0;
         }
 
-        public static float GetMobDistance(uint wid)
+        public static uint GetMobStruct(uint wid, Dictionary<uint, string> mobList = null)
         {
-            uint value = GetMobStruct(wid);
+            foreach (KeyValuePair<uint, string> mob in mobList)
+            {
+                uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
+                value = Read_uint32(value + Offset.MOB_OFFSET_2);
+                value = Read_uint32(value + Offset.MOB_STRUCT_OFFSET);
+                string offset = mob.Value;
+                value = Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
+
+                if (value != 0)
+                {
+                    uint mobStruct = Read_uint32(value + 0x4);
+                    value = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
+
+                    if (value == wid)
+                    {
+                        return mobStruct;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        public static float GetMobDistance(uint wid, Dictionary<uint, string> mobList = null)
+        {
+            uint value;
+
+            if (mobList != null)
+            {
+                value = GetMobStruct(wid, mobList);
+            }
+            else
+            {
+                value = GetMobStruct(wid);
+            }
 
             return Read_float(value + Offset.MOB_DIST_OFFSET);
         }
