@@ -83,13 +83,17 @@ namespace BotCH
 
         public static void ChangeTarget()
         {
-            FindAgressiveMobAroud();
+            if (FindAgressiveMobAroud())
+            {
+                return;
+            }
+            
 
             Logger.setLog("Change mob by click TAB");
             Action.ChangeTargetByTab();
         }
 
-        public static void FindAgressiveMobAroud()
+        public static bool FindAgressiveMobAroud()
         {
             Logger.setLog("Find agressive mob who beat me");
             uint id = MobReader.IsExistMobAttackingMe(MobsAround);
@@ -100,12 +104,13 @@ namespace BotCH
                 Logger.setLog("Found the mob who is attacking me now: " + id);
                 Logger.setLog("Choose mob in target who attaking me");
                 Writer.TargetMob(id);
-                return;
+                return true;
             }
             else
             {
                 Logger.setLog("Not Found agressive mob");
                 AgressiveMob = 0;
+                return false;
             }
         }
 
