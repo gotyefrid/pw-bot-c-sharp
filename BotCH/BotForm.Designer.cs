@@ -64,9 +64,9 @@
             this.textBoxHPusage = new System.Windows.Forms.TextBox();
             this.labelTextUseHP = new System.Windows.Forms.Label();
             this.tabKeys = new System.Windows.Forms.TabPage();
+            this.checkBoxEnableLog = new System.Windows.Forms.CheckBox();
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
-            this.checkBoxEnableLog = new System.Windows.Forms.CheckBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -216,7 +216,7 @@
             this.aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.donationsToolStripMenuItem});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             this.aboutToolStripMenuItem.Text = "About";
             // 
             // donationsToolStripMenuItem
@@ -505,6 +505,16 @@
             this.tabKeys.Text = "Log";
             this.tabKeys.UseVisualStyleBackColor = true;
             // 
+            // checkBoxEnableLog
+            // 
+            this.checkBoxEnableLog.AutoSize = true;
+            this.checkBoxEnableLog.Location = new System.Drawing.Point(9, 7);
+            this.checkBoxEnableLog.Name = "checkBoxEnableLog";
+            this.checkBoxEnableLog.Size = new System.Drawing.Size(98, 20);
+            this.checkBoxEnableLog.TabIndex = 1;
+            this.checkBoxEnableLog.Text = "Enable Log";
+            this.checkBoxEnableLog.UseVisualStyleBackColor = true;
+            // 
             // richTextBoxLogBox
             // 
             this.richTextBoxLogBox.Location = new System.Drawing.Point(8, 33);
@@ -523,16 +533,6 @@
             this.labelState.Size = new System.Drawing.Size(375, 16);
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
-            // 
-            // checkBoxEnableLog
-            // 
-            this.checkBoxEnableLog.AutoSize = true;
-            this.checkBoxEnableLog.Location = new System.Drawing.Point(9, 7);
-            this.checkBoxEnableLog.Name = "checkBoxEnableLog";
-            this.checkBoxEnableLog.Size = new System.Drawing.Size(98, 20);
-            this.checkBoxEnableLog.TabIndex = 1;
-            this.checkBoxEnableLog.Text = "Enable Log";
-            this.checkBoxEnableLog.UseVisualStyleBackColor = true;
             // 
             // BotForm
             // 
@@ -602,7 +602,7 @@
         public System.Windows.Forms.CheckBox checkBoxUnfrezze;
         public System.Windows.Forms.RichTextBox richTextBoxLogBox;
         private System.Windows.Forms.Button buttonFindBaseAddr;
-        private System.Windows.Forms.CheckBox checkBoxEnableLog;
+        public System.Windows.Forms.CheckBox checkBoxEnableLog;
     }
 }
 
