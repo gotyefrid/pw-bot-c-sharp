@@ -1,5 +1,6 @@
 ﻿using BotCH.Entity;
 using BotCH.MemoryHelpers;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,11 +12,16 @@ namespace BotCH
         public static bool active = false;
         public static BotForm form;
         private static uint AgressiveMob = 0;
+        private static Dictionary<uint, string> MobsAround;
 
         public async static void Run()
         {
             await Task.Run(() =>
             {
+                Logger.setLog("Making list of alive mobs");
+                MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+                Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+
                 while (active)
                 {
                     Logger.setLog("New Loop");
@@ -65,7 +71,7 @@ namespace BotCH
 
         public static void ChangeTarget()
         {
-            //FindAgressiveMobAroud();
+            FindAgressiveMobAroud();
 
             Logger.setLog("Change mob by click TAB");
             Action.ChangeTargetByTab();

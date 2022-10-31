@@ -112,7 +112,7 @@ namespace BotCH.MemoryHelpers
         {
             Dictionary<uint, string> array = new Dictionary<uint, string>();
 
-            for (uint i = 0; i <= 900; i++)
+            for (uint i = 0; i <= 768; i++)
             {
                 uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
                 value = Read_uint32(value + Offset.MOB_OFFSET_2);
