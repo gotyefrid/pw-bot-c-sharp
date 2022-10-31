@@ -44,7 +44,7 @@ namespace BotCH
                                 if (form.checkBoxLooting.Checked == true)
                                 {
                                     Action.AttackByPet();
-                                    //ComeCloser(TargetMobEntity.WID);
+                                    ComeCloser(TargetMobEntity.WID);
                                 }
 
                                 KillMobActions(TargetMobEntity.WID);
@@ -55,7 +55,7 @@ namespace BotCH
                         {
                             if (form.checkBoxLooting.Checked == true)
                             {
-                                //ComeCloser(TargetMobEntity.WID);
+                                ComeCloser(TargetMobEntity.WID);
                             }
 
                             KillMobActions(TargetMobEntity.WID);
@@ -84,7 +84,7 @@ namespace BotCH
         public static bool FindAgressiveMobAroud()
         {
             Logger.setLog("Find agressive mob who beat me");
-            uint id = MobReader.IsExistMobAttackingMe();
+            uint id = MobReader.IsExistMobAttackingMe(MobsAround);
 
             if (id != 0)
             {
