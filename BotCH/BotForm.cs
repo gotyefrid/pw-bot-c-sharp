@@ -142,6 +142,12 @@ namespace BotCH
                 MessageBox.Show("Not found, try yourself, and write it to " + configName);
             }
         }
+
+        private void BotForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            StopButton_Click(sender, e);
+            Logger.InsertListToLogFile(Logger.logCache);
+        }
     }
 
 

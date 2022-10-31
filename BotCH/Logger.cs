@@ -23,17 +23,31 @@ namespace BotCH
 
                 if (logCache.Count > 100)
                 {
-                    InsertToLogFile(text);
+                    InsertListToLogFile(logCache);
                     logCache.Clear();
                 }
             }
         }
 
-        private static void InsertToLogFile(string text)
+        public static void InsertTextToLogFile(string text)
         {
             StreamWriter logFile = new StreamWriter("logFile.txt", true);
             string str = DateTime.Now.ToString("G");
             logFile.WriteLine(str + ": " + text);
+            logFile.Close();
+        }
+
+        public static void InsertListToLogFile(IList<string> list)
+        {
+            StreamWriter logFile = new StreamWriter("logFile.txt", true);
+
+            foreach (string item in list)
+            {
+                string str = DateTime.Now.ToString("G");
+                logFile.WriteLine(str + ": " + item);
+            }
+
+            logFile.Close();
         }
     }
 }
