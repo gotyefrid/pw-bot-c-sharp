@@ -3,6 +3,7 @@ using BotCH.MemoryHelpers;
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Security.Policy;
 using System.Windows.Forms;
 
 namespace BotCH
@@ -21,6 +22,7 @@ namespace BotCH
         {
             ToolTip t = new ToolTip();
             t.SetToolTip(this.buttonFindBaseAddr, "Open game, enter to Character and set your MAX HP to " + configName);
+            Auth.form = this;
             PersInfo.form = this;
             Reader.form = this;
             Bot.form = this;
@@ -34,6 +36,18 @@ namespace BotCH
 
         private void ConnectButton_Click(object sender, EventArgs e)
         {
+            if (!Auth.CheckLicenseByHttp())
+            {
+                string str = "You shoud to buy license, contact me Telegram: @white_mel \r\nClick OK to open Telegram-link.";
+                ;
+                if (MessageBox.Show(str, "License error", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) == DialogResult.OK)
+                {
+                    Process.Start("https://t.me/white_mel");
+                }
+                
+                return;
+            }
+
             try
             {
                 if (this.textBoxPID.Text == String.Empty)
