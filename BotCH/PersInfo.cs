@@ -2,7 +2,6 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BotCH
 {
@@ -13,21 +12,20 @@ namespace BotCH
 
         public static BotForm form;
 
-        public async static void ShowPersInfoLabels()
-        {
-            await Task.Run(() =>
-            {
-                while (Reader.statusConnection)
-                {
-                    form.labelHpPers.Text = PersReader.GetPersHP().ToString();
-                    form.labelMpPers.Text = PersReader.GetPersMP().ToString();
-                    form.labelHpPet.Text = PersReader.GetPetHpPercent().ToString();
-                    form.targetIdTextBox.Text = PersReader.GetTargetId().ToString();
-                    PotEnergyBanks();
+        public static Thread PersInfoLabelsThread = new Thread(ShowPersInfoLabels);
 
-                    Thread.Sleep(1000);
-                }
-            });
+        public static void ShowPersInfoLabels()
+        {
+            while (Reader.statusConnection)
+            {
+                form.labelHpPers.Text = PersReader.GetPersHP().ToString();
+                form.labelMpPers.Text = PersReader.GetPersMP().ToString();
+                form.labelHpPet.Text = PersReader.GetPetHpPercent().ToString();
+                form.targetIdTextBox.Text = PersReader.GetTargetId().ToString();
+                PotEnergyBanks();
+
+                Thread.Sleep(1000);
+            }
         }
 
         public static void PotEnergyBanks()

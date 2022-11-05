@@ -20,8 +20,10 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
+            /* Текст при наведении на кнопку поиска BaseAddress */
             ToolTip t = new ToolTip();
             t.SetToolTip(this.buttonFindBaseAddr, "Open game, enter to Character and set your MAX HP to " + configName);
+
             Auth.form = this;
             PersInfo.form = this;
             Reader.form = this;
@@ -30,7 +32,6 @@ namespace BotCH
             Pet.form = this;
             Action.form = this;
             this.cageSelect.SelectedIndex = 1;
-            this.stopButton.Enabled = false;
             this.InitParamsFromIniConfig();
         }
 
@@ -62,11 +63,11 @@ namespace BotCH
                     this.textBoxPID.BackColor = Color.LightGreen;
                     this.textBoxPID.Text = Reader.currentPID.ToString();
                     this.textBoxPID.Enabled = false;
-                    PersInfo.ShowPersInfoLabels();
-                    IniManager.Write("offset", "persHp", MyPersEntity.MaxHP.ToString());
                     this.checkBoxUnfrezze.Visible = true;
+                    ThreadHelper.Start(PersInfo.PersInfoLabelsThread);
                     Logger.setLog("----------------------");
                     Logger.setLog("Status connection TRUE");
+                    IniManager.Write("offset", "persHp", MyPersEntity.MaxHP.ToString());
                 }
                 else
                 {
@@ -79,21 +80,6 @@ namespace BotCH
                 MessageBox.Show(mainError.Message);
             }
         }
-
-        /// <summary>
-        /// Запрет ввода не цифр.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void TextBoxPID_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            char number = e.KeyChar;
-
-            if (!Char.IsDigit(number) && number != 8) // цифры и клавиша BackSpace
-            {
-                e.Handled = true;
-            }
-        }
         private void TextBoxPID_Click(object sender, EventArgs e)
         {
             this.textBoxPID.BackColor = Color.White;
@@ -101,7 +87,7 @@ namespace BotCH
 
         private void StopButton_Click(object sender, EventArgs e)
         {
-            Bot.active = false;
+            ThreadHelper.Stop(Bot.BotingThread);
             this.startButton.Enabled = true;
             this.stopButton.Enabled = false;
             this.labelState.Text = "Bot stopped";
@@ -119,9 +105,8 @@ namespace BotCH
             this.startButton.Enabled = false;
             this.stopButton.Enabled = true;
 
-            Bot.active = true;
-            Pet.CheckingStatusPet();
-            Bot.Run();
+            ThreadHelper.Start(Pet.CheckStatusPetThread);
+            ThreadHelper.Start(Bot.BotingThread);
             Logger.setLog("Start boting");
         }
 
@@ -161,6 +146,21 @@ namespace BotCH
         {
             StopButton_Click(sender, e);
             Logger.InsertListToLogFile(Logger.logCache);
+        }
+
+        /// <summary>
+        /// Запрет ввода не цифр.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TextBoxPID_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            char number = e.KeyChar;
+
+            if (!Char.IsDigit(number) && number != 8) // цифры и клавиша BackSpace
+            {
+                e.Handled = true;
+            }
         }
     }
 

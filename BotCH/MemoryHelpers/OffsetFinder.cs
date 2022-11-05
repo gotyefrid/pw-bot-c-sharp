@@ -32,7 +32,7 @@ namespace BotCH.MemoryHelpers
                         return true;
                     }
                 }
-                catch (Exception e)
+                catch
                 {
                     continue;
                 }

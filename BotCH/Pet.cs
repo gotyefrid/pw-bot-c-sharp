@@ -1,13 +1,14 @@
 ﻿using BotCH.MemoryHelpers;
 using System;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace BotCH
 {
     internal class Pet
     {
         public static BotForm form;
+
+        public static Thread CheckStatusPetThread = new Thread(CheckingStatusPet);
 
         public static bool IsInvited()
         {
@@ -40,36 +41,33 @@ namespace BotCH
             return false;
         }
 
-        public async static void CheckingStatusPet()
+        public static void CheckingStatusPet()
         {
-            await Task.Run(() =>
+            while (true)
             {
-                while (Bot.active)
+                if (!Pet.IsInvited())
                 {
-                    if (!Pet.IsInvited())
-                    {
-                        Pet.Invite();
-                        Thread.Sleep(1000);
-                    }
-                    else
-                    {
-                        if (PersReader.GetPetHpPercent() < Convert.ToInt32(form.textBoxHealPetUsage.Text))
-                        {
-                            Action.HealPet();
-                        }
-
-                        if (Pet.IsNeedToBeFeed())
-                        {
-                            if (PersReader.IsFeedPetAvailable())
-                            {
-                                Action.FeedPet();
-                            }
-                        }
-                    }
-
+                    Pet.Invite();
                     Thread.Sleep(1000);
                 }
-            });
+                else
+                {
+                    if (PersReader.GetPetHpPercent() < Convert.ToInt32(form.textBoxHealPetUsage.Text))
+                    {
+                        Action.HealPet();
+                    }
+
+                    if (Pet.IsNeedToBeFeed())
+                    {
+                        if (PersReader.IsFeedPetAvailable())
+                        {
+                            Action.FeedPet();
+                        }
+                    }
+                }
+
+                Thread.Sleep(1000);
+            }
         }
 
     }

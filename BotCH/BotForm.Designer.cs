@@ -143,6 +143,7 @@
             // 
             // stopButton
             // 
+            this.stopButton.Enabled = false;
             this.stopButton.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.stopButton.Location = new System.Drawing.Point(204, 233);
             this.stopButton.Margin = new System.Windows.Forms.Padding(4);
