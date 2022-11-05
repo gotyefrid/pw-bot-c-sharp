@@ -4,7 +4,6 @@ namespace BotCH.MemoryHelpers
 {
     public class Offset
     {
-        public const uint BASEADDR_OFFSET = 0x9B3EEC;
         public const uint GAMEADDR_OFFSET = 0x1C;
         public const uint UNZREEFE_OFFSET = 0x48C;
 
