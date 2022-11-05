@@ -216,7 +216,7 @@
             this.aboutToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.donationsToolStripMenuItem});
             this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 26);
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(64, 24);
             this.aboutToolStripMenuItem.Text = "About";
             // 
             // donationsToolStripMenuItem
@@ -272,7 +272,6 @@
             this.buttonFindBaseAddr.TabIndex = 17;
             this.buttonFindBaseAddr.Text = "Find BaseAddress";
             this.buttonFindBaseAddr.UseVisualStyleBackColor = true;
-            this.buttonFindBaseAddr.Visible = false;
             this.buttonFindBaseAddr.Click += new System.EventHandler(this.buttonFindBaseAddr_Click);
             // 
             // checkBoxUnfrezze
