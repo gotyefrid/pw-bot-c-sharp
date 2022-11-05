@@ -20,8 +20,6 @@ namespace BotCH.MemoryHelpers
         public const uint PERS_LOC_Z = 0x40;
         public const uint PERS_LOC_Y = 0x44;
 
-        public const uint PERS_ACTIONS_STRUCT = 0xE48;
-
         public const uint PET_STRUCT_OFFSET = 0xE60;
         public static Dictionary<int, uint> PET_CAGES_ARRAY = new Dictionary<int, uint>
         {
