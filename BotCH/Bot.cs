@@ -4,61 +4,47 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace BotCH
 {
     internal class Bot
     {
-        public static bool active = false;
         public static BotForm form;
+        public static Thread BotingThread = new Thread(Run);
         private static uint AgressiveMob = 0;
         private static Dictionary<uint, string> MobsAround;
 
-        public async static void Run()
+        public static void Run()
         {
-            await Task.Run(() =>
+            try
             {
-                try
+                Logger.setLog("Making list of alive mobs");
+                MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+                Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+
+                while (true)
                 {
-                    Logger.setLog("Making list of alive mobs");
-                    MobsAround = MobReader.GetActualListMobsOffsetsInArray();
-                    Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+                    Logger.setLog("New Loop");
 
-                    while (active)
+                    if (PersReader.IsExistTarget())
                     {
-                        Logger.setLog("New Loop");
-
-                        if (PersReader.IsExistTarget())
+                        if (form.checkBoxCheckId.Checked == true)
                         {
-                            if (form.checkBoxCheckId.Checked == true)
+                            bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
+
+                            bool isMobInList = SearchCurrentMobIdInList();
+
+                            if (isMobInList || isAgressiveMobAttackMeNow)
                             {
-                                bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
-
-                                bool isMobInList = SearchCurrentMobIdInList();
-
-                                if (isMobInList || isAgressiveMobAttackMeNow)
+                                if (!isMobInList && isAgressiveMobAttackMeNow)
                                 {
-                                    if (!isMobInList && isAgressiveMobAttackMeNow)
-                                    {
-                                        Logger.setLog("Killing mob because it attaking me!");
-                                    }
-
-                                    if (form.checkBoxLooting.Checked == true)
-                                    {
-                                        Action.AttackByPet();
-                                        ComeCloser(TargetMobEntity.WID);
-                                    }
-
-                                    KillMobActions(TargetMobEntity.WID);
-                                    GetLoot();
+                                    Logger.setLog("Killing mob because it attaking me!");
                                 }
-                            }
-                            else
-                            {
+
                                 if (form.checkBoxLooting.Checked == true)
                                 {
+                                    Action.AttackByPet();
                                     ComeCloser(TargetMobEntity.WID);
                                 }
 
@@ -66,19 +52,28 @@ namespace BotCH
                                 GetLoot();
                             }
                         }
+                        else
+                        {
+                            if (form.checkBoxLooting.Checked == true)
+                            {
+                                ComeCloser(TargetMobEntity.WID);
+                            }
 
-                        ChangeTarget();
-                        Thread.Sleep(300);
+                            KillMobActions(TargetMobEntity.WID);
+                            GetLoot();
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    active = false;
-                    MessageBox.Show(ex.Message);
 
-                    throw ex;
+                    ChangeTarget();
+                    Thread.Sleep(300);
                 }
-            });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+
+                throw ex;
+            }
         }
 
         public static void ChangeTarget()
@@ -87,7 +82,7 @@ namespace BotCH
             {
                 return;
             }
-            
+
 
             Logger.setLog("Change mob by click TAB");
             Action.ChangeTargetByTab();
@@ -224,7 +219,7 @@ namespace BotCH
                 {
                     Action.HealPet();
                     Logger.setLog("Clicked heal pet");
-                    //Thread.Sleep(500);
+                    //PersInfoLabelsThread.Sleep(500);
                     //Action.EscapeClick();
                     //Logger.setLog("Clicked ESC");
                 }
