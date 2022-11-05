@@ -64,7 +64,7 @@ namespace BotCH
                     this.textBoxPID.Text = Reader.currentPID.ToString();
                     this.textBoxPID.Enabled = false;
                     this.checkBoxUnfrezze.Visible = true;
-                    ThreadHelper.Start(PersInfo.PersInfoLabelsThread);
+                    ThreadHelper.StartPersInfoThreads();
                     Logger.setLog("----------------------");
                     Logger.setLog("Status connection TRUE");
                     IniManager.Write("offset", "persHp", MyPersEntity.MaxHP.ToString());
@@ -87,7 +87,7 @@ namespace BotCH
 
         private void StopButton_Click(object sender, EventArgs e)
         {
-            ThreadHelper.Stop(Bot.BotingThread);
+            ThreadHelper.StopBotingThreads();
             this.startButton.Enabled = true;
             this.stopButton.Enabled = false;
             this.labelState.Text = "Bot stopped";
@@ -105,8 +105,7 @@ namespace BotCH
             this.startButton.Enabled = false;
             this.stopButton.Enabled = true;
 
-            ThreadHelper.Start(Pet.CheckStatusPetThread);
-            ThreadHelper.Start(Bot.BotingThread);
+            ThreadHelper.StartBotingThreads();
             Logger.setLog("Start boting");
         }
 
@@ -144,7 +143,6 @@ namespace BotCH
 
         private void BotForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            StopButton_Click(sender, e);
             Logger.InsertListToLogFile(Logger.logCache);
         }
 
