@@ -101,7 +101,7 @@ namespace BotCH.MemoryHelpers
                         }
                     }
                 }
-                catch (Exception e)
+                catch
                 {
                     Logger.setLog(i.ToString());
                     continue;
