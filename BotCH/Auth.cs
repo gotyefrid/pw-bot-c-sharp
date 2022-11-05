@@ -1,8 +1,8 @@
-﻿using MySql.Data.MySqlClient;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Management;
+using System.Net;
 using System.Net.Http;
 using System.Windows.Forms;
 
@@ -51,6 +51,12 @@ namespace BotCH
 
         public static string GetRequest(string url, IDictionary<string, string> body)
         {
+
+            ServicePointManager.Expect100Continue = true;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+               | SecurityProtocolType.Tls11
+               | SecurityProtocolType.Tls12
+               | SecurityProtocolType.Ssl3;
             HttpClient client = new HttpClient();
 
             try
