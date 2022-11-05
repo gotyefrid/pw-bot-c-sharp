@@ -41,7 +41,6 @@ namespace BotCH.MemoryHelpers
         public const uint MOB_WID_OFFSET = 0x11C;
         public const uint MOB_HP_OFFSET = 0x12C;
         public const uint MOB_DIST_OFFSET = 0x270;
-        public const uint MOB_MOVE_OFFSET = 0x2BC;
         public const uint MOB_TARGET_OFFSET = 0x2D4;
 
         public static uint GetBaseAddress()
