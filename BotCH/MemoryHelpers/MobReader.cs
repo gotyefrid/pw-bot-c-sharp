@@ -124,8 +124,10 @@ namespace BotCH.MemoryHelpers
                 {
                     uint mobStruct = Read_uint32(value + 0x4);
                     value = Read_uint32(mobStruct + Offset.MOB_TARGET_OFFSET);
+                    var persWid = PersReader.GetMyPersWID();
+                    var persMobWid = PersReader.GetCurrentPetId();
 
-                    if ((value == PersReader.GetMyPersWID() || value == PersReader.GetCurrentPetId()))
+                    if (value == persWid || (persMobWid != 0 && value == persMobWid))
                     {
                         uint mobWid = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
                         uint mobType = GetMobType(mobWid);
