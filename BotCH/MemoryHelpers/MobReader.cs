@@ -73,7 +73,7 @@ namespace BotCH.MemoryHelpers
         }
         public static uint IsExistMobAttackingMe()
         {
-            for (uint i = 0; i <= 900; i++)
+            for (uint i = 0; i <= 768; i++)
             {
                 try
                 {
