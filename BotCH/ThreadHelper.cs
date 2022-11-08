@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading;
 
 namespace BotCH
 {
@@ -11,8 +6,8 @@ namespace BotCH
     {
         public static void StartBotingThreads()
         {
-            Start(Pet.CheckStatusPetThread);
-            Start(Bot.BotingThread);
+            Start(Pet.CheckStatusPetThread = new Thread(Pet.CheckingStatusPet));
+            Start(Bot.BotingThread = new Thread(Bot.Run));
         }
 
         public static void StopBotingThreads()
@@ -23,14 +18,13 @@ namespace BotCH
 
         public static void StartPersInfoThreads()
         {
-            Start(PersInfo.PersInfoLabelsThread);
+            Start(PersInfo.PersInfoLabelsThread = new Thread(PersInfo.ShowPersInfoLabels));
         }
 
         public static void StopPersInfoThreads()
         {
             Stop(PersInfo.PersInfoLabelsThread);
         }
-
 
         private static void Start(Thread thread)
         {
@@ -40,17 +34,24 @@ namespace BotCH
             {
                 thread.Start();
             }
-            else
-            {
-                thread.Resume();
-            }
         }
         private static void Stop(Thread thread)
         {
             if (thread.ThreadState != ThreadState.Aborted && thread.ThreadState != ThreadState.Unstarted)
             {
-                thread.Suspend();
+                thread.Abort();
             }
+        }
+
+        public static void StopAll()
+        {
+            try
+            {
+                Stop(PersInfo.PersInfoLabelsThread);
+                Stop(Bot.BotingThread);
+                Stop(Pet.CheckStatusPetThread);
+            }
+            catch { }
         }
     }
 }

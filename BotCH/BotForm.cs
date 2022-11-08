@@ -125,6 +125,7 @@ namespace BotCH
 
         private void BotForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            ThreadHelper.StopAll();
             Logger.InsertListToLogFile(Logger.logCache);
         }
 

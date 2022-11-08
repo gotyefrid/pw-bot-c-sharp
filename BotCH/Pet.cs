@@ -7,8 +7,7 @@ namespace BotCH
     internal class Pet
     {
         public static BotForm form;
-
-        public static Thread CheckStatusPetThread = new Thread(CheckingStatusPet);
+        public static Thread CheckStatusPetThread;
 
         public static bool IsInvited()
         {

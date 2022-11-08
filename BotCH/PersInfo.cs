@@ -12,7 +12,7 @@ namespace BotCH
 
         public static BotForm form;
 
-        public static Thread PersInfoLabelsThread = new Thread(ShowPersInfoLabels);
+        public static Thread PersInfoLabelsThread;
 
         public static void ShowPersInfoLabels()
         {

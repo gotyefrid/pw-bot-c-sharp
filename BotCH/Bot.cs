@@ -9,7 +9,7 @@ namespace BotCH
     internal class Bot
     {
         public static BotForm form;
-        public static Thread BotingThread = new Thread(Run);
+        public static Thread BotingThread;
         private static uint AgressiveMob = 0;
         private static Dictionary<uint, string> MobsAround;
 
