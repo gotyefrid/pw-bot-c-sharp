@@ -1,5 +1,6 @@
 ﻿using BotCH.Entity;
 using BotCH.MemoryHelpers;
+using BotCH.MemoryHelpers.Offsets;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -20,10 +21,7 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
-            /* Текст при наведении на кнопку поиска BaseAddress */
-            ToolTip t = new ToolTip();
-            t.SetToolTip(this.buttonFindBaseAddr, "Open game, enter to Character and set your MAX HP to " + configName);
-
+            Offset.ServerName = Offset.COMEBACK136;
             Auth.form = this;
             PersInfo.form = this;
             Reader.form = this;
@@ -125,20 +123,6 @@ namespace BotCH
         private void checkBoxUnfrezze_CheckedChanged(object sender, EventArgs e)
         {
             Writer.UnFreezeeWindow();
-        }
-
-        private void buttonFindBaseAddr_Click(object sender, EventArgs e)
-        {
-            Reader.SetPID(int.Parse(this.textBoxPID.Text));
-
-            if (OffsetFinder.GetBaseAddress())
-            {
-                MessageBox.Show("Succsesfully founded and writed!");
-            }
-            else
-            {
-                MessageBox.Show("Not found, try yourself, and write it to " + configName);
-            }
         }
 
         private void BotForm_FormClosing(object sender, FormClosingEventArgs e)

@@ -99,8 +99,8 @@ namespace BotCH.MemoryHelpers
         {
             if (statusConnection)
             {
-                uint gameAdrress = Read_uint32(Offset.GetBaseAddress());
-                gameAdrress = Read_uint32(gameAdrress + Offset.GAMEADDR_OFFSET);
+                uint gameAdrress = Read_uint32(Offset.Get.GetBaseAddress());
+                gameAdrress = Read_uint32(gameAdrress + Offset.Get.GAMEADDR_OFFSET);
 
                 return gameAdrress;
             }

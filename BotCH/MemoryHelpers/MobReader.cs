@@ -10,16 +10,16 @@ namespace BotCH.MemoryHelpers
         {
             for (uint i = 0; i <= 768; i++)
             {
-                uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
-                value = Read_uint32(value + Offset.MOB_OFFSET_2);
-                value = Read_uint32(value + Offset.MOB_STRUCT_OFFSET);
+                uint value = Read_uint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+                value = Read_uint32(value + Offset.Get.MOB_OFFSET_2);
+                value = Read_uint32(value + Offset.Get.MOB_STRUCT_OFFSET);
                 string offset = (i * 4).ToString("X");
                 value = Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
 
                 if (value != 0)
                 {
                     uint mobStruct = Read_uint32(value + 0x4);
-                    value = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
+                    value = Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
 
                     if (value == wid)
                     {
@@ -35,16 +35,16 @@ namespace BotCH.MemoryHelpers
         {
             foreach (KeyValuePair<uint, string> mob in mobList)
             {
-                uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
-                value = Read_uint32(value + Offset.MOB_OFFSET_2);
-                value = Read_uint32(value + Offset.MOB_STRUCT_OFFSET);
+                uint value = Read_uint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+                value = Read_uint32(value + Offset.Get.MOB_OFFSET_2);
+                value = Read_uint32(value + Offset.Get.MOB_STRUCT_OFFSET);
                 string offset = mob.Value;
                 value = Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
 
                 if (value != 0)
                 {
                     uint mobStruct = Read_uint32(value + 0x4);
-                    value = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
+                    value = Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
 
                     if (value == wid)
                     {
@@ -69,7 +69,7 @@ namespace BotCH.MemoryHelpers
                 value = GetMobStruct(wid);
             }
 
-            return Read_float(value + Offset.MOB_DIST_OFFSET);
+            return Read_float(value + Offset.Get.MOB_DIST_OFFSET);
         }
         public static uint IsExistMobAttackingMe()
         {
@@ -77,26 +77,26 @@ namespace BotCH.MemoryHelpers
             {
                 try
                 {
-                    uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
-                    value = Read_uint32(value + Offset.MOB_OFFSET_2);
-                    value = Read_uint32(value + Offset.MOB_STRUCT_OFFSET);
+                    uint value = Read_uint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+                    value = Read_uint32(value + Offset.Get.MOB_OFFSET_2);
+                    value = Read_uint32(value + Offset.Get.MOB_STRUCT_OFFSET);
                     string offset = (i * 4).ToString("X");
                     value = Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
 
                     if (value != 0)
                     {
                         uint mobStruct = Read_uint32(value + 0x4);
-                        value = Read_uint32(mobStruct + Offset.MOB_TARGET_OFFSET);
+                        value = Read_uint32(mobStruct + Offset.Get.MOB_TARGET_OFFSET);
 
                         if ((value == PersReader.GetMyPersWID() || value == PersReader.GetCurrentPetId()))
                         {
-                            uint mobWid = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
+                            uint mobWid = Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
                             uint mobType = GetMobType(mobWid);
-                            uint mobAction = Read_uint32(mobStruct + Offset.MOB_ACTION_OFFSET);
+                            uint mobAction = Read_uint32(mobStruct + Offset.Get.MOB_ACTION_OFFSET);
 
                             if (mobType == TargetMobEntity.TYPE_MOB && mobAction != TargetMobEntity.ACTION_DIES)
                             {
-                                return Read_uint32(mobStruct + Offset.MOB_WID_OFFSET); ;
+                                return Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET); ;
                             }
                         }
                     }
@@ -114,28 +114,28 @@ namespace BotCH.MemoryHelpers
         {
             foreach (KeyValuePair<uint, string> mob in mobs)
             {
-                uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
-                value = Read_uint32(value + Offset.MOB_OFFSET_2);
-                value = Read_uint32(value + Offset.MOB_STRUCT_OFFSET);
+                uint value = Read_uint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+                value = Read_uint32(value + Offset.Get.MOB_OFFSET_2);
+                value = Read_uint32(value + Offset.Get.MOB_STRUCT_OFFSET);
                 string offset = mob.Value;
                 value = Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
 
                 if (value != 0)
                 {
                     uint mobStruct = Read_uint32(value + 0x4);
-                    value = Read_uint32(mobStruct + Offset.MOB_TARGET_OFFSET);
+                    value = Read_uint32(mobStruct + Offset.Get.MOB_TARGET_OFFSET);
                     var persWid = PersReader.GetMyPersWID();
                     var persMobWid = PersReader.GetCurrentPetId();
 
                     if (value == persWid || (persMobWid != 0 && value == persMobWid))
                     {
-                        uint mobWid = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
+                        uint mobWid = Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
                         uint mobType = GetMobType(mobWid);
-                        uint mobAction = Read_uint32(mobStruct + Offset.MOB_ACTION_OFFSET);
+                        uint mobAction = Read_uint32(mobStruct + Offset.Get.MOB_ACTION_OFFSET);
 
                         if (mobType == TargetMobEntity.TYPE_MOB && mobAction != TargetMobEntity.ACTION_DIES)
                         {
-                            return Read_uint32(mobStruct + Offset.MOB_WID_OFFSET); ;
+                            return Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET); ;
                         }
                     }
                 }
@@ -150,9 +150,9 @@ namespace BotCH.MemoryHelpers
 
             for (uint i = 0; i <= 900; i++)
             {
-                uint value = Read_uint32(ReadGameAddress() + Offset.MOB_OFFSET_1);
-                value = Read_uint32(value + Offset.MOB_OFFSET_2);
-                value = Read_uint32(value + Offset.MOB_STRUCT_OFFSET);
+                uint value = Read_uint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+                value = Read_uint32(value + Offset.Get.MOB_OFFSET_2);
+                value = Read_uint32(value + Offset.Get.MOB_STRUCT_OFFSET);
                 string offset = (i * 4).ToString("X");
                 value = Read_uint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
 
@@ -160,7 +160,7 @@ namespace BotCH.MemoryHelpers
                 {
                     uint mobStruct = Read_uint32(value + 0x4);
 
-                    uint mobWid = Read_uint32(mobStruct + Offset.MOB_WID_OFFSET);
+                    uint mobWid = Read_uint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
                     uint mobType = GetMobType(mobWid);
 
                     if (mobType == TargetMobEntity.TYPE_MOB)
@@ -176,7 +176,7 @@ namespace BotCH.MemoryHelpers
         public static uint GetMobType(uint wid)
         {
             uint mobType = GetMobStruct(wid);
-            mobType = Read_uint32(mobType + Offset.MOB_TYPE_OFFSET);
+            mobType = Read_uint32(mobType + Offset.Get.MOB_TYPE_OFFSET);
 
             return mobType;
         }
@@ -184,7 +184,7 @@ namespace BotCH.MemoryHelpers
         public static uint GetMobAction(uint wid)
         {
             uint mobAction = GetMobStruct(wid);
-            mobAction = Read_uint32(mobAction + Offset.MOB_ACTION_OFFSET);
+            mobAction = Read_uint32(mobAction + Offset.Get.MOB_ACTION_OFFSET);
 
             return mobAction;
         }

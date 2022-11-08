@@ -80,10 +80,12 @@
     <Compile Include="Entity\TargetEntity.cs" />
     <Compile Include="MemoryHelpers\OffsetFinder.cs" />
     <Compile Include="MemoryHelpers\MobReader.cs" />
-    <Compile Include="MemoryHelpers\Offset.cs" />
+    <Compile Include="MemoryHelpers\Offsets\Comeback136.cs" />
     <Compile Include="IniHelper.cs" />
     <Compile Include="Logger.cs" />
+    <Compile Include="MemoryHelpers\Offsets\OffsetTemplate.cs" />
     <Compile Include="MemoryHelpers\PersReader.cs" />
+    <Compile Include="MemoryHelpers\Offset.cs" />
     <Compile Include="Pet.cs" />
     <Compile Include="MemoryHelpers\Writer.cs" />
     <Compile Include="MemoryHelpers\Reader.cs" />

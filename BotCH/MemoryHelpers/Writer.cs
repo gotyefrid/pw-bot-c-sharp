@@ -30,8 +30,8 @@ namespace BotCH.MemoryHelpers
             {
                 while (form.checkBoxUnfrezze.Checked)
                 {
-                    uint baseAdrress = Read_uint32(Offset.GetBaseAddress());
-                    VAMemoryClass.WriteInt32((IntPtr)(baseAdrress + Offset.UNZREEFE_OFFSET), 1);
+                    uint baseAdrress = Read_uint32(Offset.Get.GetBaseAddress());
+                    VAMemoryClass.WriteInt32((IntPtr)(baseAdrress + Offset.Get.UNZREEFE_OFFSET), 1);
                     Thread.Sleep(1000);
                 }
             });

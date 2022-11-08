@@ -44,7 +44,6 @@
             this.donationsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.tabMain = new System.Windows.Forms.TabPage();
-            this.buttonFindBaseAddr = new System.Windows.Forms.Button();
             this.checkBoxUnfrezze = new System.Windows.Forms.CheckBox();
             this.labelTextPetHP = new System.Windows.Forms.Label();
             this.labelTextMP = new System.Windows.Forms.Label();
@@ -242,7 +241,6 @@
             // 
             // tabMain
             // 
-            this.tabMain.Controls.Add(this.buttonFindBaseAddr);
             this.tabMain.Controls.Add(this.checkBoxUnfrezze);
             this.tabMain.Controls.Add(this.labelTextPetHP);
             this.tabMain.Controls.Add(this.labelTextMP);
@@ -264,16 +262,6 @@
             this.tabMain.TabIndex = 0;
             this.tabMain.Text = "Main";
             this.tabMain.UseVisualStyleBackColor = true;
-            // 
-            // buttonFindBaseAddr
-            // 
-            this.buttonFindBaseAddr.Location = new System.Drawing.Point(8, 382);
-            this.buttonFindBaseAddr.Name = "buttonFindBaseAddr";
-            this.buttonFindBaseAddr.Size = new System.Drawing.Size(152, 23);
-            this.buttonFindBaseAddr.TabIndex = 17;
-            this.buttonFindBaseAddr.Text = "Find BaseAddress";
-            this.buttonFindBaseAddr.UseVisualStyleBackColor = true;
-            this.buttonFindBaseAddr.Click += new System.EventHandler(this.buttonFindBaseAddr_Click);
             // 
             // checkBoxUnfrezze
             // 
@@ -602,7 +590,6 @@
         public System.Windows.Forms.TextBox textBoxHealPetUsage;
         public System.Windows.Forms.CheckBox checkBoxUnfrezze;
         public System.Windows.Forms.RichTextBox richTextBoxLogBox;
-        private System.Windows.Forms.Button buttonFindBaseAddr;
         public System.Windows.Forms.CheckBox checkBoxEnableLog;
     }
 }

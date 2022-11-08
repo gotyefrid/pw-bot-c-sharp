@@ -14,7 +14,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                return Read_uint32(value + Offset.PERS_STRUCT_OFFSET);
+                return Read_uint32(value + Offset.Get.PERS_STRUCT_OFFSET);
             }
 
             string error = "Не найден GameAddress";
@@ -27,7 +27,7 @@ namespace BotCH.MemoryHelpers
         {
             uint path = GetPersStruct();
 
-            return VAMemoryClass.ReadByte((IntPtr)(path + Offset.PERS_FLAG_SKILL_OFFSET)) == 1;
+            return VAMemoryClass.ReadByte((IntPtr)(path + Offset.Get.PERS_FLAG_SKILL_OFFSET)) == 1;
         }
 
         public static uint GetPetStructWithoutCage()
@@ -36,7 +36,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                return Read_uint32(value + Offset.PET_STRUCT_OFFSET);
+                return Read_uint32(value + Offset.Get.PET_STRUCT_OFFSET);
             }
 
             string error = "Ошибка в GetPersStruct";
@@ -52,8 +52,8 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PET_STRUCT_OFFSET);
-                return Read_uint32(value + Offset.PET_CAGES_ARRAY[cageNumber]);
+                value = Read_uint32(value + Offset.Get.PET_STRUCT_OFFSET);
+                return Read_uint32(value + Offset.Get.PET_CAGES_ARRAY[cageNumber]);
             }
 
             string error = "Ошибка в GetPetStruct";
@@ -68,7 +68,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                float hp = Read_float(value + Offset.PET_HP_OFFSET);
+                float hp = Read_float(value + Offset.Get.PET_HP_OFFSET);
                 hp = hp * 100;
 
                 return Convert.ToInt32(hp);
@@ -85,7 +85,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PET_FEED_STATUS_OFFSET);
+                value = Read_uint32(value + Offset.Get.PET_FEED_STATUS_OFFSET);
             }
 
             return Convert.ToInt32(value);
@@ -97,7 +97,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PERS_HP_OFFSET);
+                value = Read_uint32(value + Offset.Get.PERS_HP_OFFSET);
             }
 
             return Convert.ToInt32(value);
@@ -109,7 +109,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PERS_MP_OFFSET);
+                value = Read_uint32(value + Offset.Get.PERS_MP_OFFSET);
             }
 
             return Convert.ToInt32(value);
@@ -121,7 +121,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                return Read_uint32(value + Offset.PET_CURRENT_PETID_OFFSET);
+                return Read_uint32(value + Offset.Get.PET_CURRENT_PETID_OFFSET);
             }
 
             return 0;
@@ -133,7 +133,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PET_CURRENT_PETID_OFFSET);
+                value = Read_uint32(value + Offset.Get.PET_CURRENT_PETID_OFFSET);
             }
 
             if (value != 0)
@@ -150,7 +150,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PERS_TARGETID_OFFSET);
+                value = Read_uint32(value + Offset.Get.PERS_TARGETID_OFFSET);
             }
 
             return value;
@@ -162,7 +162,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                return value + Offset.PERS_TARGETID_OFFSET;
+                return value + Offset.Get.PERS_TARGETID_OFFSET;
             }
 
             return 0;
@@ -174,7 +174,7 @@ namespace BotCH.MemoryHelpers
 
             if (value != 0)
             {
-                value = Read_uint32(value + Offset.PERS_MAX_HP_OFFSET);
+                value = Read_uint32(value + Offset.Get.PERS_MAX_HP_OFFSET);
             }
 
             return Convert.ToInt32(value);
@@ -183,7 +183,7 @@ namespace BotCH.MemoryHelpers
         public static bool IsFeedPetAvailable()
         {
             uint value = GetPersStruct();
-            value = Read_uint32(value + Offset.PERS_COOLDOWN_FEED_PET_OFFSET);
+            value = Read_uint32(value + Offset.Get.PERS_COOLDOWN_FEED_PET_OFFSET);
 
             return value == 0;
         }
@@ -191,7 +191,7 @@ namespace BotCH.MemoryHelpers
         public static bool IsPotHPAvailable()
         {
             uint value = GetPersStruct();
-            value = Read_uint32(value + Offset.PERS_COOLDOWN_POT_HP_OFFSET);
+            value = Read_uint32(value + Offset.Get.PERS_COOLDOWN_POT_HP_OFFSET);
 
             return value == 0;
         }
@@ -200,7 +200,7 @@ namespace BotCH.MemoryHelpers
         {
             uint value = GetPersStruct();
 
-            return Read_uint32(value + Offset.PERS_WID_OFFSET);
+            return Read_uint32(value + Offset.Get.PERS_WID_OFFSET);
         }
 
         public static bool IsExistTarget()
