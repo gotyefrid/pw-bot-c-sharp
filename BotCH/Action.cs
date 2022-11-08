@@ -89,12 +89,6 @@ namespace BotCH
         {
             Action.ClickKey(Keys.Tab);
         }
-        public static void ChangeTargetByInject()
-        {
-            string[] mobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
-
-            Writer.TargetFirstMobFromArray(mobsIds);
-        }
 
         public static void AttackBySword()
         {

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Memory;
+using System;
 using System.Diagnostics;
 
 namespace BotCH.MemoryHelpers
@@ -6,21 +7,18 @@ namespace BotCH.MemoryHelpers
     public class Reader
     {
         public static BotForm form;
-        public static string processName;
-        public static int currentPID = 0;
         public static bool statusConnection;
         public static Process process;
-        public static VAMemory VAMemoryClass;
+        public static Mem memory = new Mem();
+        private static readonly string DefaultProcessName = "elementclient";
 
         public static string SetPID(int number)
         {
             if (number != 0)
             {
-                string name;
-
                 try
                 {
-                    name = SetProccesName(number);
+                    process = Process.GetProcessById(number);
                 }
                 catch
                 {
@@ -29,29 +27,22 @@ namespace BotCH.MemoryHelpers
                     return "Process not found";
                 }
 
-                currentPID = number;
                 statusConnection = true;
 
-                VAMemoryClass = new VAMemory(processName);
-
-                return "Connected to " + name + " PID = " + currentPID;
+                return "Connected to " + process.ProcessName + " PID = " + number;
             }
             else
             {
-                SetProccesName(0);
                 Process[] localAll = Process.GetProcesses();
 
-                foreach (var oneProcess in localAll)
+                foreach (Process oneProcess in localAll)
                 {
-                    if (oneProcess.ProcessName.ToLower() == processName.ToLower())
+                    if (oneProcess.ProcessName.ToLower() == DefaultProcessName)
                     {
-                        currentPID = oneProcess.Id;
                         process = oneProcess;
                         statusConnection = true;
 
-                        VAMemoryClass = new VAMemory(processName);
-
-                        return "Connected to " + processName + " PID = " + Reader.currentPID;
+                        return "Connected to " + process.ProcessName + " PID = " + process.Id;
 
                     }
                 }
@@ -62,45 +53,40 @@ namespace BotCH.MemoryHelpers
             }
         }
 
-        public static string SetProccesName(int pid)
-        {
-            if (pid == 0)
-            {
-                processName = "elementclient";
-
-                return "elementclient";
-            }
-            else
-            {
-                processName = Process.GetProcessById(pid).ProcessName;
-
-                return processName;
-            }
-        }
-
-        public static uint Read_uint32(uint address)
+        public static uint ReadUint32(uint address)
         {
             try
             {
-                return VAMemoryClass.ReadUInt32((IntPtr)address);
+                memory.OpenProcess(process.Id);
+
+                return memory.ReadUInt(address.ToString("X"));
             }
-            catch (OverflowException)
+            catch (Exception e)
             {
-                return 0;
+                throw new Exception(e.Message);
             }
         }
 
-        public static float Read_float(uint address)
+        public static float ReadFloat(uint address)
         {
-            return VAMemoryClass.ReadFloat((IntPtr)address);
+            try
+            {
+                memory.OpenProcess(process.Id);
+
+                return memory.ReadFloat(address.ToString("X"));
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
         }
 
         public static uint ReadGameAddress()
         {
             if (statusConnection)
             {
-                uint gameAdrress = Read_uint32(Offset.Get.GetBaseAddress());
-                gameAdrress = Read_uint32(gameAdrress + Offset.Get.GAMEADDR_OFFSET);
+                uint baseAdrress = ReadUint32(Offset.Get.GetBaseAddress());
+                uint gameAdrress = ReadUint32(baseAdrress + Offset.Get.GAMEADDR_OFFSET);
 
                 return gameAdrress;
             }

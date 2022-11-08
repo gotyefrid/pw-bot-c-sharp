@@ -66,6 +66,7 @@
             this.checkBoxEnableLog = new System.Windows.Forms.CheckBox();
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
+            this.checkFindAgrMob = new System.Windows.Forms.CheckBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -315,6 +316,7 @@
             // 
             // tabSettings
             // 
+            this.tabSettings.Controls.Add(this.checkFindAgrMob);
             this.tabSettings.Controls.Add(this.textBoxHealPetUsage);
             this.tabSettings.Controls.Add(this.labelTextHealPet);
             this.tabSettings.Controls.Add(this.checkBoxClickerMode);
@@ -360,7 +362,7 @@
             // 
             this.checkBoxClickerMode.AutoSize = true;
             this.checkBoxClickerMode.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxClickerMode.Location = new System.Drawing.Point(168, 145);
+            this.checkBoxClickerMode.Location = new System.Drawing.Point(118, 369);
             this.checkBoxClickerMode.Name = "checkBoxClickerMode";
             this.checkBoxClickerMode.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxClickerMode.Size = new System.Drawing.Size(129, 24);
@@ -373,7 +375,7 @@
             // 
             this.checkBoxKillMobs.AutoSize = true;
             this.checkBoxKillMobs.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxKillMobs.Location = new System.Drawing.Point(12, 145);
+            this.checkBoxKillMobs.Location = new System.Drawing.Point(10, 369);
             this.checkBoxKillMobs.Name = "checkBoxKillMobs";
             this.checkBoxKillMobs.RightToLeft = System.Windows.Forms.RightToLeft.No;
             this.checkBoxKillMobs.Size = new System.Drawing.Size(100, 24);
@@ -522,6 +524,18 @@
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
             // 
+            // checkFindAgrMob
+            // 
+            this.checkFindAgrMob.AutoSize = true;
+            this.checkFindAgrMob.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkFindAgrMob.Location = new System.Drawing.Point(13, 144);
+            this.checkFindAgrMob.Name = "checkFindAgrMob";
+            this.checkFindAgrMob.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.checkFindAgrMob.Size = new System.Drawing.Size(129, 24);
+            this.checkFindAgrMob.TabIndex = 25;
+            this.checkFindAgrMob.Text = "Find agr mob";
+            this.checkFindAgrMob.UseVisualStyleBackColor = true;
+            // 
             // BotForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -591,6 +605,7 @@
         public System.Windows.Forms.CheckBox checkBoxUnfrezze;
         public System.Windows.Forms.RichTextBox richTextBoxLogBox;
         public System.Windows.Forms.CheckBox checkBoxEnableLog;
+        public System.Windows.Forms.CheckBox checkFindAgrMob;
     }
 }
 

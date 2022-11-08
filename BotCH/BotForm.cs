@@ -1,10 +1,8 @@
 ﻿using BotCH.Entity;
 using BotCH.MemoryHelpers;
-using BotCH.MemoryHelpers.Offsets;
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Security.Policy;
 using System.Windows.Forms;
 
 namespace BotCH
@@ -59,7 +57,7 @@ namespace BotCH
                 if (Reader.statusConnection)
                 {
                     this.textBoxPID.BackColor = Color.LightGreen;
-                    this.textBoxPID.Text = Reader.currentPID.ToString();
+                    this.textBoxPID.Text = Reader.process.Id.ToString();
                     this.textBoxPID.Enabled = false;
                     this.checkBoxUnfrezze.Visible = true;
                     ThreadHelper.StartPersInfoThreads();
@@ -93,7 +91,7 @@ namespace BotCH
 
         private void StartButton_Click(object sender, EventArgs e)
         {
-            if (Reader.currentPID == 0)
+            if (Reader.process == null)
             {
                 MessageBox.Show("Connect to client first");
 

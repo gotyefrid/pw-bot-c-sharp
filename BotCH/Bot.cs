@@ -15,9 +15,12 @@ namespace BotCH
 
         public static void Run()
         {
-            Logger.setLog("Making list of alive mobs");
-            MobsAround = MobReader.GetActualListMobsOffsetsInArray();
-            Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+            if (form.checkFindAgrMob.Checked)
+            {
+                Logger.setLog("Making list of alive mobs");
+                MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+                Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+            }
 
             while (true)
             {
@@ -67,11 +70,10 @@ namespace BotCH
 
         public static void ChangeTarget()
         {
-            if (FindAgressiveMobAroud())
+            if (form.checkFindAgrMob.Checked)
             {
-                return;
+                FindAgressiveMobAroud();
             }
-
 
             Logger.setLog("Change mob by click TAB");
             Action.ChangeTargetByTab();
@@ -85,9 +87,6 @@ namespace BotCH
             if (id != 0)
             {
                 AgressiveMob = id;
-                Logger.setLog("Found the mob who is attacking me now: " + id);
-                Logger.setLog("Choose mob in target who attaking me");
-                Writer.TargetMob(id);
                 return true;
             }
             else
