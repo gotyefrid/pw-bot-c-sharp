@@ -75,8 +75,11 @@ namespace BotCH
                 FindAgressiveMobAroud();
             }
 
-            Logger.setLog("Change mob by click TAB");
-            Action.ChangeTargetByTab();
+            if (TargetMobEntity.WID == 0)
+            {
+                Logger.setLog("Change mob by click TAB");
+                Action.ChangeTargetByTab();
+            }
         }
 
         public static bool FindAgressiveMobAroud()

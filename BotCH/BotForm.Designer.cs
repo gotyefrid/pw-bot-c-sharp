@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.startButton = new System.Windows.Forms.Button();
             this.labelHpPers = new System.Windows.Forms.Label();
             this.textBoxPID = new System.Windows.Forms.TextBox();
@@ -49,6 +50,7 @@
             this.labelTextMP = new System.Windows.Forms.Label();
             this.labelTextHP = new System.Windows.Forms.Label();
             this.tabSettings = new System.Windows.Forms.TabPage();
+            this.checkFindAgrMob = new System.Windows.Forms.CheckBox();
             this.textBoxHealPetUsage = new System.Windows.Forms.TextBox();
             this.labelTextHealPet = new System.Windows.Forms.Label();
             this.checkBoxClickerMode = new System.Windows.Forms.CheckBox();
@@ -66,7 +68,7 @@
             this.checkBoxEnableLog = new System.Windows.Forms.CheckBox();
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
-            this.checkFindAgrMob = new System.Windows.Forms.CheckBox();
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -339,6 +341,23 @@
             this.tabSettings.Text = "Settings";
             this.tabSettings.UseVisualStyleBackColor = true;
             // 
+            // checkFindAgrMob
+            // 
+            this.checkFindAgrMob.AutoSize = true;
+            this.checkFindAgrMob.Checked = true;
+            this.checkFindAgrMob.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkFindAgrMob.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkFindAgrMob.Location = new System.Drawing.Point(13, 144);
+            this.checkFindAgrMob.Name = "checkFindAgrMob";
+            this.checkFindAgrMob.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.checkFindAgrMob.Size = new System.Drawing.Size(129, 24);
+            this.checkFindAgrMob.TabIndex = 25;
+            this.checkFindAgrMob.Text = "Find agr mob";
+            this.toolTip1.SetToolTip(this.checkFindAgrMob, "If checked = Char will generate near mob list once after start buttion, and then " +
+        "before TAB click will looking for a AGR mob aroud, if founded - Char will not ch" +
+        "ange he from target");
+            this.checkFindAgrMob.UseVisualStyleBackColor = true;
+            // 
             // textBoxHealPetUsage
             // 
             this.textBoxHealPetUsage.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
@@ -357,6 +376,7 @@
             this.labelTextHealPet.Size = new System.Drawing.Size(113, 20);
             this.labelTextHealPet.TabIndex = 23;
             this.labelTextHealPet.Text = "Heal Pet <, %";
+            this.toolTip1.SetToolTip(this.labelTextHealPet, "Press Heal Pet key when % will above");
             // 
             // checkBoxClickerMode
             // 
@@ -396,6 +416,7 @@
             this.checkBoxCheckId.Size = new System.Drawing.Size(100, 24);
             this.checkBoxCheckId.TabIndex = 20;
             this.checkBoxCheckId.Text = "Check ID";
+            this.toolTip1.SetToolTip(this.checkBoxCheckId, "If checked = Char will compare mob ID with MobID list in INI file");
             this.checkBoxCheckId.UseVisualStyleBackColor = true;
             // 
             // checkBoxLooting
@@ -410,11 +431,14 @@
             this.checkBoxLooting.Size = new System.Drawing.Size(86, 24);
             this.checkBoxLooting.TabIndex = 19;
             this.checkBoxLooting.Text = "Looting";
+            this.toolTip1.SetToolTip(this.checkBoxLooting, "If checked = Char will come to mob first, and after mob died Char will get loot");
             this.checkBoxLooting.UseVisualStyleBackColor = true;
             // 
             // checkBoxUseSword
             // 
             this.checkBoxUseSword.AutoSize = true;
+            this.checkBoxUseSword.Checked = true;
+            this.checkBoxUseSword.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxUseSword.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkBoxUseSword.Location = new System.Drawing.Point(168, 91);
             this.checkBoxUseSword.Name = "checkBoxUseSword";
@@ -422,6 +446,7 @@
             this.checkBoxUseSword.Size = new System.Drawing.Size(113, 24);
             this.checkBoxUseSword.TabIndex = 18;
             this.checkBoxUseSword.Text = "Use Sword";
+            this.toolTip1.SetToolTip(this.checkBoxUseSword, "If checked = Char will use Sword key when killing mob");
             this.checkBoxUseSword.UseVisualStyleBackColor = true;
             // 
             // checkBoxUseSkill
@@ -434,6 +459,7 @@
             this.checkBoxUseSkill.Size = new System.Drawing.Size(97, 24);
             this.checkBoxUseSkill.TabIndex = 17;
             this.checkBoxUseSkill.Text = "Use Skill";
+            this.toolTip1.SetToolTip(this.checkBoxUseSkill, "If checked = Char will use Skill key whe killing mob");
             this.checkBoxUseSkill.UseVisualStyleBackColor = true;
             // 
             // labelTextCage
@@ -445,6 +471,7 @@
             this.labelTextCage.Size = new System.Drawing.Size(48, 20);
             this.labelTextCage.TabIndex = 16;
             this.labelTextCage.Text = "Cage";
+            this.toolTip1.SetToolTip(this.labelTextCage, "Set cage of pet");
             // 
             // textBoxMPusage
             // 
@@ -464,6 +491,7 @@
             this.labelTextUseMP.Size = new System.Drawing.Size(148, 20);
             this.labelTextUseMP.TabIndex = 13;
             this.labelTextUseMP.Text = "Use MP key <, MP";
+            this.toolTip1.SetToolTip(this.labelTextUseMP, "Use MP key whe MP above XX MP");
             // 
             // textBoxHPusage
             // 
@@ -483,6 +511,7 @@
             this.labelTextUseHP.Size = new System.Drawing.Size(137, 20);
             this.labelTextUseHP.TabIndex = 11;
             this.labelTextUseHP.Text = "Use HP key <, %";
+            this.toolTip1.SetToolTip(this.labelTextUseHP, "Use HP key when HP above XX %");
             // 
             // tabKeys
             // 
@@ -523,18 +552,6 @@
             this.labelState.Size = new System.Drawing.Size(375, 16);
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
-            // 
-            // checkFindAgrMob
-            // 
-            this.checkFindAgrMob.AutoSize = true;
-            this.checkFindAgrMob.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkFindAgrMob.Location = new System.Drawing.Point(13, 144);
-            this.checkFindAgrMob.Name = "checkFindAgrMob";
-            this.checkFindAgrMob.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkFindAgrMob.Size = new System.Drawing.Size(129, 24);
-            this.checkFindAgrMob.TabIndex = 25;
-            this.checkFindAgrMob.Text = "Find agr mob";
-            this.checkFindAgrMob.UseVisualStyleBackColor = true;
             // 
             // BotForm
             // 
@@ -606,6 +623,7 @@
         public System.Windows.Forms.RichTextBox richTextBoxLogBox;
         public System.Windows.Forms.CheckBox checkBoxEnableLog;
         public System.Windows.Forms.CheckBox checkFindAgrMob;
+        private System.Windows.Forms.ToolTip toolTip1;
     }
 }
 
