@@ -24,7 +24,7 @@
 
 # Mono auto generated files
 mono_crash.*
-
+packages/
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
