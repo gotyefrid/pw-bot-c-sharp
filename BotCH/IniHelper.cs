@@ -25,10 +25,10 @@ namespace BotCH
         }
 
         //Читаем ini-файл и возвращаем значение указного ключа из заданной секции.
-        public string ReadINI(string Section, string Key)
+        public string ReadINI(string Section, string Key, string Default = "")
         {
             var RetVal = new StringBuilder(255);
-            GetPrivateProfileString(Section, Key, "", RetVal, 255, Path);
+            GetPrivateProfileString(Section, Key, Default, RetVal, 255, Path);
             return RetVal.ToString();
         }
         //Записываем в ini-файл. Запись происходит в выбранную секцию в выбранный ключ.

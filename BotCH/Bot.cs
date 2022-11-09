@@ -75,11 +75,14 @@ namespace BotCH
                 FindAgressiveMobAroud();
             }
 
-            if (TargetMobEntity.WID == 0)
+            /* Если после убийства моба автоматически взят таргет и этот таргет нас бьёт */
+            if (AgressiveMob != 0 && AgressiveMob == TargetMobEntity.WID)
             {
-                Logger.setLog("Change mob by click TAB");
-                Action.ChangeTargetByTab();
+                return;
             }
+
+            Logger.setLog("Change mob by click TAB");
+            Action.ChangeTargetByTab();
         }
 
         public static bool FindAgressiveMobAroud()

@@ -12,6 +12,7 @@ namespace BotCH.MemoryHelpers.Offsets
         public abstract uint GAMEADDR_OFFSET { get; }
         public abstract uint UNZREEFE_OFFSET { get; }
         public abstract uint PERS_STRUCT_OFFSET { get; }
+        public abstract uint PERS_NAME { get; }
         public abstract uint PERS_FLAG_SKILL_OFFSET { get; }
         public abstract uint PERS_WID_OFFSET { get; }
         public abstract uint PERS_HP_OFFSET { get; }

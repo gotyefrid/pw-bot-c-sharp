@@ -20,6 +20,12 @@ namespace BotCH
         private void BotForm_Load(object sender, EventArgs e)
         {
             Offset.ServerName = Offset.COMEBACK136;
+
+            if (IniManager.ReadINI("settings", "renameWindows") == "1")
+            {
+                Reader.RenameGameWindows();
+            }
+
             Auth.form = this;
             PersInfo.form = this;
             Reader.form = this;
@@ -41,7 +47,7 @@ namespace BotCH
                 {
                     Process.Start("https://t.me/white_mel");
                 }
-                
+
                 return;
             }
 
@@ -63,7 +69,6 @@ namespace BotCH
                     ThreadHelper.StartPersInfoThreads();
                     Logger.setLog("----------------------");
                     Logger.setLog("Status connection TRUE");
-                    IniManager.Write("offset", "persHp", MyPersEntity.MaxHP.ToString());
                 }
                 else
                 {
@@ -107,9 +112,9 @@ namespace BotCH
 
         private void InitParamsFromIniConfig()
         {
-            this.textBoxHPusage.Text = IniManager.ReadINI("settings", "useHp");
-            this.textBoxMPusage.Text = IniManager.ReadINI("settings", "useMp");
-            this.textBoxHealPetUsage.Text = IniManager.ReadINI("settings", "useHealPet");
+            this.textBoxHPusage.Text = IniManager.ReadINI("settings", "useHp", "80");
+            this.textBoxMPusage.Text = IniManager.ReadINI("settings", "useMp", "100");
+            this.textBoxHealPetUsage.Text = IniManager.ReadINI("settings", "useHealPet", "70");
             this.checkBoxUseSkill.Checked = IniManager.ReadINI("settings", "checkBoxUseSkill") == "1";
             this.checkBoxUseSkill.Checked = IniManager.ReadINI("settings", "checkBoxUseSkill") == "1";
             this.checkBoxUseSword.Checked = IniManager.ReadINI("settings", "checkBoxUseSword") == "1";

@@ -1,16 +1,44 @@
 ﻿using Memory;
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace BotCH.MemoryHelpers
 {
     public class Reader
     {
+        [DllImport("user32.dll")]
+        static extern bool SetWindowText(IntPtr hWnd, string text);
+
         public static BotForm form;
-        public static bool statusConnection;
+        public static bool statusConnection = false;
         public static Process process;
         public static Mem memory = new Mem();
         private static readonly string DefaultProcessName = "elementclient";
+
+        public static void RenameGameWindows()
+        {
+            Process[] localAll = Process.GetProcesses();
+
+            foreach (Process oneProcess in localAll)
+            {
+                if (oneProcess.ProcessName.ToLower() == DefaultProcessName)
+                {
+                    try
+                    {
+                        process = oneProcess;
+                        string persName = PersReader.GetPersName();
+                        SetWindowText(oneProcess.MainWindowHandle, persName + " " + oneProcess.Id.ToString());
+                    }
+                    catch
+                    {
+                        SetWindowText(oneProcess.MainWindowHandle, oneProcess.Id.ToString());
+                    }
+                }
+            }
+
+
+        }
 
         public static string SetPID(int number)
         {
@@ -20,16 +48,7 @@ namespace BotCH.MemoryHelpers
                 {
                     process = Process.GetProcessById(number);
                 }
-                catch
-                {
-                    statusConnection = false;
-
-                    return "Process not found";
-                }
-
-                statusConnection = true;
-
-                return "Connected to " + process.ProcessName + " PID = " + number;
+                catch { }
             }
             else
             {
@@ -40,17 +59,18 @@ namespace BotCH.MemoryHelpers
                     if (oneProcess.ProcessName.ToLower() == DefaultProcessName)
                     {
                         process = oneProcess;
-                        statusConnection = true;
-
-                        return "Connected to " + process.ProcessName + " PID = " + process.Id;
-
                     }
                 }
-
-                statusConnection = false;
-
-                return "Can't find Elementclient process";
             }
+
+            if (process == null)
+            {
+                return "Process not found";
+            }
+
+            statusConnection = true;
+
+            return "Connected to " + process.ProcessName + " PID = " + number;
         }
 
         public static uint ReadUint32(uint address)
@@ -60,6 +80,19 @@ namespace BotCH.MemoryHelpers
                 memory.OpenProcess(process.Id);
 
                 return memory.ReadUInt(address.ToString("X"));
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+        public static string ReadString(uint address)
+        {
+            try
+            {
+                memory.OpenProcess(process.Id);
+
+                return memory.ReadString(address.ToString("X"));
             }
             catch (Exception e)
             {
@@ -83,17 +116,10 @@ namespace BotCH.MemoryHelpers
 
         public static uint ReadGameAddress()
         {
-            if (statusConnection)
-            {
-                uint baseAdrress = ReadUint32(Offset.Get.GetBaseAddress());
-                uint gameAdrress = ReadUint32(baseAdrress + Offset.Get.GAMEADDR_OFFSET);
+            uint baseAdrress = ReadUint32(Offset.Get.GetBaseAddress());
+            uint gameAdrress = ReadUint32(baseAdrress + Offset.Get.GAMEADDR_OFFSET);
 
-                return gameAdrress;
-            }
-            else
-            {
-                return 0;
-            }
+            return gameAdrress;
         }
     }
 }

@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace BotCH.MemoryHelpers
 {
@@ -206,6 +202,31 @@ namespace BotCH.MemoryHelpers
         public static bool IsExistTarget()
         {
             return GetTargetId() != 0;
+        }
+
+        public static string GetPersName()
+        {
+            try
+            {
+                uint buff = ReadUint32(GetPersStruct() + Offset.Get.PERS_NAME);
+                string name = "";
+                int symbol = 0;
+                uint offsetSymbol = 0x0;
+                int limit = 10;
+
+                while (ReadString(buff + offsetSymbol) != "" && limit >= 0)
+                {
+                    name += ReadString(buff + offsetSymbol);
+                    offsetSymbol = uint.Parse((++symbol * 2).ToString("X"), System.Globalization.NumberStyles.HexNumber);
+                    limit--;
+                }
+
+                return name;
+            }
+            catch
+            {
+                return "";
+            }
         }
     }
 }

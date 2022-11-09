@@ -13,6 +13,7 @@ namespace BotCH.MemoryHelpers.Offsets
         public override uint UNZREEFE_OFFSET { get => 0x4E8; }
 
         public override uint PERS_STRUCT_OFFSET { get => 0x28; }
+        public override uint PERS_NAME { get => 0x6F8; }
         public override uint PERS_FLAG_SKILL_OFFSET { get => 0xB8; }
         public override uint PERS_WID_OFFSET { get => 0x4BC; }
         public override uint PERS_HP_OFFSET { get => 0x4D0; }
