@@ -23,7 +23,7 @@ namespace BotCH
         {
             if (needCastingCheck)
             {
-                WaitForCasting();
+                WaitForCasting(key);
             }
 
             PostMessage(Reader.process.MainWindowHandle, WM_KEYDOWN, (IntPtr)key, IntPtr.Zero);
@@ -52,7 +52,7 @@ namespace BotCH
             Thread.Sleep(500);
         }
 
-        public static void WaitForCasting()
+        public static void WaitForCasting(Keys key)
         {
             int i = 0;
 
@@ -60,12 +60,14 @@ namespace BotCH
             {
                 if (i == 0)
                 {
-                    Logger.setLog("Waiting for skill is active");
+                    Logger.setLog("Waiting for skill is active before click " + key.ToString());
                 }
 
                 Thread.Sleep(1000);
                 i++;
             }
+
+            Thread.Sleep(500);
         }
 
         public static async void EscapeClicks()
@@ -125,9 +127,9 @@ namespace BotCH
             Action.ClickKey(Keys.F5);
         }
 
-        public static void HealPet()
+        public static void HealPet(bool waitCasting = true)
         {
-            Action.ClickKey(Keys.F7);
+            Action.ClickKey(Keys.F7, waitCasting);
         }
 
         public static void BringPetToLife()

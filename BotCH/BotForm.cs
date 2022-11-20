@@ -19,7 +19,7 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
-            Offset.ServerName = Offset.COMEBACK136;
+            Offset.ServerName = Offset.COMEBACK146X;
 
             if (IniManager.ReadINI("settings", "renameWindows") == "1")
             {

@@ -1,4 +1,7 @@
 ﻿using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace BotCH.MemoryHelpers
 {
@@ -212,13 +215,15 @@ namespace BotCH.MemoryHelpers
                 string name = "";
                 int symbol = 0;
                 uint offsetSymbol = 0x0;
-                int limit = 10;
+                int limit = 15;
+                int resultLim = 0;
 
                 while (ReadString(buff + offsetSymbol) != "" && limit >= 0)
                 {
                     name += ReadString(buff + offsetSymbol);
                     offsetSymbol = uint.Parse((++symbol * 2).ToString("X"), System.Globalization.NumberStyles.HexNumber);
                     limit--;
+                    resultLim++;
                 }
 
                 return name;
@@ -226,6 +231,25 @@ namespace BotCH.MemoryHelpers
             catch
             {
                 return "";
+            }
+        }
+
+        [DllImport("kernel32.dll")]
+        private static extern Int32 MultiByteToWideChar(UInt32 CodePage, UInt32 dwFlags, [MarshalAs(UnmanagedType.LPStr)] String lpMultiByteStr, Int32 cbMultiByte, [Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder lpWideCharStr, Int32 cchWideChar);
+
+        public static string Utf8ToUtf16(string utf8String)
+        {
+            Int32 iNewDataLen = MultiByteToWideChar(Convert.ToUInt32(Encoding.UTF8.CodePage), 0, utf8String, -1, null, 0);
+            if (iNewDataLen > 1)
+            {
+                StringBuilder utf16String = new StringBuilder(iNewDataLen);
+                MultiByteToWideChar(Convert.ToUInt32(Encoding.UTF8.CodePage), 0, utf8String, -1, utf16String, utf16String.Capacity);
+
+                return utf16String.ToString();
+            }
+            else
+            {
+                return String.Empty;
             }
         }
     }

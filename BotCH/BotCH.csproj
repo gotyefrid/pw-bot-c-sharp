@@ -219,6 +219,7 @@
     <Compile Include="Entity\TargetEntity.cs" />
     <Compile Include="MemoryHelpers\OffsetFinder.cs" />
     <Compile Include="MemoryHelpers\MobReader.cs" />
+    <Compile Include="MemoryHelpers\Offsets\Comeback146X.cs" />
     <Compile Include="MemoryHelpers\Offsets\Comeback136.cs" />
     <Compile Include="IniHelper.cs" />
     <Compile Include="Logger.cs" />

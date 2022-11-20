@@ -1,6 +1,7 @@
 ﻿using BotCH.Entity;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace BotCH.MemoryHelpers
 {
@@ -60,7 +61,7 @@ namespace BotCH.MemoryHelpers
         {
             uint value;
 
-            if (mobList != null)
+            if (mobList.ContainsKey(wid))
             {
                 value = GetMobStruct(wid, mobList);
             }

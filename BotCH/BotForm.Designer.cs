@@ -69,6 +69,7 @@
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.checkBoxComeCloser = new System.Windows.Forms.CheckBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -318,6 +319,7 @@
             // 
             // tabSettings
             // 
+            this.tabSettings.Controls.Add(this.checkBoxComeCloser);
             this.tabSettings.Controls.Add(this.checkFindAgrMob);
             this.tabSettings.Controls.Add(this.textBoxHealPetUsage);
             this.tabSettings.Controls.Add(this.labelTextHealPet);
@@ -553,6 +555,21 @@
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
             // 
+            // checkBoxComeCloser
+            // 
+            this.checkBoxComeCloser.AutoSize = true;
+            this.checkBoxComeCloser.Checked = true;
+            this.checkBoxComeCloser.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxComeCloser.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxComeCloser.Location = new System.Drawing.Point(168, 144);
+            this.checkBoxComeCloser.Name = "checkBoxComeCloser";
+            this.checkBoxComeCloser.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.checkBoxComeCloser.Size = new System.Drawing.Size(129, 24);
+            this.checkBoxComeCloser.TabIndex = 26;
+            this.checkBoxComeCloser.Text = "Come Closer";
+            this.toolTip1.SetToolTip(this.checkBoxComeCloser, "If checked = Char will come to mob to get loot");
+            this.checkBoxComeCloser.UseVisualStyleBackColor = true;
+            // 
             // BotForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -624,6 +641,7 @@
         public System.Windows.Forms.CheckBox checkBoxEnableLog;
         public System.Windows.Forms.CheckBox checkFindAgrMob;
         private System.Windows.Forms.ToolTip toolTip1;
+        public System.Windows.Forms.CheckBox checkBoxComeCloser;
     }
 }
 

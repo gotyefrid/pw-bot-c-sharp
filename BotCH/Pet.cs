@@ -53,7 +53,8 @@ namespace BotCH
                 {
                     if (PersReader.GetPetHpPercent() < Convert.ToInt32(form.textBoxHealPetUsage.Text))
                     {
-                        Action.HealPet();
+                        Logger.setLog(PersReader.GetPetHpPercent() + "% HP pet, have to heal!");
+                        Action.HealPet(false);
                     }
 
                     if (Pet.IsNeedToBeFeed())

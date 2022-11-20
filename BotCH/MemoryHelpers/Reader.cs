@@ -27,7 +27,8 @@ namespace BotCH.MemoryHelpers
                     try
                     {
                         process = oneProcess;
-                        string persName = PersReader.GetPersName();
+                        //string persName = PersReader.GetPersName();
+                        string persName = "";
                         SetWindowText(oneProcess.MainWindowHandle, persName + " " + oneProcess.Id.ToString());
                     }
                     catch
@@ -93,6 +94,20 @@ namespace BotCH.MemoryHelpers
                 memory.OpenProcess(process.Id);
 
                 return memory.ReadString(address.ToString("X"));
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+
+        public static int ReadByte(uint address)
+        {
+            try
+            {
+                memory.OpenProcess(process.Id);
+
+                return memory.Read2Byte(address.ToString("X"));
             }
             catch (Exception e)
             {

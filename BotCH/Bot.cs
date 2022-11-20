@@ -1,5 +1,6 @@
 ﻿using BotCH.Entity;
 using BotCH.MemoryHelpers;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -41,23 +42,12 @@ namespace BotCH
                                 Logger.setLog("Killing mob because it attaking me!");
                             }
 
-                            if (form.checkBoxLooting.Checked == true)
-                            {
-                                Action.AttackByPet();
-                                ComeCloser(TargetMobEntity.WID);
-                            }
-
                             KillMobActions(TargetMobEntity.WID);
                             GetLoot();
                         }
                     }
                     else
                     {
-                        if (form.checkBoxLooting.Checked == true)
-                        {
-                            ComeCloser(TargetMobEntity.WID);
-                        }
-
                         KillMobActions(TargetMobEntity.WID);
                         GetLoot();
                     }
@@ -113,7 +103,6 @@ namespace BotCH
 
                 for (int i = 0; i < n; i++)
                 {
-                    Action.WaitForCasting();
                     Action.PickUpLoot();
                     Thread.Sleep(600);
                 }
@@ -144,12 +133,25 @@ namespace BotCH
         {
             Logger.setLog("Killing mob");
             int i = 0;
+            var timeStart = DateTime.Now;
 
             while (TargetMobEntity.WID == mobId)
             {
                 if (TargetMobEntity.WID == 0)
                 {
                     return;
+                }
+
+                if ((DateTime.Now - timeStart).Duration().Seconds > 120)
+                {
+                    Logger.setLog("Change trarget. Time-out 120 sec. to killing mob passed");
+                    return;
+                }
+
+                if (!form.checkBoxUseSword.Checked && form.checkBoxComeCloser.Checked)
+                {
+                    Action.AttackByPet();
+                    ComeCloser(TargetMobEntity.WID);
                 }
 
                 if (i == 0)
@@ -164,19 +166,24 @@ namespace BotCH
 
                 if (form.checkBoxUseSword.Checked == true)
                 {
-                    Action.AttackBySword();
+                    if (i == 0 || i % 5 == 0)
+                    {
+                        Action.AttackBySword();
+                    }
                 }
 
                 i++;
+
+                Thread.Sleep(1000);
             }
         }
 
         private static void ComeCloser(uint mobId)
         {
-            Logger.setLog("Come closer to mob");
-
             if (MobReader.GetMobDistance(mobId, MobsAround) > 3.5)
             {
+                Logger.setLog("Distance to mob > 3.5");
+                Logger.setLog("Come closer to mob");
                 int i = 0;
 
                 float beforeDist;
@@ -212,7 +219,7 @@ namespace BotCH
                 else
                 {
                     Action.HealPet();
-                    Logger.setLog("Clicked heal pet");
+                    Logger.setLog("Clicked heal pet to prevent SwordAttak");
                 }
 
             }
