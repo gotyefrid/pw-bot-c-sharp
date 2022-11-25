@@ -10,6 +10,7 @@ namespace BotCH
     internal class Bot
     {
         public static BotForm form;
+        public static int KillMobTimerSec = 120;
         public static Thread BotingThread;
         private static uint AgressiveMob = 0;
         private static Dictionary<uint, string> MobsAround;
@@ -29,6 +30,11 @@ namespace BotCH
 
                 if (PersReader.IsExistTarget())
                 {
+                    if (MobsAround == null || !MobsAround.ContainsKey(TargetMobEntity.WID))
+                    {
+                        AddMobToList(TargetMobEntity.WID, MobReader.GetMobArrayHexNumber(TargetMobEntity.WID));
+                    }
+
                     if (form.checkBoxCheckId.Checked == true)
                     {
                         bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
@@ -71,7 +77,19 @@ namespace BotCH
                 return;
             }
 
+
+            if (TargetMobEntity.WID != 0)
+            {
+                if (MobReader.IsMobAttakingMeNow(TargetMobEntity.WID))
+                {
+                    AgressiveMob = TargetMobEntity.WID;
+
+                    return;
+                }
+            }
+
             Logger.setLog("Change mob by click TAB");
+
             Action.ChangeTargetByTab();
         }
 
@@ -97,7 +115,7 @@ namespace BotCH
         {
             if (form.checkBoxLooting.Checked == true)
             {
-                int n = 4;
+                int n = int.Parse(form.textBoxLootingClicks.Text);
 
                 Logger.setLog("Pick up loot " + n + " times");
 
@@ -131,6 +149,12 @@ namespace BotCH
 
         private static void KillMobActions(uint mobId)
         {
+            if (!form.checkBoxKillMobs.Checked)
+            {
+                Logger.setLog("Killing mob disable");
+                return;
+            }
+
             Logger.setLog("Killing mob");
             int i = 0;
             var timeStart = DateTime.Now;
@@ -142,7 +166,7 @@ namespace BotCH
                     return;
                 }
 
-                if ((DateTime.Now - timeStart).Duration().Seconds > 120)
+                if ((DateTime.Now - timeStart).Duration().Seconds > KillMobTimerSec)
                 {
                     Logger.setLog("Change trarget. Time-out 120 sec. to killing mob passed");
                     return;
@@ -151,7 +175,7 @@ namespace BotCH
                 if (!form.checkBoxUseSword.Checked && form.checkBoxComeCloser.Checked)
                 {
                     Action.AttackByPet();
-                    ComeCloser(TargetMobEntity.WID);
+                    ComeCloser(TargetMobEntity.WID, int.Parse(form.textBoxComeCloserDist.Text));
                 }
 
                 if (i == 0)
@@ -178,17 +202,29 @@ namespace BotCH
             }
         }
 
-        private static void ComeCloser(uint mobId)
+        public static void AddMobToList(uint wid, string arrayNumber)
         {
-            if (MobReader.GetMobDistance(mobId, MobsAround) > 3.5)
+            if (MobsAround != null)
             {
-                Logger.setLog("Distance to mob > 3.5");
+                MobsAround.Add(wid, arrayNumber);
+            }
+            else
+            {
+                MobsAround = new Dictionary<uint, string> { { wid, arrayNumber } };
+            }
+        }
+
+        private static void ComeCloser(uint mobId, float dist)
+        {
+            if (MobReader.GetMobDistance(mobId, MobsAround) > dist)
+            {
+                Logger.setLog("Distance to mob > " + dist);
                 Logger.setLog("Come closer to mob");
                 int i = 0;
 
                 float beforeDist;
 
-                while ((beforeDist = MobReader.GetMobDistance(mobId, MobsAround)) > 4)
+                while ((beforeDist = MobReader.GetMobDistance(mobId, MobsAround)) > dist)
                 {
                     if (TargetMobEntity.WID == 0)
                     {

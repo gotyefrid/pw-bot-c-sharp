@@ -74,6 +74,7 @@ namespace BotCH.MemoryHelpers
             return "Connected to " + process.ProcessName + " PID = " + number;
         }
 
+        
         public static uint ReadUint32(uint address)
         {
             try
@@ -81,6 +82,35 @@ namespace BotCH.MemoryHelpers
                 memory.OpenProcess(process.Id);
 
                 return memory.ReadUInt(address.ToString("X"));
+            }
+            catch (Exception e)
+            {
+                throw new Exception(e.Message);
+            }
+        }
+
+        public static uint ReadUint32(uint[] addresses)
+        {
+            try
+            {
+                memory.OpenProcess(process.Id);
+                string code = "";
+
+                foreach (uint adress in addresses)
+                {
+                    string adressStr = adress.ToString("X");
+
+                    if (code == "")
+                    {
+                        code = adressStr;
+                    }
+                    else
+                    {
+                        code = code + " + " + adressStr;
+                    }
+                }
+
+                return memory.ReadUInt(code);
             }
             catch (Exception e)
             {

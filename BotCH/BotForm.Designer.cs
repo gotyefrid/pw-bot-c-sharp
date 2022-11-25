@@ -50,6 +50,7 @@
             this.labelTextMP = new System.Windows.Forms.Label();
             this.labelTextHP = new System.Windows.Forms.Label();
             this.tabSettings = new System.Windows.Forms.TabPage();
+            this.checkBoxComeCloser = new System.Windows.Forms.CheckBox();
             this.checkFindAgrMob = new System.Windows.Forms.CheckBox();
             this.textBoxHealPetUsage = new System.Windows.Forms.TextBox();
             this.labelTextHealPet = new System.Windows.Forms.Label();
@@ -69,7 +70,8 @@
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.checkBoxComeCloser = new System.Windows.Forms.CheckBox();
+            this.textBoxComeCloserDist = new System.Windows.Forms.TextBox();
+            this.textBoxLootingClicks = new System.Windows.Forms.TextBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -319,6 +321,8 @@
             // 
             // tabSettings
             // 
+            this.tabSettings.Controls.Add(this.textBoxLootingClicks);
+            this.tabSettings.Controls.Add(this.textBoxComeCloserDist);
             this.tabSettings.Controls.Add(this.checkBoxComeCloser);
             this.tabSettings.Controls.Add(this.checkFindAgrMob);
             this.tabSettings.Controls.Add(this.textBoxHealPetUsage);
@@ -342,6 +346,21 @@
             this.tabSettings.TabIndex = 1;
             this.tabSettings.Text = "Settings";
             this.tabSettings.UseVisualStyleBackColor = true;
+            // 
+            // checkBoxComeCloser
+            // 
+            this.checkBoxComeCloser.AutoSize = true;
+            this.checkBoxComeCloser.Checked = true;
+            this.checkBoxComeCloser.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.checkBoxComeCloser.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.checkBoxComeCloser.Location = new System.Drawing.Point(168, 144);
+            this.checkBoxComeCloser.Name = "checkBoxComeCloser";
+            this.checkBoxComeCloser.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.checkBoxComeCloser.Size = new System.Drawing.Size(129, 24);
+            this.checkBoxComeCloser.TabIndex = 26;
+            this.checkBoxComeCloser.Text = "Come Closer";
+            this.toolTip1.SetToolTip(this.checkBoxComeCloser, "If checked = Char will come to mob to get loot");
+            this.checkBoxComeCloser.UseVisualStyleBackColor = true;
             // 
             // checkFindAgrMob
             // 
@@ -396,6 +415,8 @@
             // checkBoxKillMobs
             // 
             this.checkBoxKillMobs.AutoSize = true;
+            this.checkBoxKillMobs.Checked = true;
+            this.checkBoxKillMobs.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxKillMobs.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkBoxKillMobs.Location = new System.Drawing.Point(10, 369);
             this.checkBoxKillMobs.Name = "checkBoxKillMobs";
@@ -404,7 +425,6 @@
             this.checkBoxKillMobs.TabIndex = 21;
             this.checkBoxKillMobs.Text = "Kill Mobs";
             this.checkBoxKillMobs.UseVisualStyleBackColor = true;
-            this.checkBoxKillMobs.Visible = false;
             // 
             // checkBoxCheckId
             // 
@@ -555,20 +575,23 @@
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
             // 
-            // checkBoxComeCloser
+            // textBoxComeCloserDist
             // 
-            this.checkBoxComeCloser.AutoSize = true;
-            this.checkBoxComeCloser.Checked = true;
-            this.checkBoxComeCloser.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBoxComeCloser.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.checkBoxComeCloser.Location = new System.Drawing.Point(168, 144);
-            this.checkBoxComeCloser.Name = "checkBoxComeCloser";
-            this.checkBoxComeCloser.RightToLeft = System.Windows.Forms.RightToLeft.No;
-            this.checkBoxComeCloser.Size = new System.Drawing.Size(129, 24);
-            this.checkBoxComeCloser.TabIndex = 26;
-            this.checkBoxComeCloser.Text = "Come Closer";
-            this.toolTip1.SetToolTip(this.checkBoxComeCloser, "If checked = Char will come to mob to get loot");
-            this.checkBoxComeCloser.UseVisualStyleBackColor = true;
+            this.textBoxComeCloserDist.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.textBoxComeCloserDist.Location = new System.Drawing.Point(301, 143);
+            this.textBoxComeCloserDist.Name = "textBoxComeCloserDist";
+            this.textBoxComeCloserDist.Size = new System.Drawing.Size(38, 26);
+            this.textBoxComeCloserDist.TabIndex = 27;
+            this.textBoxComeCloserDist.Text = "8";
+            // 
+            // textBoxLootingClicks
+            // 
+            this.textBoxLootingClicks.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.textBoxLootingClicks.Location = new System.Drawing.Point(104, 117);
+            this.textBoxLootingClicks.Name = "textBoxLootingClicks";
+            this.textBoxLootingClicks.Size = new System.Drawing.Size(38, 26);
+            this.textBoxLootingClicks.TabIndex = 28;
+            this.textBoxLootingClicks.Text = "4";
             // 
             // BotForm
             // 
@@ -642,6 +665,8 @@
         public System.Windows.Forms.CheckBox checkFindAgrMob;
         private System.Windows.Forms.ToolTip toolTip1;
         public System.Windows.Forms.CheckBox checkBoxComeCloser;
+        public System.Windows.Forms.TextBox textBoxComeCloserDist;
+        public System.Windows.Forms.TextBox textBoxLootingClicks;
     }
 }
 

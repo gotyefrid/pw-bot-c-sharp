@@ -8,7 +8,7 @@ namespace BotCH.MemoryHelpers.Offsets
     */
     public class Comeback146X : OffsetTemplate
     {
-        public override uint BASEADDR_OFFSET { get => 0x8572D0; }
+        public override uint BASEADDR_OFFSET { get => 0x85A2D0; }
         public override uint GAMEADDR_OFFSET { get => 0x1C; }
         public override uint UNZREEFE_OFFSET { get => 0x4E8; }
 

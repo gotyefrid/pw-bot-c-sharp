@@ -30,14 +30,14 @@ namespace BotCH
         {
             thread.IsBackground = true;
 
-            if ((thread.ThreadState & (ThreadState.Stopped | ThreadState.Unstarted)) != 0)
+            if (thread != null && (thread.ThreadState & (ThreadState.Stopped | ThreadState.Unstarted)) != 0)
             {
                 thread.Start();
             }
         }
         private static void Stop(Thread thread)
         {
-            if (thread.ThreadState != ThreadState.Aborted && thread.ThreadState != ThreadState.Unstarted)
+            if (thread != null && thread.ThreadState != ThreadState.Aborted && thread.ThreadState != ThreadState.Unstarted)
             {
                 thread.Abort();
             }

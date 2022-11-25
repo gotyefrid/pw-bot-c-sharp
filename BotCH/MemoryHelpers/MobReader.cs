@@ -1,7 +1,5 @@
 ﻿using BotCH.Entity;
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace BotCH.MemoryHelpers
 {
@@ -30,6 +28,31 @@ namespace BotCH.MemoryHelpers
             }
 
             return 0;
+        }
+
+        public static string GetMobArrayHexNumber(uint wid)
+        {
+            for (uint i = 0; i <= 768; i++)
+            {
+                uint value = ReadUint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+                value = ReadUint32(value + Offset.Get.MOB_OFFSET_2);
+                value = ReadUint32(value + Offset.Get.MOB_STRUCT_OFFSET);
+                string offset = (i * 4).ToString("X");
+                value = ReadUint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
+
+                if (value != 0)
+                {
+                    uint mobStruct = ReadUint32(value + 0x4);
+                    value = ReadUint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
+
+                    if (value == wid)
+                    {
+                        return offset;
+                    }
+                }
+            }
+
+            return "0";
         }
 
         public static uint GetMobStruct(uint wid, Dictionary<uint, string> mobList = null)
@@ -61,7 +84,7 @@ namespace BotCH.MemoryHelpers
         {
             uint value;
 
-            if (mobList.ContainsKey(wid))
+            if (mobList != null && mobList.ContainsKey(wid))
             {
                 value = GetMobStruct(wid, mobList);
             }
@@ -177,6 +200,37 @@ namespace BotCH.MemoryHelpers
             }
 
             return array;
+        }
+
+        public static bool IsMobAttakingMeNow(uint wid)
+        {
+            uint value = ReadUint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+            value = ReadUint32(value + Offset.Get.MOB_OFFSET_2);
+            value = ReadUint32(value + Offset.Get.MOB_STRUCT_OFFSET);
+            string offset = GetMobArrayHexNumber(wid);
+            value = ReadUint32(value + uint.Parse(offset, System.Globalization.NumberStyles.HexNumber));
+
+            if (value != 0)
+            {
+                uint mobStruct = ReadUint32(value + 0x4);
+                value = ReadUint32(mobStruct + Offset.Get.MOB_TARGET_OFFSET);
+                var persWid = PersReader.GetMyPersWID();
+                var persMobWid = PersReader.GetCurrentPetId();
+
+                if (value == persWid || (persMobWid != 0 && value == persMobWid))
+                {
+                    uint mobWid = ReadUint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
+                    uint mobType = GetMobType(mobWid);
+                    uint mobAction = ReadUint32(mobStruct + Offset.Get.MOB_ACTION_OFFSET);
+
+                    if (mobType == TargetMobEntity.TYPE_MOB && mobAction != TargetMobEntity.ACTION_DIES)
+                    {
+                        return true; ;
+                    }
+                }
+            }
+
+            return false;
         }
 
         public static uint GetMobType(uint wid)
