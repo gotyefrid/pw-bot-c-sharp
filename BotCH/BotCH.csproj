@@ -217,6 +217,7 @@
     </Compile>
     <Compile Include="Entity\MyPersEntity.cs" />
     <Compile Include="Entity\TargetEntity.cs" />
+    <Compile Include="HotKeys\HotKeysService.cs" />
     <Compile Include="MemoryHelpers\OffsetFinder.cs" />
     <Compile Include="MemoryHelpers\MobReader.cs" />
     <Compile Include="MemoryHelpers\Offsets\Comeback146X.cs" />

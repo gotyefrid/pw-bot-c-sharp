@@ -1,8 +1,9 @@
-﻿using BotCH.MemoryHelpers;
+﻿using BotCH.HotKeys;
+using BotCH.MemoryHelpers;
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Threading;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace BotCH
@@ -11,6 +12,7 @@ namespace BotCH
     {
         public const string configName = "config.ini";
         public static INIManager IniManager = new INIManager(configName);
+
         public BotForm()
         {
             InitializeComponent();
@@ -33,6 +35,7 @@ namespace BotCH
             Logger.form = this;
             Pet.form = this;
             Action.form = this;
+            HotKeysService.form = this;
             this.cageSelect.SelectedIndex = 1;
             this.InitParamsFromIniConfig();
         }
@@ -73,6 +76,7 @@ namespace BotCH
                     ThreadHelper.StartPersInfoThreads();
                     Logger.setLog("----------------------");
                     Logger.setLog("Status connection TRUE");
+                    HotKeysService.RegisterHotKeysToApp();
                 }
                 else
                 {
@@ -100,7 +104,7 @@ namespace BotCH
             this.labelState.Text = "Bot stopped";
         }
 
-        private void StartButton_Click(object sender, EventArgs e)
+        public void StartButton_Click(object sender = null, EventArgs e = null)
         {
             if (Reader.process == null || !Reader.statusConnection)
             {
@@ -136,6 +140,7 @@ namespace BotCH
 
         private void BotForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            HotKeysService.UnregisterHotKeysFromApp();
             ThreadHelper.StopAll();
             Writer.RestoreDefaultsInjections();
             Logger.InsertListToLogFile(Logger.logCache);
@@ -164,6 +169,13 @@ namespace BotCH
             }
 
             return false;
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            HotKeysService.HotKeysHandler(ref m);
+
+            base.WndProc(ref m);
         }
     }
 }
