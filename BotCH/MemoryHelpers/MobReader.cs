@@ -95,6 +95,33 @@ namespace BotCH.MemoryHelpers
 
             return ReadFloat(value + Offset.Get.MOB_DIST_OFFSET);
         }
+
+        public static string GetMobName(uint wid, Dictionary<uint, string> mobList = null)
+        {
+            try
+            {
+                uint value;
+
+                if (mobList != null && mobList.ContainsKey(wid))
+                {
+                    value = GetMobStruct(wid, mobList);
+                }
+                else
+                {
+                    value = GetMobStruct(wid);
+                }
+
+                uint buff = ReadUint32(value + Offset.Get.MOB_NAME);
+                string name = ReadString(buff + 0x0);
+                return name;
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+
         public static uint IsExistMobAttackingMe()
         {
             for (uint i = 0; i <= 768; i++)

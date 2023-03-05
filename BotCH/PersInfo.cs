@@ -24,6 +24,12 @@ namespace BotCH
                 form.targetIdTextBox.Text = PersReader.GetTargetId().ToString();
                 PotEnergyBanks();
 
+                if (PersReader.GetPersHP() == 0)
+                {
+                    ThreadHelper.StopAll();
+                    form.StopButton_Click();
+                }
+
                 Thread.Sleep(1000);
             }
         }

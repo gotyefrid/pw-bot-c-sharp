@@ -14,15 +14,19 @@ namespace BotCH
         public static Thread BotingThread;
         private static uint AgressiveMob = 0;
         private static Dictionary<uint, string> MobsAround;
+        private static string[] AllowMobsIds;
+        private static int _currentIndexMobIdFromList;
 
         public static void Run()
         {
-            if (form.checkFindAgrMob.Checked)
-            {
-                Logger.setLog("Making list of alive mobs");
-                MobsAround = MobReader.GetActualListMobsOffsetsInArray();
-                Logger.setLog("Around us " + MobsAround.Count() + " mobs");
-            }
+            AllowMobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
+
+            //if (form.checkFindAgrMob.Checked)
+            //{
+            //    Logger.setLog("Making list of alive mobs");
+            //    MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+            //    Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+            //}
 
             while (true)
             {
@@ -32,6 +36,7 @@ namespace BotCH
                 {
                     if (MobsAround == null || !MobsAround.ContainsKey(TargetMobEntity.WID))
                     {
+                        Logger.setLog("Add new mod in ID lsit");
                         AddMobToList(TargetMobEntity.WID, MobReader.GetMobArrayHexNumber(TargetMobEntity.WID));
                     }
 
@@ -54,13 +59,15 @@ namespace BotCH
                     }
                     else
                     {
+                        //if (MobReader.GetMobName(TargetMobEntity.WID, MobsAround) == "Кровожадная росянка")
+                        //{
                         KillMobActions(TargetMobEntity.WID);
                         GetLoot();
+                        //}
                     }
                 }
 
                 ChangeTarget();
-                Thread.Sleep(300);
             }
         }
 
@@ -90,7 +97,45 @@ namespace BotCH
 
             Logger.setLog("Change mob by click TAB");
 
-            Action.ChangeTargetByTab();
+            if (form.checkBoxCheckId.Checked == false)
+            {
+                Action.ChangeTargetByTab();
+                return;
+            }
+
+            while (true)
+            {
+                var id = GetNextMobIdFromList();
+                Logger.setLog("Inject " + id);
+                Writer.ChangeGetTargetAssembly(uint.Parse(id));
+                Action.ChangeTargetByTab();
+                Thread.Sleep(500);
+
+                if (TargetMobEntity.WID == 0)
+                {
+                    Logger.setLog("Inject mob not found, try another ID");
+                    Writer.ChangeGetTargetAssembly(0);
+                }
+                else
+                {
+                    Logger.setLog("Mob targeted!");
+                    Writer.ChangeGetTargetAssembly(0);
+                    return;
+                }
+            }
+        }
+
+        public static string GetNextMobIdFromList()
+        {
+            string result = AllowMobsIds[_currentIndexMobIdFromList];
+            _currentIndexMobIdFromList++;
+
+            if (_currentIndexMobIdFromList >= AllowMobsIds.Length)
+            {
+                _currentIndexMobIdFromList = 0;
+            }
+
+            return result;
         }
 
         public static bool FindAgressiveMobAroud()
@@ -129,7 +174,7 @@ namespace BotCH
 
         private static bool SearchCurrentMobIdInList()
         {
-            string[] mobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
+            string[] mobsIds = AllowMobsIds;
 
             uint currTargetId = TargetMobEntity.WID;
 

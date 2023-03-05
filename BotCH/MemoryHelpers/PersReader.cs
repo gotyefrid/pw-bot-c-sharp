@@ -1,7 +1,9 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
-using static System.Net.Mime.MediaTypeNames;
+using System.Windows.Forms;
 
 namespace BotCH.MemoryHelpers
 {
@@ -19,6 +21,7 @@ namespace BotCH.MemoryHelpers
             string error = "Не найден GameAddress";
             Logger.setLog(error);
 
+            MessageBox.Show(error);
             throw new Exception(error);
         }
 
@@ -212,21 +215,8 @@ namespace BotCH.MemoryHelpers
             try
             {
                 uint buff = ReadUint32(GetPersStruct() + Offset.Get.PERS_NAME);
-                string name = "";
-                int symbol = 0;
-                uint offsetSymbol = 0x0;
-                int limit = 15;
-                int resultLim = 0;
 
-                while (ReadString(buff + offsetSymbol) != "" && limit >= 0)
-                {
-                    name += ReadString(buff + offsetSymbol);
-                    offsetSymbol = uint.Parse((++symbol * 2).ToString("X"), System.Globalization.NumberStyles.HexNumber);
-                    limit--;
-                    resultLim++;
-                }
-
-                return name;
+                return ReadString(buff + 0x0);
             }
             catch
             {

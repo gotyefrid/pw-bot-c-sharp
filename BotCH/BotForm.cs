@@ -1,8 +1,8 @@
-﻿using BotCH.Entity;
-using BotCH.MemoryHelpers;
+﻿using BotCH.MemoryHelpers;
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Threading;
 using System.Windows.Forms;
 
 namespace BotCH
@@ -39,16 +39,19 @@ namespace BotCH
 
         private void ConnectButton_Click(object sender, EventArgs e)
         {
-            if (!Auth.CheckLicenseByHttp())
+            if (!IsGodMode())
             {
-                string str = "You shoud to buy license, contact me Telegram: @white_mel \r\nClick OK to open Telegram-link.";
-                ;
-                if (MessageBox.Show(str, "License error", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) == DialogResult.OK)
+                if (!Auth.CheckLicenseByHttp())
                 {
-                    Process.Start("https://t.me/white_mel");
-                }
+                    string str = "You shoud to buy license, contact me Telegram: @white_mel \r\nClick OK to open Telegram-link.";
+                    ;
+                    if (MessageBox.Show(str, "License error", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) == DialogResult.OK)
+                    {
+                        Process.Start("https://t.me/white_mel");
+                    }
 
-                return;
+                    return;
+                }
             }
 
             try
@@ -65,6 +68,7 @@ namespace BotCH
                     this.textBoxPID.BackColor = Color.LightGreen;
                     this.textBoxPID.Text = Reader.process.Id.ToString();
                     this.textBoxPID.Enabled = false;
+                    this.startButton.Enabled = true;
                     this.checkBoxUnfrezze.Visible = true;
                     ThreadHelper.StartPersInfoThreads();
                     Logger.setLog("----------------------");
@@ -75,6 +79,7 @@ namespace BotCH
                     Logger.setLog("Status connection FALSE");
                     this.textBoxPID.BackColor = Color.Red;
                 }
+
             }
             catch (Exception mainError)
             {
@@ -86,9 +91,10 @@ namespace BotCH
             this.textBoxPID.BackColor = Color.White;
         }
 
-        private void StopButton_Click(object sender, EventArgs e)
+        public void StopButton_Click(object sender = null, EventArgs e = null)
         {
             ThreadHelper.StopBotingThreads();
+            Writer.RestoreDefaultsInjections();
             this.startButton.Enabled = true;
             this.stopButton.Enabled = false;
             this.labelState.Text = "Bot stopped";
@@ -96,7 +102,7 @@ namespace BotCH
 
         private void StartButton_Click(object sender, EventArgs e)
         {
-            if (Reader.process == null)
+            if (Reader.process == null || !Reader.statusConnection)
             {
                 MessageBox.Show("Connect to client first");
 
@@ -131,6 +137,7 @@ namespace BotCH
         private void BotForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             ThreadHelper.StopAll();
+            Writer.RestoreDefaultsInjections();
             Logger.InsertListToLogFile(Logger.logCache);
         }
 
@@ -148,7 +155,15 @@ namespace BotCH
                 e.Handled = true;
             }
         }
+
+        private bool IsGodMode()
+        {
+            if (IniManager.ReadINI("settings", "godMode", "") != "")
+            {
+                return true;
+            }
+
+            return false;
+        }
     }
-
-
 }

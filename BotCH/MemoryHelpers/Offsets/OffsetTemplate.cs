@@ -10,6 +10,8 @@ namespace BotCH.MemoryHelpers.Offsets
     {
         public abstract uint BASEADDR_OFFSET { get; }
         public abstract uint GAMEADDR_OFFSET { get; }
+        public abstract uint SET_TARGET_FUNC_OFFSET { get; }
+        public abstract byte[] ORIG_BYTES_FUNC_OFFSET { get; }
         public abstract uint UNZREEFE_OFFSET { get; }
         public abstract uint PERS_STRUCT_OFFSET { get; }
         public abstract uint PERS_NAME { get; }
@@ -33,6 +35,7 @@ namespace BotCH.MemoryHelpers.Offsets
 
         public abstract uint MOB_OFFSET_1 { get; }
         public abstract uint MOB_OFFSET_2 { get; }
+        public abstract uint MOB_NAME { get; }
         public abstract uint MOB_STRUCT_OFFSET { get; }
         public abstract uint MOB_TYPE_OFFSET { get; }
         public abstract uint MOB_ACTION_OFFSET { get; }

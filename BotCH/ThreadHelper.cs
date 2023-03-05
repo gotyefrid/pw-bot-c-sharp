@@ -7,6 +7,7 @@ namespace BotCH
         public static void StartBotingThreads()
         {
             Start(Pet.CheckStatusPetThread = new Thread(Pet.CheckingStatusPet));
+            Start(PersInfo.PersInfoLabelsThread = new Thread(PersInfo.ShowPersInfoLabels));
             Start(Bot.BotingThread = new Thread(Bot.Run));
         }
 

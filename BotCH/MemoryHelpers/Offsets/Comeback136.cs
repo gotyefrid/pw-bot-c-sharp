@@ -1,5 +1,4 @@
-﻿using BotCH.MemoryHelpers.Offsets;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace BotCH.MemoryHelpers.Offsets
 {
@@ -8,10 +7,16 @@ namespace BotCH.MemoryHelpers.Offsets
     */
     public class Comeback136 : OffsetTemplate
     {
-        public override uint BASEADDR_OFFSET { get => 0x8570B0; }
+        public override uint BASEADDR_OFFSET
+        {
+            get =>
+                uint.Parse(BotForm.IniManager.ReadINI("settings", "baseAddress", "860380"), System.Globalization.NumberStyles.HexNumber);
+        }
+
         public override uint GAMEADDR_OFFSET { get => 0x1C; }
         public override uint UNZREEFE_OFFSET { get => 0x4E8; }
-
+        public override uint SET_TARGET_FUNC_OFFSET { get; }
+        public override byte[] ORIG_BYTES_FUNC_OFFSET => new byte[] { };
         public override uint PERS_STRUCT_OFFSET { get => 0x28; }
         public override uint PERS_NAME { get => 0x6F8; }
         public override uint PERS_FLAG_SKILL_OFFSET { get => 0xB8; }
@@ -44,6 +49,7 @@ namespace BotCH.MemoryHelpers.Offsets
 
         public override uint MOB_OFFSET_1 { get => 0x14; }
         public override uint MOB_OFFSET_2 { get => 0x20; }
+        public override uint MOB_NAME { get => 0x268; }
         public override uint MOB_STRUCT_OFFSET { get => 0x20; }
         public override uint MOB_TYPE_OFFSET { get => 0xB4; }
         public override uint MOB_ACTION_OFFSET { get => 0x2D4; }

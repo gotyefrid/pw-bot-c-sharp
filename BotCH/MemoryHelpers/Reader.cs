@@ -2,6 +2,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace BotCH.MemoryHelpers
 {
@@ -27,8 +28,8 @@ namespace BotCH.MemoryHelpers
                     try
                     {
                         process = oneProcess;
-                        //string persName = PersReader.GetPersName();
-                        string persName = "";
+                        string persName = PersReader.GetPersName();
+                        //string persName = "";
                         SetWindowText(oneProcess.MainWindowHandle, persName + " " + oneProcess.Id.ToString());
                     }
                     catch
@@ -123,7 +124,7 @@ namespace BotCH.MemoryHelpers
             {
                 memory.OpenProcess(process.Id);
 
-                return memory.ReadString(address.ToString("X"));
+                return memory.ReadString(address.ToString("X"), "", 150, true, Encoding.Unicode);
             }
             catch (Exception e)
             {
