@@ -28,46 +28,56 @@ namespace BotCH
             //    Logger.setLog("Around us " + MobsAround.Count() + " mobs");
             //}
 
-            while (true)
+            try
             {
-                Logger.setLog("New Loop");
-
-                if (PersReader.IsExistTarget())
+                while (true)
                 {
-                    if (MobsAround == null || !MobsAround.ContainsKey(TargetMobEntity.WID))
+                    Logger.setLog("New Loop");
+
+                    if (PersReader.IsExistTarget())
                     {
-                        Logger.setLog("Add new mod in ID lsit");
-                        AddMobToList(TargetMobEntity.WID, MobReader.GetMobArrayHexNumber(TargetMobEntity.WID));
-                    }
-
-                    if (form.checkBoxCheckId.Checked == true)
-                    {
-                        bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
-
-                        bool isMobInList = SearchCurrentMobIdInList();
-
-                        if (isMobInList || isAgressiveMobAttackMeNow)
+                        if (MobsAround == null || !MobsAround.ContainsKey(TargetMobEntity.WID))
                         {
-                            if (!isMobInList && isAgressiveMobAttackMeNow)
-                            {
-                                Logger.setLog("Killing mob because it attaking me!");
-                            }
+                            Logger.setLog("Add new mod in ID lsit");
+                            AddMobToList(TargetMobEntity.WID, MobReader.GetMobArrayHexNumber(TargetMobEntity.WID));
+                        }
 
+                        if (form.checkBoxCheckId.Checked == true)
+                        {
+                            bool isAgressiveMobAttackMeNow = AgressiveMob == TargetMobEntity.WID;
+
+                            bool isMobInList = SearchCurrentMobIdInList();
+
+                            if (isMobInList || isAgressiveMobAttackMeNow)
+                            {
+                                if (!isMobInList && isAgressiveMobAttackMeNow)
+                                {
+                                    Logger.setLog("Killing mob because it attaking me!");
+                                }
+
+                                KillMobActions(TargetMobEntity.WID);
+                                GetLoot();
+                            }
+                        }
+                        else
+                        {
+                            //if (MobReader.GetMobName(TargetMobEntity.WID, MobsAround) == "Кровожадная росянка")
+                            //{
                             KillMobActions(TargetMobEntity.WID);
                             GetLoot();
+                            //}
                         }
                     }
-                    else
-                    {
-                        //if (MobReader.GetMobName(TargetMobEntity.WID, MobsAround) == "Кровожадная росянка")
-                        //{
-                        KillMobActions(TargetMobEntity.WID);
-                        GetLoot();
-                        //}
-                    }
-                }
 
-                ChangeTarget();
+                    ChangeTarget();
+                }
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message != "Поток находился в процессе прерывания.")
+                {
+                    Logger.setLog(ex.Message);
+                }
             }
         }
 

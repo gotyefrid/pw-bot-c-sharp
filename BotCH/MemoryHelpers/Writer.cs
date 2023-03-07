@@ -39,17 +39,18 @@ namespace BotCH.MemoryHelpers
                     Array.Copy(bytes, 0, result, 1, 4);
                 }
 
-                ChangeAssemblyCommand(Offset.Get.SET_TARGET_FUNC_OFFSET, result);
+                ChangeAssemblyCommand(Offset.Get.GetTargetFuncAddress(), result);
 
                 return true;
             }
             catch (Exception ex)
             {
-                ChangeAssemblyCommand(Offset.Get.SET_TARGET_FUNC_OFFSET, Offset.Get.ORIG_BYTES_FUNC_OFFSET);
+                ChangeAssemblyCommand(Offset.Get.GetTargetFuncAddress(), Offset.Get.ORIG_BYTES_FUNC_OFFSET);
                 return false;
             }
         }
 
+        // Код из ChatGPT
         public static void ChangeAssemblyCommand(uint address, byte[] asmBytes)
         {
             // Получаем дескриптор процесса

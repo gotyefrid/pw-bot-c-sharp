@@ -50,5 +50,12 @@ namespace BotCH.MemoryHelpers.Offsets
 
             return ba + this.BASEADDR_OFFSET;
         }
+
+        public uint GetTargetFuncAddress()
+        {
+            uint ba = (uint)Reader.process.MainModule.BaseAddress;
+
+            return ba + this.SET_TARGET_FUNC_OFFSET;
+        }
     }
 }

@@ -15,7 +15,7 @@ namespace BotCH.MemoryHelpers.Offsets
 
         public override uint GAMEADDR_OFFSET { get => 0x1C; }
         public override uint UNZREEFE_OFFSET { get => 0x4E8; }
-        public override uint SET_TARGET_FUNC_OFFSET { get => 0x81C99C; }
+        public override uint SET_TARGET_FUNC_OFFSET { get => 0x2AC99C; }
         public override byte[] ORIG_BYTES_FUNC_OFFSET => new byte[] { 0x8B, 0x75, 0x08, 0x57, 0x8B, 0x40, 0x1C };
         public override uint PERS_STRUCT_OFFSET { get => 0x28; }
         public override uint PERS_NAME { get => 0x6F8; }
