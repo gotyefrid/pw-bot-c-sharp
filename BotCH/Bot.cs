@@ -77,6 +77,7 @@ namespace BotCH
                 if (ex.Message != "Поток находился в процессе прерывания.")
                 {
                     Logger.setLog(ex.Message);
+                    Logger.setLog(ex.StackTrace);
                 }
             }
         }
@@ -115,7 +116,9 @@ namespace BotCH
 
             while (true)
             {
-                var id = GetNextMobIdFromList();
+                string id = GetNextMobIdFromList();
+
+                Logger.setLog(AllowMobsIds.Length.ToString());
                 Logger.setLog("Inject " + id);
                 Writer.ChangeGetTargetAssembly(uint.Parse(id));
                 Action.ChangeTargetByTab();
