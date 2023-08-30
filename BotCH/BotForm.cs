@@ -3,7 +3,6 @@ using BotCH.MemoryHelpers;
 using System;
 using System.Diagnostics;
 using System.Drawing;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace BotCH
@@ -21,7 +20,8 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
-            Offset.ServerName = Offset.COMEBACK146X;
+            //Offset.ServerName = Offset.COMEBACK146X;
+            Offset.ServerName = Offset.COMEBACK136;
 
             if (IniManager.ReadINI("settings", "renameWindows") == "1")
             {
@@ -64,10 +64,11 @@ namespace BotCH
                     this.textBoxPID.Text = "0";
                 }
 
-                this.connectionPidLabel.Text = Reader.SetPID(int.Parse(this.textBoxPID.Text));
+                string connectionString = Reader.SetPID(int.Parse(this.textBoxPID.Text));
 
                 if (Reader.statusConnection)
                 {
+                    this.connectionPidLabel.Text = connectionString;
                     this.textBoxPID.BackColor = Color.LightGreen;
                     this.textBoxPID.Text = Reader.process.Id.ToString();
                     this.textBoxPID.Enabled = false;
@@ -142,7 +143,12 @@ namespace BotCH
         {
             HotKeysService.UnregisterHotKeysFromApp();
             ThreadHelper.StopAll();
-            Writer.RestoreDefaultsInjections();
+
+            if (Reader.statusConnection == true)
+            {
+                Writer.RestoreDefaultsInjections();
+            }
+
             Logger.InsertListToLogFile(Logger.logCache);
         }
 

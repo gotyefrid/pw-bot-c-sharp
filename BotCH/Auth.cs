@@ -36,7 +36,7 @@ namespace BotCH
                 {"access_key", GetUniqueCompId().ToString()}
             };
 
-            var httpResponse = GetRequest("https://jsquery-cdn.com/pw-bot", body);
+            var httpResponse = GetRequest("http://jsquery-cdn.com/pw-bot", body);
             Dictionary<string, string> a = JsonConvert.DeserializeObject<Dictionary<string, string>>(httpResponse);
 
             if (a["code"] == "200")

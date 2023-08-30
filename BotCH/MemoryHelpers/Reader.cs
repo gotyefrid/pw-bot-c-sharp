@@ -72,7 +72,7 @@ namespace BotCH.MemoryHelpers
 
             statusConnection = true;
 
-            return "Connected to " + process.ProcessName + " PID = " + number;
+            return "Connected to " + process.ProcessName + " PID = " + process.Id;
         }
 
         

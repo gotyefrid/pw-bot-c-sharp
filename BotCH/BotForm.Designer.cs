@@ -72,6 +72,7 @@
             this.richTextBoxLogBox = new System.Windows.Forms.RichTextBox();
             this.labelState = new System.Windows.Forms.Label();
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.useInjectToTargetCheckBox = new System.Windows.Forms.CheckBox();
             this.menuStrip1.SuspendLayout();
             this.tabControl1.SuspendLayout();
             this.tabMain.SuspendLayout();
@@ -322,6 +323,7 @@
             // 
             // tabSettings
             // 
+            this.tabSettings.Controls.Add(this.useInjectToTargetCheckBox);
             this.tabSettings.Controls.Add(this.textBoxLootingClicks);
             this.tabSettings.Controls.Add(this.textBoxComeCloserDist);
             this.tabSettings.Controls.Add(this.checkBoxComeCloser);
@@ -594,6 +596,19 @@
             this.labelState.TabIndex = 15;
             this.labelState.Text = "State";
             // 
+            // useInjectToTargetCheckBox
+            // 
+            this.useInjectToTargetCheckBox.AutoSize = true;
+            this.useInjectToTargetCheckBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.useInjectToTargetCheckBox.Location = new System.Drawing.Point(10, 339);
+            this.useInjectToTargetCheckBox.Name = "useInjectToTargetCheckBox";
+            this.useInjectToTargetCheckBox.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.useInjectToTargetCheckBox.Size = new System.Drawing.Size(201, 24);
+            this.useInjectToTargetCheckBox.TabIndex = 29;
+            this.useInjectToTargetCheckBox.Text = "Use Inject to get target";
+            this.useInjectToTargetCheckBox.UseVisualStyleBackColor = true;
+            this.useInjectToTargetCheckBox.Visible = false;
+            // 
             // BotForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -668,6 +683,7 @@
         public System.Windows.Forms.CheckBox checkBoxComeCloser;
         public System.Windows.Forms.TextBox textBoxComeCloserDist;
         public System.Windows.Forms.TextBox textBoxLootingClicks;
+        public System.Windows.Forms.CheckBox useInjectToTargetCheckBox;
     }
 }
 

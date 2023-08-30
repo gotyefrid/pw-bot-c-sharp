@@ -46,9 +46,8 @@ namespace BotCH.MemoryHelpers.Offsets
 
         public uint GetBaseAddress()
         {
-            uint ba = (uint)Reader.process.MainModule.BaseAddress;
 
-            return ba + this.BASEADDR_OFFSET;
+            return uint.Parse(BotForm.IniManager.ReadINI("settings", "baseAddress", "860380"), System.Globalization.NumberStyles.HexNumber);
         }
 
         public uint GetTargetFuncAddress()

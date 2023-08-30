@@ -21,12 +21,12 @@ namespace BotCH
         {
             AllowMobsIds = BotForm.IniManager.ReadINI("bot", "mobIDs").Split(',');
 
-            //if (form.checkFindAgrMob.Checked)
-            //{
-            //    Logger.setLog("Making list of alive mobs");
-            //    MobsAround = MobReader.GetActualListMobsOffsetsInArray();
-            //    Logger.setLog("Around us " + MobsAround.Count() + " mobs");
-            //}
+            if (form.checkFindAgrMob.Checked)
+            {
+                Logger.setLog("Making list of alive mobs");
+                MobsAround = MobReader.GetActualListMobsOffsetsInArray();
+                Logger.setLog("Around us " + MobsAround.Count() + " mobs");
+            }
 
             try
             {
@@ -114,27 +114,35 @@ namespace BotCH
                 return;
             }
 
-            while (true)
+            if (form.useInjectToTargetCheckBox.Checked)
             {
-                string id = GetNextMobIdFromList();
+                // Этот блок кода должен работать только если заполнен адрес фукнции SET_TARGET_FUNC_OFFSET а так же ORIG_BYTES_FUNC_OFFSE                               
+                // Я не вспомнил как это работает после долгой паузы, и как найти этот адрес.
+                while (true)
+                {
+                    string id = GetNextMobIdFromList();
 
-                Logger.setLog(AllowMobsIds.Length.ToString());
-                Logger.setLog("Inject " + id);
-                Writer.ChangeGetTargetAssembly(uint.Parse(id));
+                    Logger.setLog(AllowMobsIds.Length.ToString());
+                    Logger.setLog("Inject " + id);
+                    Writer.ChangeGetTargetAssembly(uint.Parse(id));
+                    Action.ChangeTargetByTab();
+                    Thread.Sleep(500);
+
+                    if (TargetMobEntity.WID == 0)
+                    {
+                        Logger.setLog("Inject mob not found, try another ID");
+                        Writer.ChangeGetTargetAssembly(0);
+                    }
+                    else
+                    {
+                        Logger.setLog("Mob targeted!");
+                        Writer.ChangeGetTargetAssembly(0);
+                        return;
+                    }
+                }
+            } else
+            {
                 Action.ChangeTargetByTab();
-                Thread.Sleep(500);
-
-                if (TargetMobEntity.WID == 0)
-                {
-                    Logger.setLog("Inject mob not found, try another ID");
-                    Writer.ChangeGetTargetAssembly(0);
-                }
-                else
-                {
-                    Logger.setLog("Mob targeted!");
-                    Writer.ChangeGetTargetAssembly(0);
-                    return;
-                }
             }
         }
 

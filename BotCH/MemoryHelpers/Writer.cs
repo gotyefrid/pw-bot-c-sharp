@@ -43,7 +43,7 @@ namespace BotCH.MemoryHelpers
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 ChangeAssemblyCommand(Offset.Get.GetTargetFuncAddress(), Offset.Get.ORIG_BYTES_FUNC_OFFSET);
                 return false;
