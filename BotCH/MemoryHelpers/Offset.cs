@@ -6,6 +6,7 @@ namespace BotCH.MemoryHelpers
     {
         public const string COMEBACK136 = "comeback136";
         public const string COMEBACK146X = "comeback146X";
+        public const string PWCLASSIC136 = "pwclassic136";
 
         public static string ServerName;
         public static OffsetTemplate Get
@@ -19,6 +20,11 @@ namespace BotCH.MemoryHelpers
                 if (ServerName == COMEBACK146X)
                 {
                     return new Comeback146X();
+                }
+
+                if (ServerName == PWCLASSIC136)
+                {
+                    return new PwClassic136();
                 }
 
                 return null;

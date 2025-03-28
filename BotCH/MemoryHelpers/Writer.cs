@@ -116,7 +116,8 @@ namespace BotCH.MemoryHelpers
             {
                 while (form.checkBoxUnfrezze.Checked)
                 {
-                    uint baseAdrress = ReadUint32(Offset.Get.GetBaseAddress());
+                    IntPtr baseA = process.MainModule.BaseAddress;
+                    uint baseAdrress = ReadUint32((uint)baseA.ToInt32() + Offset.Get.BASEADDR_OFFSET);
                     memory.WriteMemory((baseAdrress + Offset.Get.UNZREEFE_OFFSET).ToString("X"), "int", "1");
                     Thread.Sleep(1000);
                 }

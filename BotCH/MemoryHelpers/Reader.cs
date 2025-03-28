@@ -36,7 +36,7 @@ namespace BotCH.MemoryHelpers
                     {
                         SetWindowText(oneProcess.MainWindowHandle, oneProcess.Id.ToString());
                     }
-                }
+                }                
             }
 
 
@@ -162,7 +162,8 @@ namespace BotCH.MemoryHelpers
 
         public static uint ReadGameAddress()
         {
-            uint baseAdrress = ReadUint32(Offset.Get.GetBaseAddress());
+            IntPtr baseA = process.MainModule.BaseAddress;
+            uint baseAdrress = ReadUint32((uint)baseA.ToInt32() + Offset.Get.BASEADDR_OFFSET);
             uint gameAdrress = ReadUint32(baseAdrress + Offset.Get.GAMEADDR_OFFSET);
 
             return gameAdrress;

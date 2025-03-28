@@ -20,8 +20,8 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
-            //Offset.ServerName = Offset.COMEBACK146X;
-            Offset.ServerName = Offset.COMEBACK136;
+           // Offset.ServerName = Offset.COMEBACK136;
+            Offset.ServerName = Offset.PWCLASSIC136;
 
             if (IniManager.ReadINI("settings", "renameWindows") == "1")
             {
@@ -42,18 +42,23 @@ namespace BotCH
 
         private void ConnectButton_Click(object sender, EventArgs e)
         {
+            bool accessByCode = Auth.GetUniqueCompId().ToString() == IniManager.ReadINI("settings", "accessCode", "55");
+
             if (!IsGodMode())
             {
-                if (!Auth.CheckLicenseByHttp())
+                if (!accessByCode)
                 {
-                    string str = "You shoud to buy license, contact me Telegram: @white_mel \r\nClick OK to open Telegram-link.";
-                    ;
-                    if (MessageBox.Show(str, "License error", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) == DialogResult.OK)
+                    if (!Auth.CheckLicenseByHttp())
                     {
-                        Process.Start("https://t.me/white_mel");
-                    }
+                        string str = "You shoud to buy license, contact me Telegram: @white_mel \r\nClick OK to open Telegram-link.";
+                        ;
+                        if (MessageBox.Show(str, "License error", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning) == DialogResult.OK)
+                        {
+                            Process.Start("https://t.me/white_mel");
+                        }
 
-                    return;
+                        return;
+                    }
                 }
             }
 

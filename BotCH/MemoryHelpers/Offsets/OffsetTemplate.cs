@@ -44,10 +44,17 @@ namespace BotCH.MemoryHelpers.Offsets
         public abstract uint MOB_DIST_OFFSET { get; }
         public abstract uint MOB_TARGET_OFFSET { get; }
 
-        public uint GetBaseAddress()
+        public uint GetOffsetFromIni(string name, string defaultValue)
         {
+            string value = BotForm.IniManager.ReadINI("offsets", name, defaultValue);
 
-            return uint.Parse(BotForm.IniManager.ReadINI("settings", "baseAddress", "860380"), System.Globalization.NumberStyles.HexNumber);
+            // Уберем префикс "0x", если он присутствует
+            if (value.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                value = value.Substring(2);
+            }
+
+            return uint.Parse(value, System.Globalization.NumberStyles.HexNumber);
         }
 
         public uint GetTargetFuncAddress()

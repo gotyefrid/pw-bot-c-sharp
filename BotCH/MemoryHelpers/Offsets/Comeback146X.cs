@@ -7,31 +7,26 @@ namespace BotCH.MemoryHelpers.Offsets
     */
     public class Comeback146X : OffsetTemplate
     {
-        public override uint BASEADDR_OFFSET
-        {
-            get =>
-                uint.Parse(BotForm.IniManager.ReadINI("settings", "baseAddress", "860380"), System.Globalization.NumberStyles.HexNumber);
-        }
-
-        public override uint GAMEADDR_OFFSET { get => 0x1C; }
-        public override uint UNZREEFE_OFFSET { get => 0x4E8; }
+        public override uint BASEADDR_OFFSET { get => GetOffsetFromIni("baseAddress", "0x860380"); }
+        public override uint GAMEADDR_OFFSET { get => GetOffsetFromIni("gameAddr", "0x1C"); }
+        public override uint UNZREEFE_OFFSET { get => GetOffsetFromIni("unfrz", "0x4E8"); }
         public override uint SET_TARGET_FUNC_OFFSET { get => 0x2AC99C; }
         public override byte[] ORIG_BYTES_FUNC_OFFSET => new byte[] { 0x8B, 0x75, 0x08, 0x57, 0x8B, 0x40, 0x1C };
-        public override uint PERS_STRUCT_OFFSET { get => 0x28; }
-        public override uint PERS_NAME { get => 0x6F8; }
-        public override uint PERS_FLAG_SKILL_OFFSET { get => 0xB8; }
-        public override uint PERS_WID_OFFSET { get => 0x4BC; }
-        public override uint PERS_HP_OFFSET { get => 0x4D0; }
-        public override uint PERS_MP_OFFSET { get => 0x4D4; }
-        public override uint PERS_MAX_HP_OFFSET { get => 0x534; }
-        public override uint PERS_TARGETID_OFFSET { get => 0x5B8; }
-        public override uint PERS_COOLDOWN_FEED_PET_OFFSET { get => 0xBF4; }
-        public override uint PERS_COOLDOWN_POT_HP_OFFSET { get => 0xBBC; }
+        public override uint PERS_STRUCT_OFFSET { get => GetOffsetFromIni("persStruct", "0x28"); }
+        public override uint PERS_NAME { get => GetOffsetFromIni("persName", "0x6F8"); }
+        public override uint PERS_FLAG_SKILL_OFFSET { get => GetOffsetFromIni("flagSkill", "0xB8"); }
+        public override uint PERS_WID_OFFSET { get => GetOffsetFromIni("persWid", "0x4BC"); }
+        public override uint PERS_HP_OFFSET { get => GetOffsetFromIni("persHp", "0x4D0"); }
+        public override uint PERS_MP_OFFSET { get => GetOffsetFromIni("persMp", "0x4D4"); }
+        public override uint PERS_MAX_HP_OFFSET { get => GetOffsetFromIni("persMaxHp", "0x534"); }
+        public override uint PERS_TARGETID_OFFSET { get => GetOffsetFromIni("persTargetId", "0x5B8"); }
+        public override uint PERS_COOLDOWN_FEED_PET_OFFSET { get => GetOffsetFromIni("persCdFeedPet", "0xBF4"); }
+        public override uint PERS_COOLDOWN_POT_HP_OFFSET { get => GetOffsetFromIni("persCdPotHp", "0xBBC"); }
         public override uint PERS_LOC_X { get => 0x3C; }
         public override uint PERS_LOC_Z { get => 0x40; }
         public override uint PERS_LOC_Y { get => 0x44; }
 
-        public override uint PET_STRUCT_OFFSET { get => 0x143C; }
+        public override uint PET_STRUCT_OFFSET { get => GetOffsetFromIni("petStruct", "0x143C"); }
         public override Dictionary<int, uint> PET_CAGES_ARRAY
         {
             get => new Dictionary<int, uint>
@@ -43,19 +38,19 @@ namespace BotCH.MemoryHelpers.Offsets
                     { 5, 0x20 },
             };
         }
-        public override uint PET_CURRENT_PETID_OFFSET { get => 0x64; }
-        public override uint PET_HP_OFFSET { get => 0x1C; }
-        public override uint PET_FEED_STATUS_OFFSET { get => 0x8; }
+        public override uint PET_CURRENT_PETID_OFFSET { get => GetOffsetFromIni("petCurrentPetId", "0x64"); }
+        public override uint PET_HP_OFFSET { get => GetOffsetFromIni("petHp", "0x1C"); }
+        public override uint PET_FEED_STATUS_OFFSET { get => GetOffsetFromIni("petFeedStatus", "0x8"); }
 
-        public override uint MOB_OFFSET_1 { get => 0x14; }
-        public override uint MOB_OFFSET_2 { get => 0x20; }
+        public override uint MOB_OFFSET_1 { get => GetOffsetFromIni("mobOffset1", "0x14"); }
+        public override uint MOB_OFFSET_2 { get => GetOffsetFromIni("mobOffset2", "0x20"); }
         public override uint MOB_NAME { get => 0x26C; }
-        public override uint MOB_STRUCT_OFFSET { get => 0x20; }
-        public override uint MOB_TYPE_OFFSET { get => 0xB4; }
-        public override uint MOB_ACTION_OFFSET { get => 0x2D4; }
-        public override uint MOB_WID_OFFSET { get => 0x114; }
+        public override uint MOB_STRUCT_OFFSET { get => GetOffsetFromIni("mobStruct", "0x20"); }
+        public override uint MOB_TYPE_OFFSET { get => GetOffsetFromIni("mobType", "0xB4"); }
+        public override uint MOB_ACTION_OFFSET { get => GetOffsetFromIni("mobAction", "0x2D4"); }
+        public override uint MOB_WID_OFFSET { get => GetOffsetFromIni("mobWid", "0x114"); }
         public override uint MOB_HP_OFFSET { get => 0x128; }
-        public override uint MOB_DIST_OFFSET { get => 0x290; }
-        public override uint MOB_TARGET_OFFSET { get => 0x210; }
+        public override uint MOB_DIST_OFFSET { get => GetOffsetFromIni("mobDistance", "0x290"); }
+        public override uint MOB_TARGET_OFFSET { get => GetOffsetFromIni("mobTarget", "0x210"); }
     }
 }
