@@ -279,45 +279,99 @@ namespace BotCH
 
         public static void FeedPet()
         {
-            if (GameCall.CanUseItem)
+            if (!GameCall.CanUseItem)
             {
-                // Пробуем корма от самого малого; если стопка не уменьшилась — пет этот корм не ест, берём следующий
-                for (int attempt = 0; attempt < 5; attempt++)
-                {
-                    if (!InventoryReader.FindPetFood(_foodPetDoesNotEat, out uint slot, out uint tid))
-                    {
-                        Logger.setLog("No pet food in inventory");
-                        break;
-                    }
-
-                    uint countBefore = InventoryReader.GetCount(slot, tid);
-                    WaitForCasting(Keys.F5);
-
-                    if (!GameCall.UseItem(slot, tid))
-                    {
-                        break;
-                    }
-
-                    Thread.Sleep(700);
-
-                    if (InventoryReader.GetCount(slot, tid) < countBefore)
-                    {
-                        Logger.setLog("Feed pet with " + tid + " from slot " + slot + " (direct call)");
-                        return;
-                    }
-
-                    Logger.setLog("Pet does not eat food " + tid + ", try another");
-                    _foodPetDoesNotEat.Add(tid);
-                }
+                Action.ClickKey(Keys.F5);
+                return;
             }
 
-            Action.ClickKey(Keys.F5);
+            ForgetFoodIfPetChanged();
+
+            // Недавно покормили или игра недавно отказала — подождём. Поле сытости обновляется не сразу,
+            // а перезарядку корма на PW Classic бот прочитать не может (перс+0xBF4 там всегда 0)
+            if (DateTime.Now < _nextFeedAttempt)
+            {
+                return;
+            }
+
+            if (!InventoryReader.FindPetFood(_foodPetDoesNotEat, out uint slot, out uint tid))
+            {
+                Logger.setLog("No pet food in inventory");
+                Action.ClickKey(Keys.F5);
+                return;
+            }
+
+            uint countBefore = InventoryReader.GetCount(slot, tid);
+            WaitForCasting(Keys.F5);
+
+            if (!GameCall.UseItem(slot, tid))
+            {
+                Action.ClickKey(Keys.F5);
+                return;
+            }
+
+            Thread.Sleep(700);
+
+            if (InventoryReader.GetCount(slot, tid) < countBefore)
+            {
+                Logger.setLog("Feed pet with " + tid + " from slot " + slot + " (direct call)");
+                _foodPetEats.Add(tid);
+                _foodRefusals.Remove(tid);
+                _nextFeedAttempt = DateTime.Now.AddMilliseconds(FeedPauseAfterSuccessMs);
+                return;
+            }
+
+            // Стопка не уменьшилась. Причина может быть не во вкусе: перезарядка корма, пет только что появился
+            _nextFeedAttempt = DateTime.Now.AddMilliseconds(FeedPauseAfterRefusalMs);
+
+            if (_foodPetEats.Contains(tid))
+            {
+                Logger.setLog("Pet food " + tid + " not accepted now (cooldown?), retry later");
+                return;
+            }
+
+            _foodRefusals.TryGetValue(tid, out int refusals);
+            _foodRefusals[tid] = ++refusals;
+
+            if (refusals >= FeedRefusalsToGiveUp)
+            {
+                Logger.setLog("Pet does not eat food " + tid + ", try another");
+                _foodPetDoesNotEat.Add(tid);
+            }
+            else
+            {
+                Logger.setLog("Pet food " + tid + " not accepted, retry later");
+            }
         }
 
-        // Корм, который пет не съел (стопка не уменьшилась). Сбрасывается при перезапуске бота
+        // Корм, который пет съел хотя бы раз — его никогда не считаем «не ест»
+        private static readonly HashSet<uint> _foodPetEats = new HashSet<uint>();
+        // Корм, который пет не ест (ни разу не съел и отказал FeedRefusalsToGiveUp раз подряд)
         private static readonly HashSet<uint> _foodPetDoesNotEat = new HashSet<uint>();
+        private static readonly Dictionary<uint, int> _foodRefusals = new Dictionary<uint, int>();
+        private static DateTime _nextFeedAttempt = DateTime.MinValue;
+        private static uint _foodPetId;
 
-        // Самая слабая подходящая по уровню банка HP или MP из сумки прямым вызовом. false — не получилось, нужен запасной путь
+        private const int FeedPauseAfterSuccessMs = 30000;
+        private const int FeedPauseAfterRefusalMs = 10000;
+        private const int FeedRefusalsToGiveUp = 2;
+
+        // У другого пета свой вкус — всё забываем
+        private static void ForgetFoodIfPetChanged()
+        {
+            uint pet = PersReader.GetCurrentPetId();
+
+            if (pet == 0 || pet == _foodPetId)
+            {
+                return;
+            }
+
+            _foodPetId = pet;
+            _foodPetEats.Clear();
+            _foodPetDoesNotEat.Clear();
+            _foodRefusals.Clear();
+        }
+
         // До какого момента действует выпитая банка HP / MP: раньше пить банку того же вида не нужно
         private static DateTime _hpPotionActiveUntil = DateTime.MinValue;
         private static DateTime _mpPotionActiveUntil = DateTime.MinValue;
