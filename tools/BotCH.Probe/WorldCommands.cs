@@ -196,7 +196,7 @@ internal static class WorldCommands
         if (!full)
             return s.ToString();
 
-        s.AppendLine($"Сумка  {w.Inventory.Count} предметов");
+        s.AppendLine($"Сумка  занято {w.Inventory.Count} из {w.InventorySlots} ячеек{(w.BagFull ? " — ПОЛНА" : "")}");
         foreach (var i in w.Inventory.Where(i => i.Potion is not null))
         {
             var p = i.Potion!;

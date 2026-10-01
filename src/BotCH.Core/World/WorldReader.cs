@@ -56,7 +56,7 @@ public sealed class WorldReader
         var world = _memory.ReadUInt32(game + _p.World.World);
         var npcs = ReadList(world, _p.World.Npcs, _npcSize, ReadNpc, out var npcCount);
         var items = ReadList(world, _p.World.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
-        var inventory = ReadInventory(hostBlock.UInt32(_p.Host.Inventory));
+        var inventory = ReadInventory(hostBlock.UInt32(_p.Host.Inventory), out var slots);
         var skills = ReadSkills(hostBlock.UInt32(_p.Host.Skills), hostBlock.Int32(_p.Host.SkillsCount));
         var pet = ReadPet(hostBlock.UInt32(_p.Host.PetManager));
 
@@ -64,6 +64,7 @@ public sealed class WorldReader
         {
             NpcCountInGame = npcCount,
             GroundItemCountInGame = itemCount,
+            InventorySlots = slots,
         };
     }
 
@@ -184,18 +185,20 @@ public sealed class WorldReader
             ReadName(b.UInt32(g.NamePointer)));
     }
 
-    private List<InventoryItem> ReadInventory(uint inventory)
+    private List<InventoryItem> ReadInventory(uint inventory, out int slots)
     {
         var result = new List<InventoryItem>();
+        slots = 0;
         var inv = _p.Inventory;
         if (inventory == 0 || !MemoryBlock.TryRead(_memory, inventory, (int)Math.Max(inv.Items, inv.Size) + 4, out var bag))
             return result;
 
         var size = Math.Min(bag.Int32(inv.Size), MaxInventory);
+        slots = Math.Max(size, 0);
         if (size <= 0 || !MemoryBlock.TryRead(_memory, bag.UInt32(inv.Items), size * 4, out var cells))
             return result;
 
-        var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemEssence, inv.FoodEssence);
+        var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemMaxCount, inv.ItemEssence, inv.FoodEssence);
         for (var slot = 0; slot < size; slot++)
         {
             if (!MemoryBlock.TryRead(_memory, cells.UInt32((uint)slot * 4), itemSize, out var item))
@@ -209,7 +212,10 @@ public sealed class WorldReader
             else if (category == inv.CategoryPetFood && _memory.TryReadUInt32(item.UInt32(inv.FoodEssence) + _p.PetFood.Loyalty, out var value))
                 loyalty = (int)value;
 
-            result.Add(new InventoryItem(slot, item.UInt32(inv.ItemTid), category, item.Int32(inv.ItemCount), potion, loyalty));
+            result.Add(new InventoryItem(slot, item.UInt32(inv.ItemTid), category, item.Int32(inv.ItemCount), potion, loyalty)
+            {
+                MaxCount = inv.ItemMaxCount == 0 ? 0 : item.Int32(inv.ItemMaxCount),
+            });
         }
 
         return result;

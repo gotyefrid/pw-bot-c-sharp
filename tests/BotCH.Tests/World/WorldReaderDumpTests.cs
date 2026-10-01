@@ -88,6 +88,9 @@ public class WorldReaderDumpTests
         var potions = W.Inventory.Where(i => i.Potion is not null).ToList();
 
         Assert.Equal(26, W.Inventory.Count);
+        Assert.Equal(32, W.InventorySlots);
+        Assert.False(W.BagFull);
+        Assert.All(W.Inventory, i => Assert.InRange(i.MaxCount, i.Count, 100_000)); // у части предметов стопка до 50 000
         Assert.Equal([1, 2, 3, 4], potions.Select(p => p.Slot));
         var hp80 = Assert.Single(potions, p => p.Tid == 8618);
         Assert.Equal((25, 5, 80, 10), (hp80.Count, hp80.Potion!.RequiredLevel, hp80.Potion.Hp, hp80.Potion.HpSeconds));

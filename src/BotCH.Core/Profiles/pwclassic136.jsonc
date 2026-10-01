@@ -161,6 +161,7 @@
     "itemCategory": "0x4",
     "itemTid": "0x8",
     "itemCount": "0x10",
+    "itemMaxCount": "0x14",
     "itemEssence": "0x54",
     // У корма пета другой класс предмета, и описание лежит по другому указателю
     "foodEssence": "0x4C",

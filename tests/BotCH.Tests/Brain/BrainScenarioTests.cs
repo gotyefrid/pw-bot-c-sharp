@@ -477,6 +477,62 @@ public class BrainScenarioTests
         Assert.DoesNotContain("pickup-approach C0000002", _actions.Calls);
     }
 
+    private NpcInfo KillMobForLoot()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Loot.Enabled = true;
+        var mob = _world.AddMob(0x80000001, "Волк", 2, hp: 100);
+        _world.TargetWid = mob.Wid;
+        Tick();
+        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        return mob;
+    }
+
+    [Fact]
+    public void FullBagPicksOnlyMoneyAndFittingStacks()
+    {
+        _world.BagSlots = 2;
+        _world.Bag.Add(new InventoryItem(0, 8094, 8, 5, null, null) { MaxCount = 99 }); // «Мягкий мех» ×5 из 99
+        _world.Bag.Add(new InventoryItem(1, 830, 8, 1, null, null) { MaxCount = 1 });
+        KillMobForLoot();
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(2, 0, 0), 1, "Разорванный мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), 2, "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000003, 3044, GroundItemKind.Money, new Position(4, 0, 0), 3, "Монета"));
+
+        Tick();
+        Assert.Equal("pickup-approach C0000002", LastCall); // ляжет в стопку
+        _world.Ground.RemoveAt(1);
+        Tick(2);
+        Tick(1.5); // пауза между подборами 0.7–1.3 с
+        Assert.Equal("pickup-approach C0000003", LastCall); // монеты — всегда
+
+        Assert.DoesNotContain("pickup-approach C0000001", _actions.Calls);
+        Assert.Contains(_log, e => e.Message.Contains("Сумка полна"));
+    }
+
+    [Fact]
+    public void TwoFailedItemPickupsMeanOnlyMoneyForAWhile()
+    {
+        _settings.Loot.Attempts = 10;
+        KillMobForLoot();
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(2, 0, 0), 1, "Разорванный мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), 2, "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000003, 8090, GroundItemKind.Item, new Position(3, 0, 0), 2, "Клык"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000004, 3044, GroundItemKind.Money, new Position(4, 0, 0), 3, "Монета"));
+
+        // Два предмета подряд не поднялись (лежат на земле дольше 10 с)
+        Tick();
+        Tick(10.5);
+        Tick(2);
+        Tick(10.5);
+        Tick(2);
+
+        Assert.Equal("pickup-approach C0000004", LastCall);
+        Assert.DoesNotContain("pickup-approach C0000003", _actions.Calls);
+        Assert.Contains(_log, e => e.Message.Contains("только монеты"));
+    }
+
     [Fact]
     public void LootFilterBlackList()
     {

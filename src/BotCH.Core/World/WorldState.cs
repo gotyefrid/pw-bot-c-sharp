@@ -50,6 +50,20 @@ public sealed record WorldState(
     public IEnumerable<NpcInfo> Mobs => Npcs.Where(n => n.Kind == NpcKind.Mob);
 
     public SkillInfo? Skill(int id) => Skills.FirstOrDefault(s => s.Id == id);
+
+    /// <summary>Сколько ячеек в сумке (0 — неизвестно).</summary>
+    public int InventorySlots { get; init; }
+
+    /// <summary>Все ячейки сумки заняты.</summary>
+    public bool BagFull => InventorySlots > 0 && Inventory.Count >= InventorySlots;
+
+    /// <summary>
+    /// Влезет ли предмет с земли: монеты — всегда (идут в кошелёк); сумка не полна — да;
+    /// полна — только если такой же предмет уже лежит неполной стопкой.
+    /// </summary>
+    public bool FitsInBag(GroundItem item)
+        => item.Kind == GroundItemKind.Money || !BagFull
+           || Inventory.Any(i => i.Tid == item.Tid && i.MaxCount > 0 && i.Count < i.MaxCount);
 }
 
 public sealed record HostState(
@@ -115,6 +129,9 @@ public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind 
 
 public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, PotionInfo? Potion, int? FoodLoyalty)
 {
+    /// <summary>Максимум в стопке (0 — неизвестно).</summary>
+    public int MaxCount { get; init; }
+
     public bool IsPetFood => FoodLoyalty is not null;
 }
 

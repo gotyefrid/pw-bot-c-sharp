@@ -29,6 +29,9 @@ internal sealed class FakeWorld
     public List<InventoryItem> Bag { get; } = [];
     public List<SkillInfo> Skills { get; } = [];
 
+    /// <summary>Ячеек в сумке (0 — неизвестно).</summary>
+    public int BagSlots { get; set; }
+
     /// <summary>null — петов нет совсем (не друид).</summary>
     public PetState? Pet { get; set; }
 
@@ -41,7 +44,7 @@ internal sealed class FakeWorld
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, Casting, PetFoodCooldownMs),
-        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet);
+        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
 
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int state = 1, int hp = 0)
     {

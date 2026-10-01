@@ -150,6 +150,8 @@ public sealed class InventoryOffsets
     public uint ItemCategory { get; init; }
     public uint ItemTid { get; init; }
     public uint ItemCount { get; init; }
+    /// <summary>Сколько всего влезает в стопку (0 — поле не найдено).</summary>
+    public uint ItemMaxCount { get; init; }
     /// <summary>Описание (шаблон) банки и большинства предметов.</summary>
     public uint ItemEssence { get; init; }
     /// <summary>Описание корма пета (у него другой класс предмета).</summary>

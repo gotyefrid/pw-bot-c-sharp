@@ -35,6 +35,9 @@ public sealed class CombatBehavior : IBehavior
     private const float KillPlaceNear = 3f;
     // Лут — только вокруг места смерти: в старом боте было 20 м от перса, и он бегал к чужому/старому луту
     private const float LootRadius = 10f;
+    // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
+    private const int ItemFailuresToPause = 2;
+    private static readonly TimeSpan ItemPause = TimeSpan.FromMinutes(3);
 
     private readonly Dictionary<uint, DateTime> _gaveUp = [];
     private readonly HashSet<uint> _lootSkipped = [];
@@ -50,6 +53,8 @@ public sealed class CombatBehavior : IBehavior
     private bool _walkedToDeathPlace;
     private int _lootAttempts;
     private DateTime _nextPickup;
+    private int _itemFailures;
+    private DateTime _onlyMoneyUntil = DateTime.MinValue;
 
     public string Name => "бой";
     public CombatState State { get; private set; } = CombatState.Search;
@@ -289,8 +294,13 @@ public sealed class CombatBehavior : IBehavior
             return true;
         }
 
+        var onlyMoney = c.Now < _onlyMoneyUntil;
+        if (w.BagFull)
+            c.Say("bag-full", "Сумка полна — подбираю только монеты и то, что ляжет в начатые стопки", LogLevel.Warning, 300);
+
         var item = w.GroundItems
             .Where(i => i.Position.HorizontalDistanceTo(_deathPlace) <= LootRadius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
+            .Where(i => w.FitsInBag(i) && (!onlyMoney || i.Kind == GroundItemKind.Money))
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
         if (item is null)
@@ -312,6 +322,18 @@ public sealed class CombatBehavior : IBehavior
 
         if (outcome.Status != ActionStatus.Confirmed)
             _lootSkipped.Add(pickup.Item.Id);
+
+        // Монеты идут в кошелёк — по ним о сумке не судим
+        if (pickup.Item.Kind != GroundItemKind.Money && outcome.Status != ActionStatus.Failed)
+        {
+            _itemFailures = outcome.Status == ActionStatus.Confirmed ? 0 : _itemFailures + 1;
+            if (_itemFailures >= ItemFailuresToPause)
+            {
+                _itemFailures = 0;
+                _onlyMoneyUntil = c.Now + ItemPause;
+                c.Log.Warning($"Предметы {ItemFailuresToPause} раза подряд не поднялись (сумка полна?) — {ItemPause.TotalMinutes:0} мин подбираю только монеты");
+            }
+        }
         _nextPickup = c.Now + TimeSpan.FromMilliseconds(c.Random.Next(700, 1300));
     }
 
@@ -328,6 +350,8 @@ public sealed class CombatBehavior : IBehavior
         _mob = 0;
         _gaveUp.Clear();
         _lootSkipped.Clear();
+        _itemFailures = 0;
+        _onlyMoneyUntil = DateTime.MinValue;
         Status = null;
     }
 }
