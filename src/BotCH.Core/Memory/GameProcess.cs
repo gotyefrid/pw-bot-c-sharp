@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using BotCH.Core.Calls;
 using Microsoft.Win32.SafeHandles;
 
@@ -59,7 +60,9 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
     {
         var process = Process.GetProcessById(pid);
 
-        var access = NativeMethods.ProcessAccess.VmRead | NativeMethods.ProcessAccess.QueryLimitedInformation;
+        // QueryInformation — для VirtualQueryEx (сколько свободной памяти осталось у игры)
+        var access = NativeMethods.ProcessAccess.VmRead | NativeMethods.ProcessAccess.QueryLimitedInformation
+                     | NativeMethods.ProcessAccess.QueryInformation;
         if (rights.HasFlag(GameProcessRights.Write))
             access |= NativeMethods.ProcessAccess.VmWrite | NativeMethods.ProcessAccess.VmOperation;
         if (rights.HasFlag(GameProcessRights.Execute))
@@ -101,6 +104,10 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
     }
 
     private const int RemotePageSize = 0x1000;
+    // Стек нашего потока. По умолчанию Windows резервирует как у exe игры (1 МБ); когда адресное пространство
+    // игры (2 ГБ) забито и раздроблено, 1 МБ подряд не находится — CreateRemoteThread падает с ошибкой 8.
+    // Функциям отправки пакетов 256 КБ хватает с большим запасом.
+    private const int RemoteStackSize = 0x40000;
     private const int RemoteDataOffset = 0x100;
     private static readonly TimeSpan RemoteTimeout = TimeSpan.FromSeconds(5);
 
@@ -136,7 +143,8 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
                 || !NativeMethods.VirtualProtectEx(_handle, page, new IntPtr(RemotePageSize), NativeMethods.PageExecuteRead, out _))
                 return Failed("запись заглушки");
 
-            using var thread = NativeMethods.CreateRemoteThread(_handle, IntPtr.Zero, IntPtr.Zero, page, IntPtr.Zero, 0, IntPtr.Zero);
+            using var thread = NativeMethods.CreateRemoteThread(_handle, IntPtr.Zero, new IntPtr(RemoteStackSize), page, IntPtr.Zero,
+                NativeMethods.StackSizeParamIsAReservation, IntPtr.Zero);
             if (thread.IsInvalid)
                 return Failed("CreateRemoteThread");
 
@@ -156,12 +164,49 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
         }
     }
 
+    /// <summary>
+    /// Сколько адресного пространства игры свободно (только чтение, VirtualQueryEx): всего и самый большой кусок подряд.
+    /// null — Windows не ответила.
+    /// </summary>
+    public FreeMemory? QueryFreeMemory()
+    {
+        long total = 0, largest = 0;
+        long address = 0;
+        var size = new IntPtr(Marshal.SizeOf(typeof(NativeMethods.MemoryBasicInformation)));
+        var regions = 0;
+        while (address < 0x1_0000_0000 && regions < 1_000_000)
+        {
+            if (NativeMethods.VirtualQueryEx(_handle, new IntPtr(unchecked((int)address)), out var info, size) == IntPtr.Zero)
+                break;
+
+            regions++;
+            var regionSize = (long)unchecked((uint)info.RegionSize.ToInt32());
+            if (regionSize == 0)
+                break;
+            if (info.State == NativeMethods.MemFree)
+            {
+                total += regionSize;
+                largest = Math.Max(largest, regionSize);
+            }
+
+            address = unchecked((uint)info.BaseAddress.ToInt32()) + regionSize;
+        }
+
+        return regions == 0 ? null : new FreeMemory(total, largest);
+    }
+
     private bool TryWriteRaw(uint address, byte[] data)
         => NativeMethods.WriteProcessMemory(_handle, ToPointer(address), data, new IntPtr(data.Length), out var written)
            && written.ToInt64() == data.Length;
 
     private static RemoteRunResult Failed(string step)
-        => new(RemoteRunStatus.Failed, $"{step}: ошибка Windows {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
+    {
+        var error = Marshal.GetLastWin32Error();
+        // 8 — ERROR_NOT_ENOUGH_MEMORY: у игры кончилось адресное пространство, лечится только перезапуском клиента
+        return new(RemoteRunStatus.Failed, error == 8
+            ? $"{step}: игре не хватает памяти (ошибка Windows 8) — перезапустите клиент"
+            : $"{step}: ошибка Windows {error}");
+    }
 
     // В 32-битном процессе IntPtr(long) для адреса ≥ 0x80000000 бросает OverflowException — берём те же 32 бита как int
     private static IntPtr ToPointer(uint address) => new(unchecked((int)address));

@@ -43,6 +43,8 @@ internal static class Program
                     return CooldownFinder.Find(LoadProfile(rest), rest);
                 case "act":
                     return ActCommands.Act(LoadProfile(rest), rest);
+                case "mem":
+                    return WithClient(rest, (_, game) => Memory(game));
                 case "rename":
                     return Rename(rest);
                 case "dump":
@@ -74,6 +76,7 @@ internal static class Program
         Console.WriteLine("  sigmake   сделать длинные уникальные сигнатуры функций профиля (для обновления JSON)");
         Console.WriteLine("  snapshot  прочитать снимок мира: перс, мобы, лут, сумка, скиллы, пет");
         Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
+        Console.WriteLine("  mem       сколько свободной памяти (адресов) осталось у игры: всего и самый большой кусок");
         Console.WriteLine("  rename    переименовать окна всех клиентов в «Ник PID» и проверить заголовки (WinAPI, память только читается)");
         Console.WriteLine("  dump      [файл.dump] сохранить прочитанную снимком память в файл — фикстура для тестов без игры");
         Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");
@@ -84,6 +87,20 @@ internal static class Program
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
         Console.WriteLine("  cdfind [pet-food|potion-hp|potion-mp]  использовать предмет и 15 с искать поле его перезарядки («до/после»)");
+    }
+
+    private static int Memory(GameProcess game)
+    {
+        if (game.QueryFreeMemory() is not FreeMemory free)
+        {
+            Console.Error.WriteLine("❌ Windows не ответила (VirtualQueryEx)");
+            return 2;
+        }
+
+        Console.WriteLine($"Свободно у игры: {free.TotalMb} МБ, самый большой кусок подряд: {free.Largest / 1024} КБ");
+        Console.WriteLine($"Бот остановится при < {GameMemoryGuard.StopTotal >> 20} МБ или куске < {GameMemoryGuard.StopLargest >> 10} КБ, "
+                          + $"предупредит при < {GameMemoryGuard.WarnTotal >> 20} МБ");
+        return 0;
     }
 
     private static int Attach(string[] args)

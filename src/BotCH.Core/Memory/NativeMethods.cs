@@ -14,6 +14,7 @@ internal static class NativeMethods
         VmRead = 0x0010,
         VmWrite = 0x0020,
         CreateThread = 0x0002,
+        QueryInformation = 0x0400,
         QueryLimitedInformation = 0x1000,
     }
 
@@ -29,6 +30,24 @@ internal static class NativeMethods
     public const uint PageReadWrite = 0x04;
     public const uint PageExecuteRead = 0x20;
     public const uint WaitObject0 = 0;
+    public const uint MemFree = 0x10000;
+    /// <summary>dwStackSize у CreateRemoteThread — сколько адресов зарезервировать под стек, а не сколько выделить сразу.</summary>
+    public const uint StackSizeParamIsAReservation = 0x10000;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MemoryBasicInformation
+    {
+        public IntPtr BaseAddress;
+        public IntPtr AllocationBase;
+        public uint AllocationProtect;
+        public IntPtr RegionSize;
+        public uint State;
+        public uint Protect;
+        public uint Type;
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr VirtualQueryEx(SafeProcessHandle process, IntPtr address, out MemoryBasicInformation info, IntPtr length);
 
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern IntPtr VirtualAllocEx(SafeProcessHandle process, IntPtr address, IntPtr size, uint allocationType, uint protect);

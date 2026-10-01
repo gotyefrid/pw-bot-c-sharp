@@ -263,7 +263,26 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"));
             _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
             _brain.StopRequested += reason => OnUi(Stop);
-            _brainTick = _brain.Tick;
+            var brain = _brain;
+            var memoryLog = _logger.For("память");
+            var guard = new GameMemoryGuard(_game.QueryFreeMemory, memoryLog);
+            if (_game.QueryFreeMemory() is FreeMemory free)
+                memoryLog.Info($"Свободно у игры {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ");
+            var outOfMemory = false;
+            _brainTick = world =>
+            {
+                if (outOfMemory)
+                    return;
+
+                if (guard.ShouldStop(DateTime.Now))
+                {
+                    outOfMemory = true;
+                    OnUi(Stop);
+                    return;
+                }
+
+                brain.Tick(world);
+            };
             _monitor.Updated += _brainTick;
 
             IsRunning = true;
