@@ -41,7 +41,10 @@ namespace BotCH
                 Action.PotMP();
             }
 
-            if (GetPersHPPercent() < Convert.ToInt32(form.textBoxHPusage.Text))
+            var hpPercentCurrent = GetPersHPPercent();
+            var inputPercent = Convert.ToInt32(form.textBoxHPusage.Text);
+
+            if (hpPercentCurrent < inputPercent)
             {
                 if (PersReader.IsPotHPAvailable())
                 {
