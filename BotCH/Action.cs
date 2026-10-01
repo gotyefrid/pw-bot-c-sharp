@@ -189,8 +189,11 @@ namespace BotCH
 
                 WaitForCasting(Keys.F2);
 
-                // На перезарядке — пропускаем, бот попробует на следующем круге атаки
-                if (SkillReader.IsReady(skill) && GameCall.CastSkill(skill, target))
+                // На перезарядке — пропускаем, бот попробует на следующем круге атаки.
+                // Как нажатие кнопки: если моб дальше дальности скилла, персонаж сам подойдёт и применит
+                bool cast = SkillReader.IsReady(skill) && (GameCall.CanApplySkill ? GameCall.ApplySkill(skill) : GameCall.CastSkill(skill, target));
+
+                if (cast)
                 {
                     if (Logger.KeyLogger)
                     {
@@ -315,8 +318,9 @@ namespace BotCH
                     return;
                 }
 
-                // Лечение пета сервер принимает только с петом в качестве цели
-                if (GameCall.CastSkill(skill, pet))
+                // Как нажатие кнопки, целью — пет: если он дальше дальности лечения, персонаж подойдёт.
+                // Прямая команда (запасной путь) сервер принимает только с петом в качестве цели и без подхода
+                if (GameCall.CanApplySkill ? GameCall.ApplySkill(skill, pet) : GameCall.CastSkill(skill, pet))
                 {
                     Logger.setLog("Heal pet (direct call)");
                     Thread.Sleep(500);

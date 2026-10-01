@@ -75,6 +75,19 @@ namespace BotCH.MemoryHelpers
             return Enabled && Offset.Get.C2S_CAST_SKILL_FUNC != 0 && skillId != 0 && SkillReader.GetSkill(skillId) != 0;
         }
 
+        public static bool CanApplySkill
+        {
+            get { return Enabled && Offset.Get.HOST_APPLY_SKILL_FUNC != 0; }
+        }
+
+        // Применить скилл как нажатием кнопки: клиент сам подходит на дальность скилла и кастует.
+        // targetWid 0 — текущая цель персонажа; для лечения пета передаём WID пета
+        public static bool ApplySkill(uint skillId, uint targetWid = 0)
+        {
+            return CallMethod(Offset.Get.HOST_APPLY_SKILL_FUNC, Offset.Get.HOST_APPLY_SKILL_SIG, PersReader.GetPersStruct(),
+                skillId, 0, targetWid, 0xFFFFFFFF);
+        }
+
         // Применить скилл: targetWid — цель, 0 — без цели
         public static bool CastSkill(uint skillId, uint targetWid)
         {
@@ -91,6 +104,17 @@ namespace BotCH.MemoryHelpers
             }
 
             return Call(Offset.Get.C2S_UNSELECT_FUNC, Offset.Get.C2S_UNSELECT_SIG);
+        }
+
+        public static bool CanPickupWithApproach
+        {
+            get { return Enabled && Offset.Get.HOST_PICKUP_OBJECT_FUNC != 0 && Offset.Get.GROUND_ITEMS_OFFSET != 0; }
+        }
+
+        // Подобрать предмет как кликом мышью: клиент сам подводит персонажа и потом отправляет подбор
+        public static bool PickupWithApproach(uint itemId)
+        {
+            return CallMethod(Offset.Get.HOST_PICKUP_OBJECT_FUNC, Offset.Get.HOST_PICKUP_OBJECT_SIG, PersReader.GetPersStruct(), itemId, 0);
         }
 
         // pvpMask = 0: обычная атака без PvP
@@ -119,8 +143,89 @@ namespace BotCH.MemoryHelpers
 
         private static bool CallWithData(uint funcOffset, byte[] signature, byte[] data, params uint[] args)
         {
-            uint func = (uint)Reader.process.MainModule.BaseAddress.ToInt32() + funcOffset;
+            return CallCore(funcOffset, signature, 0, data, args);
+        }
 
+        // Метод объекта клиента (thiscall): thisPtr уходит в ecx
+        private static bool CallMethod(uint funcOffset, byte[] signature, uint thisPtr, params uint[] args)
+        {
+            return CallCore(funcOffset, signature, thisPtr, null, args);
+        }
+
+        private static bool CallCore(uint funcOffset, byte[] signature, uint thisPtr, byte[] data, uint[] args)
+        {
+            uint func = ModuleBase + funcOffset;
+
+            return RunInGame(new[] { func }, new[] { signature }, data, dataAddr =>
+                BuildStub(func, data == null ? args : Array.ConvertAll(args, a => a == DataPtr ? dataAddr : a), thisPtr));
+        }
+
+        private static uint ModuleBase
+        {
+            get { return (uint)Reader.process.MainModule.BaseAddress.ToInt32(); }
+        }
+
+        public static bool CanMove
+        {
+            get { return Enabled && Offset.Get.HOST_WORKMAN_OFFSET != 0 && Offset.Get.WORK_CREATE_FUNC != 0; }
+        }
+
+        // Идти в точку (x, высота, y), как кликом по земле: клиент сам ведёт персонажа
+        public static bool MoveTo(float x, float height, float y)
+        {
+            var o = Offset.Get;
+            uint workman = Reader.ReadUint32(PersReader.GetPersStruct() + o.HOST_WORKMAN_OFFSET);
+
+            if (workman == 0)
+            {
+                return false;
+            }
+
+            uint create = ModuleBase + o.WORK_CREATE_FUNC;
+            uint setDest = ModuleBase + o.WORK_MOVE_SET_DEST_FUNC;
+            uint start = ModuleBase + o.WORK_START_FUNC;
+
+            byte[] point = new byte[12];
+            Array.Copy(BitConverter.GetBytes(x), 0, point, 0, 4);
+            Array.Copy(BitConverter.GetBytes(height), 0, point, 4, 4);
+            Array.Copy(BitConverter.GetBytes(y), 0, point, 8, 4);
+
+            return RunInGame(new[] { create, setDest, start }, new[] { o.WORK_CREATE_SIG, o.WORK_MOVE_SET_DEST_SIG, o.WORK_START_SIG }, point,
+                pointAddr => BuildMoveStub(workman, create, setDest, start, pointAddr));
+        }
+
+        // work = WorkMan->CreateWork(1); if (work) { work->SetDestination(0, &point); WorkMan->StartWork(1, work, 1, 0); }
+        private static byte[] BuildMoveStub(uint workman, uint create, uint setDest, uint start, uint pointAddr)
+        {
+            var code = new List<byte>();
+
+            code.Add(0x56);                                                     // push esi
+            code.Add(0xB9); code.AddRange(BitConverter.GetBytes(workman));      // mov ecx, workman
+            code.AddRange(new byte[] { 0x6A, 0x01 });                           // push 1 (CECHPWorkMove)
+            code.Add(0xB8); code.AddRange(BitConverter.GetBytes(create));       // mov eax, CreateWork
+            code.AddRange(new byte[] { 0xFF, 0xD0 });                           // call eax
+            code.AddRange(new byte[] { 0x85, 0xC0 });                           // test eax, eax
+            int jz = code.Count;
+            code.AddRange(new byte[] { 0x74, 0x00 });                           // jz end (смещение ниже)
+            code.AddRange(new byte[] { 0x8B, 0xF0 });                           // mov esi, eax
+            code.Add(0x68); code.AddRange(BitConverter.GetBytes(pointAddr));    // push &point
+            code.AddRange(new byte[] { 0x6A, 0x00 });                           // push 0 (точка на земле)
+            code.AddRange(new byte[] { 0x8B, 0xCE });                           // mov ecx, esi
+            code.Add(0xB8); code.AddRange(BitConverter.GetBytes(setDest));      // mov eax, SetDestination
+            code.AddRange(new byte[] { 0xFF, 0xD0 });                           // call eax
+            code.AddRange(new byte[] { 0x6A, 0x00, 0x6A, 0x01, 0x56, 0x6A, 0x01 }); // push 0; push 1; push esi; push 1
+            code.Add(0xB9); code.AddRange(BitConverter.GetBytes(workman));      // mov ecx, workman
+            code.Add(0xB8); code.AddRange(BitConverter.GetBytes(start));        // mov eax, StartWork
+            code.AddRange(new byte[] { 0xFF, 0xD0 });                           // call eax
+            code[jz + 1] = (byte)(code.Count - (jz + 2));
+            code.AddRange(new byte[] { 0x5E, 0x31, 0xC0, 0xC2, 0x04, 0x00 });  // end: pop esi; xor eax, eax; ret 4
+
+            return code.ToArray();
+        }
+
+        // Проверяет первые байты функций, кладёт data в память игры, строит код (ему передаётся адрес data) и выполняет его потоком
+        private static bool RunInGame(uint[] funcs, byte[][] signatures, byte[] data, Func<uint, byte[]> buildStub)
+        {
             IntPtr h = OpenProcess(PROCESS_ACCESS, false, Reader.process.Id);
             if (h == IntPtr.Zero)
             {
@@ -132,12 +237,15 @@ namespace BotCH.MemoryHelpers
 
             try
             {
-                // Проверяем, что по адресу та функция, которую ждём (другая версия клиента — не вызываем)
-                byte[] actual = new byte[signature.Length];
-                if (!ReadProcessMemory(h, (IntPtr)func, actual, actual.Length, out _) || !BytesEqual(actual, signature))
+                // Проверяем, что по адресам те функции, которые ждём (другая версия клиента — не вызываем)
+                for (int i = 0; i < funcs.Length; i++)
                 {
-                    Logger.setLog("GameCall: unexpected bytes at 0x" + func.ToString("X") + ", call skipped");
-                    return false;
+                    byte[] actual = new byte[signatures[i].Length];
+                    if (!ReadProcessMemory(h, (IntPtr)funcs[i], actual, actual.Length, out _) || !BytesEqual(actual, signatures[i]))
+                    {
+                        Logger.setLog("GameCall: unexpected bytes at 0x" + funcs[i].ToString("X") + ", call skipped");
+                        return false;
+                    }
                 }
 
                 mem = VirtualAllocEx(h, IntPtr.Zero, (IntPtr)0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
@@ -148,11 +256,10 @@ namespace BotCH.MemoryHelpers
                 }
 
                 // Данные (если есть) кладём в ту же страницу, после кода заглушки
+                uint dataAddr = (uint)mem.ToInt64() + DataOffset;
+
                 if (data != null)
                 {
-                    uint dataAddr = (uint)mem.ToInt64() + DataOffset;
-                    args = Array.ConvertAll(args, a => a == DataPtr ? dataAddr : a);
-
                     if (!WriteProcessMemory(h, (IntPtr)dataAddr, data, data.Length, out _))
                     {
                         Logger.setLog("GameCall: writing data failed, error " + Marshal.GetLastWin32Error());
@@ -160,7 +267,7 @@ namespace BotCH.MemoryHelpers
                     }
                 }
 
-                byte[] stub = BuildCdeclStub(func, args);
+                byte[] stub = buildStub(dataAddr);
 
                 if (!WriteProcessMemory(h, mem, stub, stub.Length, out _)
                     || !VirtualProtectEx(h, mem, (IntPtr)0x1000, PAGE_EXECUTE_READ, out _))
@@ -201,7 +308,8 @@ namespace BotCH.MemoryHelpers
         }
 
         // push argN ... push arg1; mov eax, func; call eax; add esp, 4*N; xor eax, eax; ret 4
-        private static byte[] BuildCdeclStub(uint func, uint[] args)
+        // thisPtr == 0: cdecl (стек после вызова чистим сами); иначе thiscall: mov ecx, thisPtr, стек чистит функция
+        private static byte[] BuildStub(uint func, uint[] args, uint thisPtr)
         {
             var code = new List<byte>();
 
@@ -211,11 +319,17 @@ namespace BotCH.MemoryHelpers
                 code.AddRange(BitConverter.GetBytes(args[i]));
             }
 
+            if (thisPtr != 0)
+            {
+                code.Add(0xB9);
+                code.AddRange(BitConverter.GetBytes(thisPtr));
+            }
+
             code.Add(0xB8);
             code.AddRange(BitConverter.GetBytes(func));
             code.AddRange(new byte[] { 0xFF, 0xD0 });
 
-            if (args.Length > 0)
+            if (args.Length > 0 && thisPtr == 0)
             {
                 code.AddRange(new byte[] { 0x83, 0xC4, (byte)(4 * args.Length) });
             }

@@ -252,6 +252,27 @@ namespace BotCH.MemoryHelpers
         }
 
         /// <summary>
+        /// Координаты моба из уже найденной структуры (GetMobStruct) — 3 чтения вместо поиска по списку.
+        /// Если в структуре уже другой моб (труп исчез, ячейку заняли) — false.
+        /// </summary>
+        public static bool ReadMobPosition(uint mobStruct, uint wid, out float[] pos, out bool dead)
+        {
+            pos = null;
+            dead = false;
+
+            if (mobStruct == 0 || ReadUint32(mobStruct + Offset.Get.MOB_WID_OFFSET) != wid)
+            {
+                return false;
+            }
+
+            uint loc = mobStruct + Offset.Get.MOB_LOC_OFFSET;
+            pos = new[] { ReadFloat(loc), ReadFloat(loc + 4), ReadFloat(loc + 8) };
+            dead = ReadUint32(mobStruct + Offset.Get.MOB_ACTION_OFFSET) == TargetMobEntity.ACTION_DIES;
+
+            return true;
+        }
+
+        /// <summary>
         /// Ближайший живой моб, который агрится на персонажа или его пета (MOB_TARGET_OFFSET).
         /// Смотрит всех существ вокруг, а не сохранённый список. Игроки и NPC не учитываются.
         /// </summary>

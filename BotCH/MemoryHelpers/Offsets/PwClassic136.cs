@@ -103,6 +103,37 @@ namespace BotCH.MemoryHelpers.Offsets
         // c2s_SendCmdUnselect(), команда 0x08, пакет 2 байта, без параметров (аналог Esc). Код: push esi; push 2; call alloc ... mov word [esi], 8
         public override uint C2S_UNSELECT_FUNC { get => 0x1F0C90; }
         public override byte[] C2S_UNSELECT_SIG => new byte[] { 0x56, 0x6A, 0x02, 0xE8 };
+        // Идти в точку — то, что делает клик по земле (проверено в игре: дошёл до точки, остановился в 0.3 м):
+        //   work = WorkMan->CreateWork(1)          0x466C70 (thiscall; тип 1 = CECHPWorkMove)
+        //   work->SetDestination(0, &point)        0x46A890 (thiscall; 0 — точка на земле, 1 — 3D (полёт?), 2 — НАПРАВЛЕНИЕ:
+        //                                                    бежит по вектору без остановки, 3 — толчок)
+        //   WorkMan->StartWork(1, work, 1, 0)      0x467070 (thiscall)
+        // WorkMan = [перс+0xE48] (CECHPWorkMan). Точка — 3 float: X, высота, Y (как в объекте с +0x3C).
+        public override uint HOST_WORKMAN_OFFSET { get => 0xE48; }
+        public override uint WORK_CREATE_FUNC { get => 0x66C70; }
+        public override byte[] WORK_CREATE_SIG => new byte[] { 0x64, 0xA1, 0x00, 0x00, 0x00, 0x00 };
+        public override uint WORK_MOVE_SET_DEST_FUNC { get => 0x6A890; }
+        public override byte[] WORK_MOVE_SET_DEST_SIG => new byte[] { 0x8B, 0x44, 0x24, 0x08, 0x83, 0xEC };
+        public override uint WORK_START_FUNC { get => 0x67070; }
+        public override byte[] WORK_START_SIG => new byte[] { 0x8A, 0x44, 0x24, 0x10, 0x53, 0x8B };
+        public override uint MOB_LOC_OFFSET { get => 0x3C; }
+        // CECHostPlayer::ApplySkill(int id, bool, int target, int pvp) — то, что делает нажатие кнопки скилла (thiscall, this = перс).
+        // Из интерфейса клиент вызывает (id, 0, 0, -1): цель 0 = текущая цель персонажа, -1 = обычный режим PvP.
+        // Если цель дальше дальности скилла — создаёт «подойти к цели» (CECHPWorkTrace, тип 2) с причиной 3 = скилл,
+        // дойдя, кастует сам. Проверено в игре: моб в 32 м, подошёл до 18.6 м, применил «Жалящий рой».
+        // Лечение пета: (330, 0, WID пета, -1) — проверено, скилл применился. Воскрешению пета дальность не нужна — прямая команда.
+        // Внутри есть особая проверка на ID 167 (Городской портал). Найдено как вызывающий SetTraceTarget(id, 3).
+        public override uint HOST_APPLY_SKILL_FUNC { get => 0x5CC50; }
+        public override byte[] HOST_APPLY_SKILL_SIG => new byte[] { 0x53, 0x55, 0x56, 0x57, 0x8B, 0xF1 };
+        // CECHostPlayer::PickupObject(int id, bool gather) — то, что делает клик по предмету на земле (thiscall, this = перс).
+        // Проверяет, что id — предмет (0xC...), что его вид (+0x14C) совпадает с gather (2 = ресурс), создаёт работу
+        // «подойти к цели» (CECHPWorkTrace, тип 2) с причиной 1 = подобрать (4 = собрать ресурс) и запускает её.
+        // Дойдя (~3 м), клиент сам отправляет c2s_SendCmdPickup. Проверено в игре: подошёл ~6 м и поднял.
+        // Как нашли: по RTTI-именам классов (.?AVCECHPWorkTrace@@) -> vtable -> конструктор -> фабрика работ
+        // CECHPWorkMan::CreateWork @0x466C70 (тип 1 идти в точку, 2 подойти к цели, 11 анимация подбора) -> кто создаёт тип 2.
+        // [перс+0xE48] — CECHPWorkMan, сам перс — CECHostPlayer (vtable 0x8D74C8).
+        public override uint HOST_PICKUP_OBJECT_FUNC { get => 0x62800; }
+        public override byte[] HOST_PICKUP_OBJECT_SIG => new byte[] { 0x53, 0x55, 0x57, 0x8B, 0xF9, 0x8B };
         // c2s_SendCmdCastSkill(int skill, byte pvpMask, int count, int* targets), команда 0x29, пакет 8 + 4*count байт:
         // [0x29][skill:4][pvpMask][count][targets...]. Цель зависит от скилла (проверено тестом):
         //   лечение пета — целью сам пет (без цели сервер не принимает), воскрешение пета — без цели (count 0).

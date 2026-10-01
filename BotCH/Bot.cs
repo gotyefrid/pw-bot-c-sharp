@@ -200,9 +200,10 @@ namespace BotCH
             {
                 int n = int.Parse(form.textBoxLootingClicks.Text);
 
-                if (GameCall.CanPickup)
+                if (GameCall.CanPickupWithApproach)
                 {
-                    PickUpLootDirect(n);
+                    GoToKillPlace();
+                    PickUpLootWithApproach(n);
                     return;
                 }
 
@@ -216,35 +217,103 @@ namespace BotCH
             }
         }
 
-        // Радиус подбора на сервере ~10 м (проверено), берём с запасом на задержку координат
-        private const float PickupRadius = 9.5f;
+        // Дальше этого от места смерти — сначала идём туда, м
+        private const float KillPlaceNearDistance = 3f;
+        // Сколько ждать, пока дойдём до места смерти, мс
+        private const int KillPlaceWaitMs = 10000;
+
+        // Перед лутом подходим туда, где умер моб: лут падает вокруг него (важно, если моба убил пет вдалеке)
+        private static void GoToKillPlace()
+        {
+            float[] target = _killPos;
+            bool dead = _killPosDead;
+            _killPos = null;
+
+            if (target == null || !dead || !GameCall.CanMove)
+            {
+                return;
+            }
+
+            float dist = DistanceToMe(target);
+
+            if (dist <= KillPlaceNearDistance)
+            {
+                return;
+            }
+
+            Logger.setLog("Go to kill place, " + dist.ToString("0.0") + " m");
+
+            if (!GameCall.MoveTo(target[0], target[1], target[2]))
+            {
+                return;
+            }
+
+            var start = DateTime.Now;
+
+            while (DistanceToMe(target) > KillPlaceNearDistance && (DateTime.Now - start).TotalMilliseconds < KillPlaceWaitMs)
+            {
+                Thread.Sleep(200);
+            }
+        }
+
+        private static float DistanceToMe(float[] p)
+        {
+            uint pers = PersReader.GetPersStruct();
+            float dx = Reader.ReadFloat(pers + Offset.Get.PERS_LOC_X) - p[0];
+            float dh = Reader.ReadFloat(pers + Offset.Get.PERS_LOC_Z) - p[1];
+            float dy = Reader.ReadFloat(pers + Offset.Get.PERS_LOC_Y) - p[2];
+
+            return (float)Math.Sqrt(dx * dx + dh * dh + dy * dy);
+        }
+
+        // Как далеко бот ходит за лутом, м
+        private const float PickupMaxDistance = 20f;
+        // Сколько ждать, пока персонаж дойдёт и поднимет предмет, мс
+        private const int PickupWaitMs = 10000;
         // Пауза между подборами, мс: случайная, чтобы не выглядело как бот
         private const int PickupDelayMin = 700;
         private const int PickupDelayMax = 1300;
         private static readonly Random _random = new Random();
 
-        // Подбор прямым вызовом: до n раз ближайший предмет в радиусе, без подхода к дальним
-        private static void PickUpLootDirect(int n)
+        // Подбор как кликом мышью: до n раз ближайший предмет в пределах PickupMaxDistance,
+        // персонаж сам подходит к нему. Прямой пакет подбора (GameCall.Pickup) берёт с 10 м — человек так не может
+        private static void PickUpLootWithApproach(int n)
         {
             int picked = 0;
+            var skipped = new HashSet<uint>();
 
             for (int i = 0; i < n; i++)
             {
-                if (!ItemReader.FindNearestItem(PickupRadius, out uint id, out uint tid))
+                if (!ItemReader.FindNearestItem(PickupMaxDistance, skipped, out uint id, out _))
                 {
                     break;
                 }
 
-                if (!GameCall.Pickup(id, tid))
+                if (!GameCall.PickupWithApproach(id))
                 {
                     break;
+                }
+
+                // Ждём, пока предмет исчезнет с земли: иначе следующая команда собьёт подход к этому
+                var start = DateTime.Now;
+
+                while (ItemReader.IsOnGround(id) && (DateTime.Now - start).TotalMilliseconds < PickupWaitMs)
+                {
+                    Thread.Sleep(200);
+                }
+
+                if (ItemReader.IsOnGround(id))
+                {
+                    Logger.setLog("Pick up loot: item " + id.ToString("X") + " not picked in " + PickupWaitMs / 1000 + " s, skip it");
+                    skipped.Add(id);
+                    continue;
                 }
 
                 picked++;
                 Thread.Sleep(_random.Next(PickupDelayMin, PickupDelayMax));
             }
 
-            Logger.setLog("Pick up loot: " + picked + " item(s) (direct call)");
+            Logger.setLog("Pick up loot: " + picked + " item(s) (with approach)");
         }
 
         private static bool SearchCurrentMobIdInList()
@@ -276,11 +345,56 @@ namespace BotCH
             }
 
             Logger.setLog("Killing mob");
+
+            // Место моба для подхода к луту: структуру ищем один раз, дальше читаем из неё только координаты
+            _killPos = null;
+            _killPosDead = false;
+            uint mobStruct = GameCall.CanMove ? MobReader.GetMobStruct(mobId) : 0;
+
+            try
+            {
+                KillMobLoop(mobId, mobStruct);
+            }
+            finally
+            {
+                // После смерти труп ещё ~5 с лежит в списке — читаем точное место смерти.
+                // Цель у персонажа сбрасывается чуть раньше, чем у моба ставится флаг смерти, поэтому ждём его до 1 с
+                for (int k = 0; k < 5; k++)
+                {
+                    RememberKillPos(mobStruct, mobId);
+
+                    if (_killPosDead || _killPos == null)
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(200);
+                }
+            }
+        }
+
+        // Последние координаты моба, которого били, и умер ли он
+        private static float[] _killPos;
+        private static bool _killPosDead;
+
+        private static void RememberKillPos(uint mobStruct, uint mobId)
+        {
+            if (MobReader.ReadMobPosition(mobStruct, mobId, out float[] pos, out bool dead))
+            {
+                _killPos = pos;
+                _killPosDead = dead;
+            }
+        }
+
+        private static void KillMobLoop(uint mobId, uint mobStruct)
+        {
             int i = 0;
             var timeStart = DateTime.Now;
 
             while (TargetMobEntity.WID == mobId)
             {
+                RememberKillPos(mobStruct, mobId);
+
                 if (TargetMobEntity.WID == 0)
                 {
                     return;

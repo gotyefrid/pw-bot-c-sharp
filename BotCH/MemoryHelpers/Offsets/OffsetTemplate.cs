@@ -53,6 +53,20 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual byte[] C2S_PICKUP_SIG { get => new byte[] { }; }
         public virtual uint C2S_UNSELECT_FUNC { get => 0; }
         public virtual byte[] C2S_UNSELECT_SIG { get => new byte[] { }; }
+        // Движение «идти в точку» (как клик по земле): менеджер работ перса и три его функции
+        public virtual uint HOST_WORKMAN_OFFSET { get => 0; }
+        public virtual uint WORK_CREATE_FUNC { get => 0; }
+        public virtual byte[] WORK_CREATE_SIG { get => new byte[] { }; }
+        public virtual uint WORK_MOVE_SET_DEST_FUNC { get => 0; }
+        public virtual byte[] WORK_MOVE_SET_DEST_SIG { get => new byte[] { }; }
+        public virtual uint WORK_START_FUNC { get => 0; }
+        public virtual byte[] WORK_START_SIG { get => new byte[] { }; }
+        // Координаты объекта мира (моб, пет, предмет): X, высота, Y подряд
+        public virtual uint MOB_LOC_OFFSET { get => 0; }
+        public virtual uint HOST_APPLY_SKILL_FUNC { get => 0; }
+        public virtual byte[] HOST_APPLY_SKILL_SIG { get => new byte[] { }; }
+        public virtual uint HOST_PICKUP_OBJECT_FUNC { get => 0; }
+        public virtual byte[] HOST_PICKUP_OBJECT_SIG { get => new byte[] { }; }
         public virtual uint C2S_CAST_SKILL_FUNC { get => 0; }
         public virtual byte[] C2S_CAST_SKILL_SIG { get => new byte[] { }; }
         public virtual uint C2S_USE_ITEM_FUNC { get => 0; }

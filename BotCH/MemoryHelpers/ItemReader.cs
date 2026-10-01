@@ -1,4 +1,6 @@
-﻿namespace BotCH.MemoryHelpers
+﻿using System.Collections.Generic;
+
+namespace BotCH.MemoryHelpers
 {
     /*
      * Предметы на земле (дроп, монеты, ресурсы для сбора).
@@ -15,6 +17,14 @@
         /// </summary>
         /// <returns>true, если предмет найден; id и tid — параметры для подбора.</returns>
         public static bool FindNearestItem(float maxDist, out uint id, out uint tid)
+        {
+            return FindNearestItem(maxDist, null, out id, out tid);
+        }
+
+        /// <summary>
+        /// То же, но пропуская предметы из skipIds.
+        /// </summary>
+        public static bool FindNearestItem(float maxDist, ICollection<uint> skipIds, out uint id, out uint tid)
         {
             id = 0;
             tid = 0;
@@ -43,6 +53,11 @@
                     continue;
                 }
 
+                if (skipIds != null && skipIds.Contains(ReadUint32(item + Offset.Get.ITEM_ID_OFFSET)))
+                {
+                    continue;
+                }
+
                 float dist = ReadFloat(item + Offset.Get.ITEM_DIST_OFFSET);
 
                 if (dist <= nearestDist)
@@ -55,6 +70,28 @@
             }
 
             return found;
+        }
+
+        /// <summary>
+        /// Лежит ли ещё предмет с этим id на земле.
+        /// </summary>
+        public static bool IsOnGround(uint id)
+        {
+            uint array = ReadUint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+            array = ReadUint32(array + Offset.Get.GROUND_ITEMS_OFFSET);
+            array = ReadUint32(array + Offset.Get.MOB_STRUCT_OFFSET);
+
+            for (uint i = 0; i <= 768; i++)
+            {
+                uint entry = ReadUint32(array + i * 4);
+
+                if (entry != 0 && ReadUint32(ReadUint32(entry + 0x4) + Offset.Get.ITEM_ID_OFFSET) == id)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
