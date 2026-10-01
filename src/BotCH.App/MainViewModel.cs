@@ -284,15 +284,23 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Настройки бота ──────────────────────────────────────────────────────
 
-    private bool _showSettings;
+    private int _tab;
 
-    /// <summary>Что показано в середине окна: состояние бота или настройки.</summary>
-    public bool ShowSettings
+    /// <summary>Вкладка в середине окна: 0 — бот, 1 — настройки, 2 — лог.</summary>
+    public int Tab
     {
-        get => _showSettings;
-        set => SetProperty(ref _showSettings, value);
+        get => _tab;
+        set => SetProperty(ref _tab, value);
     }
 
+    private string _lastEvent = "";
+
+    /// <summary>Последняя запись лога — видна на вкладке «Бот».</summary>
+    public string LastEvent
+    {
+        get => _lastEvent;
+        private set => SetProperty(ref _lastEvent, value);
+    }
 
     /// <summary>Настройки окна. Поля привязаны напрямую; после правки окно зовёт <see cref="SettingsEdited"/>.</summary>
     public BotSettings Settings => _settings;
@@ -547,6 +555,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void AddLog(LogEntry entry)
     {
         Log.Add(entry);
+        LastEvent = $"{entry.Time:HH:mm:ss} {entry.Message}";
         while (Log.Count > MaxLogLines)
             Log.RemoveAt(0);
     }

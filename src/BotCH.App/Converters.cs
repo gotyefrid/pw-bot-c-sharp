@@ -16,6 +16,26 @@ public sealed class InverseVisibilityConverter : IValueConverter
         => throw new NotSupportedException();
 }
 
+/// <summary>Вкладка (int) == параметр → показать.</summary>
+public sealed class TabVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => Equals(value?.ToString(), parameter?.ToString()) ? Visibility.Visible : Visibility.Collapsed;
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+/// <summary>Кнопка вкладки: отмечена, если выбрана её вкладка; при нажатии выбирает её.</summary>
+public sealed class TabCheckedConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => Equals(value?.ToString(), parameter?.ToString());
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is true ? int.Parse((string)parameter, CultureInfo.InvariantCulture) : Binding.DoNothing;
+}
+
 /// <summary>Режим списка лута по-русски.</summary>
 public sealed class LootModeConverter : IValueConverter
 {

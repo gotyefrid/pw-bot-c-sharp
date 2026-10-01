@@ -1,5 +1,9 @@
 using System;
 using System.Collections.Specialized;
+using System.Linq;
+using System.Windows.Documents;
+using System.Windows.Media;
+using BotCH.Core.Logging;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -17,13 +21,10 @@ public partial class MainWindow : Window
         _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory);
         DataContext = _model;
 
-        // Лог прокручивается к новой строке. Не сразу, а после того как список сам обработает добавление:
-        // прокрутка внутри CollectionChanged идёт раньше списка — WPF видит рассогласование и падает
-        _model.Log.CollectionChanged += (_, e) =>
-        {
-            if (e.Action == NotifyCollectionChangedAction.Add)
-                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ScrollLogToEnd));
-        };
+        // Лог в RichTextBox: текст можно выделять и копировать
+        foreach (var entry in _model.Log)
+            LogBox.Document.Blocks.Add(Line(entry));
+        _model.Log.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 
     // Любая правка в панели настроек: привязка уже записала значение в настройки — сохранить и отдать боту
@@ -33,10 +34,61 @@ public partial class MainWindow : Window
             _model.SettingsEdited();
     }
 
-    private void ScrollLogToEnd()
+    private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x6B, 0x73, 0x85));
+    private static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xD9, 0x8B, 0x0B));
+    private static readonly Brush Bad = new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D));
+
+    private void SyncLog(NotifyCollectionChangedEventArgs e)
     {
-        if (LogList.Items.Count > 0)
-            LogList.ScrollIntoView(LogList.Items[LogList.Items.Count - 1]);
+        var blocks = LogBox.Document.Blocks;
+        if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems is not null)
+        {
+            // Прокручиваем вниз, только если пользователь и так внизу (не мешаем выделять старое)
+            var atEnd = LogBox.VerticalOffset + LogBox.ViewportHeight >= LogBox.ExtentHeight - 4;
+            foreach (LogEntry entry in e.NewItems)
+                blocks.Add(Line(entry));
+            if (atEnd)
+                LogBox.ScrollToEnd();
+        }
+        else if (e.Action == NotifyCollectionChangedAction.Remove && blocks.FirstBlock is not null)
+        {
+            blocks.Remove(blocks.FirstBlock);
+        }
+        else if (e.Action == NotifyCollectionChangedAction.Reset)
+        {
+            blocks.Clear();
+        }
+    }
+
+    private static Paragraph Line(LogEntry entry)
+    {
+        var line = new Paragraph { Margin = new Thickness(0, 0, 0, 1) };
+        line.Inlines.Add(new Run($"{entry.Time:HH:mm:ss} [{entry.Source}] ") { Foreground = Muted });
+        line.Inlines.Add(new Run(entry.Message)
+        {
+            Foreground = entry.Level switch
+            {
+                LogLevel.Warning => Warn,
+                LogLevel.Error => Bad,
+                LogLevel.Debug => Muted,
+                _ => Brushes.Black,
+            },
+        });
+        return line;
+    }
+
+    private void CopyLog(object sender, RoutedEventArgs e)
+    {
+        var text = string.Join(Environment.NewLine, _model.Log.Select(entry => entry.ToString()));
+        if (text.Length > 0)
+            Clipboard.SetText(text);
+    }
+
+    private void OpenLogFolder(object sender, RoutedEventArgs e)
+    {
+        var folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+        System.IO.Directory.CreateDirectory(folder);
+        System.Diagnostics.Process.Start("explorer.exe", folder);
     }
 
     protected override void OnSourceInitialized(EventArgs e)
