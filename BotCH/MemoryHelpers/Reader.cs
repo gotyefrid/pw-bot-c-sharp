@@ -8,7 +8,8 @@ namespace BotCH.MemoryHelpers
 {
     public class Reader
     {
-        [DllImport("user32.dll")]
+        // Unicode-версия: иначе русский ник может превратиться в «????»
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         static extern bool SetWindowText(IntPtr hWnd, string text);
 
         public static BotForm form;
@@ -17,29 +18,36 @@ namespace BotCH.MemoryHelpers
         public static Mem memory = new Mem();
         private static readonly string DefaultProcessName = "elementclient";
 
+        // Окна всех клиентов игры называются «Ник PID». Ник читается из памяти каждого клиента,
+        // поэтому на время чтения process подменяется — потом возвращаем тот, к которому подключён бот
         public static void RenameGameWindows()
         {
-            Process[] localAll = Process.GetProcesses();
+            Process connected = process;
 
-            foreach (Process oneProcess in localAll)
+            try
             {
-                if (oneProcess.ProcessName.ToLower() == DefaultProcessName)
+                foreach (Process oneProcess in Process.GetProcessesByName(DefaultProcessName))
                 {
+                    string persName = "";
+
                     try
                     {
                         process = oneProcess;
-                        string persName = PersReader.GetPersName();
-                        //string persName = "";
-                        SetWindowText(oneProcess.MainWindowHandle, persName + " " + oneProcess.Id.ToString());
+                        persName = PersReader.GetPersName();
                     }
                     catch
                     {
-                        SetWindowText(oneProcess.MainWindowHandle, oneProcess.Id.ToString());
                     }
-                }                
+
+                    string title = (persName + " " + oneProcess.Id).Trim();
+                    SetWindowText(oneProcess.MainWindowHandle, title);
+                    Logger.setLog("Game window renamed: " + title);
+                }
             }
-
-
+            finally
+            {
+                process = connected;
+            }
         }
 
         public static string SetPID(int number)

@@ -171,8 +171,38 @@ namespace BotCH
             Action.ClickCombineKeys(Keys.Menu, Keys.D1);
         }
 
+        // Атакующий скилл, выбранный в списке «Attack skill» на форме. 0 — не выбран (жмём F2)
+        public static volatile uint AttackSkillId = 0;
+
         public static void AttackBySkill()
         {
+            uint skill = AttackSkillId;
+
+            if (skill != 0 && GameCall.CanCastSkill(skill))
+            {
+                uint target = TargetMobEntity.WID;
+
+                if (target == 0)
+                {
+                    return;
+                }
+
+                WaitForCasting(Keys.F2);
+
+                // На перезарядке — пропускаем, бот попробует на следующем круге атаки
+                if (SkillReader.IsReady(skill) && GameCall.CastSkill(skill, target))
+                {
+                    if (Logger.KeyLogger)
+                    {
+                        Logger.setLog("Skill " + skill + " on " + target + " (direct call)");
+                    }
+
+                    Thread.Sleep(500);
+                }
+
+                return;
+            }
+
             Action.ClickKey(Keys.F2);
         }
 
@@ -270,11 +300,56 @@ namespace BotCH
 
         public static void HealPet(bool waitCasting = true)
         {
+            uint skill = Offset.Get.SKILL_HEAL_PET;
+            uint pet = PersReader.GetCurrentPetId();
+
+            if (pet != 0 && GameCall.CanCastSkill(skill))
+            {
+                if (waitCasting)
+                {
+                    WaitForCasting(Keys.F7);
+                }
+
+                if (!SkillReader.IsReady(skill))
+                {
+                    return;
+                }
+
+                // Лечение пета сервер принимает только с петом в качестве цели
+                if (GameCall.CastSkill(skill, pet))
+                {
+                    Logger.setLog("Heal pet (direct call)");
+                    Thread.Sleep(500);
+                    return;
+                }
+            }
+
             Action.ClickKey(Keys.F7, waitCasting);
         }
 
         public static void BringPetToLife()
         {
+            uint skill = Offset.Get.SKILL_REVIVE_PET;
+
+            if (GameCall.CanCastSkill(skill))
+            {
+                WaitForCasting(Keys.F8);
+
+                // Воскрешение — без цели. Каст долгий (~12 с): ждём его конца, чтобы не сбить повторной командой
+                if (SkillReader.IsReady(skill) && GameCall.CastSkill(skill, 0))
+                {
+                    Logger.setLog("Revive pet (direct call)");
+                    Thread.Sleep(1000);
+
+                    for (int i = 0; i < 20 && PersReader.GetFlagUseSkill(); i++)
+                    {
+                        Thread.Sleep(1000);
+                    }
+                }
+
+                return;
+            }
+
             Action.ClickKey(Keys.F8);
         }
 

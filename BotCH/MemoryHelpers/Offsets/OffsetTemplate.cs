@@ -53,6 +53,8 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual byte[] C2S_PICKUP_SIG { get => new byte[] { }; }
         public virtual uint C2S_UNSELECT_FUNC { get => 0; }
         public virtual byte[] C2S_UNSELECT_SIG { get => new byte[] { }; }
+        public virtual uint C2S_CAST_SKILL_FUNC { get => 0; }
+        public virtual byte[] C2S_CAST_SKILL_SIG { get => new byte[] { }; }
         public virtual uint C2S_USE_ITEM_FUNC { get => 0; }
         public virtual byte[] C2S_USE_ITEM_SIG { get => new byte[] { }; }
         public virtual uint C2S_SUMMON_PET_FUNC { get => 0; }
@@ -81,6 +83,17 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual uint ESSENCE_POTION_MP_OFFSET { get => 0; }
         public virtual uint INV_FOOD_ESSENCE_OFFSET { get => 0; }
         public virtual uint ESSENCE_FOOD_LOYALTY_OFFSET { get => 0; }
+
+        // Скиллы персонажа (SkillReader) и ID скиллов класса. 0 — нет/не поддерживается
+        public virtual uint SKILLS_OFFSET { get => 0; }
+        public virtual uint SKILLS_COUNT_OFFSET { get => 0; }
+        public virtual uint SKILL_ID_OFFSET { get => 0; }
+        public virtual uint SKILL_COOLDOWN_OFFSET { get => 0; }
+        public virtual uint SKILL_HEAL_PET { get => 0; }
+        public virtual uint SKILL_REVIVE_PET { get => 0; }
+        // Атакующий скилл по умолчанию и скиллы, которые точно не атакующие (их нет в списке «Attack skill»)
+        public virtual uint SKILL_DEFAULT_ATTACK { get => 0; }
+        public virtual uint[] SKILLS_NOT_ATTACK { get => new uint[] { }; }
 
         public uint GetOffsetFromIni(string name, string defaultValue)
         {

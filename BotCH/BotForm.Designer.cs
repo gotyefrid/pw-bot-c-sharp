@@ -62,6 +62,8 @@
             this.checkBoxLooting = new System.Windows.Forms.CheckBox();
             this.checkBoxUseSword = new System.Windows.Forms.CheckBox();
             this.checkBoxUseSkill = new System.Windows.Forms.CheckBox();
+            this.labelTextSkill = new System.Windows.Forms.Label();
+            this.comboBoxSkill = new System.Windows.Forms.ComboBox();
             this.labelTextCage = new System.Windows.Forms.Label();
             this.textBoxMPusage = new System.Windows.Forms.TextBox();
             this.labelTextUseMP = new System.Windows.Forms.Label();
@@ -342,6 +344,8 @@
             this.tabSettings.Controls.Add(this.textBoxHPusage);
             this.tabSettings.Controls.Add(this.labelTextUseHP);
             this.tabSettings.Controls.Add(this.cageSelect);
+            this.tabSettings.Controls.Add(this.labelTextSkill);
+            this.tabSettings.Controls.Add(this.comboBoxSkill);
             this.tabSettings.Location = new System.Drawing.Point(4, 25);
             this.tabSettings.Name = "tabSettings";
             this.tabSettings.Padding = new System.Windows.Forms.Padding(3);
@@ -495,6 +499,30 @@
             this.checkBoxUseSkill.Text = "Use Skill";
             this.toolTip1.SetToolTip(this.checkBoxUseSkill, "If checked = Char will use Skill key whe killing mob");
             this.checkBoxUseSkill.UseVisualStyleBackColor = true;
+            this.checkBoxUseSkill.CheckedChanged += new System.EventHandler(this.checkBoxUseSkill_CheckedChanged);
+            //
+            // labelTextSkill
+            //
+            this.labelTextSkill.AutoSize = true;
+            this.labelTextSkill.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.labelTextSkill.Location = new System.Drawing.Point(9, 262);
+            this.labelTextSkill.Name = "labelTextSkill";
+            this.labelTextSkill.Size = new System.Drawing.Size(80, 20);
+            this.labelTextSkill.Text = "Attack skill";
+            this.labelTextSkill.Visible = false;
+            this.toolTip1.SetToolTip(this.labelTextSkill, "Skill used by Use Skill (direct call)");
+            //
+            // comboBoxSkill
+            //
+            this.comboBoxSkill.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.comboBoxSkill.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
+            this.comboBoxSkill.FormattingEnabled = true;
+            this.comboBoxSkill.Location = new System.Drawing.Point(168, 259);
+            this.comboBoxSkill.Name = "comboBoxSkill";
+            this.comboBoxSkill.Size = new System.Drawing.Size(185, 28);
+            this.comboBoxSkill.Visible = false;
+            this.comboBoxSkill.DropDown += new System.EventHandler(this.comboBoxSkill_DropDown);
+            this.comboBoxSkill.SelectedIndexChanged += new System.EventHandler(this.comboBoxSkill_SelectedIndexChanged);
             // 
             // labelTextCage
             // 
@@ -561,6 +589,8 @@
             // checkBoxEnableLog
             // 
             this.checkBoxEnableLog.AutoSize = true;
+            this.checkBoxEnableLog.Checked = true;
+            this.checkBoxEnableLog.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxEnableLog.Location = new System.Drawing.Point(9, 7);
             this.checkBoxEnableLog.Name = "checkBoxEnableLog";
             this.checkBoxEnableLog.Size = new System.Drawing.Size(98, 20);
@@ -659,6 +689,8 @@
         public System.Windows.Forms.Label labelTextUseHP;
         public System.Windows.Forms.Label labelTextHealPet;
         public System.Windows.Forms.CheckBox checkBoxUseSkill;
+        private System.Windows.Forms.Label labelTextSkill;
+        private System.Windows.Forms.ComboBox comboBoxSkill;
         public System.Windows.Forms.CheckBox checkBoxClickerMode;
         public System.Windows.Forms.CheckBox checkBoxCheckId;
         public System.Windows.Forms.CheckBox checkBoxKillMobs;

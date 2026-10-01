@@ -22,7 +22,7 @@ namespace BotCH
             //Offset.ServerName = Offset.COMEBACK136;
             Offset.ServerName = Offset.PWCLASSIC136;
 
-            if (IniManager.ReadINI("settings", "renameWindows") == "1")
+            if (IsRenameWindowsEnabled())
             {
                 Reader.RenameGameWindows();
             }
@@ -58,6 +58,13 @@ namespace BotCH
                     this.startButton.Enabled = true;
                     this.checkBoxUnfrezze.Visible = true;
                     ThreadHelper.StartPersInfoThreads();
+                    RefreshSkillList();
+
+                    // Повторно при подключении: игру могли запустить после бота или сменить персонажа
+                    if (IsRenameWindowsEnabled())
+                    {
+                        Reader.RenameGameWindows();
+                    }
                     Logger.setLog("----------------------");
                     Logger.setLog("Status connection TRUE");
                     HotKeysService.RegisterHotKeysToApp();
@@ -116,6 +123,118 @@ namespace BotCH
             this.checkBoxLooting.Checked = IniManager.ReadINI("settings", "checkBoxLooting") == "1";
             this.checkBoxCheckId.Checked = IniManager.ReadINI("settings", "checkBoxCheckId") == "1";
             this.cageSelect.SelectedIndex = int.Parse(IniManager.ReadINI("settings", "selectCage", "1")) - 1;
+        }
+
+        // Переименование окон игры в «Ник PID». Включено по умолчанию, выключить: [settings] renameWindows=0
+        private static bool IsRenameWindowsEnabled()
+        {
+            return IniManager.ReadINI("settings", "renameWindows", "1") == "1";
+        }
+
+        // Пункт списка «Attack skill»: показывается название из файла игры, а если не прочиталось — ID
+        private class SkillItem
+        {
+            public uint Id;
+            public string Name;
+
+            public override string ToString()
+            {
+                return Name ?? Id.ToString();
+            }
+        }
+
+        private void checkBoxUseSkill_CheckedChanged(object sender, EventArgs e)
+        {
+            RefreshSkillList();
+        }
+
+        private void comboBoxSkill_DropDown(object sender, EventArgs e)
+        {
+            RefreshSkillList();
+        }
+
+        private void comboBoxSkill_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            // Во время пересборки списка выбор меняется сам — это не выбор пользователя
+            if (_refreshingSkills)
+            {
+                return;
+            }
+
+            SetAttackSkill(comboBoxSkill.SelectedItem as SkillItem);
+        }
+
+        private bool _refreshingSkills;
+
+        // Запоминаем выбранный скилл; в лог — только когда он действительно сменился
+        private void SetAttackSkill(SkillItem item)
+        {
+            uint id = item == null ? 0 : item.Id;
+
+            if (id != Action.AttackSkillId)
+            {
+                Logger.setLog(item == null
+                    ? "Attack skill: none, Use Skill will press F2"
+                    : "Attack skill: " + item + " (id " + id + ")");
+            }
+
+            Action.AttackSkillId = id;
+        }
+
+        // Список изученных скиллов без точно не атакующих. Виден, только если стоит Use Skill и есть прямые вызовы.
+        // Выбор: прежний, если он ещё есть; иначе скилл по умолчанию; иначе первый в списке
+        private void RefreshSkillList()
+        {
+            bool show = checkBoxUseSkill.Checked && Reader.statusConnection && Offset.Get != null && Offset.Get.SKILLS_OFFSET != 0 && GameCall.Enabled;
+            labelTextSkill.Visible = show;
+            comboBoxSkill.Visible = show;
+
+            if (!show)
+            {
+                _refreshingSkills = true;
+                comboBoxSkill.Items.Clear();
+                _refreshingSkills = false;
+                Action.AttackSkillId = 0;
+                return;
+            }
+
+            uint selected = Action.AttackSkillId != 0 ? Action.AttackSkillId : Offset.Get.SKILL_DEFAULT_ATTACK;
+            var notAttack = Offset.Get.SKILLS_NOT_ATTACK;
+
+            _refreshingSkills = true;
+            comboBoxSkill.BeginUpdate();
+            comboBoxSkill.Items.Clear();
+
+            try
+            {
+                foreach (uint id in SkillReader.GetLearnedSkillIds())
+                {
+                    if (Array.IndexOf(notAttack, id) < 0)
+                    {
+                        comboBoxSkill.Items.Add(new SkillItem { Id = id, Name = SkillNames.Get(id) });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.setLog("Read skills failed: " + ex.Message);
+            }
+
+            int index = 0;
+
+            for (int i = 0; i < comboBoxSkill.Items.Count; i++)
+            {
+                if (((SkillItem)comboBoxSkill.Items[i]).Id == selected)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            comboBoxSkill.EndUpdate();
+            comboBoxSkill.SelectedIndex = comboBoxSkill.Items.Count > 0 ? index : -1;
+            _refreshingSkills = false;
+            SetAttackSkill(comboBoxSkill.SelectedItem as SkillItem);
         }
 
         private void checkBoxUnfrezze_CheckedChanged(object sender, EventArgs e)

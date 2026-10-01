@@ -103,6 +103,12 @@ namespace BotCH.MemoryHelpers.Offsets
         // c2s_SendCmdUnselect(), команда 0x08, пакет 2 байта, без параметров (аналог Esc). Код: push esi; push 2; call alloc ... mov word [esi], 8
         public override uint C2S_UNSELECT_FUNC { get => 0x1F0C90; }
         public override byte[] C2S_UNSELECT_SIG => new byte[] { 0x56, 0x6A, 0x02, 0xE8 };
+        // c2s_SendCmdCastSkill(int skill, byte pvpMask, int count, int* targets), команда 0x29, пакет 8 + 4*count байт:
+        // [0x29][skill:4][pvpMask][count][targets...]. Цель зависит от скилла (проверено тестом):
+        //   лечение пета — целью сам пет (без цели сервер не принимает), воскрешение пета — без цели (count 0).
+        // Признак, что скилл принят — началась перезарядка (SKILL_COOLDOWN_OFFSET > 0); у долгих скиллов только после каста.
+        public override uint C2S_CAST_SKILL_FUNC { get => 0x1F0D70; }
+        public override byte[] C2S_CAST_SKILL_SIG => new byte[] { 0x53, 0x8B, 0x5C, 0x24 };
         // c2s_SendCmdUseItem(byte where, byte index, int tid, byte count), команда 0x28, пакет 10 байт:
         // [0x28][where][count][index:2][tid:4]. where 0 = сумка, count 1. Работает и для банок, и для корма пета (пет должен быть призван).
         public override uint C2S_USE_ITEM_FUNC { get => 0x1F03F0; }
@@ -155,5 +161,23 @@ namespace BotCH.MemoryHelpers.Offsets
         // Что ест конкретный пет, не ищем: бот проверяет, уменьшилась ли стопка после кормления.
         public override uint INV_FOOD_ESSENCE_OFFSET { get => 0x4C; }
         public override uint ESSENCE_FOOD_LOYALTY_OFFSET { get => 0x148; }
+
+        // Скиллы: [перс+0xE70] — массив указателей на объекты скиллов, [перс+0xE74] — их число. Найдено поиском в структуре перса
+        // массива объектов одного класса (общий vtable 0x8DB00C) с небольшими числами внутри.
+        // Объект скилла: +0x8 ID, +0xC уровень скилла, +0x10 сколько мс перезарядки осталось (0 — готов),
+        // +0x14 полная перезарядка, +0x18 младший бит — флаг «на перезарядке».
+        // В объекте скилла названия нет — бот берёт его по ID из файла игры (SkillNames, configs.pck → skillstr.txt).
+        // Какой ID за что отвечает, узнали так: применяли скилл руками и смотрели, у кого пошла перезарядка.
+        public override uint SKILLS_OFFSET { get => 0xE70; }
+        public override uint SKILLS_COUNT_OFFSET { get => 0xE74; }
+        public override uint SKILL_ID_OFFSET { get => 0x8; }
+        public override uint SKILL_COOLDOWN_OFFSET { get => 0x10; }
+        // ID скиллов друида (захардкожено: персонаж с петом пока один). Ещё: 299 «Жалящий рой», 167 «Городской портал»
+        public override uint SKILL_HEAL_PET { get => 330; }    // «Исцеление питомца», каст ~1.6 с
+        public override uint SKILL_REVIVE_PET { get => 329; }  // «Оживление питомца», каст ~12 с
+        // «Жалящий рой» — базовый атакующий скилл друида, есть у всех друидов
+        public override uint SKILL_DEFAULT_ATTACK { get => 299; }
+        // Точно не атакующие — не показываются в списке «Attack skill». Дописывать сюда по мере нахождения
+        public override uint[] SKILLS_NOT_ATTACK => new uint[] { 167, 329, 330 };
     }
 }

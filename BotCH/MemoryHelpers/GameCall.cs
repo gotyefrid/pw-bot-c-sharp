@@ -69,6 +69,19 @@ namespace BotCH.MemoryHelpers
             return Call(Offset.Get.C2S_USE_ITEM_FUNC, Offset.Get.C2S_USE_ITEM_SIG, 0, slot, tid, 1);
         }
 
+        // Скилл skillId изучен и прямой вызов скиллов поддерживается
+        public static bool CanCastSkill(uint skillId)
+        {
+            return Enabled && Offset.Get.C2S_CAST_SKILL_FUNC != 0 && skillId != 0 && SkillReader.GetSkill(skillId) != 0;
+        }
+
+        // Применить скилл: targetWid — цель, 0 — без цели
+        public static bool CastSkill(uint skillId, uint targetWid)
+        {
+            return CallWithData(Offset.Get.C2S_CAST_SKILL_FUNC, Offset.Get.C2S_CAST_SKILL_SIG, BitConverter.GetBytes(targetWid),
+                skillId, 0, targetWid != 0 ? 1u : 0u, DataPtr);
+        }
+
         // Снять цель (аналог Esc)
         public static bool Unselect()
         {
