@@ -32,6 +32,14 @@ internal static class Program
                     return SigCheck(rest);
                 case "sigmake":
                     return SigMake(rest);
+                case "snapshot":
+                    return WithClient(rest, WorldCommands.Snapshot);
+                case "watch":
+                    return WithClient(rest, (profile, game) => WorldCommands.Watch(profile, game));
+                case "selftest":
+                    return WithClient(rest, WorldCommands.SelfTest);
+                case "scanstr":
+                    return WithClient(rest, (profile, game) => ScanCommands.ScanStrings(profile, game, rest));
             }
         }
         catch (Exception e)
@@ -51,6 +59,10 @@ internal static class Program
         Console.WriteLine("  attach    подключиться к клиенту и показать базовые адреса и ник");
         Console.WriteLine("  sigcheck  проверить все функции профиля: на месте ли, не переехали ли");
         Console.WriteLine("  sigmake   сделать длинные уникальные сигнатуры функций профиля (для обновления JSON)");
+        Console.WriteLine("  snapshot  прочитать снимок мира: перс, мобы, лут, сумка, скиллы, пет");
+        Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
+        Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
+        Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
     }
 
     private static int Attach(string[] args)
@@ -140,6 +152,13 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    private static int WithClient(string[] args, Func<IServerProfile, GameProcess, int> command)
+    {
+        var profile = LoadProfile(args);
+        using var game = OpenClient(args);
+        return command(profile, game);
     }
 
     private static IServerProfile LoadProfile(string[] args)

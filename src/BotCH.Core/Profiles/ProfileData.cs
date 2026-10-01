@@ -101,6 +101,8 @@ public sealed class WorldOffsets
     /// <summary>[менеджер + SlotArray] — массив ячеек.</summary>
     public uint SlotArray { get; init; }
     public int SlotCount { get; init; }
+    /// <summary>[менеджер + Count] — сколько объектов в списке (для самопроверки).</summary>
+    public uint Count { get; init; }
     /// <summary>[ячейка + ObjectInSlot] — объект.</summary>
     public uint ObjectInSlot { get; init; }
 }
