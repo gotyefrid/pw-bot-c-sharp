@@ -31,7 +31,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private readonly ProfileCatalog _catalog = ProfileCatalog.Default();
     private readonly SettingsStore _store;
-    private readonly BotSettings _settings;
+    private readonly CharacterSettings _characters;
+
+    // Общие настройки (settings.json): подключение + шаблон для новых персонажей
+    private readonly BotSettings _appSettings;
+
+    // Настройки текущего персонажа (characters\Ник.json); пока персонаж неизвестен — это _appSettings
+    private BotSettings _settings;
+    private string? _nick;
     private readonly ILogger _log;
     private readonly ILogger _connectionLog;
     private readonly Logger _logger;
@@ -58,12 +65,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _connectionLog = logger.For("подключение");
 
         _store = new SettingsStore(Path.Combine(appDirectory, "settings.json"));
-        _settings = _store.Load(out var problem);
+        _appSettings = _store.Load(out var problem);
+        _settings = _appSettings;
+        _characters = new CharacterSettings(Path.Combine(appDirectory, "characters"));
         if (problem is not null)
             _log.Warning(problem);
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
-        _profile = Servers.FirstOrDefault(s => s.Id == _settings.Connection.ServerId) ?? Servers.First();
+        _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
 
         RefreshCommand = new RelayCommand(RefreshClients);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning);
@@ -87,7 +96,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (value is null || !SetProperty(ref _profile, value))
                 return;
 
-            _settings.Connection.ServerId = value.Id;
+            _appSettings.Connection.ServerId = value.Id;
             SaveSettings();
             RefreshClients();
         }
@@ -112,13 +121,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool RenameWindows
     {
-        get => _settings.Connection.RenameWindows;
+        get => _appSettings.Connection.RenameWindows;
         set
         {
-            if (_settings.Connection.RenameWindows == value)
+            if (_appSettings.Connection.RenameWindows == value)
                 return;
 
-            _settings.Connection.RenameWindows = value;
+            _appSettings.Connection.RenameWindows = value;
             OnPropertyChanged();
             SaveSettings();
             if (value)
@@ -128,13 +137,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool Unfreeze
     {
-        get => _settings.Connection.Unfreeze;
+        get => _appSettings.Connection.Unfreeze;
         set
         {
-            if (_settings.Connection.Unfreeze == value)
+            if (_appSettings.Connection.Unfreeze == value)
                 return;
 
-            _settings.Connection.Unfreeze = value;
+            _appSettings.Connection.Unfreeze = value;
             OnPropertyChanged();
             SaveSettings();
             ApplyUnfreeze();
@@ -335,7 +344,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Любая правка настройки: сохранить файл и отдать копию работающему боту.</summary>
     public void SettingsEdited()
     {
-        SaveSettings();
+        SaveCharacter();
         _brain?.UpdateSettings(_settings);
     }
 
@@ -492,6 +501,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         var h = w.Host;
+        if (h.Name.Length > 0)
+            SwitchCharacter(h.Name);
         ConnectionText = h.Name;
         HostName = h.Name;
         HostDetails = $"ур. {h.Level}" + (h.IsCasting ? " · кастует" : "") + (h.IsDead ? " · мёртв" : "");
@@ -560,17 +571,61 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Log.RemoveAt(0);
     }
 
+    /// <summary>Общие настройки (подключение, шаблон).</summary>
     private void SaveSettings()
     {
         try
         {
-            _store.Save(_settings);
+            _store.Save(_appSettings);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             _log.Error("Не удалось сохранить настройки: " + e.Message);
         }
     }
+
+    /// <summary>Настройки персонажа — в его файл; пока персонаж неизвестен — в общие.</summary>
+    private void SaveCharacter()
+    {
+        if (_nick is null)
+        {
+            SaveSettings();
+            return;
+        }
+
+        try
+        {
+            _characters.Save(_nick, _settings);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _log.Error($"Не удалось сохранить настройки {_nick}: {e.Message}");
+        }
+    }
+
+    /// <summary>Подключились к другому персонажу — берём его настройки (новый персонаж — копия общих).</summary>
+    private void SwitchCharacter(string nick)
+    {
+        if (nick == _nick)
+            return;
+
+        var isNew = !_characters.Exists(nick);
+        _settings = _characters.Load(nick, _appSettings, out var problem);
+        _nick = nick;
+        if (problem is not null)
+            _log.Warning($"{nick}: {problem}");
+        _log.Info(isNew ? $"Персонаж {nick}: новые настройки (копия общих)" : $"Персонаж {nick}: его настройки загружены");
+
+        _brain?.UpdateSettings(_settings);
+        OnPropertyChanged(nameof(Settings));
+        OnPropertyChanged(nameof(MobNamesText));
+        OnPropertyChanged(nameof(LootNamesText));
+        OnPropertyChanged(nameof(SettingsOwner));
+        AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа
+    }
+
+    /// <summary>Чьи настройки сейчас на вкладке «Настройки».</summary>
+    public string SettingsOwner => _nick is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_nick}";
 
     private static void OnUi(Action action)
     {

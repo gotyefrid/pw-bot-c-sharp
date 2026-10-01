@@ -207,6 +207,8 @@
                   ToggleButton.Checked="SettingChanged" ToggleButton.Unchecked="SettingChanged"
                   TextBoxBase.TextChanged="SettingChanged" Selector.SelectionChanged="SettingChanged">
       <StackPanel>
+        <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
+                   ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
         <Border Style="{StaticResource Card}">
           <StackPanel>
             <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
