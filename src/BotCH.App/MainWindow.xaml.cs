@@ -26,6 +26,13 @@ public partial class MainWindow : Window
         };
     }
 
+    // Любая правка в панели настроек: привязка уже записала значение в настройки — сохранить и отдать боту
+    private void SettingChanged(object sender, RoutedEventArgs e)
+    {
+        if (IsLoaded)
+            _model.SettingsEdited();
+    }
+
     private void ScrollLogToEnd()
     {
         if (LogList.Items.Count > 0)

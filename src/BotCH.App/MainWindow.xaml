@@ -2,15 +2,19 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:log="clr-namespace:BotCH.Core.Logging;assembly=BotCH.Core"
-        Title="BotCH" Width="440" Height="720" MinWidth="380" MinHeight="560"
+        xmlns:app="clr-namespace:BotCH.App"
+        Title="BotCH" Width="440" Height="760" MinWidth="380" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         Style="{StaticResource AppWindow}">
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="Visible" />
+    <app:InverseVisibilityConverter x:Key="Hidden" />
+    <app:LootModeConverter x:Key="LootMode" />
   </Window.Resources>
 
   <Grid Margin="14">
     <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
       <RowDefinition Height="Auto" />
@@ -85,8 +89,16 @@
       </StackPanel>
     </Border>
 
+    <!-- Бот | Настройки -->
+    <Border Grid.Row="2" Background="#E6E9F0" CornerRadius="9" Padding="3" Margin="0,0,0,10" HorizontalAlignment="Left">
+      <StackPanel Orientation="Horizontal">
+        <RadioButton Style="{StaticResource Segment}" Content="Бот" GroupName="View" IsChecked="True" />
+        <RadioButton Style="{StaticResource Segment}" Content="Настройки" GroupName="View" IsChecked="{Binding ShowSettings}" />
+      </StackPanel>
+    </Border>
+
     <!-- Персонаж, цель, пет -->
-    <Border Grid.Row="2" Style="{StaticResource Card}">
+    <Border Grid.Row="3" Style="{StaticResource Card}" Visibility="{Binding ShowSettings, Converter={StaticResource Hidden}}">
       <StackPanel>
         <DockPanel Margin="0,0,0,8">
           <TextBlock DockPanel.Dock="Right" Text="{Binding HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
@@ -151,7 +163,7 @@
     </Border>
 
     <!-- Бот -->
-    <Border Grid.Row="3" Style="{StaticResource Card}">
+    <Border Grid.Row="4" Style="{StaticResource Card}" Visibility="{Binding ShowSettings, Converter={StaticResource Hidden}}">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
           <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" ToolTip="Ctrl+Alt+Num1" />
@@ -166,7 +178,7 @@
     </Border>
 
     <!-- Лог -->
-    <Border Grid.Row="4" Style="{StaticResource Card}" Margin="0" Padding="0">
+    <Border Grid.Row="5" Style="{StaticResource Card}" Margin="0" Padding="0" Visibility="{Binding ShowSettings, Converter={StaticResource Hidden}}">
       <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="14,10,10,4">
           <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE74D;"
@@ -209,5 +221,104 @@
         </ListBox>
       </DockPanel>
     </Border>
+    <!-- Настройки бота: любое изменение сразу сохраняется и уходит работающему боту (SettingChanged) -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding ShowSettings, Converter={StaticResource Visible}}"
+                  ToggleButton.Checked="SettingChanged" ToggleButton.Unchecked="SettingChanged"
+                  TextBoxBase.TextChanged="SettingChanged" Selector.SelectionChanged="SettingChanged">
+      <StackPanel>
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Нападать на мобов" IsChecked="{Binding Settings.Target.KillMobs}"
+                      ToolTip="Выключено — бот только пьёт банки и следит за петом" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding AttackSkills}" DisplayMemberPath="Title"
+                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
+                        ToolTip="Только когда обычная атака выключена" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Бросить моба через, с" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.MobTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
+            <TextBox Text="{Binding MobNamesText, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,0"
+                     IsEnabled="{Binding Settings.Target.UseMobList}"
+                     ToolTip="Названия через запятую, как в игре: Сидящий волк, Горный варвар. Одно название — все такие мобы" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="ЛУТ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Собирать лут, попыток" IsChecked="{Binding Settings.Loot.Enabled}" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Loot.Attempts, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <WrapPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4" />
+              <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" />
+            </WrapPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Что собирать" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding Settings.Loot.ListMode}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </DockPanel>
+            <TextBox Text="{Binding LootNamesText, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,0"
+                     ToolTip="Названия предметов через запятую, как на земле: Мягкий мех, Красный нефрит" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="БАНКИ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Банка HP, когда HP ниже, %" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.HpPercent, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Банка MP, когда MP ниже (единиц)" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.MpBelow, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Использовать пета" IsChecked="{Binding Settings.Pet.Enabled}"
+                      ToolTip="Выключено или пета нет (не друид) — всё про пета пропускается" />
+            <StackPanel IsEnabled="{Binding Settings.Pet.Enabled}">
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Клетка (1–10)" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.Cage, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Лечить пета, когда HP ниже, %" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.HealPercent, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
   </Grid>
 </Window>

@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using BotCH.App.Mvvm;
+using BotCH.Core.Actions;
+using BotCH.Core.Brain;
+using BotCH.Core.Calls;
 using BotCH.Core.Clients;
 using BotCH.Core.GameFiles;
 using BotCH.Core.Logging;
@@ -31,6 +34,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly BotSettings _settings;
     private readonly ILogger _log;
     private readonly ILogger _connectionLog;
+    private readonly Logger _logger;
 
     private GameProcess? _game;
     private WorldMonitor? _monitor;
@@ -39,11 +43,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private IServerProfile _profile;
     private bool _refreshing;
 
+    // Бот (мозг) — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute
+    private GameProcess? _exec;
+    private BotBrain? _brain;
+    private Action<WorldState>? _brainTick;
+
     public MainViewModel(string appDirectory)
     {
         var ring = new RingBufferSink(MaxLogLines);
         var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(Path.Combine(appDirectory, "logs")));
         ring.Added += entry => OnUi(() => AddLog(entry));
+        _logger = logger;
         _log = logger.For("окно");
         _connectionLog = logger.For("подключение");
 
@@ -56,8 +66,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _profile = Servers.FirstOrDefault(s => s.Id == _settings.Connection.ServerId) ?? Servers.First();
 
         RefreshCommand = new RelayCommand(RefreshClients);
-        StartCommand = new RelayCommand(Start, () => IsConnected);
-        StopCommand = new RelayCommand(Stop);
+        StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning);
+        StopCommand = new RelayCommand(Stop, () => IsRunning);
+
         ClearLogCommand = new RelayCommand(Log.Clear);
 
         _log.Info("BotCH запущен");
@@ -215,17 +226,134 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 + (start ? "" : "Ctrl+Alt+Num1 ") + (stop ? "" : "Ctrl+Alt+Num0") + ". Кнопки в окне работают");
     }
 
+    private bool _isRunning;
+
+    public bool IsRunning
+    {
+        get => _isRunning;
+        private set => SetProperty(ref _isRunning, value);
+    }
+
     public void Start()
     {
-        // Мозг бота появится в части 5 — пока только видно, что команда дошла
-        BotState = "Старт: бот пока только смотрит (действия — в следующих частях)";
-        _log.Info("Старт");
+        if (IsRunning || _game is null || _monitor is null)
+            return;
+
+        try
+        {
+            _exec = GameProcess.Open(_game.Pid, GameProcessRights.Execute);
+            var caller = new GameCaller(_game, _exec, _game.MainModuleBase, _profile.Data);
+            foreach (var function in caller.Functions.Where(f => !f.IsUsable))
+                _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
+
+            var runner = new ActionRunner(new DirectCallActions(caller), _logger.For("действия"));
+            _brain = new BotBrain(runner, _profile.Data.Skills, _settings, _logger.For("мозг"));
+            _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
+            _brain.StopRequested += reason => OnUi(Stop);
+            _brainTick = _brain.Tick;
+            _monitor.Updated += _brainTick;
+
+            IsRunning = true;
+            BotState = "Запуск…";
+            _log.Info("Старт");
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            _log.Error("Не удалось запустить бота: " + e.Message);
+            Stop();
+        }
     }
 
     public void Stop()
     {
+        if (_brainTick is not null && _monitor is not null)
+            _monitor.Updated -= _brainTick;
+        _brainTick = null;
+        _brain?.Reset();
+        _brain = null;
+        _exec?.Dispose();
+        _exec = null;
+
+        if (IsRunning)
+            _log.Info("Стоп");
+        IsRunning = false;
         BotState = "Ожидание";
-        _log.Info("Стоп");
+    }
+
+    private static string Capitalize(string text) => text.Length == 0 ? text : char.ToUpper(text[0]) + text.Substring(1);
+
+    // ── Настройки бота ──────────────────────────────────────────────────────
+
+    private bool _showSettings;
+
+    /// <summary>Что показано в середине окна: состояние бота или настройки.</summary>
+    public bool ShowSettings
+    {
+        get => _showSettings;
+        set => SetProperty(ref _showSettings, value);
+    }
+
+
+    /// <summary>Настройки окна. Поля привязаны напрямую; после правки окно зовёт <see cref="SettingsEdited"/>.</summary>
+    public BotSettings Settings => _settings;
+
+    public sealed record SkillChoice(int Id, string Title);
+
+    /// <summary>Атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры.</summary>
+    public ObservableCollection<SkillChoice> AttackSkills { get; } = new();
+
+    public string MobNamesText
+    {
+        get => string.Join(", ", _settings.Target.MobNames);
+        set
+        {
+            _settings.Target.MobNames = MobNameFilter.Clean(value.Split(','));
+            SettingsEdited();
+        }
+    }
+
+    public string LootNamesText
+    {
+        get => string.Join(", ", _settings.Loot.ItemNames);
+        set
+        {
+            _settings.Loot.ItemNames = MobNameFilter.Clean(value.Split(','));
+            SettingsEdited();
+        }
+    }
+
+    public IReadOnlyList<LootListMode> LootModes { get; } = [LootListMode.All, LootListMode.OnlyListed, LootListMode.ExceptListed];
+
+    /// <summary>Любая правка настройки: сохранить файл и отдать копию работающему боту.</summary>
+    public void SettingsEdited()
+    {
+        SaveSettings();
+        _brain?.UpdateSettings(_settings);
+    }
+
+    private void UpdateAttackSkills(WorldState w)
+    {
+        // Названия скиллов догружаются в фоне — список пересобирается, когда изменились ID или названия
+        var choices = w.Skills
+            .Where(s => !_profile.Data.Skills.NotAttack.Contains(s.Id))
+            .Select(s => new SkillChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})"))
+            .ToList();
+        if (choices.SequenceEqual(AttackSkills))
+            return;
+
+        AttackSkills.Clear();
+        foreach (var choice in choices)
+            AttackSkills.Add(choice);
+
+        // Выбранного нет среди изученных — атакующий скилл класса по умолчанию, иначе первый
+        var ids = choices.Select(c => c.Id).ToList();
+        if (ids.Count > 0 && !ids.Contains(_settings.Combat.AttackSkillId))
+        {
+            _settings.Combat.AttackSkillId = ids.Contains(_profile.Data.Skills.DefaultAttack) ? _profile.Data.Skills.DefaultAttack : ids[0];
+            SettingsEdited();
+        }
+
+        OnPropertyChanged(nameof(Settings));
     }
 
     public void Dispose()
@@ -307,6 +435,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void Disconnect()
     {
+        Stop();
         _monitor?.Dispose();
         _monitor = null;
         _unfreezer?.Dispose();
@@ -376,6 +505,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         PetHpText = active is null ? "" : $"{active.HpPercent} %";
         PetDetails = active is null ? "" : active.IsHungry ? "голоден" : "сыт";
 
+        UpdateAttackSkills(w);
         SnapshotInfo = $"мобов {w.Mobs.Count()} · лута {w.GroundItems.Count} · снимок {w.ReadDuration.TotalMilliseconds:0.0} мс";
     }
 

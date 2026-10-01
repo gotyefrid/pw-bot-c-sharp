@@ -154,6 +154,48 @@
     <Setter Property="Padding" Value="8,0" />
   </Style>
 
+  <!-- Переключатель вкладок «Бот | Настройки» -->
+  <Style x:Key="Segment" TargetType="RadioButton">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="RadioButton">
+          <Border x:Name="Body" CornerRadius="7" Padding="14,6" Background="Transparent">
+            <ContentPresenter HorizontalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+              <Setter TargetName="Body" Property="Background" Value="White" />
+              <Setter Property="Foreground" Value="{StaticResource Text}" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- Поле ввода -->
+  <Style TargetType="TextBox">
+    <Setter Property="Height" Value="28" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="BorderBrush" Value="{StaticResource CardBorder}" />
+  </Style>
+
+  <Style x:Key="Number" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+    <Setter Property="Width" Value="56" />
+    <Setter Property="HorizontalContentAlignment" Value="Right" />
+    <Setter Property="Margin" Value="8,0,0,0" />
+  </Style>
+
+  <!-- Строка настройки: подпись слева, поле справа -->
+  <Style x:Key="SettingRow" TargetType="DockPanel">
+    <Setter Property="Margin" Value="0,3" />
+    <Setter Property="LastChildFill" Value="False" />
+  </Style>
+
   <!-- Метка «подключено» в шапке -->
   <Style x:Key="Chip" TargetType="Border">
     <Setter Property="CornerRadius" Value="11" />
