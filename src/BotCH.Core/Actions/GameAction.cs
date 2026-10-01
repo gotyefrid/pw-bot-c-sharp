@@ -266,7 +266,9 @@ public sealed class PetAttackAction(uint targetWid) : GameAction
     public uint TargetWid { get; } = targetWid;
     public override string Name => $"пет атакует 0x{TargetWid:X8}";
     public override string Key => "приказ пету";
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    // В игре подтверждение пришло через 3.1 с: пет сначала разворачивается и бежит к цели
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(6);
 
     public override string? Precondition(WorldState now) => now.Pet is { IsSummoned: true } ? null : "пет не призван";
 
