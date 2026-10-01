@@ -5,9 +5,25 @@
     <UseWPF>true</UseWPF>
     <RootNamespace>BotCH.App</RootNamespace>
     <AssemblyName>BotCH</AssemblyName>
+    <!-- Свой Main: сначала загрузчик вшитых dll, потом WPF -->
+    <StartupObject>BotCH.App.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BotCH.Core\BotCH.Core.csproj" />
   </ItemGroup>
+
+  <!--
+    Один exe: dll-зависимости (BotCH.Core, Newtonsoft.Json) вшиваются ресурсами и рядом не копируются.
+    Загружает их EmbeddedAssemblies. Без Fody/Costura.
+  -->
+  <Target Name="EmbedReferencedAssemblies" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <_BotDependency Include="@(ReferenceCopyLocalPaths)" Condition="'%(Extension)' == '.dll'" />
+      <EmbeddedResource Include="@(_BotDependency)">
+        <LogicalName>%(Filename)%(Extension)</LogicalName>
+      </EmbeddedResource>
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+    </ItemGroup>
+  </Target>
 </Project>

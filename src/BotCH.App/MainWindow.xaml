@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BotCH" Width="480" Height="360"
         WindowStartupLocation="CenterScreen">
-  <Grid Margin="16">
-    <TextBlock Text="BotCH — каркас нового бота" VerticalAlignment="Center" HorizontalAlignment="Center" />
-  </Grid>
+  <StackPanel Margin="16" VerticalAlignment="Center" HorizontalAlignment="Center">
+    <TextBlock Text="BotCH — каркас нового бота" FontSize="16" HorizontalAlignment="Center" />
+    <TextBlock x:Name="CoreInfo" Margin="0,12,0,0" Foreground="Gray" TextAlignment="Center" />
+  </StackPanel>
 </Window>
