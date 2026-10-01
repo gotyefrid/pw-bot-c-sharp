@@ -45,6 +45,8 @@ internal static class Program
                     return ActCommands.Act(LoadProfile(rest), rest);
                 case "mem":
                     return WithClient(rest, (_, game) => Memory(game));
+                case "memwatch":
+                    return WithClient(rest, (_, game) => MemoryWatch(game));
                 case "rename":
                     return Rename(rest);
                 case "dump":
@@ -77,6 +79,7 @@ internal static class Program
         Console.WriteLine("  snapshot  прочитать снимок мира: перс, мобы, лут, сумка, скиллы, пет");
         Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
         Console.WriteLine("  mem       сколько свободной памяти (адресов) осталось у игры: всего и самый большой кусок");
+        Console.WriteLine("  memwatch  то же раз в секунду: сколько сейчас и сколько изменилось с запуска, Ctrl+C — выход");
         Console.WriteLine("  rename    переименовать окна всех клиентов в «Ник PID» и проверить заголовки (WinAPI, память только читается)");
         Console.WriteLine("  dump      [файл.dump] сохранить прочитанную снимком память в файл — фикстура для тестов без игры");
         Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");
@@ -100,6 +103,47 @@ internal static class Program
         Console.WriteLine($"Свободно у игры: {free.TotalMb} МБ, самый большой кусок подряд: {free.Largest / 1024} КБ");
         Console.WriteLine($"Бот остановится при < {GameMemoryGuard.StopTotal >> 20} МБ или куске < {GameMemoryGuard.StopLargest >> 10} КБ, "
                           + $"предупредит при < {GameMemoryGuard.WarnTotal >> 20} МБ");
+        return 0;
+    }
+
+    private static int MemoryWatch(GameProcess game)
+    {
+        Console.Title = $"Память игры {game.Pid}";
+        using var process = Process.GetProcessById(game.Pid);
+        var started = DateTime.Now;
+        FreeMemory? first = null;
+        long firstUsed = 0;
+
+        Console.WriteLine($"Клиент {game.Pid}. Бот остановится при свободных < {GameMemoryGuard.StopTotal >> 20} МБ. Ctrl+C — выход");
+        Console.WriteLine("время      свободно      изм.     кусок подряд   занято игрой   изм.    темп       хватит");
+        while (!game.HasExited)
+        {
+            if (game.QueryFreeMemory() is FreeMemory free)
+            {
+                process.Refresh();
+                var used = process.PrivateMemorySize64 >> 20;
+                if (first is null)
+                {
+                    first = free;
+                    firstUsed = used;
+                }
+
+                var change = free.TotalMb - first.Value.TotalMb;
+                var minutes = (DateTime.Now - started).TotalMinutes;
+                // Темп — с запуска консоли; первые полминуты он ещё ничего не значит
+                var rate = minutes >= 0.5 ? change / minutes : double.NaN;
+                var left = rate < -0.1 ? TimeSpan.FromMinutes((free.TotalMb - (GameMemoryGuard.StopTotal >> 20)) / -rate) : (TimeSpan?)null;
+
+                Console.WriteLine($"{DateTime.Now:HH:mm:ss}  {free.TotalMb,6} МБ  {change,+6:+0;-0;0} МБ  {free.Largest >> 20,8} МБ  "
+                                  + $"{used,9} МБ  {used - firstUsed,+6:+0;-0;0} МБ  "
+                                  + (double.IsNaN(rate) ? "    …     " : $"{rate,5:+0.0;-0.0;0} МБ/мин")
+                                  + (left is { } l ? $"  ≈ {(int)l.TotalHours} ч {l.Minutes:00} мин" : ""));
+            }
+
+            System.Threading.Thread.Sleep(1000);
+        }
+
+        Console.WriteLine("Клиент игры закрыт");
         return 0;
     }
 
