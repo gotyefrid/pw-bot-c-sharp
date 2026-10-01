@@ -39,6 +39,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Watch(profile, game));
                 case "selftest":
                     return WithClient(rest, WorldCommands.SelfTest);
+                case "cdfind":
+                    return CooldownFinder.Find(LoadProfile(rest), rest);
                 case "act":
                     return ActCommands.Act(LoadProfile(rest), rest);
                 case "rename":
@@ -78,6 +80,7 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
+        Console.WriteLine("  cdfind              покормить пета и 15 с искать поле перезарядки корма («до/после»)");
     }
 
     private static int Attach(string[] args)
