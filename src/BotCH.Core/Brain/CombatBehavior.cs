@@ -80,11 +80,11 @@ public sealed class CombatBehavior : IBehavior
             _gaveUp.Remove(expired);
 
         var aggressor = target.PreferAggressive ? TargetSelector.Aggressor(w) : null;
-        var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) ? t : null;
-        var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys);
+        var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && c.InFarmArea(t) ? t : null;
+        var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, c.InFarmArea);
         if (mob is null)
         {
-            Status = "ищу цель: подходящих мобов нет";
+            Status = target.FarmRadius > 0 ? $"ищу цель: в радиусе {target.FarmRadius} м подходящих мобов нет" : "ищу цель: подходящих мобов нет";
             return false;
         }
 

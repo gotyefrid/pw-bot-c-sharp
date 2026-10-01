@@ -33,6 +33,7 @@ public sealed class BotSettings
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
+        Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
@@ -74,6 +75,12 @@ public sealed class TargetSettings
 
     /// <summary>Сколько секунд биться с одним мобом, прежде чем бросить.</summary>
     public int MobTimeoutSeconds { get; set; } = 120;
+
+    /// <summary>
+    /// Радиус фарма, м: новые цели — только не дальше этого от точки старта (где стоял перс при «Старт»).
+    /// Моб, который бьёт перса или пета, — всегда. 0 — без ограничения.
+    /// </summary>
+    public int FarmRadius { get; set; } = 60;
 }
 
 public sealed class CombatSettings

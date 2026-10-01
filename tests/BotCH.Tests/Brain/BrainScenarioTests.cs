@@ -244,6 +244,89 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void MobsOutsideFarmRadiusAreIgnored()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 30;
+        _world.AddMob(0x80000001, "Волк", 40);
+        var inside = _world.AddMob(0x80000002, "Волк", 25);
+
+        Tick();
+
+        Assert.Equal($"select {inside.Wid:X}", LastCall);
+    }
+
+    [Fact]
+    public void RadiusCountsFromStartNotFromWhereHostWalked()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 30;
+        Tick(); // точка старта — (0, 0)
+
+        // Перс убежал на 50 м: моб рядом с ним (55 м от старта) — нельзя, моб в 20 м от старта — можно
+        _world.Position = new Position(50, 0, 0);
+        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(55, 0, 0), 5, "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Mob, 1, 0, new Position(20, 0, 0), 30, "Волк", 0));
+        Tick();
+
+        Assert.Equal("select 80000002", LastCall);
+    }
+
+    [Fact]
+    public void NothingInRadiusMeansWait()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 30;
+        _world.AddMob(0x80000001, "Волк", 45);
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+        Assert.Contains("в радиусе 30 м", Brain.Status);
+    }
+
+    [Fact]
+    public void AggressorOutsideRadiusIsStillFought()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 30;
+        var bear = _world.AddMob(0x80000001, "Медведь", 45, targetWid: FakeWorld.HostWid);
+
+        Tick();
+
+        Assert.Equal($"select {bear.Wid:X}", LastCall);
+    }
+
+    [Fact]
+    public void ZeroRadiusIsUnlimited()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 0;
+        var far = _world.AddMob(0x80000001, "Волк", 300);
+
+        Tick();
+
+        Assert.Equal($"select {far.Wid:X}", LastCall);
+    }
+
+    [Fact]
+    public void RestartSetsNewStartPoint()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 30;
+        Tick(); // старт в (0, 0)
+        _world.Position = new Position(100, 0, 0);
+        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(110, 0, 0), 10, "Волк", 0));
+        Tick();
+        Assert.Empty(_actions.Calls);
+
+        Brain.Reset(); // Стоп → Старт уже здесь
+        Tick();
+
+        Assert.Equal("select 80000001", LastCall);
+    }
+
+    [Fact]
     public void DeadMobsAndNpcsAreNotTargets()
     {
         _settings.Target.KillMobs = true;

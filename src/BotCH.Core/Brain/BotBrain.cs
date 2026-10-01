@@ -62,6 +62,13 @@ public sealed class BotBrain
             }
 
             _context.World = world;
+            if (_context.StartPosition is null)
+            {
+                _context.StartPosition = world.Host.Position;
+                var radius = _context.Settings.Target.FarmRadius;
+                _context.Log.Info(radius > 0 ? $"Точка старта {world.Host.Position}, радиус фарма {radius} м" : $"Точка старта {world.Host.Position}, радиус не ограничен");
+            }
+
             foreach (var outcome in _context.Runner.Update(world))
             {
                 foreach (var behavior in _behaviors)
@@ -101,6 +108,7 @@ public sealed class BotBrain
         lock (_lock)
         {
             _context.Runner.Clear();
+            _context.StartPosition = null;
             foreach (var behavior in _behaviors)
                 behavior.Reset();
             SetStatus("ожидание");

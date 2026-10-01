@@ -31,6 +31,16 @@ public sealed class BrainContext
 
     public WorldState World { get; internal set; } = null!;
 
+    /// <summary>Где стоял персонаж, когда бот запустили. От неё считается радиус фарма.</summary>
+    public Position? StartPosition { get; internal set; }
+
+    /// <summary>Моб в радиусе фарма от точки старта (или радиус не задан).</summary>
+    public bool InFarmArea(NpcInfo mob)
+    {
+        var radius = Settings.Target.FarmRadius;
+        return radius <= 0 || StartPosition is not { } start || mob.Position.HorizontalDistanceTo(start) <= radius;
+    }
+
     public DateTime Now => World.Time;
 
     /// <summary>Отправить действие. true — отправлено или такое уже ждёт подтверждения (ход занят ожиданием).</summary>

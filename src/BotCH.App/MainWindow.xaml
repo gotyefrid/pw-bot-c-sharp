@@ -238,6 +238,11 @@
           <StackPanel>
             <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Радиус фарма от точки старта, м" VerticalAlignment="Center"
+                         ToolTip="Новые цели — только в этом радиусе от места, где стоял персонаж при «Старт». Кто бьёт вас или пета — всегда. 0 — без ограничения" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.FarmRadius, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
             <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
                            Selected="{Binding MobNames}" Options="{Binding MobOptions}"

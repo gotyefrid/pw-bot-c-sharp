@@ -22,6 +22,7 @@ public class SettingsTests
         Assert.Equal(299, s.Combat.AttackSkillId);
         Assert.True(s.Connection.RenameWindows);
         Assert.Equal(120, s.Target.MobTimeoutSeconds);
+        Assert.Equal(60, s.Target.FarmRadius);
     }
 
     [Fact]

@@ -15,6 +15,14 @@ public readonly record struct Position(float X, float Height, float Y)
         return (float)Math.Sqrt(dx * dx + dh * dh + dy * dy);
     }
 
+    /// <summary>Расстояние по земле (без высоты): мобы на склоне не «выпадают» из радиуса.</summary>
+    public float HorizontalDistanceTo(Position other)
+    {
+        var dx = X - other.X;
+        var dy = Y - other.Y;
+        return (float)Math.Sqrt(dx * dx + dy * dy);
+    }
+
     public bool IsFinite => !float.IsNaN(X) && !float.IsInfinity(X) && !float.IsNaN(Height) && !float.IsInfinity(Height) && !float.IsNaN(Y) && !float.IsInfinity(Y);
 
     public override string ToString() => $"({X:0.0}; {Y:0.0}; h {Height:0.0})";
