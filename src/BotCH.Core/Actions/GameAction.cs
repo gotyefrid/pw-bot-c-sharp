@@ -190,8 +190,27 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
     public override CallResult Send(IGameActions actions, WorldState now)
         => approach ? actions.PickupObject(now.Host, Item) : actions.Pickup(Item);
 
+    // Стоим рядом, а предмет не исчезает — игра его не отдаёт (чужой лут, не дотянуться); 10 с ждать незачем
+    private const float NearDistance = 3f;
+    private static readonly TimeSpan NearPatience = TimeSpan.FromSeconds(3);
+    private DateTime? _nearSince;
+
     public override Verdict Check(WorldState start, WorldState now)
-        => now.GroundItems.Any(i => i.Id == Item.Id) ? Verdict.Pending : Verdict.Confirmed("предмет исчез с земли");
+    {
+        if (!now.GroundItems.Any(i => i.Id == Item.Id))
+            return Verdict.Confirmed("предмет исчез с земли");
+
+        if (now.Host.Position.HorizontalDistanceTo(Item.Position) > NearDistance)
+        {
+            _nearSince = null;
+            return Verdict.Pending;
+        }
+
+        _nearSince ??= now.Time;
+        return now.Time - _nearSince.Value >= NearPatience
+            ? Verdict.Rejected($"стоим рядом {NearPatience.TotalSeconds:0} с, а игра не отдаёт")
+            : Verdict.Pending;
+    }
 }
 
 /// <summary>Идти в точку. Подтверждение — дошли ближе <see cref="Tolerance"/>.</summary>

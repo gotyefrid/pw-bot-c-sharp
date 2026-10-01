@@ -144,6 +144,37 @@ public class ActionRunnerTests
     }
 
     [Fact]
+    public void PickupGivesUpAfter3sStandingNextToItem()
+    {
+        var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(2, 0, 0), 2, "Мех животных");
+        _world.Ground.Add(fur);
+
+        _runner.Submit(new PickupAction(fur, approach: true), _world.Snapshot());
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        var outcome = Single(_runner.Update(_world.Wait(2.5).Snapshot()));
+
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("не отдаёт", outcome.Details);
+    }
+
+    [Fact]
+    public void PickupWaitsWhileWalkingToItem()
+    {
+        var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(8, 0, 0), 8, "Мех животных");
+        _world.Ground.Add(fur);
+
+        _runner.Submit(new PickupAction(fur, approach: true), _world.Snapshot());
+        Assert.Empty(_runner.Update(_world.Wait(4).Snapshot())); // ещё идём — 8 м
+        _world.Position = new Position(6, 0, 0);
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot())); // подошли
+        _world.Ground.Clear();
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.5).Snapshot())).Status);
+    }
+
+    [Fact]
     public void ResourceIsNeverPickedUp()
     {
         var ore = new GroundItem(1, 0xC0100AD9, 3089, GroundItemKind.Resource, default, 5, "Шахта крупного угля");
