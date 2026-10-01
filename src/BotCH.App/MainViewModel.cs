@@ -74,6 +74,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
 
+        LoadNameLists();
+        MobNames.CollectionChanged += (_, _) => NameListsEdited();
+        LootNames.CollectionChanged += (_, _) => NameListsEdited();
+
         RefreshCommand = new RelayCommand(RefreshClients);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
@@ -319,24 +323,57 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры.</summary>
     public ObservableCollection<SkillChoice> AttackSkills { get; } = new();
 
-    public string MobNamesText
+    /// <summary>Мобы для белого списка — выбираются из списка (TagPicker), не вводятся руками.</summary>
+    public ObservableCollection<string> MobNames { get; } = new();
+
+    /// <summary>Предметы для белого/чёрного списка лута.</summary>
+    public ObservableCollection<string> LootNames { get; } = new();
+
+    // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
+    private readonly HashSet<string> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
+    private bool _syncingLists;
+
+    public Func<IReadOnlyList<PickOption>> MobOptions => () => PickOptions(_lastWorld is null ? [] : NearbyNames.Mobs(_lastWorld), _seenMobs);
+
+    public Func<IReadOnlyList<PickOption>> LootOptions => () => PickOptions(_lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld), _seenItems);
+
+    private static IReadOnlyList<PickOption> PickOptions(IReadOnlyList<NameCount> nearby, IEnumerable<string> seen)
     {
-        get => string.Join(", ", _settings.Target.MobNames);
-        set
+        var options = nearby.Select(n => new PickOption(n.Name, $"{n} · {n.Nearest:0} м")).ToList();
+        var near = new HashSet<string>(nearby.Select(n => n.Name), StringComparer.OrdinalIgnoreCase);
+        options.AddRange(seen.Where(n => !near.Contains(n)).OrderBy(n => n).Select(n => new PickOption(n, $"{n} (не рядом)")));
+        return options;
+    }
+
+    /// <summary>Списки в окне ← настройки персонажа (при загрузке/смене персонажа).</summary>
+    private void LoadNameLists()
+    {
+        _syncingLists = true;
+        try
         {
-            _settings.Target.MobNames = MobNameFilter.Clean(value.Split(','));
-            SettingsEdited();
+            MobNames.Clear();
+            foreach (var name in _settings.Target.MobNames)
+                MobNames.Add(name);
+            LootNames.Clear();
+            foreach (var name in _settings.Loot.ItemNames)
+                LootNames.Add(name);
+        }
+        finally
+        {
+            _syncingLists = false;
         }
     }
 
-    public string LootNamesText
+    /// <summary>Выбрали/убрали название в окне → в настройки персонажа.</summary>
+    private void NameListsEdited()
     {
-        get => string.Join(", ", _settings.Loot.ItemNames);
-        set
-        {
-            _settings.Loot.ItemNames = MobNameFilter.Clean(value.Split(','));
-            SettingsEdited();
-        }
+        if (_syncingLists)
+            return;
+
+        _settings.Target.MobNames = MobNameFilter.Clean(MobNames);
+        _settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
+        SettingsEdited();
     }
 
     public IReadOnlyList<LootListMode> LootModes { get; } = [LootListMode.All, LootListMode.OnlyListed, LootListMode.ExceptListed];
@@ -502,6 +539,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _lastWorld = w;
         HasPets = w.Pet is not null;
+        foreach (var mob in w.Mobs.Where(m => m.Name.Length > 0))
+            _seenMobs.Add(mob.Name.Trim());
+        foreach (var item in w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource && i.Name.Length > 0))
+            _seenItems.Add(item.Name.Trim());
         var h = w.Host;
         if (h.Name.Length > 0)
             SwitchCharacter(h.Name);
@@ -620,33 +661,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _brain?.UpdateSettings(_settings);
         OnPropertyChanged(nameof(Settings));
-        OnPropertyChanged(nameof(MobNamesText));
-        OnPropertyChanged(nameof(LootNamesText));
+        LoadNameLists();
         OnPropertyChanged(nameof(SettingsOwner));
         AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа
     }
 
     private WorldState? _lastWorld;
-
-    /// <summary>Мобы вокруг по названиям — для выбора в список целей.</summary>
-    public IReadOnlyList<NameCount> NearbyMobNames() => _lastWorld is null ? [] : NearbyNames.Mobs(_lastWorld);
-
-    /// <summary>Предметы на земле по названиям — для списка лута.</summary>
-    public IReadOnlyList<NameCount> NearbyItemNames() => _lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld);
-
-    public void AddMobName(string name)
-    {
-        _settings.Target.MobNames = MobNameFilter.Clean(_settings.Target.MobNames.Concat([name]));
-        OnPropertyChanged(nameof(MobNamesText));
-        SettingsEdited();
-    }
-
-    public void AddLootName(string name)
-    {
-        _settings.Loot.ItemNames = MobNameFilter.Clean(_settings.Loot.ItemNames.Concat([name]));
-        OnPropertyChanged(nameof(LootNamesText));
-        SettingsEdited();
-    }
 
     private bool _hasPets = true;
 

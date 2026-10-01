@@ -239,12 +239,10 @@
             <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
-            <DockPanel Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}">
-              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Height="28" Margin="6,0,0,0" Content="&#xE710;"
-                      Click="PickMob" ToolTip="Добавить из мобов вокруг" />
-              <TextBox Text="{Binding MobNamesText, UpdateSourceTrigger=LostFocus}"
-                       ToolTip="Названия через запятую, как в игре: Сидящий волк, Горный варвар. Одно название — все такие мобы" />
-            </DockPanel>
+            <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
+                           Selected="{Binding MobNames}" Options="{Binding MobOptions}"
+                           Placeholder="Мобы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
+                           ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг и те, что встречались за сессию" />
           </StackPanel>
         </Border>
 
@@ -269,12 +267,9 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
             </DockPanel>
-            <DockPanel Margin="0,4,0,0">
-              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Height="28" Margin="6,0,0,0" Content="&#xE710;"
-                      Click="PickLoot" ToolTip="Добавить из предметов на земле вокруг" />
-              <TextBox Text="{Binding LootNamesText, UpdateSourceTrigger=LostFocus}"
-                       ToolTip="Названия предметов через запятую, как на земле: Мягкий мех, Красный нефрит" />
-            </DockPanel>
+            <app:TagPicker Margin="0,4,0,0" Selected="{Binding LootNames}" Options="{Binding LootOptions}"
+                           Placeholder="Предметы не выбраны" EmptyOptionsText="На земле ничего нет — дождитесь лута"
+                           ToolTip="Варианты — предметы на земле вокруг и те, что встречались за сессию" />
           </StackPanel>
         </Border>
 
