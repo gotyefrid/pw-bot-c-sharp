@@ -186,6 +186,8 @@ namespace BotCH.MemoryHelpers.Offsets
         public override uint ESSENCE_LEVEL_OFFSET { get => 0x14C; }
         public override uint ESSENCE_POTION_HP_OFFSET { get => 0x154; }
         public override uint ESSENCE_POTION_MP_OFFSET { get => 0x15C; }
+        public override uint ESSENCE_POTION_HP_TIME_OFFSET { get => 0x158; } // за сколько секунд (10 у малой и средней)
+        public override uint ESSENCE_POTION_MP_TIME_OFFSET { get => 0x160; }
         // У корма пета другой класс предмета, и описание лежит по другому указателю: +0x4C (у банок +0x54).
         // Описание корма (сравнение трёх кормов на 10/50/100 верности): +0x0 tid, +0x144 класс корма (1/2/3),
         // +0x148 сколько верности, +0x150 вид корма битовой маской (16 = «чистая вода»), +0x154 цена, +0x15C максимум в стопке.

@@ -14,11 +14,12 @@ namespace BotCH.MemoryHelpers
         /// <summary>
         /// Самая слабая банка HP (hp = true) или MP, которую персонаж может выпить по уровню.
         /// </summary>
-        /// <returns>true, если банка найдена; slot и tid — параметры для использования.</returns>
-        public static bool FindPotion(bool hp, out uint slot, out uint tid)
+        /// <returns>true, если банка найдена; slot и tid — параметры для использования, durationSec — сколько секунд действует.</returns>
+        public static bool FindPotion(bool hp, out uint slot, out uint tid, out uint durationSec)
         {
             uint foundSlot = 0;
             uint foundTid = 0;
+            uint foundDuration = 0;
 
             uint persLevel = ReadUint32(PersReader.GetPersStruct() + Offset.Get.PERS_LEVEL_OFFSET);
             uint weakest = uint.MaxValue;
@@ -44,12 +45,14 @@ namespace BotCH.MemoryHelpers
                     weakest = amount;
                     foundSlot = i;
                     foundTid = ReadUint32(item + Offset.Get.INV_ITEM_TID_OFFSET);
+                    foundDuration = ReadUint32(essence + (hp ? Offset.Get.ESSENCE_POTION_HP_TIME_OFFSET : Offset.Get.ESSENCE_POTION_MP_TIME_OFFSET));
                     found = true;
                 }
             });
 
             slot = foundSlot;
             tid = foundTid;
+            durationSec = foundDuration;
 
             return found;
         }

@@ -174,6 +174,42 @@ namespace BotCH
         // Атакующий скилл, выбранный в списке «Attack skill» на форме. 0 — не выбран (жмём F2)
         public static volatile uint AttackSkillId = 0;
 
+        // Нажатый скилл ждёт подтверждения от игры — начала перезарядки. Пока его нет (подход, каст), повторно не жмём.
+        // Ключ — ID скилла, значение — когда и по какой цели нажали
+        private static readonly Dictionary<uint, KeyValuePair<DateTime, uint>> _skillPressed = new Dictionary<uint, KeyValuePair<DateTime, uint>>();
+        // Сколько ждать подтверждения: подход к цели + каст
+        private const int SkillConfirmTimeoutMs = 8000;
+
+        private static bool CanPressSkill(uint skill, uint target)
+        {
+            lock (_skillPressed)
+            {
+                if (!SkillReader.IsReady(skill))
+                {
+                    // Перезарядка идёт — подтверждение получено (или скилл просто откатывается)
+                    _skillPressed.Remove(skill);
+                    return false;
+                }
+
+                if (_skillPressed.TryGetValue(skill, out var pressed)
+                    && pressed.Value == target
+                    && (DateTime.Now - pressed.Key).TotalMilliseconds < SkillConfirmTimeoutMs)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        private static void SkillPressed(uint skill, uint target)
+        {
+            lock (_skillPressed)
+            {
+                _skillPressed[skill] = new KeyValuePair<DateTime, uint>(DateTime.Now, target);
+            }
+        }
+
         public static void AttackBySkill()
         {
             uint skill = AttackSkillId;
@@ -189,12 +225,19 @@ namespace BotCH
 
                 WaitForCasting(Keys.F2);
 
-                // На перезарядке — пропускаем, бот попробует на следующем круге атаки.
+                // На перезарядке или ещё не подтверждён прошлый нажим — пропускаем, бот попробует на следующем круге атаки.
                 // Как нажатие кнопки: если моб дальше дальности скилла, персонаж сам подойдёт и применит
-                bool cast = SkillReader.IsReady(skill) && (GameCall.CanApplySkill ? GameCall.ApplySkill(skill) : GameCall.CastSkill(skill, target));
+                if (!CanPressSkill(skill, target))
+                {
+                    return;
+                }
+
+                bool cast = GameCall.CanApplySkill ? GameCall.ApplySkill(skill) : GameCall.CastSkill(skill, target);
 
                 if (cast)
                 {
+                    SkillPressed(skill, target);
+
                     if (Logger.KeyLogger)
                     {
                         Logger.setLog("Skill " + skill + " on " + target + " (direct call)");
@@ -275,6 +318,11 @@ namespace BotCH
         private static readonly HashSet<uint> _foodPetDoesNotEat = new HashSet<uint>();
 
         // Самая слабая подходящая по уровню банка HP или MP из сумки прямым вызовом. false — не получилось, нужен запасной путь
+        // До какого момента действует выпитая банка HP / MP: раньше пить банку того же вида не нужно
+        private static DateTime _hpPotionActiveUntil = DateTime.MinValue;
+        private static DateTime _mpPotionActiveUntil = DateTime.MinValue;
+
+        // Самая слабая подходящая по уровню банка HP или MP из сумки прямым вызовом. false — не получилось, нужен запасной путь
         private static bool UsePotion(bool hp)
         {
             if (!GameCall.CanUseItem)
@@ -282,7 +330,13 @@ namespace BotCH
                 return false;
             }
 
-            if (!InventoryReader.FindPotion(hp, out uint slot, out uint tid))
+            // Прошлая банка ещё действует — пить не нужно, и клавишу жать тоже не нужно
+            if (DateTime.Now < (hp ? _hpPotionActiveUntil : _mpPotionActiveUntil))
+            {
+                return true;
+            }
+
+            if (!InventoryReader.FindPotion(hp, out uint slot, out uint tid, out uint durationSec))
             {
                 Logger.setLog("No " + (hp ? "HP" : "MP") + " potions for my level in inventory");
                 return false;
@@ -290,13 +344,33 @@ namespace BotCH
 
             WaitForCasting(hp ? Keys.F6 : Keys.F3);
 
+            uint countBefore = InventoryReader.GetCount(slot, tid);
+
             if (!GameCall.UseItem(slot, tid))
             {
                 return false;
             }
 
-            Logger.setLog("Use " + (hp ? "HP" : "MP") + " potion " + tid + " from slot " + slot + " (direct call)");
-            Thread.Sleep(200);
+            Thread.Sleep(500);
+
+            // Стопка не уменьшилась — игра не дала выпить (перезарядка); попробуем на следующем круге
+            if (InventoryReader.GetCount(slot, tid) >= countBefore)
+            {
+                return true;
+            }
+
+            var activeUntil = DateTime.Now.AddSeconds(durationSec > 0 ? durationSec : 10);
+
+            if (hp)
+            {
+                _hpPotionActiveUntil = activeUntil;
+            }
+            else
+            {
+                _mpPotionActiveUntil = activeUntil;
+            }
+
+            Logger.setLog("Use " + (hp ? "HP" : "MP") + " potion " + tid + " from slot " + slot + " for " + durationSec + " s (direct call)");
 
             return true;
         }
@@ -313,7 +387,7 @@ namespace BotCH
                     WaitForCasting(Keys.F7);
                 }
 
-                if (!SkillReader.IsReady(skill))
+                if (!CanPressSkill(skill, pet))
                 {
                     return;
                 }
@@ -322,6 +396,7 @@ namespace BotCH
                 // Прямая команда (запасной путь) сервер принимает только с петом в качестве цели и без подхода
                 if (GameCall.CanApplySkill ? GameCall.ApplySkill(skill, pet) : GameCall.CastSkill(skill, pet))
                 {
+                    SkillPressed(skill, pet);
                     Logger.setLog("Heal pet (direct call)");
                     Thread.Sleep(500);
                     return;

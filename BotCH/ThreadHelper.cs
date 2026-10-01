@@ -7,7 +7,7 @@ namespace BotCH
         public static void StartBotingThreads()
         {
             Start(Pet.CheckStatusPetThread = new Thread(Pet.CheckingStatusPet));
-            Start(PersInfo.PersInfoLabelsThread = new Thread(PersInfo.ShowPersInfoLabels));
+            StartPersInfoThreads();
             Start(Bot.BotingThread = new Thread(Bot.Run));
         }
 
@@ -17,8 +17,14 @@ namespace BotCH
             Stop(Pet.CheckStatusPetThread);
         }
 
+        // Поток надписей и банок запускается при Connect; при Start второй не создаём — иначе банки пьются дважды
         public static void StartPersInfoThreads()
         {
+            if (PersInfo.PersInfoLabelsThread != null && PersInfo.PersInfoLabelsThread.IsAlive)
+            {
+                return;
+            }
+
             Start(PersInfo.PersInfoLabelsThread = new Thread(PersInfo.ShowPersInfoLabels));
         }
 

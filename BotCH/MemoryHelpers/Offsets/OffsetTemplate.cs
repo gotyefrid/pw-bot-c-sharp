@@ -95,6 +95,8 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual uint ESSENCE_LEVEL_OFFSET { get => 0; }
         public virtual uint ESSENCE_POTION_HP_OFFSET { get => 0; }
         public virtual uint ESSENCE_POTION_MP_OFFSET { get => 0; }
+        public virtual uint ESSENCE_POTION_HP_TIME_OFFSET { get => 0; }
+        public virtual uint ESSENCE_POTION_MP_TIME_OFFSET { get => 0; }
         public virtual uint INV_FOOD_ESSENCE_OFFSET { get => 0; }
         public virtual uint ESSENCE_FOOD_LOYALTY_OFFSET { get => 0; }
 

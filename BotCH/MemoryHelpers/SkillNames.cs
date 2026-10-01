@@ -102,7 +102,26 @@ namespace BotCH.MemoryHelpers
                 return null;
             }
 
-            byte[] d = File.ReadAllBytes(pckFile);
+            // Игра держит архив открытым (иногда и на запись) — читаем, не мешая ей: FileShare.ReadWrite
+            byte[] d;
+
+            using (var fs = new FileStream(pckFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                d = new byte[fs.Length];
+                int read = 0;
+
+                while (read < d.Length)
+                {
+                    int n = fs.Read(d, read, d.Length - read);
+
+                    if (n == 0)
+                    {
+                        throw new EndOfStreamException();
+                    }
+
+                    read += n;
+                }
+            }
             int len = d.Length;
 
             if (BitConverter.ToUInt32(d, len - 0x118) != 0xFDFDFEEE)
