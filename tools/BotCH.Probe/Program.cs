@@ -47,6 +47,8 @@ internal static class Program
                     return WithClient(rest, (_, game) => Memory(game));
                 case "memmap":
                     return WithClient(rest, (_, game) => MemoryMap(game, rest));
+                case "heaps":
+                    return WithClient(rest, (_, game) => Heaps(game, rest));
                 case "memwatch":
                     return WithClient(rest, (_, game) => MemoryWatch(game));
                 case "rename":
@@ -126,12 +128,18 @@ internal static class Program
         if (path is not null)
         {
             using var w = new System.IO.StreamWriter(path, false, new System.Text.UTF8Encoding(false));
-            w.WriteLine("start\tallocBase\tsize\tkind\tstate\tprotect\tfile");
+            w.WriteLine("start\tallocBase\tsize\tkind\tstate\tprotect\tfile\thead");
+            var head = new byte[0x40];
             foreach (var r in regions)
             {
                 var state = r.State == MemoryRegion.Commit ? "commit" : r.State == MemoryRegion.Reserve ? "reserve" : "free";
+                // Начало выделения: заголовок кучи Windows (сигнатура 0xFFEEFFEE на +8) или чужой распределитель
+                var start = r.Start == r.AllocationBase && r.State == MemoryRegion.Commit && r.Type == MemoryRegion.Private
+                            && game.TryRead(r.Start, head, head.Length)
+                    ? BitConverter.ToString(head).Replace("-", "")
+                    : "";
                 w.WriteLine($"{r.Start:X8}\t{r.AllocationBase:X8}\t{r.Size}\t{Kind(r)}\t{state}\t{r.Protect:X}\t"
-                            + (files.TryGetValue(r.AllocationBase, out var f) ? f : ""));
+                            + (files.TryGetValue(r.AllocationBase, out var f) ? f : "") + "\t" + start);
             }
         }
 
@@ -143,6 +151,44 @@ internal static class Program
         Console.WriteLine($"свободно {regions.Where(r => r.State == MemoryRegion.Free).Sum(r => r.Size) >> 20,10} МБ");
         if (path is not null)
             Console.WriteLine($"Карта сохранена: {System.IO.Path.GetFullPath(path)}");
+        return 0;
+    }
+
+    // Кучи Windows игры: список из PEB (x86: +0x18 ProcessHeap, +0x88 NumberOfHeaps, +0x90 ProcessHeaps) плюс адреса
+    // из аргументов (кучи видны в memmap: сигнатура сегмента 0xFFEEFFEE). У _HEAP x86: +0x40 Flags, +0x60 EEFFEEFF
+    private static int Heaps(GameProcess game, string[] args)
+    {
+        if (game.PebAddress() is not uint peb)
+        {
+            Console.Error.WriteLine("❌ PEB не прочитать");
+            return 2;
+        }
+
+        var processHeap = game.ReadUInt32(peb + 0x18);
+        var count = game.ReadUInt32(peb + 0x88);
+        var max = game.ReadUInt32(peb + 0x8C);
+        var list = game.ReadUInt32(peb + 0x90);
+        Console.WriteLine($"PEB {peb:X8}, куча процесса {processHeap:X8}, куч {count} (места на {max}), список {list:X8}");
+        var heaps = new System.Collections.Generic.List<uint>();
+        for (var i = 0u; i < Math.Min(Math.Max(count, 8u), 64u); i++)
+            heaps.Add(game.ReadUInt32(list + i * 4));
+        heaps.AddRange(args.Where(a => a.StartsWith("0x")).Select(a => Convert.ToUInt32(a.Substring(2), 16)));
+
+        foreach (var heap in heaps.Where(h => h != 0).Distinct())
+        {
+            var raw = new byte[0x100];
+            if (!game.TryRead(heap, raw, raw.Length) || BitConverter.ToUInt32(raw, 0x60) != 0xEEFFEEFF)
+            {
+                Console.WriteLine($"{heap:X8}: не куча (нет EEFFEEFF на +0x60)");
+                continue;
+            }
+
+            // Дальше Flags раскладку _HEAP не проверяли — не печатаем, чтобы не вводить в заблуждение
+            var flags = BitConverter.ToUInt32(raw, 0x40);
+            Console.WriteLine($"{heap:X8}{(heap == processHeap ? " (процесса)" : "")}: Flags {flags:X}"
+                              + $"{((flags & 1) != 0 ? " NO_SERIALIZE" : "")}{((flags & 2) != 0 ? " GROWABLE" : "")}{((flags & 0x1000) != 0 ? " (HeapCreate)" : "")}");
+        }
+
         return 0;
     }
 

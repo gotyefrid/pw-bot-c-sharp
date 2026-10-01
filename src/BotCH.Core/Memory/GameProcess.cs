@@ -208,6 +208,14 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
         }
     }
 
+    /// <summary>Адрес PEB игры (бот и игра 32-битные — это её 32-битный PEB); null — Windows не ответила.</summary>
+    public uint? PebAddress()
+    {
+        var status = NativeMethods.NtQueryInformationProcess(_handle, 0, out var info,
+            Marshal.SizeOf(typeof(NativeMethods.ProcessBasicInformation)), out _);
+        return status == 0 ? unchecked((uint)info.PebBaseAddress.ToInt32()) : null;
+    }
+
     /// <summary>Файл, отображённый в память по этому адресу (для MEM_MAPPED и MEM_IMAGE), или null.</summary>
     public string? MappedFileName(uint address)
     {

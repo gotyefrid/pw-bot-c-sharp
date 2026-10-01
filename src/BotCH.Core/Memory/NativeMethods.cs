@@ -49,6 +49,20 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern IntPtr VirtualQueryEx(SafeProcessHandle process, IntPtr address, out MemoryBasicInformation info, IntPtr length);
 
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ProcessBasicInformation
+    {
+        public IntPtr ExitStatus;
+        public IntPtr PebBaseAddress;
+        public IntPtr AffinityMask;
+        public IntPtr BasePriority;
+        public IntPtr UniqueProcessId;
+        public IntPtr InheritedFromUniqueProcessId;
+    }
+
+    [DllImport("ntdll.dll")]
+    public static extern int NtQueryInformationProcess(SafeProcessHandle process, int infoClass, out ProcessBasicInformation info, int size, out int returned);
+
     [DllImport("kernel32.dll", EntryPoint = "K32GetMappedFileNameW", CharSet = CharSet.Unicode, SetLastError = true)]
     public static extern int GetMappedFileName(SafeProcessHandle process, IntPtr address, System.Text.StringBuilder name, int size);
 
