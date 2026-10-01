@@ -103,6 +103,10 @@ namespace BotCH.MemoryHelpers.Offsets
         // c2s_SendCmdUnselect(), команда 0x08, пакет 2 байта, без параметров (аналог Esc). Код: push esi; push 2; call alloc ... mov word [esi], 8
         public override uint C2S_UNSELECT_FUNC { get => 0x1F0C90; }
         public override byte[] C2S_UNSELECT_SIG => new byte[] { 0x56, 0x6A, 0x02, 0xE8 };
+        // c2s_SendCmdUseItem(byte where, byte index, int tid, byte count), команда 0x28, пакет 10 байт:
+        // [0x28][where][count][index:2][tid:4]. where 0 = сумка, count 1. Работает и для банок, и для корма пета (пет должен быть призван).
+        public override uint C2S_USE_ITEM_FUNC { get => 0x1F03F0; }
+        public override byte[] C2S_USE_ITEM_SIG => new byte[] { 0x56, 0x6A, 0x0A, 0xE8 };
         // c2s_SendCmdSummonPet(int index), команда 0x64, пакет 6 байт. index = клетка - 1 (ячейка PET_CAGES_ARRAY). Призыв идёт ~3.5 с.
         // Найдено по вызовам: клиент перед вызовом берёт пета из [перс+PET_STRUCT_OFFSET]+0x10+index*4 и проверяет, что он жив.
         // Рядом: 0x65 @0x5F1F80 — отозвать (без параметров), 0x66 @0x5F1FC0 — отпустить пета (НЕ вызывать), 0x63 — не пет.
@@ -125,5 +129,31 @@ namespace BotCH.MemoryHelpers.Offsets
         public override uint ITEM_TID_OFFSET { get => 0x110; }  // id типа предмета (монета 3044 и т.п.), второй параметр подбора
         public override uint ITEM_KIND_OFFSET { get => 0x14C; } // ItemReader.KIND_*: 1 предмет, 2 ресурс (копать, не подбирать), 3 монеты
         public override uint ITEM_DIST_OFFSET { get => 0x154; } // расстояние до персонажа, float (сверено с координатами)
+
+        // Уровень персонажа. Лежит рядом с WID (0x458) и HP (0x46C); 0x474 — похоже, текущий опыт
+        public override uint PERS_LEVEL_OFFSET { get => 0x464; }
+        // Сумка: [перс+0xC34] — объект сумки, +0xC массив указателей на предметы (индекс = ячейка, с 0), +0x10 число ячеек (32).
+        // Найдено так: в сумке лежали подобранные известь (tid 8084) и мех (8083) — искали указатели из структуры перса,
+        // ведущие к массиву предметов с этими tid. Совпадение одно.
+        public override uint INVENTORY_OFFSET { get => 0xC34; }
+        public override uint INV_ITEMS_OFFSET { get => 0xC; }
+        public override uint INV_SIZE_OFFSET { get => 0x10; }
+        // Предмет в сумке: +0x4 категория (9 банки, 27 корм пета, 8 материалы, 0/15/19 экипировка...), +0x8 tid,
+        // +0x10 сколько в стопке, +0x14 максимум в стопке, +0x40 указатель на текст подсказки (название в начале), +0x54 описание (шаблон)
+        public override uint INV_ITEM_CATEGORY_OFFSET { get => 0x4; }
+        public override uint INV_ITEM_TID_OFFSET { get => 0x8; }
+        public override uint INV_ITEM_COUNT_OFFSET { get => 0x10; }
+        public override uint INV_ITEM_ESSENCE_OFFSET { get => 0x54; }
+        // Описание банки (найдено сравнением малой и средней банок HP и банки MP): +0x0 tid, +0x14C требуемый уровень,
+        // +0x154 сколько HP, +0x158 за сколько секунд, +0x15C сколько MP, +0x160 за сколько секунд, +0x164/+0x168 цены
+        public override uint ESSENCE_LEVEL_OFFSET { get => 0x14C; }
+        public override uint ESSENCE_POTION_HP_OFFSET { get => 0x154; }
+        public override uint ESSENCE_POTION_MP_OFFSET { get => 0x15C; }
+        // У корма пета другой класс предмета, и описание лежит по другому указателю: +0x4C (у банок +0x54).
+        // Описание корма (сравнение трёх кормов на 10/50/100 верности): +0x0 tid, +0x144 класс корма (1/2/3),
+        // +0x148 сколько верности, +0x150 вид корма битовой маской (16 = «чистая вода»), +0x154 цена, +0x15C максимум в стопке.
+        // Что ест конкретный пет, не ищем: бот проверяет, уменьшилась ли стопка после кормления.
+        public override uint INV_FOOD_ESSENCE_OFFSET { get => 0x4C; }
+        public override uint ESSENCE_FOOD_LOYALTY_OFFSET { get => 0x148; }
     }
 }

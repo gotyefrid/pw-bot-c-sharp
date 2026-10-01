@@ -58,6 +58,17 @@ namespace BotCH.MemoryHelpers
             return Call(Offset.Get.C2S_SUMMON_PET_FUNC, Offset.Get.C2S_SUMMON_PET_SIG, (uint)(cage - 1));
         }
 
+        public static bool CanUseItem
+        {
+            get { return Enabled && Offset.Get.C2S_USE_ITEM_FUNC != 0 && Offset.Get.INVENTORY_OFFSET != 0; }
+        }
+
+        // Использовать 1 предмет из ячейки slot основной сумки
+        public static bool UseItem(uint slot, uint tid)
+        {
+            return Call(Offset.Get.C2S_USE_ITEM_FUNC, Offset.Get.C2S_USE_ITEM_SIG, 0, slot, tid, 1);
+        }
+
         // Снять цель (аналог Esc)
         public static bool Unselect()
         {

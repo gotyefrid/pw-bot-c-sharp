@@ -214,6 +214,7 @@
     <Compile Include="HotKeys\HotKeysService.cs" />
     <Compile Include="MemoryHelpers\OffsetFinder.cs" />
     <Compile Include="MemoryHelpers\GameCall.cs" />
+    <Compile Include="MemoryHelpers\InventoryReader.cs" />
     <Compile Include="MemoryHelpers\ItemReader.cs" />
     <Compile Include="MemoryHelpers\MobReader.cs" />
     <Compile Include="MemoryHelpers\Offsets\PwClassic136.cs" />

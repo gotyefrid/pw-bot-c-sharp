@@ -53,6 +53,8 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual byte[] C2S_PICKUP_SIG { get => new byte[] { }; }
         public virtual uint C2S_UNSELECT_FUNC { get => 0; }
         public virtual byte[] C2S_UNSELECT_SIG { get => new byte[] { }; }
+        public virtual uint C2S_USE_ITEM_FUNC { get => 0; }
+        public virtual byte[] C2S_USE_ITEM_SIG { get => new byte[] { }; }
         public virtual uint C2S_SUMMON_PET_FUNC { get => 0; }
         public virtual byte[] C2S_SUMMON_PET_SIG { get => new byte[] { }; }
         public virtual uint C2S_PET_CTRL_FUNC { get => 0; }
@@ -64,6 +66,21 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual uint ITEM_TID_OFFSET { get => 0; }
         public virtual uint ITEM_KIND_OFFSET { get => 0; }
         public virtual uint ITEM_DIST_OFFSET { get => 0; }
+
+        // Сумка персонажа (InventoryReader) и уровень персонажа
+        public virtual uint PERS_LEVEL_OFFSET { get => 0; }
+        public virtual uint INVENTORY_OFFSET { get => 0; }
+        public virtual uint INV_ITEMS_OFFSET { get => 0; }
+        public virtual uint INV_SIZE_OFFSET { get => 0; }
+        public virtual uint INV_ITEM_CATEGORY_OFFSET { get => 0; }
+        public virtual uint INV_ITEM_TID_OFFSET { get => 0; }
+        public virtual uint INV_ITEM_COUNT_OFFSET { get => 0; }
+        public virtual uint INV_ITEM_ESSENCE_OFFSET { get => 0; }
+        public virtual uint ESSENCE_LEVEL_OFFSET { get => 0; }
+        public virtual uint ESSENCE_POTION_HP_OFFSET { get => 0; }
+        public virtual uint ESSENCE_POTION_MP_OFFSET { get => 0; }
+        public virtual uint INV_FOOD_ESSENCE_OFFSET { get => 0; }
+        public virtual uint ESSENCE_FOOD_LOYALTY_OFFSET { get => 0; }
 
         public uint GetOffsetFromIni(string name, string defaultValue)
         {

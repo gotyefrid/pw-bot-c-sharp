@@ -183,17 +183,89 @@ namespace BotCH
 
         public static void PotHP()
         {
+            if (UsePotion(true))
+            {
+                return;
+            }
+
             Action.ClickKey(Keys.F6);
         }
 
         public static void PotMP()
         {
+            if (UsePotion(false))
+            {
+                return;
+            }
+
             Action.ClickKey(Keys.F3);
         }
 
         public static void FeedPet()
         {
+            if (GameCall.CanUseItem)
+            {
+                // Пробуем корма от самого малого; если стопка не уменьшилась — пет этот корм не ест, берём следующий
+                for (int attempt = 0; attempt < 5; attempt++)
+                {
+                    if (!InventoryReader.FindPetFood(_foodPetDoesNotEat, out uint slot, out uint tid))
+                    {
+                        Logger.setLog("No pet food in inventory");
+                        break;
+                    }
+
+                    uint countBefore = InventoryReader.GetCount(slot, tid);
+                    WaitForCasting(Keys.F5);
+
+                    if (!GameCall.UseItem(slot, tid))
+                    {
+                        break;
+                    }
+
+                    Thread.Sleep(700);
+
+                    if (InventoryReader.GetCount(slot, tid) < countBefore)
+                    {
+                        Logger.setLog("Feed pet with " + tid + " from slot " + slot + " (direct call)");
+                        return;
+                    }
+
+                    Logger.setLog("Pet does not eat food " + tid + ", try another");
+                    _foodPetDoesNotEat.Add(tid);
+                }
+            }
+
             Action.ClickKey(Keys.F5);
+        }
+
+        // Корм, который пет не съел (стопка не уменьшилась). Сбрасывается при перезапуске бота
+        private static readonly HashSet<uint> _foodPetDoesNotEat = new HashSet<uint>();
+
+        // Самая слабая подходящая по уровню банка HP или MP из сумки прямым вызовом. false — не получилось, нужен запасной путь
+        private static bool UsePotion(bool hp)
+        {
+            if (!GameCall.CanUseItem)
+            {
+                return false;
+            }
+
+            if (!InventoryReader.FindPotion(hp, out uint slot, out uint tid))
+            {
+                Logger.setLog("No " + (hp ? "HP" : "MP") + " potions for my level in inventory");
+                return false;
+            }
+
+            WaitForCasting(hp ? Keys.F6 : Keys.F3);
+
+            if (!GameCall.UseItem(slot, tid))
+            {
+                return false;
+            }
+
+            Logger.setLog("Use " + (hp ? "HP" : "MP") + " potion " + tid + " from slot " + slot + " (direct call)");
+            Thread.Sleep(200);
+
+            return true;
         }
 
         public static void HealPet(bool waitCasting = true)
