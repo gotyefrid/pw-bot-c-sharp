@@ -514,7 +514,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         PetDetails = active is null ? "" : active.IsHungry ? "голоден" : "сыт";
 
         UpdateAttackSkills(w);
-        SnapshotInfo = $"мобов {w.Mobs.Count()} · лута {w.GroundItems.Count} · снимок {w.ReadDuration.TotalMilliseconds:0.0} мс";
+        SnapshotInfo = $"мобов рядом {w.Mobs.Count(m => !m.IsDead)} · лута {w.GroundItems.Count}";
     }
 
     private void ShowFailure(string message)
