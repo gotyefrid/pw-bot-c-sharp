@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BotCH.Core.World;
 
 namespace BotCH.Core.Settings;
 
@@ -30,6 +31,7 @@ public sealed class BotSettings
         Pet ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
+        Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
@@ -93,6 +95,25 @@ public sealed class LootSettings
 
     /// <summary>Сколько раз подбирать после смерти моба.</summary>
     public int Attempts { get; set; } = 4;
+
+    public bool PickMoney { get; set; } = true;
+    public bool PickItems { get; set; } = true;
+
+    /// <summary>Как использовать <see cref="ItemNames"/>: не использовать / только они / все, кроме них.</summary>
+    public LootListMode ListMode { get; set; } = LootListMode.All;
+
+    /// <summary>Названия предметов на земле (как в игре: «Мягкий мех»).</summary>
+    public List<string> ItemNames { get; set; } = [];
+}
+
+public enum LootListMode
+{
+    /// <summary>Подбирать всё (список не используется).</summary>
+    All,
+    /// <summary>Белый список: только предметы из списка.</summary>
+    OnlyListed,
+    /// <summary>Чёрный список: всё, кроме предметов из списка.</summary>
+    ExceptListed,
 }
 
 public sealed class PotionSettings
@@ -116,7 +137,31 @@ public sealed class PetSettings
     public int HealPercent { get; set; } = 70;
 }
 
-/// <summary>Сравнение названий мобов: без учёта регистра и пробелов по краям.</summary>
+/// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>
+public static class LootFilter
+{
+    public static bool Allows(LootSettings loot, GroundItemKind kind, string? name)
+    {
+        // Ресурс копается, а не подбирается — никогда
+        if (kind == GroundItemKind.Resource)
+            return false;
+        if (kind == GroundItemKind.Money && !loot.PickMoney)
+            return false;
+        if (kind == GroundItemKind.Item && !loot.PickItems)
+            return false;
+
+        return loot.ListMode switch
+        {
+            LootListMode.OnlyListed => MobNameFilter.Contains(loot.ItemNames, name),
+            LootListMode.ExceptListed => !MobNameFilter.Contains(loot.ItemNames, name),
+            _ => true,
+        };
+    }
+
+    public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name);
+}
+
+/// <summary>Сравнение названий (мобов, предметов): без учёта регистра и пробелов по краям.</summary>
 public static class MobNameFilter
 {
     public static List<string> Clean(IEnumerable<string>? names)
@@ -132,7 +177,12 @@ public static class MobNameFilter
         if (!target.UseMobList || target.MobNames.Count == 0)
             return true;
 
-        var name = mobName?.Trim() ?? "";
-        return target.MobNames.Any(n => string.Equals(n.Trim(), name, StringComparison.OrdinalIgnoreCase));
+        return Contains(target.MobNames, mobName);
+    }
+
+    public static bool Contains(IEnumerable<string> names, string? name)
+    {
+        var trimmed = name?.Trim() ?? "";
+        return trimmed.Length > 0 && names.Any(n => string.Equals(n.Trim(), trimmed, StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using BotCH.Core.Settings;
+using BotCH.Core.World;
 using Xunit;
 
 namespace BotCH.Tests.Settings;
@@ -94,6 +95,41 @@ public class SettingsTests
     public void EmptyMobListAllowsAnyone()
     {
         Assert.True(MobNameFilter.Allows(new TargetSettings { UseMobList = true }, "Медведь"));
+    }
+
+    [Theory]
+    [InlineData(LootListMode.All, "Монета", GroundItemKind.Money, true)]
+    [InlineData(LootListMode.All, "Залежь меди", GroundItemKind.Resource, false)] // ресурс — никогда
+    [InlineData(LootListMode.OnlyListed, "мягкий мех ", GroundItemKind.Item, true)]
+    [InlineData(LootListMode.OnlyListed, "Разорванный мех", GroundItemKind.Item, false)]
+    [InlineData(LootListMode.OnlyListed, "", GroundItemKind.Item, false)] // название не прочиталось — не в белом списке
+    [InlineData(LootListMode.ExceptListed, "Мягкий мех", GroundItemKind.Item, false)]
+    [InlineData(LootListMode.ExceptListed, "Разорванный мех", GroundItemKind.Item, true)]
+    public void LootListFiltersByName(LootListMode mode, string name, GroundItemKind kind, bool allowed)
+    {
+        var loot = new LootSettings { ListMode = mode, ItemNames = ["Мягкий мех"] };
+
+        Assert.Equal(allowed, LootFilter.Allows(loot, kind, name));
+    }
+
+    [Fact]
+    public void LootKindSwitches()
+    {
+        var onlyMoney = new LootSettings { PickItems = false };
+
+        Assert.True(LootFilter.Allows(onlyMoney, GroundItemKind.Money, "Монета"));
+        Assert.False(LootFilter.Allows(onlyMoney, GroundItemKind.Item, "Мягкий мех"));
+        Assert.False(LootFilter.Allows(new LootSettings { PickMoney = false }, GroundItemKind.Money, "Монета"));
+    }
+
+    [Fact]
+    public void LootSettingsSurviveSaveAndLoad()
+    {
+        var s = SettingsJson.Parse("""{ "loot": { "listMode": "ExceptListed", "itemNames": ["Разорванный мех", " разорванный мех"] } }""");
+
+        Assert.Equal(LootListMode.ExceptListed, s.Loot.ListMode);
+        Assert.Equal(["Разорванный мех"], s.Loot.ItemNames);
+        Assert.Equal(LootListMode.ExceptListed, SettingsJson.Parse(SettingsJson.Serialize(s)).Loot.ListMode);
     }
 
     [Fact]

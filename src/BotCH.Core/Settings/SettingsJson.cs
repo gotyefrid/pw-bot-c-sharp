@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 
 namespace BotCH.Core.Settings;
@@ -16,6 +17,8 @@ public static class SettingsJson
         // Иначе список названий из файла добавится к списку по умолчанию, а не заменит его
         ObjectCreationHandling = ObjectCreationHandling.Replace,
         Formatting = Formatting.Indented,
+        // Режимы пишутся словом («ExceptListed»), а не числом — файл можно читать и править руками
+        Converters = { new StringEnumConverter() },
     };
 
     public static BotSettings Parse(string json)
