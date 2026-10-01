@@ -21,8 +21,8 @@ public enum CombatState
 /// <item>Поиск: моб, бьющий перса/пета (белый список не важен) → текущая цель, если подходит → ближайший разрешённый.</item>
 /// <item>Бой: приказ пету; скилл «как кнопкой» (сам подходит); меч раз в ~5 с; «подойти ближе», если меч выключен;
 /// во время каста ничего нового. Через N с (120) моба бросаем.</item>
-/// <item>Лут: дойти до места смерти (дальше 3 м), до N раз подобрать ближайший разрешённый фильтром предмет в 20 м
-/// «как мышкой», ждать до 10 с, пауза 0.7–1.3 с.</item>
+/// <item>Лут: дойти до места смерти (дальше 3 м), до N раз подобрать ближайший разрешённый фильтром предмет
+/// не дальше 10 м от места смерти «как мышкой», ждать до 10 с, пауза 0.7–1.3 с.</item>
 /// </list>
 /// </summary>
 public sealed class CombatBehavior : IBehavior
@@ -33,7 +33,8 @@ public sealed class CombatBehavior : IBehavior
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan LootLimit = TimeSpan.FromSeconds(40);
     private const float KillPlaceNear = 3f;
-    private const float LootRadius = 20f;
+    // Лут — только вокруг места смерти: в старом боте было 20 м от перса, и он бегал к чужому/старому луту
+    private const float LootRadius = 10f;
 
     private readonly Dictionary<uint, DateTime> _gaveUp = [];
     private readonly HashSet<uint> _lootSkipped = [];
@@ -289,7 +290,7 @@ public sealed class CombatBehavior : IBehavior
         }
 
         var item = w.GroundItems
-            .Where(i => i.Distance <= LootRadius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
+            .Where(i => i.Position.HorizontalDistanceTo(_deathPlace) <= LootRadius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
         if (item is null)

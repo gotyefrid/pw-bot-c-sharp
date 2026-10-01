@@ -454,6 +454,30 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void LootOnlyAroundDeathPlace()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Loot.Enabled = true;
+        var mob = _world.AddMob(0x80000001, "Волк", 2, hp: 100);
+        _world.TargetWid = mob.Wid;
+        Tick();
+
+        // Моб умер в (2, 0); монета с него рядом, старый мех — в 14 м от места смерти (и в 12 м от перса)
+        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), 3, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(-12, 0, 0), 12, "Мягкий мех"));
+        Tick();
+        Assert.Equal("pickup-approach C0000001", LastCall);
+
+        _world.Ground.RemoveAt(0);
+        Tick(2);
+        Tick();
+
+        Assert.DoesNotContain("pickup-approach C0000002", _actions.Calls);
+    }
+
+    [Fact]
     public void LootFilterBlackList()
     {
         _settings.Target.KillMobs = true;
