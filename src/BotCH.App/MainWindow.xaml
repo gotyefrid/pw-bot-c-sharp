@@ -187,9 +187,7 @@
       <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="14,10,10,4">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-            <Button Style="{StaticResource ButtonBase}" Content="Копировать всё" Padding="10,4" Click="CopyLog"
-                    ToolTip="Весь лог из окна — в буфер обмена" />
-            <Button Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE838;" Click="OpenLogFolder"
+            <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE838;" Click="OpenLogFolder"
                     ToolTip="Открыть папку с файлами лога" Background="Transparent" />
             <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE74D;" Command="{Binding ClearLogCommand}"
                     ToolTip="Очистить лог в окне (файл не трогается)" Background="Transparent" />

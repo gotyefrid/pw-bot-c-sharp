@@ -77,29 +77,6 @@ public partial class MainWindow : Window
         return line;
     }
 
-    private void CopyLog(object sender, RoutedEventArgs e)
-    {
-        var text = string.Join(Environment.NewLine, _model.Log.Select(entry => entry.ToString()));
-        if (text.Length == 0)
-            return;
-
-        // Буфер обмена может быть занят другой программой (CLIPBRD_E_CANT_OPEN) — несколько попыток, потом просто сообщение
-        for (var attempt = 0; attempt < 10; attempt++)
-        {
-            try
-            {
-                Clipboard.SetDataObject(text, true);
-                return;
-            }
-            catch (System.Runtime.InteropServices.ExternalException)
-            {
-                System.Threading.Thread.Sleep(50);
-            }
-        }
-
-        _model.ReportProblem("Буфер обмена занят другой программой — попробуйте ещё раз");
-    }
-
     private void OpenLogFolder(object sender, RoutedEventArgs e)
     {
         var folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
