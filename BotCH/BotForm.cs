@@ -19,8 +19,8 @@ namespace BotCH
 
         private void BotForm_Load(object sender, EventArgs e)
         {
-            Offset.ServerName = Offset.COMEBACK136;
-            //Offset.ServerName = Offset.PWCLASSIC136;
+            //Offset.ServerName = Offset.COMEBACK136;
+            Offset.ServerName = Offset.PWCLASSIC136;
 
             if (IniManager.ReadINI("settings", "renameWindows") == "1")
             {
@@ -109,12 +109,13 @@ namespace BotCH
             this.textBoxHPusage.Text = IniManager.ReadINI("settings", "useHp", "80");
             this.textBoxMPusage.Text = IniManager.ReadINI("settings", "useMp", "100");
             this.textBoxHealPetUsage.Text = IniManager.ReadINI("settings", "useHealPet", "70");
+            this.textBoxComeCloserDist.Text = IniManager.ReadINI("settings", "comeCloserDist", "8");
             this.checkBoxUseSkill.Checked = IniManager.ReadINI("settings", "checkBoxUseSkill") == "1";
             this.checkBoxUseSkill.Checked = IniManager.ReadINI("settings", "checkBoxUseSkill") == "1";
             this.checkBoxUseSword.Checked = IniManager.ReadINI("settings", "checkBoxUseSword") == "1";
             this.checkBoxLooting.Checked = IniManager.ReadINI("settings", "checkBoxLooting") == "1";
             this.checkBoxCheckId.Checked = IniManager.ReadINI("settings", "checkBoxCheckId") == "1";
-            this.cageSelect.SelectedIndex = int.Parse(IniManager.ReadINI("settings", "selectCage")) - 1;
+            this.cageSelect.SelectedIndex = int.Parse(IniManager.ReadINI("settings", "selectCage", "2")) - 1;
         }
 
         private void checkBoxUnfrezze_CheckedChanged(object sender, EventArgs e)

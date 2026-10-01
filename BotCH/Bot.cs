@@ -241,7 +241,12 @@ namespace BotCH
                 if (!form.checkBoxUseSword.Checked && form.checkBoxComeCloser.Checked)
                 {
                     Action.AttackByPet();
-                    ComeCloser(TargetMobEntity.WID, int.Parse(form.textBoxComeCloserDist.Text));
+                    if (!int.TryParse(form.textBoxComeCloserDist.Text, out int comeCloserDist))
+                    {
+                        comeCloserDist = 8;
+                    }
+
+                    ComeCloser(TargetMobEntity.WID, comeCloserDist);
                 }
 
                 if (i == 0)
@@ -297,6 +302,9 @@ namespace BotCH
                         break;
                     }
 
+                    Thread.Sleep(300);
+
+                    // не приблизились за паузу — повторяем команду атаки, чтобы чар шёл к мобу
                     if (beforeDist <= MobReader.GetMobDistance(mobId, MobsAround))
                     {
                         Action.AttackBySword();

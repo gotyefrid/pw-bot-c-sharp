@@ -367,6 +367,7 @@
             this.textBoxComeCloserDist.Size = new System.Drawing.Size(38, 26);
             this.textBoxComeCloserDist.TabIndex = 27;
             this.textBoxComeCloserDist.Text = "8";
+            this.textBoxComeCloserDist.KeyPress += new System.Windows.Forms.KeyPressEventHandler(this.TextBoxPID_KeyPress);
             // 
             // checkBoxComeCloser
             // 
