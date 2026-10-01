@@ -34,7 +34,7 @@ public class WorldReaderDumpTests
         Assert.Equal(0x0015A420u, h.Wid);
         Assert.Equal((458, 479), (h.Hp, h.MaxHp));
         Assert.Equal((490, 490), (h.Mp, h.MaxMp));
-        Assert.False(h.HpPotionReady);
+        Assert.InRange(h.PetFoodCooldownMs, 1, 60_000); // в момент дампа шла перезарядка корма
         Assert.Equal(-1797.8f, h.Position.X, 0.1f);
     }
 

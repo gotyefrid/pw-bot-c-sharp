@@ -11,7 +11,7 @@ public class WorldMonitorTests
 {
     private static WorldState State(int hp) => new(
         DateTime.Now, TimeSpan.Zero,
-        new HostState(0, 1, "Перс", 10, hp, 100, 0, null, default, 0, false, true),
+        new HostState(0, 1, "Перс", 10, hp, 100, 0, null, default, 0, false, 0),
         [], [], [], [], null);
 
     private static void WaitFor(Func<bool> condition)

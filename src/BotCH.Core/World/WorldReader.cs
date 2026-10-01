@@ -38,7 +38,7 @@ public sealed class WorldReader
         _skillName = skillName ?? (_ => null);
 
         var h = profile.Host;
-        _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.HpPotionCooldown,
+        _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
             h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager);
         var n = profile.Npc;
         _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Hp, n.Distance, n.Target, n.NamePointer, n.Location + 8);
@@ -115,7 +115,7 @@ public sealed class WorldReader
             ReadPosition(block, h.Location),
             block.UInt32(h.TargetId),
             block.Byte(h.CastFlag) != 0,
-            block.UInt32(h.HpPotionCooldown) == 0);
+            h.PetFoodCooldown == 0 ? 0 : Math.Max(0, block.Int32(h.PetFoodCooldown)));
     }
 
     /// <summary>Обходит хэш-таблицу менеджера мира (мобы или предметы на земле).</summary>

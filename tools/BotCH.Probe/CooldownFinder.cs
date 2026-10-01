@@ -27,11 +27,31 @@ internal static class CooldownFinder
         var reader = new WorldReader(game, game.MainModuleBase, data);
         var world = reader.Read();
 
-        var food = world.Inventory.Where(i => i.IsPetFood).OrderBy(i => i.FoodLoyalty).FirstOrDefault();
-        if (food is null || world.Pet is not { IsSummoned: true })
+        // Что использовать: pet-food (по умолчанию), potion-hp, potion-mp
+        var what = args.FirstOrDefault(a => a.StartsWith("p", StringComparison.Ordinal)) ?? "pet-food";
+        InventoryItem? food;
+        ItemUse use;
+        if (what == "pet-food")
         {
-            Console.WriteLine("❌ Нужны призванный пет и корм в сумке");
-            return 2;
+            food = world.Inventory.Where(i => i.IsPetFood).OrderBy(i => i.FoodLoyalty).FirstOrDefault();
+            use = ItemUse.PetFood;
+            if (food is null || world.Pet is not { IsSummoned: true })
+            {
+                Console.WriteLine("❌ Нужны призванный пет и корм в сумке");
+                return 2;
+            }
+        }
+        else
+        {
+            var kind = what == "potion-mp" ? PotionKind.Mp : PotionKind.Hp;
+            food = world.Inventory.Where(i => i.Potion is { } p && (kind == PotionKind.Hp ? p.Hp : p.Mp) > 0 && p.RequiredLevel <= world.Host.Level)
+                .OrderBy(i => kind == PotionKind.Hp ? i.Potion!.Hp : i.Potion!.Mp).FirstOrDefault();
+            use = ItemUse.Potion;
+            if (food is null)
+            {
+                Console.WriteLine($"❌ Нет банок {kind}");
+                return 2;
+            }
         }
 
         // Где искать: персонаж (там у клиентов массив перезарядок), предмет корма в сумке, менеджер петов
@@ -49,9 +69,9 @@ internal static class CooldownFinder
         void Sample() => samples.Add((watch.Elapsed.TotalSeconds, regions.ToDictionary(r => r.Name, r => game.ReadBytes(r.Address, r.Size))));
 
         Sample();
-        Console.WriteLine($"Кормлю: tid {food.Tid} из ячейки {food.Slot} (×{food.Count})");
+        Console.WriteLine($"Использую ({what}): tid {food.Tid} из ячейки {food.Slot} (×{food.Count})");
         var runner = new ActionRunner(new DirectCallActions(new GameCaller(game, game, game.MainModuleBase, data)), NullLogger.Instance);
-        var submit = runner.Submit(new UseItemAction(food, ItemUse.PetFood), world);
+        var submit = runner.Submit(new UseItemAction(food, use), world);
         if (!submit.Sent)
         {
             Console.WriteLine($"❌ не отправлено: {submit.Outcome?.Details}");
@@ -64,7 +84,7 @@ internal static class CooldownFinder
             Sample();
             var outcome = runner.Update(reader.Read()).FirstOrDefault();
             if (outcome is not null)
-                Console.WriteLine($"Кормление: {outcome}");
+                Console.WriteLine($"Результат: {outcome}");
         }
 
         foreach (var region in regions)

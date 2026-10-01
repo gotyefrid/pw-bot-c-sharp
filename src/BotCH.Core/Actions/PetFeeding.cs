@@ -41,6 +41,12 @@ public sealed class PetFeeding(TimeSpan? pauseAfterSuccess = null, TimeSpan? pau
             return null;
 
         Remember(pet.ActiveCage.Value);
+        if (world.Host.PetFoodCooldownMs > 0)
+        {
+            why = $"корм на перезарядке ещё {world.Host.PetFoodCooldownMs / 1000.0:0} с";
+            return null;
+        }
+
         if (world.Time < _nextAttempt)
         {
             why = $"пауза после кормления ещё {(_nextAttempt - world.Time).TotalSeconds:0} с";
@@ -103,7 +109,7 @@ public enum PotionKind
 
 /// <summary>
 /// Какую банку пить: самую слабую подходящую по уровню (как старый бот). После выпитой банки такую же (HP или MP)
-/// не пить, пока она действует (время из описания банки, у малых 10 с — подтверждено в игре).
+/// не пить, пока она действует (время из описания банки, у малых 10 с — подтверждено в игре; это же перезарядка банки).
 /// </summary>
 public sealed class PotionPolicy
 {
@@ -115,12 +121,6 @@ public sealed class PotionPolicy
         if (_activeUntil.TryGetValue(kind, out var until) && world.Time < until)
         {
             why = $"банка {kind} ещё действует {(until - world.Time).TotalSeconds:0} с";
-            return null;
-        }
-
-        if (kind == PotionKind.Hp && !world.Host.HpPotionReady)
-        {
-            why = "банка HP на перезарядке";
             return null;
         }
 

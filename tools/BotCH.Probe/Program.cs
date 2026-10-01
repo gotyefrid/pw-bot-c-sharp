@@ -80,7 +80,7 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
-        Console.WriteLine("  cdfind              покормить пета и 15 с искать поле перезарядки корма («до/после»)");
+        Console.WriteLine("  cdfind [pet-food|potion-hp|potion-mp]  использовать предмет и 15 с искать поле его перезарядки («до/после»)");
     }
 
     private static int Attach(string[] args)

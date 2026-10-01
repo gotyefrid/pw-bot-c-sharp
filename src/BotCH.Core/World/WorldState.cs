@@ -57,7 +57,8 @@ public sealed record HostState(
     Position Position,
     uint TargetWid,
     bool IsCasting,
-    bool HpPotionReady)
+    /// <summary>Сколько мс осталось до конца перезарядки корма пета (0 — можно кормить или поле не найдено).</summary>
+    int PetFoodCooldownMs)
 {
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
     public bool IsDead => Hp <= 0;

@@ -61,8 +61,8 @@ public sealed class HostOffsets
     public uint MaxMp { get; init; }
     /// <summary>WID текущей цели.</summary>
     public uint TargetId { get; init; }
-    /// <summary>Перезарядка банки HP (0 — готово).</summary>
-    public uint HpPotionCooldown { get; init; }
+    /// <summary>Перезарядка корма пета, мс осталось (0 — можно кормить).</summary>
+    public uint PetFoodCooldown { get; init; }
     /// <summary>Координаты: X, высота, Y — три float подряд.</summary>
     public uint Location { get; init; }
     /// <summary>[перс + WorkMan] — менеджер «работ» (CECHPWorkMan).</summary>

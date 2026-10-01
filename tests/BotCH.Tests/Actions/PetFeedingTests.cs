@@ -108,6 +108,18 @@ public class PetFeedingTests
     }
 
     [Fact]
+    public void FoodOnCooldownIsSkipped()
+    {
+        _world.PetFoodCooldownMs = 45_000;
+
+        Assert.Null(_feeding.Choose(_world.Snapshot(), out var why));
+        Assert.Contains("перезарядке", why);
+
+        _world.PetFoodCooldownMs = 0;
+        Assert.NotNull(_feeding.Choose(_world.Snapshot(), out _));
+    }
+
+    [Fact]
     public void NoEdibleFoodIsExplained()
     {
         _world.Bag.Clear();
@@ -150,13 +162,13 @@ public class PotionPolicyTests
     }
 
     [Fact]
-    public void HpPotionCooldownRespected()
+    public void FoodCooldownDoesNotBlockPotions()
     {
+        // Старый бот путал перезарядку корма с перезарядкой банки HP и минуту после кормления не пил банки
         _world.AddPotion(2, 8617, 2, hp: 30);
-        _world.HpPotionReady = false;
+        _world.PetFoodCooldownMs = 45_000;
 
-        Assert.Null(_policy.Choose(_world.Snapshot(), PotionKind.Hp, out var why));
-        Assert.Contains("перезарядке", why);
+        Assert.NotNull(_policy.Choose(_world.Snapshot(), PotionKind.Hp, out _));
     }
 
     [Fact]
