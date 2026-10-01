@@ -30,6 +30,16 @@ public class GameProcessTests
         }
     }
 
+    [Theory]
+    [InlineData(0x80116200u)] // WID моба, по ошибке принятый за указатель
+    [InlineData(0xFFFFFFF0u)]
+    public void HighAddressIsNotReadableButDoesNotThrow(uint address)
+    {
+        using var process = GameProcess.Open(OwnPid);
+
+        Assert.False(process.TryRead(address, new byte[4], 4));
+    }
+
     [Fact]
     public void WritesOwnMemoryWhenAllowed()
     {

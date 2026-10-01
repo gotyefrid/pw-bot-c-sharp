@@ -34,6 +34,9 @@ public sealed class GameProcess : IMemory, IDisposable
 
     public int MainModuleSize { get; }
 
+    /// <summary>Полный путь к exe клиента — рядом лежат файлы игры (configs.pck).</summary>
+    public string MainModulePath { get; }
+
     public bool HasExited => _process.HasExited;
 
     private GameProcess(Process process, SafeProcessHandle handle, GameProcessRights rights)
@@ -48,6 +51,7 @@ public sealed class GameProcess : IMemory, IDisposable
         var module = process.MainModule ?? throw new InvalidOperationException($"У процесса {Pid} нет главного модуля");
         MainModuleBase = (uint)module.BaseAddress.ToInt64();
         MainModuleSize = module.ModuleMemorySize;
+        MainModulePath = module.FileName;
     }
 
     public static GameProcess Open(int pid, GameProcessRights rights = GameProcessRights.Read)
@@ -82,7 +86,7 @@ public sealed class GameProcess : IMemory, IDisposable
         if (count == 0)
             return true;
 
-        return NativeMethods.ReadProcessMemory(_handle, new IntPtr((long)address), buffer, new IntPtr(count), out var read)
+        return NativeMethods.ReadProcessMemory(_handle, ToPointer(address), buffer, new IntPtr(count), out var read)
             && read.ToInt64() == count;
     }
 
@@ -91,9 +95,12 @@ public sealed class GameProcess : IMemory, IDisposable
         if (!Rights.HasFlag(GameProcessRights.Write) && !Rights.HasFlag(GameProcessRights.Execute))
             throw new InvalidOperationException("Процесс открыт только для чтения");
 
-        return NativeMethods.WriteProcessMemory(_handle, new IntPtr((long)address), data, new IntPtr(data.Length), out var written)
+        return NativeMethods.WriteProcessMemory(_handle, ToPointer(address), data, new IntPtr(data.Length), out var written)
             && written.ToInt64() == data.Length;
     }
+
+    // В 32-битном процессе IntPtr(long) для адреса ≥ 0x80000000 бросает OverflowException — берём те же 32 бита как int
+    private static IntPtr ToPointer(uint address) => new(unchecked((int)address));
 
     public void Dispose()
     {
