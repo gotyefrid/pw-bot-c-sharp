@@ -56,6 +56,15 @@ public sealed class MemoryImage : IMemory
         return true;
     }
 
+    /// <summary>Номера доступных страниц (адрес страницы = номер * <see cref="PageSize"/>).</summary>
+    public IEnumerable<uint> PageNumbers => _pages.Keys;
+
+    public int PageCount => _pages.Count;
+
+    internal byte[] Page(uint number) => _pages[number];
+
+    internal void SetPage(uint number, byte[] page) => _pages[number] = page;
+
     /// <summary>Делает страницы диапазона доступными (заполнены нулями), ничего не меняя в уже записанных.</summary>
     public void Map(uint address, int size)
     {

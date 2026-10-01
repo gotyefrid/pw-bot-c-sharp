@@ -38,6 +38,10 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Watch(profile, game));
                 case "selftest":
                     return WithClient(rest, WorldCommands.SelfTest);
+                case "dump":
+                    return WithClient(rest, (profile, game) => WorldCommands.Dump(profile, game, rest));
+                case "scanint":
+                    return WithClient(rest, (profile, game) => ScanCommands.ScanInt(profile, game, rest));
                 case "scanstr":
                     return WithClient(rest, (profile, game) => ScanCommands.ScanStrings(profile, game, rest));
             }
@@ -61,6 +65,8 @@ internal static class Program
         Console.WriteLine("  sigmake   сделать длинные уникальные сигнатуры функций профиля (для обновления JSON)");
         Console.WriteLine("  snapshot  прочитать снимок мира: перс, мобы, лут, сумка, скиллы, пет");
         Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
+        Console.WriteLine("  dump      [файл.dump] сохранить прочитанную снимком память в файл — фикстура для тестов без игры");
+        Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
     }
@@ -170,11 +176,12 @@ internal static class Program
 
     private static GameProcess OpenClient(string[] args)
     {
-        var pidArg = args.TakeWhile(a => a != "--server").FirstOrDefault(a => int.TryParse(a, out _));
-        var pid = pidArg is not null
-            ? int.Parse(pidArg)
-            : Process.GetProcessesByName("elementclient").FirstOrDefault()?.Id
-              ?? throw new InvalidOperationException("Клиент elementclient не найден");
+        // Число среди аргументов — PID, только если это запущенный клиент (у scanint числа — искомые значения)
+        var clients = Process.GetProcessesByName("elementclient").Select(p => p.Id).ToList();
+        var pidArg = args.TakeWhile(a => a != "--server").Select(a => int.TryParse(a, out var n) ? n : -1).FirstOrDefault(clients.Contains);
+        var pid = pidArg > 0
+            ? pidArg
+            : clients.Count > 0 ? clients[0] : throw new InvalidOperationException("Клиент elementclient не найден");
 
         return GameProcess.Open(pid);
     }

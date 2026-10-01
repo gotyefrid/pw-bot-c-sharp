@@ -123,6 +123,23 @@ internal static class WorldCommands
         return failed == 0 ? 0 : 4;
     }
 
+    /// <summary>
+    /// Снимает дамп: читает снимок через <see cref="RecordingMemory"/> и сохраняет только реально прочитанные байты
+    /// (остальное на страницах — нули, лишнего из памяти клиента в файл не попадает). Рядом — текстовый снимок для сверки.
+    /// </summary>
+    public static int Dump(IServerProfile profile, GameProcess game, string[] args)
+    {
+        var path = args.FirstOrDefault(a => a.EndsWith(".dump", StringComparison.OrdinalIgnoreCase)) ?? $"world-{profile.Id}.dump";
+        var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, out _);
+        var recording = new RecordingMemory(game);
+        var world = new WorldReader(recording, game.MainModuleBase, profile.Data, names.Get).Read();
+
+        new MemoryDump(profile.Id, game.MainModuleBase, recording.Image).Save(path);
+        File.WriteAllText(Path.ChangeExtension(path, ".txt"), Describe(world, full: true), new UTF8Encoding(true));
+        Console.WriteLine($"Дамп: {path} ({recording.Image.PageCount} страниц, {new FileInfo(path).Length / 1024} КБ), снимок: {Path.ChangeExtension(path, ".txt")}");
+        return 0;
+    }
+
     private static string Bad(IEnumerable<string> items)
     {
         var list = items.Take(5).ToList();

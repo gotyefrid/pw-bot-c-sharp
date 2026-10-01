@@ -66,6 +66,26 @@ internal static class ScanCommands
         return 0;
     }
 
+    /// <summary>
+    /// Ищет в структуре персонажа int32 с заданным значением (поиск поля «до/после»): scanint 490 [ещё значения...].
+    /// Повторить после изменения значения в игре — настоящее поле останется в обоих списках.
+    /// </summary>
+    public static int ScanInt(IServerProfile profile, GameProcess game, string[] args)
+    {
+        var values = args.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
+        var world = new WorldReader(game, game.MainModuleBase, profile.Data).Read();
+        var host = world.Host.Address;
+        var block = game.ReadBytes(host, 0x2000);
+        Console.WriteLine($"Перс 0x{host:X8}: HP {world.Host.Hp}/{world.Host.MaxHp}, MP {world.Host.Mp}");
+        foreach (var value in values)
+        {
+            var hits = Enumerable.Range(0, block.Length / 4).Where(i => BitConverter.ToInt32(block, i * 4) == value).Select(i => $"+0x{i * 4:X3}");
+            Console.WriteLine($"{value}: {string.Join(" ", hits)}");
+        }
+
+        return 0;
+    }
+
     private static string? TryString(IMemory memory, uint address)
     {
         try
