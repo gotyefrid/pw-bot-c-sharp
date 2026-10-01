@@ -34,7 +34,7 @@ namespace BotCH
             Pet.form = this;
             Action.form = this;
             HotKeysService.form = this;
-            this.cageSelect.SelectedIndex = 1;
+            this.cageSelect.SelectedIndex = 0;
             this.InitParamsFromIniConfig();
         }
 
@@ -115,7 +115,7 @@ namespace BotCH
             this.checkBoxUseSword.Checked = IniManager.ReadINI("settings", "checkBoxUseSword") == "1";
             this.checkBoxLooting.Checked = IniManager.ReadINI("settings", "checkBoxLooting") == "1";
             this.checkBoxCheckId.Checked = IniManager.ReadINI("settings", "checkBoxCheckId") == "1";
-            this.cageSelect.SelectedIndex = int.Parse(IniManager.ReadINI("settings", "selectCage", "2")) - 1;
+            this.cageSelect.SelectedIndex = int.Parse(IniManager.ReadINI("settings", "selectCage", "1")) - 1;
         }
 
         private void checkBoxUnfrezze_CheckedChanged(object sender, EventArgs e)

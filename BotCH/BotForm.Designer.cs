@@ -372,8 +372,6 @@
             // checkBoxComeCloser
             // 
             this.checkBoxComeCloser.AutoSize = true;
-            this.checkBoxComeCloser.Checked = true;
-            this.checkBoxComeCloser.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxComeCloser.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkBoxComeCloser.Location = new System.Drawing.Point(168, 144);
             this.checkBoxComeCloser.Name = "checkBoxComeCloser";
@@ -387,8 +385,6 @@
             // checkFindAgrMob
             // 
             this.checkFindAgrMob.AutoSize = true;
-            this.checkFindAgrMob.Checked = true;
-            this.checkFindAgrMob.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkFindAgrMob.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkFindAgrMob.Location = new System.Drawing.Point(13, 144);
             this.checkFindAgrMob.Name = "checkFindAgrMob";
@@ -451,8 +447,6 @@
             // checkBoxCheckId
             // 
             this.checkBoxCheckId.AutoSize = true;
-            this.checkBoxCheckId.Checked = true;
-            this.checkBoxCheckId.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxCheckId.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkBoxCheckId.Location = new System.Drawing.Point(168, 117);
             this.checkBoxCheckId.Name = "checkBoxCheckId";
@@ -466,8 +460,6 @@
             // checkBoxLooting
             // 
             this.checkBoxLooting.AutoSize = true;
-            this.checkBoxLooting.Checked = true;
-            this.checkBoxLooting.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxLooting.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkBoxLooting.Location = new System.Drawing.Point(13, 117);
             this.checkBoxLooting.Name = "checkBoxLooting";
@@ -481,8 +473,6 @@
             // checkBoxUseSword
             // 
             this.checkBoxUseSword.AutoSize = true;
-            this.checkBoxUseSword.Checked = true;
-            this.checkBoxUseSword.CheckState = System.Windows.Forms.CheckState.Checked;
             this.checkBoxUseSword.Font = new System.Drawing.Font("Microsoft Sans Serif", 10F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.checkBoxUseSword.Location = new System.Drawing.Point(168, 91);
             this.checkBoxUseSword.Name = "checkBoxUseSword";

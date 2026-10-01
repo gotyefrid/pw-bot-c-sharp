@@ -106,6 +106,23 @@ namespace BotCH
                 }
             }
 
+            if (GameCall.Enabled)
+            {
+                // Сначала тот, кто бьёт нас или пета (белый список для него не важен), потом ближайший
+                uint aggressor = MobReader.FindMobAttackingUs();
+
+                if (aggressor != 0)
+                {
+                    Logger.setLog("Mob " + aggressor + " is attacking me or my pet");
+                    AgressiveMob = aggressor;
+                    Action.SelectMob(aggressor);
+                    return;
+                }
+
+                Action.SelectNearestMob(form.checkBoxCheckId.Checked ? AllowMobsIds : null);
+                return;
+            }
+
             Logger.setLog("Change mob by click TAB");
 
             if (form.checkBoxCheckId.Checked == false)
@@ -183,6 +200,12 @@ namespace BotCH
             {
                 int n = int.Parse(form.textBoxLootingClicks.Text);
 
+                if (GameCall.CanPickup)
+                {
+                    PickUpLootDirect(n);
+                    return;
+                }
+
                 Logger.setLog("Pick up loot " + n + " times");
 
                 for (int i = 0; i < n; i++)
@@ -191,6 +214,37 @@ namespace BotCH
                     Thread.Sleep(600);
                 }
             }
+        }
+
+        // Радиус подбора на сервере ~10 м (проверено), берём с запасом на задержку координат
+        private const float PickupRadius = 9.5f;
+        // Пауза между подборами, мс: случайная, чтобы не выглядело как бот
+        private const int PickupDelayMin = 700;
+        private const int PickupDelayMax = 1300;
+        private static readonly Random _random = new Random();
+
+        // Подбор прямым вызовом: до n раз ближайший предмет в радиусе, без подхода к дальним
+        private static void PickUpLootDirect(int n)
+        {
+            int picked = 0;
+
+            for (int i = 0; i < n; i++)
+            {
+                if (!ItemReader.FindNearestItem(PickupRadius, out uint id, out uint tid))
+                {
+                    break;
+                }
+
+                if (!GameCall.Pickup(id, tid))
+                {
+                    break;
+                }
+
+                picked++;
+                Thread.Sleep(_random.Next(PickupDelayMin, PickupDelayMax));
+            }
+
+            Logger.setLog("Pick up loot: " + picked + " item(s) (direct call)");
         }
 
         private static bool SearchCurrentMobIdInList()
@@ -232,7 +286,7 @@ namespace BotCH
                     return;
                 }
 
-                if ((DateTime.Now - timeStart).Duration().Seconds > KillMobTimerSec)
+                if ((DateTime.Now - timeStart).TotalSeconds > KillMobTimerSec)
                 {
                     Logger.setLog("Change trarget. Time-out 120 sec. to killing mob passed");
                     return;

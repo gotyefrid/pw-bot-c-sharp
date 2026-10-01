@@ -1,5 +1,7 @@
-﻿using BotCH.MemoryHelpers;
+﻿using BotCH.Entity;
+using BotCH.MemoryHelpers;
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -92,13 +94,75 @@ namespace BotCH
             Action.ClickKey(Keys.Tab);
         }
 
+        // Выбор ближайшего моба прямым вызовом функции игры (работает при неактивном окне).
+        // allowedWids — белый список WID или null. Возвращает WID выбранного моба или 0.
+        public static uint SelectNearestMob(ICollection<string> allowedWids)
+        {
+            uint wid = MobReader.FindNearestMob(allowedWids);
+
+            if (wid == 0)
+            {
+                Logger.setLog("No mobs around to select");
+                Thread.Sleep(1000);
+                return 0;
+            }
+
+            return SelectMob(wid) ? wid : 0;
+        }
+
+        // Выбор конкретного моба прямым вызовом функции игры
+        public static bool SelectMob(uint wid)
+        {
+            if (!GameCall.SelectTarget(wid))
+            {
+                return false;
+            }
+
+            Logger.setLog("Select target " + wid + " (direct call)");
+            Thread.Sleep(300);
+
+            return true;
+        }
+
         public static void AttackBySword()
         {
+            if (GameCall.Enabled)
+            {
+                WaitForCasting(Keys.F1);
+
+                if (GameCall.NormalAttack())
+                {
+                    if (Logger.KeyLogger)
+                    {
+                        Logger.setLog("Normal attack (direct call)");
+                    }
+
+                    Thread.Sleep(200);
+                    return;
+                }
+            }
+
             Action.ClickKey(Keys.F1);
         }
 
         public static void AttackByPet()
         {
+            if (GameCall.CanPetAttack)
+            {
+                uint target = TargetMobEntity.WID;
+
+                if (target != 0 && GameCall.PetAttack(target))
+                {
+                    if (Logger.KeyLogger)
+                    {
+                        Logger.setLog("Pet attack " + target + " (direct call)");
+                    }
+
+                    Thread.Sleep(500);
+                    return;
+                }
+            }
+
             Action.ClickCombineKeys(Keys.Menu, Keys.D1);
         }
 

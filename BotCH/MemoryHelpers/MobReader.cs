@@ -200,6 +200,110 @@ namespace BotCH.MemoryHelpers
             return 0;
         }
 
+        /// <summary>
+        /// Аналог Tab: ближайший живой моб вокруг.
+        /// Если передан белый список WID — выбираются только мобы из него.
+        /// HP не проверяется: клиент знает HP только у выбранной цели, у остальных там 0.
+        /// Трупы отсекаются по MOB_ACTION_OFFSET == ACTION_DIES: значение 4 ставится в момент смерти и держится, пока труп не исчезнет.
+        /// </summary>
+        /// <returns>WID моба или 0, если подходящих нет.</returns>
+        public static uint FindNearestMob(ICollection<string> allowedWids = null)
+        {
+            uint array = ReadUint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+            array = ReadUint32(array + Offset.Get.MOB_OFFSET_2);
+            array = ReadUint32(array + Offset.Get.MOB_STRUCT_OFFSET);
+
+            uint nearestWid = 0;
+            float nearestDist = float.MaxValue;
+
+            for (uint i = 0; i <= 768; i++)
+            {
+                uint entry = ReadUint32(array + i * 4);
+
+                if (entry == 0)
+                {
+                    continue;
+                }
+
+                uint mobStruct = ReadUint32(entry + 0x4);
+                uint mobWid = ReadUint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
+
+                if (ReadUint32(mobStruct + Offset.Get.MOB_TYPE_OFFSET) != TargetMobEntity.TYPE_MOB
+                    || ReadUint32(mobStruct + Offset.Get.MOB_ACTION_OFFSET) == TargetMobEntity.ACTION_DIES)
+                {
+                    continue;
+                }
+
+                if (allowedWids != null && !allowedWids.Contains(mobWid.ToString()))
+                {
+                    continue;
+                }
+
+                float dist = ReadFloat(mobStruct + Offset.Get.MOB_DIST_OFFSET);
+
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearestWid = mobWid;
+                }
+            }
+
+            return nearestWid;
+        }
+
+        /// <summary>
+        /// Ближайший живой моб, который агрится на персонажа или его пета (MOB_TARGET_OFFSET).
+        /// Смотрит всех существ вокруг, а не сохранённый список. Игроки и NPC не учитываются.
+        /// </summary>
+        /// <returns>WID моба или 0, если нас никто не бьёт.</returns>
+        public static uint FindMobAttackingUs()
+        {
+            uint persWid = PersReader.GetMyPersWID();
+            uint petWid = PersReader.GetCurrentPetId();
+
+            uint array = ReadUint32(ReadGameAddress() + Offset.Get.MOB_OFFSET_1);
+            array = ReadUint32(array + Offset.Get.MOB_OFFSET_2);
+            array = ReadUint32(array + Offset.Get.MOB_STRUCT_OFFSET);
+
+            uint nearestWid = 0;
+            float nearestDist = float.MaxValue;
+
+            for (uint i = 0; i <= 768; i++)
+            {
+                uint entry = ReadUint32(array + i * 4);
+
+                if (entry == 0)
+                {
+                    continue;
+                }
+
+                uint mobStruct = ReadUint32(entry + 0x4);
+
+                if (ReadUint32(mobStruct + Offset.Get.MOB_TYPE_OFFSET) != TargetMobEntity.TYPE_MOB
+                    || ReadUint32(mobStruct + Offset.Get.MOB_ACTION_OFFSET) == TargetMobEntity.ACTION_DIES)
+                {
+                    continue;
+                }
+
+                uint mobTarget = ReadUint32(mobStruct + Offset.Get.MOB_TARGET_OFFSET);
+
+                if (mobTarget == 0 || (mobTarget != persWid && mobTarget != petWid))
+                {
+                    continue;
+                }
+
+                float dist = ReadFloat(mobStruct + Offset.Get.MOB_DIST_OFFSET);
+
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearestWid = ReadUint32(mobStruct + Offset.Get.MOB_WID_OFFSET);
+                }
+            }
+
+            return nearestWid;
+        }
+
         public static Dictionary<uint, string> GetActualListMobsOffsetsInArray()
         {
             Dictionary<uint, string> array = new Dictionary<uint, string>();

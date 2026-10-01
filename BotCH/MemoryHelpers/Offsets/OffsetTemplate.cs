@@ -44,6 +44,23 @@ namespace BotCH.MemoryHelpers.Offsets
         public abstract uint MOB_DIST_OFFSET { get; }
         public abstract uint MOB_TARGET_OFFSET { get; }
 
+        // Функции клиента для прямого вызова (GameCall), смещение от начала модуля. 0 — не поддерживается
+        public virtual uint C2S_SELECT_TARGET_FUNC { get => 0; }
+        public virtual byte[] C2S_SELECT_TARGET_SIG { get => new byte[] { }; }
+        public virtual uint C2S_NORMAL_ATTACK_FUNC { get => 0; }
+        public virtual byte[] C2S_NORMAL_ATTACK_SIG { get => new byte[] { }; }
+        public virtual uint C2S_PICKUP_FUNC { get => 0; }
+        public virtual byte[] C2S_PICKUP_SIG { get => new byte[] { }; }
+        public virtual uint C2S_PET_CTRL_FUNC { get => 0; }
+        public virtual byte[] C2S_PET_CTRL_SIG { get => new byte[] { }; }
+
+        // Предметы на земле (ItemReader). Список: мир (MOB_OFFSET_1) + GROUND_ITEMS_OFFSET
+        public virtual uint GROUND_ITEMS_OFFSET { get => 0; }
+        public virtual uint ITEM_ID_OFFSET { get => 0; }
+        public virtual uint ITEM_TID_OFFSET { get => 0; }
+        public virtual uint ITEM_KIND_OFFSET { get => 0; }
+        public virtual uint ITEM_DIST_OFFSET { get => 0; }
+
         public uint GetOffsetFromIni(string name, string defaultValue)
         {
             string value = BotForm.IniManager.ReadINI("offsets", name, defaultValue);
