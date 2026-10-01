@@ -2,6 +2,7 @@ using System;
 using System.Collections.Specialized;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Threading;
 
 namespace BotCH.App;
 
@@ -16,12 +17,19 @@ public partial class MainWindow : Window
         _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory);
         DataContext = _model;
 
-        // Лог прокручивается к новой строке
+        // Лог прокручивается к новой строке. Не сразу, а после того как список сам обработает добавление:
+        // прокрутка внутри CollectionChanged идёт раньше списка — WPF видит рассогласование и падает
         _model.Log.CollectionChanged += (_, e) =>
         {
-            if (e.Action == NotifyCollectionChangedAction.Add && LogList.Items.Count > 0)
-                LogList.ScrollIntoView(LogList.Items[LogList.Items.Count - 1]);
+            if (e.Action == NotifyCollectionChangedAction.Add)
+                Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(ScrollLogToEnd));
         };
+    }
+
+    private void ScrollLogToEnd()
+    {
+        if (LogList.Items.Count > 0)
+            LogList.ScrollIntoView(LogList.Items[LogList.Items.Count - 1]);
     }
 
     protected override void OnSourceInitialized(EventArgs e)
