@@ -39,6 +39,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Watch(profile, game));
                 case "selftest":
                     return WithClient(rest, WorldCommands.SelfTest);
+                case "act":
+                    return ActCommands.Act(LoadProfile(rest), rest);
                 case "rename":
                     return Rename(rest);
                 case "dump":
@@ -73,6 +75,9 @@ internal static class Program
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
+        Console.WriteLine();
+        Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
+        Console.WriteLine(ActCommands.Usage);
     }
 
     private static int Attach(string[] args)
@@ -202,7 +207,7 @@ internal static class Program
         return ProfileCatalog.Default().Load(id);
     }
 
-    private static GameProcess OpenClient(string[] args)
+    internal static GameProcess OpenClient(string[] args, GameProcessRights rights = GameProcessRights.Read)
     {
         // Число среди аргументов — PID, только если это запущенный клиент (у scanint числа — искомые значения)
         var clients = Process.GetProcessesByName("elementclient").Select(p => p.Id).ToList();
@@ -211,6 +216,6 @@ internal static class Program
             ? pidArg
             : clients.Count > 0 ? clients[0] : throw new InvalidOperationException("Клиент elementclient не найден");
 
-        return GameProcess.Open(pid);
+        return GameProcess.Open(pid, rights);
     }
 }
