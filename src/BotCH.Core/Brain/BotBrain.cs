@@ -14,7 +14,7 @@ namespace BotCH.Core.Brain;
 /// (выжить → пет → бой), первое занявшее ход останавливает перебор. Один поток решений: <see cref="Tick"/>
 /// вызывается из потока снимков. Режим «фарм мобов»; другие режимы (сбор ресурсов) — другим набором поведений.
 /// </summary>
-public sealed class BotBrain
+public sealed class BotBrain : IBotRunner
 {
     private readonly object _lock = new();
     private readonly BrainContext _context;

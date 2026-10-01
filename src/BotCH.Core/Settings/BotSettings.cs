@@ -11,6 +11,9 @@ namespace BotCH.Core.Settings;
 /// </summary>
 public sealed class BotSettings
 {
+    /// <summary>Чем занимается бот у этого персонажа.</summary>
+    public BotMode Mode { get; set; } = BotMode.FarmMobs;
+
     public ConnectionSettings Connection { get; set; } = new();
     public TargetSettings Target { get; set; } = new();
     public CombatSettings Combat { get; set; } = new();
@@ -45,6 +48,16 @@ public sealed class BotSettings
 
     private static int Clamp(int value, int min, int max) => Math.Min(max, Math.Max(min, value));
     private static float Clamp(float value, float min, float max) => Math.Min(max, Math.Max(min, value));
+}
+
+public enum BotMode
+{
+    /// <summary>Бить мобов (основной режим).</summary>
+    FarmMobs,
+    /// <summary>Собирать ресурсы — часть 8, пока заготовка.</summary>
+    GatherResources,
+    /// <summary>Кликер — часть 10, пока заготовка.</summary>
+    Clicker,
 }
 
 public sealed class ConnectionSettings

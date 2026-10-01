@@ -94,6 +94,10 @@
     <Border Grid.Row="2" Background="#E6E9F0" CornerRadius="9" Padding="3" Margin="0,0,0,10" HorizontalAlignment="Left">
       <StackPanel Orientation="Horizontal">
         <RadioButton Style="{StaticResource Segment}" Content="Бот" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=0}" />
+        <RadioButton Style="{StaticResource Segment}" Content="Ресы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=3}"
+                     Visibility="{Binding ShowResourcesTab, Converter={StaticResource Visible}}" />
+        <RadioButton Style="{StaticResource Segment}" Content="Кликер" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=4}"
+                     Visibility="{Binding ShowClickerTab, Converter={StaticResource Visible}}" />
         <RadioButton Style="{StaticResource Segment}" Content="Настройки" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}" />
         <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
       </StackPanel>
@@ -102,6 +106,11 @@
     <!-- Персонаж, цель, пет -->
     <Border Grid.Row="3" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
       <StackPanel>
+        <DockPanel Margin="0,0,0,12">
+          <TextBlock Text="Режим" Style="{StaticResource Muted}" VerticalAlignment="Center" Width="60" />
+          <ComboBox ItemsSource="{Binding Modes}" DisplayMemberPath="Title" SelectedValuePath="Mode" SelectedValue="{Binding Mode}"
+                    ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
+        </DockPanel>
         <DockPanel Margin="0,0,0,8">
           <TextBlock DockPanel.Dock="Right" Text="{Binding HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
           <TextBlock Text="{Binding HostName}" FontSize="15" FontWeight="SemiBold" />
@@ -179,6 +188,28 @@
                      ToolTip="Последняя запись лога. Весь лог — на вкладке «Лог»" />
         </StackPanel>
       </DockPanel>
+    </Border>
+
+    <!-- Ресы: режим «Собирать ресурсы» (часть 8) — пока заготовка -->
+    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" VerticalAlignment="Top"
+            Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=3}">
+      <StackPanel>
+        <TextBlock Text="СБОР РЕСУРСОВ" Style="{StaticResource CardTitle}" />
+        <TextBlock TextWrapping="Wrap" Text="Здесь будут маршрут (точки, ходьба или полёт) и список ресурсов по названию — травы, руда." />
+        <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,8,0,0"
+                   Text="Режим ещё не сделан: при «Старт» бот ничего не делает в игре." />
+      </StackPanel>
+    </Border>
+
+    <!-- Кликер (часть 10) — пока заготовка -->
+    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" VerticalAlignment="Top"
+            Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=4}">
+      <StackPanel>
+        <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
+        <TextBlock TextWrapping="Wrap" Text="Здесь будет список шагов, которые бот повторяет по кругу: нажать клавишу или скилл, подобрать, выбрать моба, подождать." />
+        <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,8,0,0"
+                   Text="Режим ещё не сделан: при «Старт» бот ничего не делает в игре." />
+      </StackPanel>
     </Border>
 
     <!-- Лог: текст можно выделять и копировать -->

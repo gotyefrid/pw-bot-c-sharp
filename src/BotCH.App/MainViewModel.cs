@@ -52,7 +52,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // Бот (мозг) — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute
     private GameProcess? _exec;
-    private BotBrain? _brain;
+    private IBotRunner? _brain;
     private Action<WorldState>? _brainTick;
 
     public MainViewModel(string appDirectory)
@@ -260,7 +260,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
             var runner = new ActionRunner(new DirectCallActions(caller), _logger.For("действия"));
-            _brain = new BotBrain(runner, _profile.Data.Skills, _settings, _logger.For("мозг"));
+            _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"));
             _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
             _brain.StopRequested += reason => OnUi(Stop);
             _brainTick = _brain.Tick;
@@ -268,7 +268,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             IsRunning = true;
             BotState = "Запуск…";
-            _log.Info("Старт");
+            _log.Info($"Старт: {BotModes.Title(_settings.Mode)}");
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -299,7 +299,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private int _tab;
 
-    /// <summary>Вкладка в середине окна: 0 — бот, 1 — настройки, 2 — лог.</summary>
+    /// <summary>Вкладка в середине окна: 0 — бот, 1 — настройки, 2 — лог, 3 — ресы, 4 — кликер.</summary>
     public int Tab
     {
         get => _tab;
@@ -670,6 +670,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _brain?.UpdateSettings(_settings);
         OnPropertyChanged(nameof(Settings));
         LoadNameLists();
+        ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
         AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа
     }
@@ -693,6 +694,48 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         get => _onlyImportantLog;
         set => SetProperty(ref _onlyImportantLog, value);
     }
+
+    public sealed record ModeChoice(BotMode Mode, string Title);
+
+    public IReadOnlyList<ModeChoice> Modes { get; } =
+        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
+
+    /// <summary>Режим бота у этого персонажа. Смена во время работы останавливает бота.</summary>
+    public BotMode Mode
+    {
+        get => _settings.Mode;
+        set
+        {
+            if (_settings.Mode == value)
+                return;
+
+            if (IsRunning)
+            {
+                Stop();
+                _log.Info("Режим сменён — бот остановлен, нажмите «Старт»");
+            }
+
+            _settings.Mode = value;
+            SettingsEdited();
+            ModeChanged();
+        }
+    }
+
+    public bool ShowResourcesTab => _settings.Mode == BotMode.GatherResources;
+    public bool ShowClickerTab => _settings.Mode == BotMode.Clicker;
+
+    private void ModeChanged()
+    {
+        OnPropertyChanged(nameof(Mode));
+        OnPropertyChanged(nameof(ShowResourcesTab));
+        OnPropertyChanged(nameof(ShowClickerTab));
+        // Вкладка исчезла — на «Бот»
+        if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab))
+            Tab = 0;
+    }
+
+    public const int TabResources = 3;
+    public const int TabClicker = 4;
 
     /// <summary>Чьи настройки сейчас на вкладке «Настройки».</summary>
     public string SettingsOwner => _nick is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_nick}";
