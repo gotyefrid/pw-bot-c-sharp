@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using BotCH.Core.Clients;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
 
@@ -38,6 +39,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Watch(profile, game));
                 case "selftest":
                     return WithClient(rest, WorldCommands.SelfTest);
+                case "rename":
+                    return Rename(rest);
                 case "dump":
                     return WithClient(rest, (profile, game) => WorldCommands.Dump(profile, game, rest));
                 case "scanint":
@@ -65,6 +68,7 @@ internal static class Program
         Console.WriteLine("  sigmake   сделать длинные уникальные сигнатуры функций профиля (для обновления JSON)");
         Console.WriteLine("  snapshot  прочитать снимок мира: перс, мобы, лут, сумка, скиллы, пет");
         Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
+        Console.WriteLine("  rename    переименовать окна всех клиентов в «Ник PID» и проверить заголовки (WinAPI, память только читается)");
         Console.WriteLine("  dump      [файл.dump] сохранить прочитанную снимком память в файл — фикстура для тестов без игры");
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
@@ -158,6 +162,30 @@ internal static class Program
         }
 
         return 0;
+    }
+
+    private static int Rename(string[] args)
+    {
+        var profile = LoadProfile(args);
+        var clients = ClientList.Build(new SystemClientSource(profile.Data), profile.Data.ClientProcessName);
+        if (clients.Count == 0)
+        {
+            Console.WriteLine("❌ Клиенты не найдены");
+            return 1;
+        }
+
+        var failed = 0;
+        foreach (var client in clients)
+        {
+            var before = NativeWindows.GetTitle(client.Window);
+            NativeWindows.SetTitle(client.Window, client.WindowTitle);
+            var after = NativeWindows.GetTitle(client.Window);
+            var ok = after == client.WindowTitle;
+            failed += ok ? 0 : 1;
+            Console.WriteLine($"{(ok ? "✅" : "❌")} PID {client.Pid}: «{before}» → «{after}»");
+        }
+
+        return failed == 0 ? 0 : 5;
     }
 
     private static int WithClient(string[] args, Func<IServerProfile, GameProcess, int> command)

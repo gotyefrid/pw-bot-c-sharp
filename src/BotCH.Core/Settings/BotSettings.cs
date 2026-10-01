@@ -53,6 +53,9 @@ public sealed class ConnectionSettings
 
     /// <summary>Переименовывать окна клиентов в ник персонажа.</summary>
     public bool RenameWindows { get; set; } = true;
+
+    /// <summary>Не давать клиенту «засыпать» без фокуса (запись в данные игры раз в секунду).</summary>
+    public bool Unfreeze { get; set; }
 }
 
 public sealed class TargetSettings

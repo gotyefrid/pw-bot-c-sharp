@@ -67,6 +67,20 @@ public sealed class WorldReader
         };
     }
 
+    /// <summary>Только ник — для списка клиентов. null, если персонаж не в мире.</summary>
+    public string? TryReadHostName()
+    {
+        try
+        {
+            var host = _memory.ReadUInt32(GameAddress() + _p.Host.Struct);
+            return host != 0 && _memory.TryReadUInt32(host + _p.Host.NamePointer, out var name) ? ReadName(name) : null;
+        }
+        catch (Exception e) when (e is WorldNotReadyException or MemoryAccessException)
+        {
+            return null;
+        }
+    }
+
     private uint GameAddress()
     {
         try
