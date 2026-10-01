@@ -100,6 +100,9 @@ namespace BotCH.MemoryHelpers.Offsets
         // Единственный вызывающий в клиенте — 0x5CC050 (ограничитель частоты), его вызывает 0x46E930 (логика клиента)
         public override uint C2S_PICKUP_FUNC { get => 0x1F03B0; }
         public override byte[] C2S_PICKUP_SIG => new byte[] { 0x56, 0x6A, 0x0A, 0xE8 };
+        // c2s_SendCmdUnselect(), команда 0x08, пакет 2 байта, без параметров (аналог Esc). Код: push esi; push 2; call alloc ... mov word [esi], 8
+        public override uint C2S_UNSELECT_FUNC { get => 0x1F0C90; }
+        public override byte[] C2S_UNSELECT_SIG => new byte[] { 0x56, 0x6A, 0x02, 0xE8 };
         // c2s_SendCmdPetCtrl(int target, int cmd, void* data, int size), команда 0x67, пакет 10 + size байт.
         // Стоит в таблице сразу за командами пета 0x63–0x66 (призвать/отозвать/отпустить). Код: push ebx; push ebp; push esi; mov esi,[esp+1Ch].
         // Номера приказов — по вызовам из клиента (через ограничитель 0x5CC430, вызовы ~0x52DC00–0x52E080):

@@ -47,6 +47,17 @@ namespace BotCH.MemoryHelpers
             return Call(Offset.Get.C2S_PICKUP_FUNC, Offset.Get.C2S_PICKUP_SIG, id, tid);
         }
 
+        // Снять цель (аналог Esc)
+        public static bool Unselect()
+        {
+            if (!Enabled || Offset.Get.C2S_UNSELECT_FUNC == 0)
+            {
+                return false;
+            }
+
+            return Call(Offset.Get.C2S_UNSELECT_FUNC, Offset.Get.C2S_UNSELECT_SIG);
+        }
+
         // pvpMask = 0: обычная атака без PvP
         public static bool NormalAttack()
         {

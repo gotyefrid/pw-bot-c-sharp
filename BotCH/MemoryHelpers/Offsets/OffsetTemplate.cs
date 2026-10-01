@@ -51,6 +51,8 @@ namespace BotCH.MemoryHelpers.Offsets
         public virtual byte[] C2S_NORMAL_ATTACK_SIG { get => new byte[] { }; }
         public virtual uint C2S_PICKUP_FUNC { get => 0; }
         public virtual byte[] C2S_PICKUP_SIG { get => new byte[] { }; }
+        public virtual uint C2S_UNSELECT_FUNC { get => 0; }
+        public virtual byte[] C2S_UNSELECT_SIG { get => new byte[] { }; }
         public virtual uint C2S_PET_CTRL_FUNC { get => 0; }
         public virtual byte[] C2S_PET_CTRL_SIG { get => new byte[] { }; }
 

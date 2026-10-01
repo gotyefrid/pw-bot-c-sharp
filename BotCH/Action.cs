@@ -86,6 +86,11 @@ namespace BotCH
 
         public static void EscapeClick(bool needCastingCheck = false)
         {
+            if (GameCall.Unselect())
+            {
+                return;
+            }
+
             Action.ClickKey(Keys.Escape, needCastingCheck);
         }
 
