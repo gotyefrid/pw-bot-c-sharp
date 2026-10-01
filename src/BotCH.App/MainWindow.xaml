@@ -187,6 +187,8 @@
       <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="14,10,10,4">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            <CheckBox Style="{StaticResource Switch}" Content="Только важное" IsChecked="{Binding OnlyImportantLog}" Margin="0,0,10,0"
+                      ToolTip="Показывать только предупреждения и ошибки (в файл пишется всё)" Checked="LogFilterChanged" Unchecked="LogFilterChanged" />
             <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE838;" Click="OpenLogFolder"
                     ToolTip="Открыть папку с файлами лога" Background="Transparent" />
             <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE74D;" Command="{Binding ClearLogCommand}"
@@ -237,9 +239,12 @@
             <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
-            <TextBox Text="{Binding MobNamesText, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,0"
-                     IsEnabled="{Binding Settings.Target.UseMobList}"
-                     ToolTip="Названия через запятую, как в игре: Сидящий волк, Горный варвар. Одно название — все такие мобы" />
+            <DockPanel Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}">
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Height="28" Margin="6,0,0,0" Content="&#xE710;"
+                      Click="PickMob" ToolTip="Добавить из мобов вокруг" />
+              <TextBox Text="{Binding MobNamesText, UpdateSourceTrigger=LostFocus}"
+                       ToolTip="Названия через запятую, как в игре: Сидящий волк, Горный варвар. Одно название — все такие мобы" />
+            </DockPanel>
           </StackPanel>
         </Border>
 
@@ -264,8 +269,12 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
             </DockPanel>
-            <TextBox Text="{Binding LootNamesText, UpdateSourceTrigger=LostFocus}" Margin="0,4,0,0"
-                     ToolTip="Названия предметов через запятую, как на земле: Мягкий мех, Красный нефрит" />
+            <DockPanel Margin="0,4,0,0">
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Height="28" Margin="6,0,0,0" Content="&#xE710;"
+                      Click="PickLoot" ToolTip="Добавить из предметов на земле вокруг" />
+              <TextBox Text="{Binding LootNamesText, UpdateSourceTrigger=LostFocus}"
+                       ToolTip="Названия предметов через запятую, как на земле: Мягкий мех, Красный нефрит" />
+            </DockPanel>
           </StackPanel>
         </Border>
 
@@ -288,6 +297,8 @@
             <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Использовать пета" IsChecked="{Binding Settings.Pet.Enabled}"
                       ToolTip="Выключено или пета нет (не друид) — всё про пета пропускается" />
+            <TextBlock Text="У персонажа нет петов — эти настройки не используются" Style="{StaticResource Muted}" Margin="0,2,0,4"
+                       Visibility="{Binding HasPets, Converter={StaticResource Hidden}}" />
             <StackPanel IsEnabled="{Binding Settings.Pet.Enabled}">
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Клетка (1–10)" VerticalAlignment="Center" />

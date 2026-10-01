@@ -500,6 +500,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_monitor is null)
             return;
 
+        _lastWorld = w;
+        HasPets = w.Pet is not null;
         var h = w.Host;
         if (h.Name.Length > 0)
             SwitchCharacter(h.Name);
@@ -622,6 +624,46 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(LootNamesText));
         OnPropertyChanged(nameof(SettingsOwner));
         AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа
+    }
+
+    private WorldState? _lastWorld;
+
+    /// <summary>Мобы вокруг по названиям — для выбора в список целей.</summary>
+    public IReadOnlyList<NameCount> NearbyMobNames() => _lastWorld is null ? [] : NearbyNames.Mobs(_lastWorld);
+
+    /// <summary>Предметы на земле по названиям — для списка лута.</summary>
+    public IReadOnlyList<NameCount> NearbyItemNames() => _lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld);
+
+    public void AddMobName(string name)
+    {
+        _settings.Target.MobNames = MobNameFilter.Clean(_settings.Target.MobNames.Concat([name]));
+        OnPropertyChanged(nameof(MobNamesText));
+        SettingsEdited();
+    }
+
+    public void AddLootName(string name)
+    {
+        _settings.Loot.ItemNames = MobNameFilter.Clean(_settings.Loot.ItemNames.Concat([name]));
+        OnPropertyChanged(nameof(LootNamesText));
+        SettingsEdited();
+    }
+
+    private bool _hasPets = true;
+
+    /// <summary>Есть ли у персонажа петы вообще (не друид — нет). Пока неизвестно — считаем, что есть.</summary>
+    public bool HasPets
+    {
+        get => _hasPets;
+        private set => SetProperty(ref _hasPets, value);
+    }
+
+    private bool _onlyImportantLog;
+
+    /// <summary>В логе только предупреждения и ошибки.</summary>
+    public bool OnlyImportantLog
+    {
+        get => _onlyImportantLog;
+        set => SetProperty(ref _onlyImportantLog, value);
     }
 
     /// <summary>Чьи настройки сейчас на вкладке «Настройки».</summary>

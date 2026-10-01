@@ -3,7 +3,11 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Windows.Documents;
 using System.Windows.Media;
+using System.Collections.Generic;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using BotCH.Core.Logging;
+using BotCH.Core.World;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -22,8 +26,7 @@ public partial class MainWindow : Window
         DataContext = _model;
 
         // Лог в RichTextBox: текст можно выделять и копировать
-        foreach (var entry in _model.Log)
-            LogBox.Document.Blocks.Add(Line(entry));
+        RebuildLog();
         _model.Log.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 
@@ -46,13 +49,21 @@ public partial class MainWindow : Window
             // Прокручиваем вниз, только если пользователь и так внизу (не мешаем выделять старое)
             var atEnd = LogBox.VerticalOffset + LogBox.ViewportHeight >= LogBox.ExtentHeight - 4;
             foreach (LogEntry entry in e.NewItems)
-                blocks.Add(Line(entry));
+            {
+                if (Shown(entry))
+                    blocks.Add(Line(entry));
+            }
             if (atEnd)
                 LogBox.ScrollToEnd();
         }
-        else if (e.Action == NotifyCollectionChangedAction.Remove && blocks.FirstBlock is not null)
+        else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems is not null)
         {
-            blocks.Remove(blocks.FirstBlock);
+            // Строки в окне — не все записи (фильтр): удаляем, только если первая показанная — это удалённая запись
+            foreach (LogEntry entry in e.OldItems)
+            {
+                if (ReferenceEquals(blocks.FirstBlock?.Tag, entry))
+                    blocks.Remove(blocks.FirstBlock);
+            }
         }
         else if (e.Action == NotifyCollectionChangedAction.Reset)
         {
@@ -62,7 +73,7 @@ public partial class MainWindow : Window
 
     private static Paragraph Line(LogEntry entry)
     {
-        var line = new Paragraph { Margin = new Thickness(0, 0, 0, 1) };
+        var line = new Paragraph { Margin = new Thickness(0, 0, 0, 1), Tag = entry };
         line.Inlines.Add(new Run($"{entry.Time:HH:mm:ss} [{entry.Source}] ") { Foreground = Muted });
         line.Inlines.Add(new Run(entry.Message)
         {
@@ -75,6 +86,41 @@ public partial class MainWindow : Window
             },
         });
         return line;
+    }
+
+    private bool Shown(LogEntry entry) => !_model.OnlyImportantLog || entry.Level >= LogLevel.Warning;
+
+    private void RebuildLog()
+    {
+        var blocks = LogBox.Document.Blocks;
+        blocks.Clear();
+        foreach (var entry in _model.Log.Where(Shown))
+            blocks.Add(Line(entry));
+        LogBox.ScrollToEnd();
+    }
+
+    private void LogFilterChanged(object sender, RoutedEventArgs e) => RebuildLog();
+
+    private void PickMob(object sender, RoutedEventArgs e)
+        => ShowNames((FrameworkElement)sender, _model.NearbyMobNames(), "Рядом нет мобов", _model.AddMobName);
+
+    private void PickLoot(object sender, RoutedEventArgs e)
+        => ShowNames((FrameworkElement)sender, _model.NearbyItemNames(), "На земле ничего нет", _model.AddLootName);
+
+    // Меню из названий вокруг: «Сидящий волк ×3 · 12 м» → добавить в список
+    private static void ShowNames(FrameworkElement button, IReadOnlyList<NameCount> names, string empty, Action<string> add)
+    {
+        var menu = new ContextMenu { PlacementTarget = button, Placement = PlacementMode.Bottom };
+        foreach (var name in names)
+        {
+            var item = new MenuItem { Header = $"{name} · {name.Nearest:0} м" };
+            item.Click += (_, _) => add(name.Name);
+            menu.Items.Add(item);
+        }
+
+        if (names.Count == 0)
+            menu.Items.Add(new MenuItem { Header = empty, IsEnabled = false });
+        menu.IsOpen = true;
     }
 
     private void OpenLogFolder(object sender, RoutedEventArgs e)
