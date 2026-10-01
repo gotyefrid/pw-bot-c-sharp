@@ -27,6 +27,12 @@ public sealed class ProfileData
 
     /// <summary>Функции клиента для прямого вызова, ключи — <see cref="GameFunctions"/>.</summary>
     public Dictionary<string, GameFunction> Functions { get; init; } = new();
+
+    /// <summary>
+    /// Функции, которые нельзя вызывать никогда (rva): выход из игры, отпустить пета.
+    /// Вызов по такому адресу блокируется, даже если он по ошибке окажется в <see cref="Functions"/>.
+    /// </summary>
+    public Dictionary<string, uint> ForbiddenFunctions { get; init; } = new();
 }
 
 public sealed class BaseOffsets

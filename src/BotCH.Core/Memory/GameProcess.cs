@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using BotCH.Core.Calls;
 using Microsoft.Win32.SafeHandles;
 
 namespace BotCH.Core.Memory;
@@ -20,7 +21,7 @@ public enum GameProcessRights
 /// Открытый процесс клиента игры. Один экземпляр — один клиент.
 /// Сам дескриптор процесса держится открытым, пока объект не освобождён (Dispose).
 /// </summary>
-public sealed class GameProcess : IMemory, IDisposable
+public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
 {
     private readonly SafeProcessHandle _handle;
     private readonly Process _process;
@@ -98,6 +99,69 @@ public sealed class GameProcess : IMemory, IDisposable
         return NativeMethods.WriteProcessMemory(_handle, ToPointer(address), data, new IntPtr(data.Length), out var written)
             && written.ToInt64() == data.Length;
     }
+
+    private const int RemotePageSize = 0x1000;
+    private const int RemoteDataOffset = 0x100;
+    private static readonly TimeSpan RemoteTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Выполняет заглушку потоком в игре (как старый GameCall): страница под код и данные, запись, защита «только
+    /// чтение и выполнение», CreateRemoteThread, ожидание до 5 с, освобождение. Код самой игры не меняется.
+    /// Нужны права <see cref="GameProcessRights.Execute"/>.
+    /// </summary>
+    public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub)
+    {
+        if (!Rights.HasFlag(GameProcessRights.Execute))
+            throw new InvalidOperationException("Процесс открыт без права вызывать функции игры");
+        if (data is { Length: > RemotePageSize - RemoteDataOffset })
+            return new RemoteRunResult(RemoteRunStatus.Failed, "слишком много данных для вызова");
+
+        var page = NativeMethods.VirtualAllocEx(_handle, IntPtr.Zero, new IntPtr(RemotePageSize),
+            NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageReadWrite);
+        if (page == IntPtr.Zero)
+            return Failed("VirtualAllocEx");
+
+        var free = true;
+        try
+        {
+            var pageAddress = unchecked((uint)page.ToInt32());
+            var dataAddress = pageAddress + RemoteDataOffset;
+            if (data is not null && !TryWriteRaw(dataAddress, data))
+                return Failed("запись данных");
+
+            var stub = buildStub(dataAddress);
+            if (stub.Length > RemoteDataOffset)
+                return new RemoteRunResult(RemoteRunStatus.Failed, "заглушка не помещается перед данными");
+            if (!TryWriteRaw(pageAddress, stub)
+                || !NativeMethods.VirtualProtectEx(_handle, page, new IntPtr(RemotePageSize), NativeMethods.PageExecuteRead, out _))
+                return Failed("запись заглушки");
+
+            using var thread = NativeMethods.CreateRemoteThread(_handle, IntPtr.Zero, IntPtr.Zero, page, IntPtr.Zero, 0, IntPtr.Zero);
+            if (thread.IsInvalid)
+                return Failed("CreateRemoteThread");
+
+            if (NativeMethods.WaitForSingleObject(thread, (uint)RemoteTimeout.TotalMilliseconds) != NativeMethods.WaitObject0)
+            {
+                // Поток ещё работает — память не освобождаем, иначе игра упадёт
+                free = false;
+                return new RemoteRunResult(RemoteRunStatus.Timeout, $"поток в игре не закончился за {RemoteTimeout.TotalSeconds:0} с");
+            }
+
+            return new RemoteRunResult(RemoteRunStatus.Done);
+        }
+        finally
+        {
+            if (free)
+                NativeMethods.VirtualFreeEx(_handle, page, IntPtr.Zero, NativeMethods.MemRelease);
+        }
+    }
+
+    private bool TryWriteRaw(uint address, byte[] data)
+        => NativeMethods.WriteProcessMemory(_handle, ToPointer(address), data, new IntPtr(data.Length), out var written)
+           && written.ToInt64() == data.Length;
+
+    private static RemoteRunResult Failed(string step)
+        => new(RemoteRunStatus.Failed, $"{step}: ошибка Windows {System.Runtime.InteropServices.Marshal.GetLastWin32Error()}");
 
     // В 32-битном процессе IntPtr(long) для адреса ≥ 0x80000000 бросает OverflowException — берём те же 32 бита как int
     private static IntPtr ToPointer(uint address) => new(unchecked((int)address));

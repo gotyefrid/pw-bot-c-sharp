@@ -204,6 +204,14 @@
     "notAttack": [ 167, 329, 330 ]
   },
 
+  // НИКОГДА не вызывать. Вызов по этим адресам блокируется в коде (GameCaller), даже если адрес попадёт в functions
+  "forbiddenFunctions": {
+    // c2s 0x01 @0x5F0A10 — по номеру команды это выход из игры (logout)
+    "logout": "0x1F0A10",
+    // c2s 0x66 @0x5F1FC0 — отпустить пета (пет пропадёт навсегда)
+    "releasePet": "0x1F1FC0"
+  },
+
   "functions": {
     // c2s_SendCmdSelectTarget(int id), команда 0x02, пакет 6 байт. Код: push esi; push 6; call alloc ... mov word [esi], 2
     "selectTarget": { "rva": "0x1F0330", "convention": "cdecl", "signature": "56 6A 06 E8 ?? ?? ?? ?? 8B F0 83 C4 04 85 F6 74 26 8B 44 24 08 66 C7 06 02 00 89 46" },

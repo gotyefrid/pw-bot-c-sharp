@@ -23,6 +23,42 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool ReadProcessMemory(SafeProcessHandle process, IntPtr address, [Out] byte[] buffer, IntPtr size, out IntPtr bytesRead);
 
+    public const uint MemCommit = 0x1000;
+    public const uint MemReserve = 0x2000;
+    public const uint MemRelease = 0x8000;
+    public const uint PageReadWrite = 0x04;
+    public const uint PageExecuteRead = 0x20;
+    public const uint WaitObject0 = 0;
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern IntPtr VirtualAllocEx(SafeProcessHandle process, IntPtr address, IntPtr size, uint allocationType, uint protect);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool VirtualFreeEx(SafeProcessHandle process, IntPtr address, IntPtr size, uint freeType);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool VirtualProtectEx(SafeProcessHandle process, IntPtr address, IntPtr size, uint newProtect, out uint oldProtect);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern SafeThreadHandle CreateRemoteThread(SafeProcessHandle process, IntPtr attributes, IntPtr stackSize, IntPtr start, IntPtr parameter, uint flags, IntPtr threadId);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern uint WaitForSingleObject(SafeThreadHandle handle, uint milliseconds);
+
+    /// <summary>Дескриптор потока: закрывается сам (CloseHandle).</summary>
+    public sealed class SafeThreadHandle : SafeHandleZeroOrMinusOneIsInvalid
+    {
+        public SafeThreadHandle()
+            : base(true)
+        {
+        }
+
+        protected override bool ReleaseHandle() => CloseHandle(handle);
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool CloseHandle(IntPtr handle);
+
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern bool WriteProcessMemory(SafeProcessHandle process, IntPtr address, byte[] buffer, IntPtr size, out IntPtr bytesWritten);
 }
