@@ -9,6 +9,18 @@ public readonly record struct FreeMemory(long Total, long Largest)
     public long TotalMb => Total / (1024 * 1024);
 }
 
+/// <summary>Участок адресного пространства игры (как его отдаёт VirtualQueryEx).</summary>
+public sealed record MemoryRegion(uint Start, uint AllocationBase, long Size, uint State, uint Type, uint Protect)
+{
+    public const uint Commit = 0x1000;
+    public const uint Reserve = 0x2000;
+    public const uint Free = 0x10000;
+
+    public const uint Private = 0x20000;
+    public const uint Mapped = 0x40000;
+    public const uint Image = 0x1000000;
+}
+
 /// <summary>
 /// Следит за памятью игры. Клиент 32-битный (2 ГБ адресов) и при долгом фарме только растёт; у края
 /// любой вызов из бота падает с ошибкой 8, а скоро и сама игра. Бот замечает это заранее и останавливается

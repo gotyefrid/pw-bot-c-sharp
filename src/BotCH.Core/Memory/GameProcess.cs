@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -171,28 +172,48 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
     public FreeMemory? QueryFreeMemory()
     {
         long total = 0, largest = 0;
-        long address = 0;
-        var size = new IntPtr(Marshal.SizeOf(typeof(NativeMethods.MemoryBasicInformation)));
         var regions = 0;
-        while (address < 0x1_0000_0000 && regions < 1_000_000)
+        foreach (var region in Regions())
         {
-            if (NativeMethods.VirtualQueryEx(_handle, new IntPtr(unchecked((int)address)), out var info, size) == IntPtr.Zero)
-                break;
-
             regions++;
-            var regionSize = (long)unchecked((uint)info.RegionSize.ToInt32());
-            if (regionSize == 0)
-                break;
-            if (info.State == NativeMethods.MemFree)
+            if (region.State == MemoryRegion.Free)
             {
-                total += regionSize;
-                largest = Math.Max(largest, regionSize);
+                total += region.Size;
+                largest = Math.Max(largest, region.Size);
             }
-
-            address = unchecked((uint)info.BaseAddress.ToInt32()) + regionSize;
         }
 
         return regions == 0 ? null : new FreeMemory(total, largest);
+    }
+
+    /// <summary>Карта адресного пространства игры (VirtualQueryEx, только чтение) — для разбора, куда уходит память.</summary>
+    public IEnumerable<MemoryRegion> Regions()
+    {
+        long address = 0;
+        var size = new IntPtr(Marshal.SizeOf(typeof(NativeMethods.MemoryBasicInformation)));
+        var regions = 0;
+        while (address < 0x1_0000_0000 && regions++ < 1_000_000)
+        {
+            if (NativeMethods.VirtualQueryEx(_handle, new IntPtr(unchecked((int)address)), out var info, size) == IntPtr.Zero)
+                yield break;
+
+            var regionSize = (long)unchecked((uint)info.RegionSize.ToInt32());
+            if (regionSize == 0)
+                yield break;
+
+            var start = unchecked((uint)info.BaseAddress.ToInt32());
+            yield return new MemoryRegion(start, unchecked((uint)info.AllocationBase.ToInt32()), regionSize,
+                info.State, info.Type, info.Protect);
+            address = start + regionSize;
+        }
+    }
+
+    /// <summary>Файл, отображённый в память по этому адресу (для MEM_MAPPED и MEM_IMAGE), или null.</summary>
+    public string? MappedFileName(uint address)
+    {
+        var name = new System.Text.StringBuilder(1024);
+        var length = NativeMethods.GetMappedFileName(_handle, ToPointer(address), name, name.Capacity);
+        return length == 0 ? null : name.ToString();
     }
 
     private bool TryWriteRaw(uint address, byte[] data)

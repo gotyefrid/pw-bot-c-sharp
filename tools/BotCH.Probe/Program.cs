@@ -45,6 +45,8 @@ internal static class Program
                     return ActCommands.Act(LoadProfile(rest), rest);
                 case "mem":
                     return WithClient(rest, (_, game) => Memory(game));
+                case "memmap":
+                    return WithClient(rest, (_, game) => MemoryMap(game, rest));
                 case "memwatch":
                     return WithClient(rest, (_, game) => MemoryWatch(game));
                 case "rename":
@@ -79,6 +81,7 @@ internal static class Program
         Console.WriteLine("  snapshot  прочитать снимок мира: перс, мобы, лут, сумка, скиллы, пет");
         Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
         Console.WriteLine("  mem       сколько свободной памяти (адресов) осталось у игры: всего и самый большой кусок");
+        Console.WriteLine("  memmap    [файл.tsv] карта памяти игры: кто сколько занял (картинки, файлы, куча); файл — для сравнения «до/после»");
         Console.WriteLine("  memwatch  то же раз в секунду: сколько сейчас и сколько изменилось с запуска, Ctrl+C — выход");
         Console.WriteLine("  rename    переименовать окна всех клиентов в «Ник PID» и проверить заголовки (WinAPI, память только читается)");
         Console.WriteLine("  dump      [файл.dump] сохранить прочитанную снимком память в файл — фикстура для тестов без игры");
@@ -103,6 +106,43 @@ internal static class Program
         Console.WriteLine($"Свободно у игры: {free.TotalMb} МБ, самый большой кусок подряд: {free.Largest / 1024} КБ");
         Console.WriteLine($"Бот остановится при < {GameMemoryGuard.StopTotal >> 20} МБ или куске < {GameMemoryGuard.StopLargest >> 10} КБ, "
                           + $"предупредит при < {GameMemoryGuard.WarnTotal >> 20} МБ");
+        return 0;
+    }
+
+    private static int MemoryMap(GameProcess game, string[] args)
+    {
+        var regions = game.Regions().ToList();
+        var files = new System.Collections.Generic.Dictionary<uint, string>();
+        foreach (var r in regions.Where(r => r.State != MemoryRegion.Free && r.Type != MemoryRegion.Private))
+        {
+            if (!files.ContainsKey(r.AllocationBase))
+                files[r.AllocationBase] = game.MappedFileName(r.Start) ?? "";
+        }
+
+        string Kind(MemoryRegion r) => r.State == MemoryRegion.Free ? "free"
+            : r.Type == MemoryRegion.Image ? "image" : r.Type == MemoryRegion.Mapped ? "mapped" : "private";
+
+        var path = args.FirstOrDefault(a => a.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase));
+        if (path is not null)
+        {
+            using var w = new System.IO.StreamWriter(path, false, new System.Text.UTF8Encoding(false));
+            w.WriteLine("start\tallocBase\tsize\tkind\tstate\tprotect\tfile");
+            foreach (var r in regions)
+            {
+                var state = r.State == MemoryRegion.Commit ? "commit" : r.State == MemoryRegion.Reserve ? "reserve" : "free";
+                w.WriteLine($"{r.Start:X8}\t{r.AllocationBase:X8}\t{r.Size}\t{Kind(r)}\t{state}\t{r.Protect:X}\t"
+                            + (files.TryGetValue(r.AllocationBase, out var f) ? f : ""));
+            }
+        }
+
+        Console.WriteLine($"Участков: {regions.Count}");
+        Console.WriteLine("вид        занято (commit)   отгорожено (reserve)");
+        foreach (var g in regions.Where(r => r.State != MemoryRegion.Free).GroupBy(Kind).OrderBy(g => g.Key))
+            Console.WriteLine($"{g.Key,-8} {g.Where(r => r.State == MemoryRegion.Commit).Sum(r => r.Size) >> 20,10} МБ "
+                              + $"{g.Where(r => r.State == MemoryRegion.Reserve).Sum(r => r.Size) >> 20,16} МБ");
+        Console.WriteLine($"свободно {regions.Where(r => r.State == MemoryRegion.Free).Sum(r => r.Size) >> 20,10} МБ");
+        if (path is not null)
+            Console.WriteLine($"Карта сохранена: {System.IO.Path.GetFullPath(path)}");
         return 0;
     }
 
