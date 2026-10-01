@@ -1,27 +1,42 @@
 using System;
-using System.IO;
-using System.Linq;
+using System.Collections.Specialized;
 using System.Windows;
-using BotCH.Core.Profiles;
-using BotCH.Core.Settings;
+using System.Windows.Interop;
 
 namespace BotCH.App;
 
 public partial class MainWindow : Window
 {
+    private readonly MainViewModel _model;
+    private GlobalHotKeys? _hotKeys;
+
     public MainWindow()
     {
         InitializeComponent();
-        CoreInfo.Text = DescribeCore();
+        _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory);
+        DataContext = _model;
+
+        // Лог прокручивается к новой строке
+        _model.Log.CollectionChanged += (_, e) =>
+        {
+            if (e.Action == NotifyCollectionChangedAction.Add && LogList.Items.Count > 0)
+                LogList.ScrollIntoView(LogList.Items[LogList.Items.Count - 1]);
+        };
     }
 
-    // Временно, до части 3: показывает, что вшитые BotCH.Core и Newtonsoft.Json загрузились
-    private static string DescribeCore()
+    protected override void OnSourceInitialized(EventArgs e)
     {
-        var catalog = ProfileCatalog.Default();
-        var servers = string.Join(", ", catalog.Ids.Select(id => catalog.Load(id).Name));
-        var settingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
-        var settings = new SettingsStore(settingsPath).Load(out _);
-        return $"Серверы: {servers}\nПет: {(settings.Pet.Enabled ? $"клетка {settings.Pet.Cage}" : "выключен")}, банка HP < {settings.Potions.HpPercent} %";
+        base.OnSourceInitialized(e);
+        _hotKeys = new GlobalHotKeys(new WindowInteropHelper(this).Handle);
+        var start = _hotKeys.Register(GlobalHotKeys.Control | GlobalHotKeys.Alt, GlobalHotKeys.NumPad1, _model.Start);
+        var stop = _hotKeys.Register(GlobalHotKeys.Control | GlobalHotKeys.Alt, GlobalHotKeys.NumPad0, _model.Stop);
+        _model.ReportHotKeys(start, stop);
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _hotKeys?.Dispose();
+        _model.Dispose();
+        base.OnClosed(e);
     }
 }
