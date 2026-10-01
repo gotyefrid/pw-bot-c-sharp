@@ -23,6 +23,7 @@ internal sealed class FakeWorld
     public Position Position { get; set; } = new(0, 0, 0);
     public uint TargetWid { get; set; }
     public bool HpPotionReady { get; set; } = true;
+    public bool Casting { get; set; }
     public List<NpcInfo> Npcs { get; } = [];
     public List<GroundItem> Ground { get; } = [];
     public List<InventoryItem> Bag { get; } = [];
@@ -39,7 +40,7 @@ internal sealed class FakeWorld
 
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
-        new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, false, HpPotionReady),
+        new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, Casting, HpPotionReady),
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet);
 
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int state = 1, int hp = 0)
