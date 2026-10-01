@@ -50,7 +50,7 @@ public class NearbyNamesTests
 
         var names = NearbyNames.Mobs(_world.Snapshot());
 
-        Assert.Equal(["Сидящий волк (ур. 10)", "Волк-вожак (ур. 12–14)"], names.Select(n => n.ToString()));
+        Assert.Equal(["Сидящий волк (10)", "Волк-вожак (12–14)"], names.Select(n => n.ToString()));
     }
 
     [Fact]

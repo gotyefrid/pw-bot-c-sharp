@@ -8,6 +8,8 @@
       <DockPanel>
         <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Padding="8,3" Margin="3,0,0,0" VerticalAlignment="Top"
                 Content="＋ Добавить" Click="OpenDropDown" />
+        <Button x:Name="ClearButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="3,0,0,0"
+                VerticalAlignment="Top" Background="Transparent" Content="&#xE74D;" Click="ClearAll" ToolTip="Убрать всё" Visibility="Collapsed" />
         <Grid>
           <TextBlock x:Name="EmptyHint" Text="{Binding Placeholder, ElementName=Root}" Style="{StaticResource Muted}"
                      VerticalAlignment="Center" Margin="6,0" />

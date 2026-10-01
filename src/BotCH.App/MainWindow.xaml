@@ -247,7 +247,7 @@
             <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
                            Selected="{Binding MobNames}" Options="{Binding MobOptions}"
                            Placeholder="Мобы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
-                           ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (с уровнем) и те, что встречались за сессию" />
+                           ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
           </StackPanel>
         </Border>
 

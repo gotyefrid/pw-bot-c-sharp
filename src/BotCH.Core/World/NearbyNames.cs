@@ -6,9 +6,9 @@ namespace BotCH.Core.World;
 /// <summary>Название (и уровни мобов этого вида) — для выбора в списки мобов и лута.</summary>
 public sealed record NameCount(string Name, int Count, float Nearest, int MinLevel = 0, int MaxLevel = 0)
 {
-    /// <summary>«Сидящий волк (ур. 10)», «Волк (ур. 10–12)», предметы — просто название.</summary>
+    /// <summary>«Сидящий волк (10)», «Волк (10–12)» — в скобках уровень; предметы — просто название.</summary>
     public override string ToString()
-        => MaxLevel <= 0 ? Name : MinLevel == MaxLevel ? $"{Name} (ур. {MaxLevel})" : $"{Name} (ур. {MinLevel}–{MaxLevel})";
+        => MaxLevel <= 0 ? Name : MinLevel == MaxLevel ? $"{Name} ({MaxLevel})" : $"{Name} ({MinLevel}–{MaxLevel})";
 }
 
 public static class NearbyNames

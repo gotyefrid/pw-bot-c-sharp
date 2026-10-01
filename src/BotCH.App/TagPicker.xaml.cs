@@ -72,7 +72,14 @@ public partial class TagPicker : UserControl
 
     private void SelectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => UpdateHint();
 
-    private void UpdateHint() => EmptyHint.Visibility = Selected is { Count: > 0 } ? Visibility.Collapsed : Visibility.Visible;
+    private void UpdateHint()
+    {
+        var any = Selected is { Count: > 0 };
+        EmptyHint.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
+        ClearButton.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ClearAll(object sender, RoutedEventArgs e) => Selected?.Clear();
 
     private void OpenDropDown(object sender, RoutedEventArgs e)
     {
