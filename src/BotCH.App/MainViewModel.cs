@@ -364,6 +364,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Settings));
     }
 
+    /// <summary>Сообщение об ошибке из окна — в лог.</summary>
+    public void ReportProblem(string message) => _log.Warning(message);
+
     public void Dispose()
     {
         Disconnect();
