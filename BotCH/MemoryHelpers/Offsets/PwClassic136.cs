@@ -103,6 +103,12 @@ namespace BotCH.MemoryHelpers.Offsets
         // c2s_SendCmdUnselect(), команда 0x08, пакет 2 байта, без параметров (аналог Esc). Код: push esi; push 2; call alloc ... mov word [esi], 8
         public override uint C2S_UNSELECT_FUNC { get => 0x1F0C90; }
         public override byte[] C2S_UNSELECT_SIG => new byte[] { 0x56, 0x6A, 0x02, 0xE8 };
+        // c2s_SendCmdSummonPet(int index), команда 0x64, пакет 6 байт. index = клетка - 1 (ячейка PET_CAGES_ARRAY). Призыв идёт ~3.5 с.
+        // Найдено по вызовам: клиент перед вызовом берёт пета из [перс+PET_STRUCT_OFFSET]+0x10+index*4 и проверяет, что он жив.
+        // Рядом: 0x65 @0x5F1F80 — отозвать (без параметров), 0x66 @0x5F1FC0 — отпустить пета (НЕ вызывать), 0x63 — не пет.
+        // [перс+PET_STRUCT_OFFSET]+0x8 — номер призванной клетки (-1, если пета нет)
+        public override uint C2S_SUMMON_PET_FUNC { get => 0x1F1F40; }
+        public override byte[] C2S_SUMMON_PET_SIG => new byte[] { 0x56, 0x6A, 0x06, 0xE8 };
         // c2s_SendCmdPetCtrl(int target, int cmd, void* data, int size), команда 0x67, пакет 10 + size байт.
         // Стоит в таблице сразу за командами пета 0x63–0x66 (призвать/отозвать/отпустить). Код: push ebx; push ebp; push esi; mov esi,[esp+1Ch].
         // Номера приказов — по вызовам из клиента (через ограничитель 0x5CC430, вызовы ~0x52DC00–0x52E080):

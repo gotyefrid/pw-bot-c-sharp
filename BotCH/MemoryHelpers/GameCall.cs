@@ -47,6 +47,17 @@ namespace BotCH.MemoryHelpers
             return Call(Offset.Get.C2S_PICKUP_FUNC, Offset.Get.C2S_PICKUP_SIG, id, tid);
         }
 
+        public static bool CanSummonPet
+        {
+            get { return Enabled && Offset.Get.C2S_SUMMON_PET_FUNC != 0; }
+        }
+
+        // Призвать пета из клетки cage (1..10, как в настройке бота)
+        public static bool SummonPet(int cage)
+        {
+            return Call(Offset.Get.C2S_SUMMON_PET_FUNC, Offset.Get.C2S_SUMMON_PET_SIG, (uint)(cage - 1));
+        }
+
         // Снять цель (аналог Esc)
         public static bool Unselect()
         {

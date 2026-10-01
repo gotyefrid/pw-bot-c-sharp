@@ -208,6 +208,25 @@ namespace BotCH
 
         public static void InvitePet()
         {
+            if (GameCall.CanSummonPet)
+            {
+                int cage = Convert.ToInt32(form.cageSelect.Text);
+                WaitForCasting(Keys.D9);
+
+                if (GameCall.SummonPet(cage))
+                {
+                    Logger.setLog("Summon pet from cage " + cage + " (direct call)");
+
+                    // Призыв идёт ~3.5 с: ждём, чтобы не отправить команду повторно и не сбить его
+                    for (int i = 0; i < 12 && !PersReader.IsPetInvited(); i++)
+                    {
+                        Thread.Sleep(500);
+                    }
+
+                    return;
+                }
+            }
+
             Action.ClickKey(Keys.D9);
         }
     }
