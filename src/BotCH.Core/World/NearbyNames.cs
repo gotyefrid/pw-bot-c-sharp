@@ -3,17 +3,27 @@ using System.Linq;
 
 namespace BotCH.Core.World;
 
-/// <summary>Название и сколько таких рядом — для выбора в списки мобов и лута.</summary>
-public sealed record NameCount(string Name, int Count, float Nearest)
+/// <summary>Название (и уровни мобов этого вида) — для выбора в списки мобов и лута.</summary>
+public sealed record NameCount(string Name, int Count, float Nearest, int MinLevel = 0, int MaxLevel = 0)
 {
-    public override string ToString() => Count > 1 ? $"{Name} ×{Count}" : Name;
+    /// <summary>«Сидящий волк (ур. 10)», «Волк (ур. 10–12)», предметы — просто название.</summary>
+    public override string ToString()
+        => MaxLevel <= 0 ? Name : MinLevel == MaxLevel ? $"{Name} (ур. {MaxLevel})" : $"{Name} (ур. {MinLevel}–{MaxLevel})";
 }
 
 public static class NearbyNames
 {
     /// <summary>Живые мобы вокруг по названиям: сначала самые частые, при равенстве — ближайшие.</summary>
     public static IReadOnlyList<NameCount> Mobs(WorldState world)
-        => Group(world.Mobs.Where(m => !m.IsDead && m.Name.Length > 0).Select(m => (m.Name, m.Distance)));
+        => world.Mobs
+            .Where(m => !m.IsDead && m.Name.Length > 0)
+            .GroupBy(m => m.Name.Trim())
+            .Select(g => new NameCount(g.Key, g.Count(), g.Min(m => m.Distance),
+                g.Where(m => m.Level > 0).Select(m => m.Level).DefaultIfEmpty().Min(),
+                g.Select(m => m.Level).Max()))
+            .OrderByDescending(n => n.Count)
+            .ThenBy(n => n.Nearest)
+            .ToList();
 
     /// <summary>Предметы и монеты на земле по названиям (ресурсы не подбираются — их нет).</summary>
     public static IReadOnlyList<NameCount> GroundItems(WorldState world)

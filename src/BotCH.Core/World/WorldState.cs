@@ -94,6 +94,9 @@ public sealed record NpcInfo(
     /// <summary>Игра знает HP только у выбранной цели; у остальных 0.</summary>
     int Hp)
 {
+    /// <summary>Уровень; 0 — неизвестен (поле не найдено для сервера).</summary>
+    public int Level { get; init; }
+
     public const int StateDead = 4;
 
     public bool IsDead => State == StateDead;

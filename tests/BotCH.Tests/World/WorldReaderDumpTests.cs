@@ -45,6 +45,7 @@ public class WorldReaderDumpTests
 
         Assert.NotNull(target);
         Assert.Equal("Сидящий волк", target!.Name);
+        Assert.InRange(target.Level, 1, 150);
         Assert.Equal(395, target.Hp);
         Assert.Equal(NpcKind.Mob, target.Kind);
         Assert.Equal(W.Pet!.ActiveWid, target.TargetWid);

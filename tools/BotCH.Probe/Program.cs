@@ -47,6 +47,8 @@ internal static class Program
                     return Rename(rest);
                 case "dump":
                     return WithClient(rest, (profile, game) => WorldCommands.Dump(profile, game, rest));
+                case "mobfields":
+                    return WithClient(rest, (profile, game) => ScanCommands.MobFields(profile, game, rest));
                 case "scanint":
                     return WithClient(rest, (profile, game) => ScanCommands.ScanInt(profile, game, rest));
                 case "scanstr":
@@ -74,6 +76,7 @@ internal static class Program
         Console.WriteLine("  watch     снимок раз в 300 мс (для проверок «до/после»), Ctrl+C — выход");
         Console.WriteLine("  rename    переименовать окна всех клиентов в «Ник PID» и проверить заголовки (WinAPI, память только читается)");
         Console.WriteLine("  dump      [файл.dump] сохранить прочитанную снимком память в файл — фикстура для тестов без игры");
+        Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");

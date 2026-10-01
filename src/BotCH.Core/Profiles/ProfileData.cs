@@ -121,6 +121,8 @@ public sealed class NpcOffsets
     public uint Type { get; init; }
     /// <summary>1 стоит, 2 физ. атака, 3 каст, 4 мёртв, 5 идёт.</summary>
     public uint State { get; init; }
+    /// <summary>Уровень моба (0 — поле не найдено для этого сервера).</summary>
+    public uint Level { get; init; }
     /// <summary>Только у выбранной цели.</summary>
     public uint Hp { get; init; }
     public uint Distance { get; init; }

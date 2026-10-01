@@ -330,19 +330,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ObservableCollection<string> LootNames { get; } = new();
 
     // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
-    private readonly HashSet<string> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
     private bool _syncingLists;
 
-    public Func<IReadOnlyList<PickOption>> MobOptions => () => PickOptions(_lastWorld is null ? [] : NearbyNames.Mobs(_lastWorld), _seenMobs);
+    public Func<IReadOnlyList<PickOption>> MobOptions
+        => () => PickOptions(_lastWorld is null ? [] : NearbyNames.Mobs(_lastWorld), _seenMobs.Values);
 
-    public Func<IReadOnlyList<PickOption>> LootOptions => () => PickOptions(_lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld), _seenItems);
+    public Func<IReadOnlyList<PickOption>> LootOptions
+        => () => PickOptions(_lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld), _seenItems.Select(n => new NameCount(n, 0, 0)));
 
-    private static IReadOnlyList<PickOption> PickOptions(IReadOnlyList<NameCount> nearby, IEnumerable<string> seen)
+    // Сначала то, что вокруг сейчас, потом — встреченное за сессию (с пометкой «не рядом»)
+    private static IReadOnlyList<PickOption> PickOptions(IReadOnlyList<NameCount> nearby, IEnumerable<NameCount> seen)
     {
-        var options = nearby.Select(n => new PickOption(n.Name, $"{n} · {n.Nearest:0} м")).ToList();
+        var options = nearby.Select(n => new PickOption(n.Name, n.ToString())).ToList();
         var near = new HashSet<string>(nearby.Select(n => n.Name), StringComparer.OrdinalIgnoreCase);
-        options.AddRange(seen.Where(n => !near.Contains(n)).OrderBy(n => n).Select(n => new PickOption(n, $"{n} (не рядом)")));
+        options.AddRange(seen.Where(n => !near.Contains(n.Name)).OrderBy(n => n.Name).Select(n => new PickOption(n.Name, $"{n} — не рядом")));
         return options;
     }
 
@@ -539,8 +542,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _lastWorld = w;
         HasPets = w.Pet is not null;
-        foreach (var mob in w.Mobs.Where(m => m.Name.Length > 0))
-            _seenMobs.Add(mob.Name.Trim());
+        foreach (var kind in NearbyNames.Mobs(w))
+        {
+            // Уровни вида копятся за сессию: «Волк (ур. 10–12)», даже если сейчас рядом только один
+            _seenMobs[kind.Name] = _seenMobs.TryGetValue(kind.Name, out var seen) && seen.MaxLevel > 0
+                ? kind with { MinLevel = Math.Min(seen.MinLevel, kind.MinLevel), MaxLevel = Math.Max(seen.MaxLevel, kind.MaxLevel) }
+                : kind;
+        }
         foreach (var item in w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource && i.Name.Length > 0))
             _seenItems.Add(item.Name.Trim());
         var h = w.Host;

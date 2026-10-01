@@ -22,7 +22,8 @@ public class NearbyNamesTests
 
         var names = NearbyNames.Mobs(_world.Snapshot());
 
-        Assert.Equal(["Сидящий волк ×3", "Колючий дикобраз", "Горный варвар"], names.Select(n => n.ToString()));
+        Assert.Equal(["Сидящий волк", "Колючий дикобраз", "Горный варвар"], names.Select(n => n.ToString()));
+        Assert.Equal(3, names[0].Count);
         Assert.Equal(12f, names[0].Nearest);
     }
 
@@ -36,7 +37,20 @@ public class NearbyNamesTests
 
         var names = NearbyNames.GroundItems(_world.Snapshot());
 
-        Assert.Equal(["Монета ×2", "Мягкий мех"], names.Select(n => n.ToString()));
+        Assert.Equal(["Монета", "Мягкий мех"], names.Select(n => n.ToString()));
+    }
+
+    [Fact]
+    public void MobLevelsShownInsteadOfCount()
+    {
+        _world.Npcs.Add(new NpcInfo(0, 1, NpcKind.Mob, 1, 0, default, 10, "Сидящий волк", 0) { Level = 10 });
+        _world.Npcs.Add(new NpcInfo(0, 2, NpcKind.Mob, 1, 0, default, 20, "Сидящий волк", 0) { Level = 10 });
+        _world.Npcs.Add(new NpcInfo(0, 3, NpcKind.Mob, 1, 0, default, 30, "Волк-вожак", 0) { Level = 12 });
+        _world.Npcs.Add(new NpcInfo(0, 4, NpcKind.Mob, 1, 0, default, 30, "Волк-вожак", 0) { Level = 14 });
+
+        var names = NearbyNames.Mobs(_world.Snapshot());
+
+        Assert.Equal(["Сидящий волк (ур. 10)", "Волк-вожак (ур. 12–14)"], names.Select(n => n.ToString()));
     }
 
     [Fact]

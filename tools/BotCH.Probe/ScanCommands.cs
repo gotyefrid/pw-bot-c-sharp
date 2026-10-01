@@ -86,6 +86,34 @@ internal static class ScanCommands
         return 0;
     }
 
+    /// <summary>
+    /// Ищет поле-«свойство вида» в структуре мобов (например, уровень): int в [min..max], одинаковый у всех мобов
+    /// с одним названием и разный хотя бы у двух видов. Нужны рядом мобы двух и более видов, лучше по нескольку штук.
+    /// </summary>
+    public static int MobFields(IServerProfile profile, GameProcess game, string[] args)
+    {
+        var numbers = args.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
+        int min = numbers.Count > 0 ? numbers[0] : 1, max = numbers.Count > 1 ? numbers[1] : 150;
+        var mobs = new WorldReader(game, game.MainModuleBase, profile.Data).Read().Mobs.Where(m => m.Name.Length > 0).ToList();
+        var blocks = mobs.Select(m => (m.Name, Bytes: game.ReadBytes(m.Address, 0x800))).ToList();
+        var kinds = mobs.Select(m => m.Name).Distinct().ToList();
+        Console.WriteLine($"Мобов {mobs.Count}, видов {kinds.Count}: {string.Join(", ", kinds)}");
+
+        for (var offset = 0; offset < 0x800; offset += 4)
+        {
+            var values = blocks.Select(b => (b.Name, Value: BitConverter.ToInt32(b.Bytes, offset))).ToList();
+            if (values.Any(v => v.Value < min || v.Value > max))
+                continue;
+            var byKind = values.GroupBy(v => v.Name).ToDictionary(g => g.Key, g => g.Select(v => v.Value).Distinct().ToList());
+            if (byKind.Values.Any(v => v.Count > 1) || byKind.Values.Select(v => v[0]).Distinct().Count() < 2)
+                continue;
+
+            Console.WriteLine($"  +0x{offset:X3}: " + string.Join(", ", byKind.Select(k => $"{k.Key}={k.Value[0]}")));
+        }
+
+        return 0;
+    }
+
     private static string? TryString(IMemory memory, uint address)
     {
         try
