@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Окно бота (WPF). Только отображение состояния и редактирование настроек -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>BotCH.App</RootNamespace>
+    <AssemblyName>BotCH</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BotCH.Core\BotCH.Core.csproj" />
+  </ItemGroup>
+</Project>

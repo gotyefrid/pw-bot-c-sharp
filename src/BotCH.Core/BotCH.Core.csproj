@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Вся логика бота без интерфейса: память, профили серверов, снимок мира, действия, мозг, настройки, лог -->
+  <PropertyGroup>
+    <RootNamespace>BotCH.Core</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="BotCH.Tests" />
+  </ItemGroup>
+</Project>
