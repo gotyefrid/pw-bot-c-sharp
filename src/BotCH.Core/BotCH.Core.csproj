@@ -7,4 +7,13 @@
   <ItemGroup>
     <InternalsVisibleTo Include="BotCH.Tests" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Профили серверов вшиваются в сборку: бот — один exe -->
+    <EmbeddedResource Include="Profiles\*.jsonc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
 </Project>
