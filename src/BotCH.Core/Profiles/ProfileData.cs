@@ -53,6 +53,8 @@ public sealed class BaseOffsets
     public uint Game { get; init; }
     /// <summary>[база + Unfreeze] — сюда пишется 1 (unfreeze).</summary>
     public uint Unfreeze { get; init; }
+    /// <summary>[база + Session] — объект связи с сервером (в нём SendGameData); this для функций с "this": "session".</summary>
+    public uint Session { get; init; }
 }
 
 /// <summary>Персонаж (CECHostPlayer): [game + Struct].</summary>
@@ -248,6 +250,8 @@ public enum FunctionThis
     None,
     /// <summary>Персонаж: [[[модуль + база] + game] + host.struct].</summary>
     Host,
+    /// <summary>Объект связи с сервером: [[модуль + база] + base.session].</summary>
+    Session,
 }
 
 /// <summary>Имена функций в профиле.</summary>

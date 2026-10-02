@@ -300,6 +300,44 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void SessionMethodGetsSessionFromMemory()
+    {
+        const uint basePtr = 0x1000_0000, session = 0x3300_0000;
+        _memory.WriteUInt32(ModuleBase + 0x100, basePtr);
+        _memory.WriteUInt32(basePtr + 0x20, session);
+        var cast = Profile.Functions[GameFunctions.CastSkill];
+        var profile = new ProfileData
+        {
+            Base = new BaseOffsets { BasePointer = 0x100, Session = 0x20 },
+            Functions = new()
+            {
+                [GameFunctions.CastSkill] = new GameFunction
+                {
+                    Rva = cast.Rva, Signature = cast.Signature, Convention = CallingConvention.Thiscall, This = FunctionThis.Session,
+                },
+            },
+        };
+
+        Caller(profile).CastSkill(330, 0x80116200);
+
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, session, [330, 0, 1, DataAddress]),
+            _runner.Runs.Single().Stub);
+    }
+
+    [Fact]
+    public void SessionMethodWithoutSessionOffsetIsRefused()
+    {
+        var cast = Profile.Functions[GameFunctions.CastSkill];
+        var profile = new ProfileData
+        {
+            Functions = new() { [GameFunctions.CastSkill] = new GameFunction { Rva = cast.Rva, Signature = cast.Signature, This = FunctionThis.Session } },
+        };
+
+        Assert.False(Caller(profile).CastSkill(330, 1).Ok);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
     public void RunnerTimeoutIsReported()
     {
         _runner.Result = new RemoteRunResult(RemoteRunStatus.Timeout, "поток в игре не закончился за 5 с");

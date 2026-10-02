@@ -130,6 +130,8 @@ public sealed class GameCaller
         var definition = _profile.Functions[name];
         if (definition.This == FunctionThis.Host && !TryReadHost(out thisPointer))
             return CallResult.Refused($"{name}: персонаж не в мире");
+        if (definition.This == FunctionThis.Session && !TryReadSession(out thisPointer))
+            return CallResult.Refused($"{name}: нет связи с сервером");
         if (definition.Convention == CallingConvention.Thiscall && thisPointer == 0)
             return CallResult.Refused($"{name}: нет объекта для вызова");
 
@@ -164,6 +166,15 @@ public sealed class GameCaller
                && _memory.TryReadUInt32(basePointer + _profile.Base.Game, out var game)
                && _memory.TryReadUInt32(game + _profile.Host.Struct, out host)
                && host != 0;
+    }
+
+    private bool TryReadSession(out uint session)
+    {
+        session = 0;
+        return _profile.Base.Session != 0
+               && _memory.TryReadUInt32(_moduleBase + _profile.Base.BasePointer, out var basePointer)
+               && _memory.TryReadUInt32(basePointer + _profile.Base.Session, out session)
+               && session != 0;
     }
 
     private static uint ParseNumber(string text) => TryParseNumber(text, out var value) ? value : 0;
