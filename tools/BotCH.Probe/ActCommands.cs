@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using BotCH.Core.Actions;
 using BotCH.Core.Calls;
+using BotCH.Core.Clients;
 using BotCH.Core.Logging;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
@@ -51,7 +52,20 @@ internal static class ActCommands
         using var game = Program.OpenClient(rest, GameProcessRights.Execute);
         var data = profile.Data;
         var reader = new WorldReader(game, game.MainModuleBase, data);
-        var caller = new GameCaller(game, game, game.MainModuleBase, data);
+
+        // Вызовы — в главном потоке игры через её окно; --thread — по-старому, отдельным потоком
+        var useThread = rest.Contains("--thread");
+        var installProblem = "";
+        using var windowRunner = useThread ? null
+            : WindowCallRunner.Install(game, NativeWindows.FindMainWindow(game.Pid, includeHidden: true), out installProblem);
+        if (windowRunner is null && !useThread)
+        {
+            Console.WriteLine($"❌ вызов через окно игры не подключился: {installProblem}");
+            return 3;
+        }
+
+        Console.WriteLine(windowRunner is null ? "Вызовы: отдельным потоком (--thread)" : "Вызовы: в главном потоке игры (через окно)");
+        var caller = new GameCaller(game, windowRunner ?? (IRemoteRunner)game, game.MainModuleBase, data);
         var log = new Logger { MinLevel = LogLevel.Debug }.AddSink(new ConsoleSink()).For("act");
         var runner = new ActionRunner(new DirectCallActions(caller), log);
 

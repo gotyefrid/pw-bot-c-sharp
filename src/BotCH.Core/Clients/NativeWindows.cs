@@ -11,19 +11,38 @@ public static class NativeWindows
     /// Видимое окно верхнего уровня без владельца, принадлежащее процессу. Надёжнее Process.MainWindowHandle,
     /// который бывает 0 у свёрнутого окна или пока клиент грузится.
     /// </summary>
-    public static IntPtr FindMainWindow(int pid)
+    public static IntPtr FindMainWindow(int pid) => FindMainWindow(pid, includeHidden: false);
+
+    /// <param name="includeHidden">
+    /// Видимого нет (клиент свёрнут в трей) — взять скрытое окно клиента (класс «ElementClient…»); у игры есть и другие
+    /// скрытые окна без владельца, их не берём.
+    /// </param>
+    public static IntPtr FindMainWindow(int pid, bool includeHidden)
     {
-        var found = IntPtr.Zero;
+        IntPtr visible = IntPtr.Zero, hidden = IntPtr.Zero;
         EnumWindows((window, _) =>
         {
             GetWindowThreadProcessId(window, out var owner);
-            if (owner != pid || !IsWindowVisible(window) || GetWindow(window, GwOwner) != IntPtr.Zero)
+            if (owner != pid || GetWindow(window, GwOwner) != IntPtr.Zero)
                 return true;
 
-            found = window;
-            return false;
+            if (IsWindowVisible(window))
+            {
+                visible = window;
+                return false;
+            }
+
+            if (hidden == IntPtr.Zero && ClassName(window).StartsWith("ElementClient", StringComparison.Ordinal))
+                hidden = window;
+            return true;
         }, IntPtr.Zero);
-        return found;
+        return visible != IntPtr.Zero || !includeHidden ? visible : hidden;
+    }
+
+    private static string ClassName(IntPtr window)
+    {
+        var name = new StringBuilder(256);
+        return GetClassName(window, name, name.Capacity) > 0 ? name.ToString() : "";
     }
 
     public static string GetTitle(IntPtr window)
@@ -53,6 +72,9 @@ public static class NativeWindows
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetWindow(IntPtr window, uint command);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetClassName(IntPtr window, StringBuilder name, int maxCount);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetWindowTextLength(IntPtr window);
