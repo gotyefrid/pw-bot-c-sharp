@@ -34,7 +34,6 @@ public sealed class CombatBehavior : IBehavior
     private static readonly TimeSpan LootLimit = TimeSpan.FromSeconds(40);
     private const float KillPlaceNear = 3f;
     // Лут — только вокруг места смерти: в старом боте было 20 м от перса, и он бегал к чужому/старому луту
-    private const float LootRadius = 10f;
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
     private const int ItemFailuresToPause = 2;
     private static readonly TimeSpan ItemPause = TimeSpan.FromMinutes(3);
@@ -309,7 +308,7 @@ public sealed class CombatBehavior : IBehavior
             c.Say("bag-full", "Сумка полна — подбираю только монеты и то, что ляжет в начатые стопки", LogLevel.Warning, 300);
 
         var item = w.GroundItems
-            .Where(i => i.Position.HorizontalDistanceTo(_deathPlace) <= LootRadius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
+            .Where(i => i.Position.HorizontalDistanceTo(_deathPlace) <= loot.Radius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
             .Where(i => w.FitsInBag(i) && (!onlyMoney || i.Kind == GroundItemKind.Money))
             .OrderBy(i => i.Distance)
             .FirstOrDefault();

@@ -289,6 +289,11 @@
               <CheckBox Style="{StaticResource Switch}" Content="Собирать лут, попыток" IsChecked="{Binding Settings.Loot.Enabled}" VerticalAlignment="Center" />
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Loot.Attempts, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Радиус подбора, м" VerticalAlignment="Center"
+                         ToolTip="Считается от места смерти моба, а не от персонажа. Лут падает в 2–3 м от трупа; больше — бот начнёт собирать старый лут прошлых мобов по цепочке" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Loot.Radius, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
             <WrapPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4" />
               <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" />

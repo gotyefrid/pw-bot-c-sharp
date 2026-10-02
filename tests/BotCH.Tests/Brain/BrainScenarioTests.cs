@@ -489,6 +489,20 @@ public class BrainScenarioTests
         Assert.Equal("pickup-approach C0000001", LastCall);
     }
 
+    [Theory]
+    [InlineData(5, false)]
+    [InlineData(10, true)]
+    public void LootRadiusIsCountedFromDeathPlace(int radius, bool picked)
+    {
+        // Моб умер в (2, 0); предмет в 7 м от места смерти — подбирается только при радиусе больше 7
+        _settings.Loot.Radius = radius;
+        KillMobForLoot();
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(9, 0, 0), 9, "Мягкий мех"));
+        Tick();
+
+        Assert.Equal(picked, _actions.Calls.Contains("pickup-approach C0000002"));
+    }
+
     [Fact]
     public void LootOnlyAroundDeathPlace()
     {

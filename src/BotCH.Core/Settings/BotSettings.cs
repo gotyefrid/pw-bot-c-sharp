@@ -39,6 +39,7 @@ public sealed class BotSettings
         Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
+        Loot.Radius = Clamp(Loot.Radius, 1, 30);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
         Potions.MpBelow = Math.Max(0, Potions.MpBelow);
         Pet.Cage = Clamp(Pet.Cage, 1, 10);
@@ -118,6 +119,12 @@ public sealed class LootSettings
 
     /// <summary>Сколько раз подбирать после смерти моба.</summary>
     public int Attempts { get; set; } = 4;
+
+    /// <summary>
+    /// Радиус подбора, м — от места смерти моба (лут падает в 2–3 м от трупа). Больше — бот тянется за старым лутом
+    /// прошлых мобов по цепочке.
+    /// </summary>
+    public int Radius { get; set; } = 5;
 
     public bool PickMoney { get; set; } = true;
     public bool PickItems { get; set; } = true;
