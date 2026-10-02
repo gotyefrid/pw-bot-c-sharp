@@ -130,7 +130,7 @@ internal static class WorldCommands
     public static int Dump(IServerProfile profile, GameProcess game, string[] args)
     {
         var path = args.FirstOrDefault(a => a.EndsWith(".dump", StringComparison.OrdinalIgnoreCase)) ?? $"world-{profile.Id}.dump";
-        var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, out _);
+        var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out _);
         var recording = new RecordingMemory(game);
         var world = new WorldReader(recording, game.MainModuleBase, profile.Data, names.Get).Read();
 
@@ -148,7 +148,7 @@ internal static class WorldCommands
 
     private static WorldReader CreateReader(IServerProfile profile, GameProcess game, out SkillNames names)
     {
-        names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, out var problem);
+        names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out var problem);
         if (problem is not null)
             Console.WriteLine("⚠️ " + problem);
 

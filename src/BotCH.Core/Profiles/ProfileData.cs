@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using BotCH.Core.GameFiles;
 
 namespace BotCH.Core.Profiles;
 
@@ -25,6 +26,7 @@ public sealed class ProfileData
     public PetFoodOffsets PetFood { get; init; } = new();
     public SkillOffsets Skill { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
+    public GameFilesData GameFiles { get; init; } = new();
 
     /// <summary>Функции клиента для прямого вызова, ключи — <see cref="GameFunctions"/>.</summary>
     public Dictionary<string, GameFunction> Functions { get; init; } = new();
@@ -34,6 +36,13 @@ public sealed class ProfileData
     /// Вызов по такому адресу блокируется, даже если он по ошибке окажется в <see cref="Functions"/>.
     /// </summary>
     public Dictionary<string, uint> ForbiddenFunctions { get; init; } = new();
+}
+
+/// <summary>Файлы клиента (configs.pck и др.).</summary>
+public sealed class GameFilesData
+{
+    /// <summary>Ключи архивов .pck; нет в профиле — стандартные.</summary>
+    public PckFormat Pck { get; init; } = new();
 }
 
 public sealed class BaseOffsets

@@ -523,9 +523,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void LoadSkillNamesInBackground(string clientPath)
     {
+        var pck = _profile.Data.GameFiles.Pck;
         Task.Run(() =>
         {
-            var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(clientPath)!, out var problem);
+            var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(clientPath)!, pck, out var problem);
             _skillNames = names;
             if (problem is not null)
                 _connectionLog.Warning("Названия скиллов: " + problem);

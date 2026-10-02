@@ -36,7 +36,8 @@ public sealed class SkillNames
     /// Читает названия из папки клиента (там, где ElementClient.exe): configs.pck, если там нет — configs2.pck.
     /// Не получилось — <see cref="Empty"/> и причина в <paramref name="problem"/>.
     /// </summary>
-    public static SkillNames LoadFromGameDirectory(string gameDirectory, out string? problem)
+    /// <param name="format">Ключи .pck этого клиента — из профиля сервера.</param>
+    public static SkillNames LoadFromGameDirectory(string gameDirectory, PckFormat format, out string? problem)
     {
         problem = "Не найдены configs.pck/configs2.pck в " + gameDirectory;
         foreach (var archive in Archives)
@@ -47,7 +48,7 @@ public sealed class SkillNames
 
             try
             {
-                var data = PckArchive.ReadFile(path, "\\skillstr.txt");
+                var data = PckArchive.ReadFile(path, "\\skillstr.txt", format);
                 if (data is null)
                 {
                     problem = $"В {archive} нет skillstr.txt";
