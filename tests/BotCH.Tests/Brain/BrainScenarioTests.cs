@@ -701,7 +701,8 @@ public class BrainScenarioTests
     {
         _settings.Target.KillMobs = true;
         _settings.Combat.UseSword = true;
-        _settings.Gather.Enabled = true;
+        _settings.Loot.Enabled = true;
+        _settings.Loot.PickResources = true;
         _world.Bag.Add(new InventoryItem(5, Pickaxe, 0, 1, null, null));
     }
 
@@ -722,7 +723,8 @@ public class BrainScenarioTests
     public void GatherSkipsResourcesNotInList()
     {
         GatherWithPickaxe();
-        _settings.Gather.Names = ["Залежи камня"];
+        _settings.Loot.ListMode = LootListMode.ExceptListed;
+        _settings.Loot.ItemNames = ["Железная руда"];
         AddOre(0xC0000001, 5);
         AddOre(0xC0000002, 15, "Залежи камня");
 

@@ -296,7 +296,9 @@
             </DockPanel>
             <WrapPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4" />
-              <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" />
+              <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" Margin="0,4,18,4" />
+              <CheckBox Style="{StaticResource Switch}" Content="Ресурсы" IsChecked="{Binding Settings.Loot.PickResources}"
+                        ToolTip="Копать руду и траву в радиусе фарма: сначала все ресурсы, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше" />
             </WrapPanel>
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Что собирать" VerticalAlignment="Center" />
@@ -310,18 +312,7 @@
             </DockPanel>
             <app:TagPicker Margin="0,4,0,0" Selected="{Binding LootNames}" Options="{Binding LootOptions}"
                            Placeholder="Предметы не выбраны" EmptyOptionsText="На земле ничего нет — дождитесь лута"
-                           ToolTip="Варианты — предметы на земле вокруг и те, что встречались за сессию" />
-          </StackPanel>
-        </Border>
-
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <TextBlock Text="РЕСУРСЫ" Style="{StaticResource CardTitle}" />
-            <CheckBox Style="{StaticResource Switch}" Content="Копать ресурсы в радиусе фарма" IsChecked="{Binding Settings.Gather.Enabled}"
-                      ToolTip="Сначала все ресурсы в радиусе фарма, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше" />
-            <app:TagPicker Margin="0,4,0,0" Selected="{Binding GatherNames}" Options="{Binding GatherOptions}"
-                           Placeholder="Копать все" EmptyOptionsText="Рядом нет ресурсов — подойдите к ним"
-                           ToolTip="Какие ресурсы копать; пусто — все. Варианты — ресурсы вокруг и те, что встречались за сессию" />
+                           ToolTip="Варианты — предметы и ресурсы на земле вокруг и те, что встречались за сессию" />
           </StackPanel>
         </Border>
 

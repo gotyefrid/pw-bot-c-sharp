@@ -27,8 +27,8 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
     public bool Tick(BrainContext c)
     {
         Status = null;
-        var settings = c.Settings.Gather;
-        if (!settings.Enabled)
+        var loot = c.Settings.Loot;
+        if (!loot.Enabled || !loot.PickResources)
             return false;
 
         var w = c.World;
@@ -79,7 +79,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
 
         var resource = w.GroundItems
             .Where(i => i.Kind == GroundItemKind.Resource && !_skipped.ContainsKey(i.Id) && c.InFarmArea(i.Position))
-            .Where(i => settings.Names.Count == 0 || Settings.MobNameFilter.Contains(settings.Names, i.Name))
+            .Where(i => Settings.LootFilter.AllowsGather(loot, i.Name))
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
         if (resource is null)

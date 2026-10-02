@@ -28,7 +28,7 @@ public class NearbyNamesTests
     }
 
     [Fact]
-    public void GroundItemsWithoutResources()
+    public void GroundItemsWithResources()
     {
         _world.Ground.Add(new GroundItem(0, 1, 3044, GroundItemKind.Money, default, 5, "Монета"));
         _world.Ground.Add(new GroundItem(0, 2, 3044, GroundItemKind.Money, default, 8, "Монета"));
@@ -37,7 +37,7 @@ public class NearbyNamesTests
 
         var names = NearbyNames.GroundItems(_world.Snapshot());
 
-        Assert.Equal(["Монета", "Мягкий мех"], names.Select(n => n.ToString()));
+        Assert.Equal(["Монета", "Шахта крупного угля", "Мягкий мех"], names.Select(n => n.ToString()));
     }
 
     [Fact]

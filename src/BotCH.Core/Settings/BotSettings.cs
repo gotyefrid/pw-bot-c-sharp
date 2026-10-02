@@ -18,7 +18,6 @@ public sealed class BotSettings
     public TargetSettings Target { get; set; } = new();
     public CombatSettings Combat { get; set; } = new();
     public LootSettings Loot { get; set; } = new();
-    public GatherSettings Gather { get; set; } = new();
     public PotionSettings Potions { get; set; } = new();
     public PetSettings Pet { get; set; } = new();
 
@@ -31,13 +30,11 @@ public sealed class BotSettings
         Target ??= new();
         Combat ??= new();
         Loot ??= new();
-        Gather ??= new();
         Potions ??= new();
         Pet ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
-        Gather.Names = MobNameFilter.Clean(Gather.Names);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
         Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
@@ -133,21 +130,14 @@ public sealed class LootSettings
     public bool PickMoney { get; set; } = true;
     public bool PickItems { get; set; } = true;
 
+    /// <summary>Копать ресурсы в радиусе фарма: сначала все ресурсы, потом мобы. Нужна кирка в сумке. Список — общий с лутом.</summary>
+    public bool PickResources { get; set; }
+
     /// <summary>Как использовать <see cref="ItemNames"/>: не использовать / только они / все, кроме них.</summary>
     public LootListMode ListMode { get; set; } = LootListMode.All;
 
-    /// <summary>Названия предметов на земле (как в игре: «Мягкий мех»).</summary>
+    /// <summary>Названия предметов и ресурсов на земле (как в игре: «Мягкий мех», «Железная руда»).</summary>
     public List<string> ItemNames { get; set; } = [];
-}
-
-/// <summary>Копать ресурсы в радиусе фарма (в режиме «бить мобов»).</summary>
-public sealed class GatherSettings
-{
-    /// <summary>Копать: сначала все ресурсы в радиусе, потом мобы. Нужна кирка в сумке.</summary>
-    public bool Enabled { get; set; }
-
-    /// <summary>Какие ресурсы копать (как в игре: «Железная руда»). Пусто — все.</summary>
-    public List<string> Names { get; set; } = [];
 }
 
 public enum LootListMode
@@ -186,7 +176,7 @@ public static class LootFilter
 {
     public static bool Allows(LootSettings loot, GroundItemKind kind, string? name)
     {
-        // Ресурс копается, а не подбирается — никогда
+        // Ресурс копается, а не подбирается — подбором никогда (см. AllowsGather)
         if (kind == GroundItemKind.Resource)
             return false;
         if (kind == GroundItemKind.Money && !loot.PickMoney)
@@ -194,15 +184,22 @@ public static class LootFilter
         if (kind == GroundItemKind.Item && !loot.PickItems)
             return false;
 
-        return loot.ListMode switch
+        return ByList(loot, name);
+    }
+
+    public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name);
+
+    /// <summary>Копать ли ресурс: лут включён, «Ресурсы» включены, и список (общий с лутом) разрешает.</summary>
+    public static bool AllowsGather(LootSettings loot, string? name)
+        => loot.Enabled && loot.PickResources && ByList(loot, name);
+
+    private static bool ByList(LootSettings loot, string? name)
+        => loot.ListMode switch
         {
             LootListMode.OnlyListed => MobNameFilter.Contains(loot.ItemNames, name),
             LootListMode.ExceptListed => !MobNameFilter.Contains(loot.ItemNames, name),
             _ => true,
         };
-    }
-
-    public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name);
 }
 
 /// <summary>Сравнение названий (мобов, предметов): без учёта регистра и пробелов по краям.</summary>
