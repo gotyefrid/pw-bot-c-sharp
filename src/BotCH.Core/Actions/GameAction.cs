@@ -222,8 +222,9 @@ public sealed class MoveAction(Position point, float tolerance = 2f) : GameActio
     public override string Name => $"идти в {Point}";
     public override string Key => "движение";
 
-    // Бег ~5 м/с, с запасом: 5 с + 0.4 с на метр (считается от точки отправки в Check)
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(60);
+    // Бег ~5 м/с, с запасом: 5 с + 0.4 с на метр (считается от точки отправки в Check); здесь — только верхний предел
+    // (автопуть на 1.4.6 водит и на сотни метров)
+    public override TimeSpan Timeout => TimeSpan.FromMinutes(5);
 
     public override CallResult Send(IGameActions actions, WorldState now) => actions.MoveTo(now.Host, Point);
 
