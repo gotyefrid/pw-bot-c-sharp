@@ -32,7 +32,6 @@ public sealed class CombatBehavior : IBehavior
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan LootLimit = TimeSpan.FromSeconds(40);
-    private const float KillPlaceNear = 3f;
     // Лут — только вокруг места смерти: в старом боте было 20 м от перса, и он бегал к чужому/старому луту
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
     private const int ItemFailuresToPause = 2;
@@ -49,7 +48,6 @@ public sealed class CombatBehavior : IBehavior
     private DateTime _lastPetOrder = DateTime.MinValue;
     private Position _deathPlace;
     private DateTime _lootStarted;
-    private bool _walkedToDeathPlace;
     private int _lootAttempts;
     private DateTime _nextPickup;
     private int _itemFailures;
@@ -237,7 +235,6 @@ public sealed class CombatBehavior : IBehavior
     {
         State = CombatState.Loot;
         _lootStarted = c.Now;
-        _walkedToDeathPlace = false;
         _lootAttempts = 0;
         _lootSkipped.Clear();
         _nextPickup = DateTime.MinValue;
@@ -277,20 +274,6 @@ public sealed class CombatBehavior : IBehavior
             return true;
         }
 
-        // Лут падает вокруг места смерти — если моба убил пет вдалеке, сначала идём туда.
-        // Не умеем ходить — подбор «как мышкой» сам подведёт к предмету
-        if (!_walkedToDeathPlace && c.Runner.Actions.CanMove)
-        {
-            _walkedToDeathPlace = true;
-            var distance = w.Host.Position.DistanceTo(_deathPlace);
-            if (distance > KillPlaceNear)
-            {
-                Status = "лут: иду к месту смерти";
-                c.Log.Info($"Иду к месту смерти, {distance:0.0} м");
-                return c.Submit(new MoveAction(_deathPlace, KillPlaceNear));
-            }
-        }
-
         if (_lootAttempts >= loot.Attempts)
         {
             c.Log.Info($"Лут: {_lootAttempts} из {loot.Attempts}");
@@ -307,6 +290,7 @@ public sealed class CombatBehavior : IBehavior
         if (w.BagFull)
             c.Say("bag-full", "Сумка полна — подбираю только монеты и то, что ляжет в начатые стопки", LogLevel.Warning, 300);
 
+        // Лут ищем вокруг места смерти, а к месту смерти не ходим: подбор «как мышкой» сам подводит к предмету
         var item = w.GroundItems
             .Where(i => i.Position.HorizontalDistanceTo(_deathPlace) <= loot.Radius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
             .Where(i => w.FitsInBag(i) && (!onlyMoney || i.Kind == GroundItemKind.Money))

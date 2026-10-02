@@ -428,7 +428,7 @@ public class BrainScenarioTests
     // ── Лут ─────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void LootWalksToDeathPlaceThenPicksUpSkippingResources()
+    public void LootGoesStraightToItemSkippingResources()
     {
         _settings.Target.KillMobs = true;
         _settings.Combat.UseSword = true;
@@ -444,33 +444,10 @@ public class BrainScenarioTests
         _world.Ground.Add(new GroundItem(0, 0xC0000001, 3089, GroundItemKind.Resource, new Position(10, 0, 0), 9.5f, "Шахта угля"));
         _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(11, 0, 0), 11, "Мягкий мех"));
         Tick();
-        Assert.StartsWith("move", LastCall);
 
-        _world.Position = new Position(9, 0, 0);
-        Tick(2);
-        Tick();
+        // К месту смерти не идём — подбор «как мышкой» сам подводит к предмету
         Assert.Equal("pickup-approach C0000002", LastCall);
         Assert.DoesNotContain("pickup-approach C0000001", _actions.Calls);
-    }
-
-    [Fact]
-    public void LootWithoutMoveGoesStraightToPickup()
-    {
-        // Comeback 1.4.6: «идти в точку» нет — к месту смерти не идём, подбор «как мышкой» сам подводит
-        _actions.CanMove = false;
-        _settings.Target.KillMobs = true;
-        _settings.Combat.UseSword = true;
-        _settings.Loot.Enabled = true;
-        var mob = _world.AddMob(0x80000001, "Волк", 10, hp: 100);
-        _world.TargetWid = mob.Wid;
-        Tick();
-
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
-        _world.TargetWid = 0;
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(11, 0, 0), 11, "Мягкий мех"));
-        Tick();
-
-        Assert.Equal("pickup-approach C0000002", LastCall);
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));
     }
 
