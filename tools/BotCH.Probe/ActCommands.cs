@@ -34,6 +34,7 @@ internal static class ActCommands
           act pickup-approach   подобрать ближайший предмет «как мышкой»
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
           act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
+          act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
         """;
 
     public static int Act(IServerProfile profile, string[] args)
@@ -162,6 +163,21 @@ internal static class ActCommands
 
                 var p = w.Host.Position;
                 return new MoveAction(new Position(p.X + numbers[0], p.Height, p.Y + numbers[1]));
+
+            case "move-to":
+                var coords = args.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
+                    .Where(f => f is not null).Select(f => f!.Value).ToList();
+                if (coords.Count < 2)
+                {
+                    problem = "нужно: act move-to <x> <y> — координаты карты игры";
+                    return null;
+                }
+
+                // Карта игры: X = (x + 4000) / 10, Y = (y + 5500) / 10
+                var target = new Position(coords[0] * 10 - 4000, w.Host.Position.Height, coords[1] * 10 - 5500);
+                Console.WriteLine($"Сейчас: карта {(w.Host.Position.X + 4000) / 10:0.0} {(w.Host.Position.Y + 5500) / 10:0.0}");
+                problem = $"точка в {w.Host.Position.HorizontalDistanceTo(target):0} м — дальше 1000 м";
+                return w.Host.Position.HorizontalDistanceTo(target) <= 1000 ? new MoveAction(target) : null;
 
             case "move-mob":
                 var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Distance).FirstOrDefault();
