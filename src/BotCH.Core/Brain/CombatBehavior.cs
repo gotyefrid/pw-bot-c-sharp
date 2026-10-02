@@ -32,6 +32,9 @@ public sealed class CombatBehavior : IBehavior
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan LootLimit = TimeSpan.FromSeconds(40);
+    // Подход: моб ушёл от точки, к которой бежим, дальше этого — бежим к его новому месту (не чаще RetargetPeriod)
+    private const float RetargetDistance = 3f;
+    private static readonly TimeSpan RetargetPeriod = TimeSpan.FromSeconds(1);
     // Лут — только вокруг места смерти: в старом боте было 20 м от перса, и он бегал к чужому/старому луту
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
     private const int ItemFailuresToPause = 2;
@@ -47,6 +50,7 @@ public sealed class CombatBehavior : IBehavior
     private DateTime _lastSword = DateTime.MinValue;
     private DateTime _lastPetOrder = DateTime.MinValue;
     private Position _deathPlace;
+    private DateTime _lastApproach;
     private DateTime _lootStarted;
     private int _lootAttempts;
     private DateTime _nextPickup;
@@ -204,12 +208,24 @@ public sealed class CombatBehavior : IBehavior
             return c.Submit(sword);
         }
 
-        if (!combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && c.Runner.Actions.CanMove
-            && !c.Runner.IsPending("движение"))
+        if (!combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && c.Runner.Actions.CanMove)
         {
             var point = PointNear(w.Host.Position, mob.Position, combat.ComeCloserDistance - 1);
-            c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {combat.ComeCloserDistance:0} м");
-            return c.Submit(new MoveAction(point, tolerance: 1.5f));
+            var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault();
+            if (running is null)
+            {
+                c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {combat.ComeCloserDistance:0} м");
+                _lastApproach = c.Now;
+                return c.Submit(new MoveAction(point, tolerance: 1.5f));
+            }
+
+            // Моб убегает — не добегать до старой точки, а сразу к новой
+            if (running.Point.HorizontalDistanceTo(point) > RetargetDistance && c.Now - _lastApproach >= RetargetPeriod)
+            {
+                c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
+                _lastApproach = c.Now;
+                return c.Runner.Replace(new MoveAction(point, tolerance: 1.5f), w).Status != SubmitStatus.Failed;
+            }
         }
 
         if (!combat.UseSkill && !combat.UseSword && !(c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true }))

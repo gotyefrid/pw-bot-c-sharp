@@ -79,6 +79,20 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         }
     }
 
+    /// <summary>
+    /// Отправить вместо такого же ожидающего (тот же <see cref="GameAction.Key"/>) — например, новая точка, пока бежим к старой.
+    /// Прежнее просто забывается: игра сама заменяет текущую работу новой.
+    /// </summary>
+    public SubmitResult Replace(GameAction action, WorldState now)
+    {
+        lock (_lock)
+        {
+            if (_pending.RemoveAll(p => p.Action.Key == action.Key) > 0)
+                log.Debug($"↺ {action.Name}");
+            return Submit(action, now);
+        }
+    }
+
     public SubmitResult Submit(GameAction action, WorldState now)
     {
         ActionOutcome outcome;

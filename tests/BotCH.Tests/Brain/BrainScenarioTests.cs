@@ -394,6 +394,28 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void ComeCloserRetargetsWhenMobRunsAway()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        var mob = _world.AddMob(0x80000001, "Волк", 20);
+        _world.TargetWid = mob.Wid;
+        Tick();
+        Assert.Contains("(13,0;", LastCall);
+
+        // Моб отбежал на 2 м — к старой точке бежим дальше; ещё на 5 м — сразу к новому месту
+        _world.Replace(mob, m => m with { Position = new Position(22, 0, 0), Distance = 22 });
+        Tick(1.5);
+        Assert.Single(_actions.Calls, c => c.StartsWith("move"));
+
+        _world.Replace(mob, m => m with { Position = new Position(27, 0, 0), Distance = 27 });
+        Tick(1.5);
+        Assert.Contains("(20,0;", LastCall);
+        Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("move")));
+    }
+
+    [Fact]
     public void PetOrderedToAttackTarget()
     {
         _settings.Target.KillMobs = true;
