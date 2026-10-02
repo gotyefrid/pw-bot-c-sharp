@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using BotCH.Core.Profiles;
 
 namespace BotCH.Core.Calls;
@@ -50,10 +51,11 @@ public static class StubBuilder
 
     /// <summary>
     /// Идти в точку, как кликом по земле:
-    /// <c>work = WorkMan->CreateWork(1); if (work) { work->SetDestination(type, &amp;point); WorkMan->StartWork(startArgs); }</c>.
-    /// startArgs — по порядку, null — сама работа (1.3.6: 1, work, 1, 0; Comeback 1.4.6: 1, work, 0).
+    /// <c>work = WorkMan->CreateWork(1); if (work) { work->SetDestination(destinationArgs); WorkMan->StartWork(startArgs); }</c>.
+    /// Аргументы — по порядку, null — сама работа. 1.3.6: SetDestination(0, &amp;point), StartWork(1, work, 1, 0);
+    /// Comeback 1.4.6: SetDestination(5, &amp;point) — с автопутём, StartWork(1, work, 0).
     /// </summary>
-    public static byte[] MoveTo(uint workMan, uint create, uint setDestination, uint start, uint pointAddress, byte destinationType,
+    public static byte[] MoveTo(uint workMan, uint create, uint setDestination, IReadOnlyList<uint> destinationArgs, uint start,
         IReadOnlyList<uint?> startArgs)
     {
         var code = new List<byte> { 0x56 };                 // push esi
@@ -64,25 +66,30 @@ public static class StubBuilder
         var jz = code.Count;
         code.AddRange([0x74, 0x00]);                        // jz end — смещение ниже
         code.AddRange([0x8B, 0xF0]);                        // mov esi, eax
-        Push(code, pointAddress);                           // push &point
-        code.AddRange([0x6A, destinationType]);             // push type (0 — точка на земле)
+        PushArgs(code, destinationArgs.Select(a => (uint?)a).ToArray()); // тип, &point
         code.AddRange([0x8B, 0xCE]);                        // mov ecx, esi
         CallAbsolute(code, setDestination);
-        for (var i = startArgs.Count - 1; i >= 0; i--)
-        {
-            if (startArgs[i] is not { } value)
-                code.Add(0x56);                             // push esi (работа)
-            else if (value <= 0x7F)
-                code.AddRange([0x6A, (byte)value]);         // push imm8
-            else
-                Push(code, value);
-        }
+        PushArgs(code, startArgs);
         MovEcx(code, workMan);
         CallAbsolute(code, start);
         code[jz + 1] = (byte)(code.Count - (jz + 2));
         code.Add(0x5E);                                     // end: pop esi
         Return(code);
         return code.ToArray();
+    }
+
+    // Справа налево; null — push esi (работа), маленькие числа — push imm8
+    private static void PushArgs(List<byte> code, IReadOnlyList<uint?> args)
+    {
+        for (var i = args.Count - 1; i >= 0; i--)
+        {
+            if (args[i] is not { } value)
+                code.Add(0x56);
+            else if (value <= 0x7F)
+                code.AddRange([0x6A, (byte)value]);
+            else
+                Push(code, value);
+        }
     }
 
     private static void Push(List<byte> code, uint value)

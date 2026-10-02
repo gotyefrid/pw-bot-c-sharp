@@ -86,7 +86,7 @@ public class StubBuilderTests
     [Fact]
     public void MoveMatchesOldStub()
     {
-        var stub = StubBuilder.MoveTo(0x11223344, 0x466C70, 0x46A890, 0x467070, 0x55660100, 0, [1, null, 1, 0]);
+        var stub = StubBuilder.MoveTo(0x11223344, 0x466C70, 0x46A890, [0, 0x55660100], 0x467070, [1, null, 1, 0]);
 
         Assert.Equal(
             "56 B9 44 33 22 11 6A 01 B8 70 6C 46 00 FF D0 85 C0 74 25 8B F0 68 00 01 66 55 6A 00 8B CE B8 90 A8 46 00 FF D0 "
@@ -98,15 +98,16 @@ public class StubBuilderTests
     public void MoveStartArgsFromProfile()
     {
         // Comeback 1.4.6: StartWork(1, work, 0); большое число — push imm32
-        var stub = StubBuilder.MoveTo(0x11223344, 0x747A70, 0x74DDF0, 0x7484D0, 0x55660100, 0, [1, null, 0x100]);
+        var stub = StubBuilder.MoveTo(0x11223344, 0x747A70, 0x74DDF0, [5, 0x55660100], 0x7484D0, [1, null, 0x100]);
 
+        Assert.Contains("68 00 01 66 55 6A 05 8B CE", Hex(stub)); // автопуть: SetDestination(5, &point)
         Assert.Contains("FF D0 68 00 01 00 00 56 6A 01 B9 44 33 22 11 B8 D0 84 74 00 FF D0 5E", Hex(stub));
     }
 
     [Fact]
     public void MoveJumpLandsOnPopEsi()
     {
-        var stub = StubBuilder.MoveTo(1, 2, 3, 4, 5, 0, [1, null, 0]);
+        var stub = StubBuilder.MoveTo(1, 2, 3, [0, 5], 4, [1, null, 0]);
         var jz = Array.IndexOf(stub, (byte)0x74);
 
         Assert.Equal(0x5E, stub[jz + 2 + stub[jz + 1]]);

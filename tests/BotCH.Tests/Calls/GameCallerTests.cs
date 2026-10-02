@@ -190,16 +190,17 @@ public class GameCallerTests
         var run = _runner.Runs.Single();
         Assert.Equal(BitConverter.GetBytes(-1800f).Concat(BitConverter.GetBytes(220f)).Concat(BitConverter.GetBytes(-110.5f)), run.Data!);
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
-            Address(GameFunctions.WorkStart), DataAddress, 0, [1, null, 1, 0]), run.Stub);
+            [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 1, 0]), run.Stub);
     }
 
     [Fact]
     public void MoveToTakesStartArgsFromProfile()
     {
-        // Comeback 1.4.6: StartWork(1, work, 0) — на аргумент меньше, чем в 1.3.6
+        // Comeback 1.4.6: SetDestination(5, &point) — автопуть, StartWork(1, work, 0) — на аргумент меньше, чем в 1.3.6
         const uint host = 0x1FA1F868, workMan = 0x2222_0000;
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
         var start = Profile.Functions[GameFunctions.WorkStart];
+        var destination = Profile.Functions[GameFunctions.WorkMoveSetDestination];
         var profile = new ProfileData
         {
             Host = Profile.Host,
@@ -207,6 +208,8 @@ public class GameCallerTests
             {
                 [GameFunctions.WorkStart] = new GameFunction { Rva = start.Rva, Signature = start.Signature, Convention = start.Convention,
                     Args = ["1", "work", "0"] },
+                [GameFunctions.WorkMoveSetDestination] = new GameFunction { Rva = destination.Rva, Signature = destination.Signature,
+                    Convention = destination.Convention, Args = ["5", "data"] },
             },
         };
 
@@ -214,7 +217,7 @@ public class GameCallerTests
 
         Assert.True(result.Ok, result.Details);
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
-            Address(GameFunctions.WorkStart), DataAddress, 0, [1, null, 0]), _runner.Runs.Single().Stub);
+            [5, DataAddress], Address(GameFunctions.WorkStart), [1, null, 0]), _runner.Runs.Single().Stub);
     }
 
     // Comeback 1.4.6: «выбрать цель» — метод персонажа (this = перс, stdcall-очистка как у thiscall), «снять цель» — он же с 0

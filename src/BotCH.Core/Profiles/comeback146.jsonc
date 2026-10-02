@@ -243,8 +243,11 @@
     // вписан прямо в код. Отличие от 1.3.6 — у StartWork на один аргумент меньше (ret 0xC).
     // CreateWork(type) — switch по 0..0x14, тип 1 = CECHPWorkMove (vtable 0xBFC9DC), ret 4
     "workCreate": { "rva": "0x347A70", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 14 0F 87" },
-    // SetDestination(type, &point): пишет точку в +0x20, тип в +0x2C, направление в +0x34 (нормированное), ret 8
-    "workMoveSetDestination": { "rva": "0x34DDF0", "convention": "thiscall", "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
+    // SetDestination(type, &point): пишет точку в +0x20, тип в +0x2C, направление в +0x34 (нормированное), ret 8.
+    // Тип 5 — автопуть, как клик по карте (0x31BE0A): работа при первом шаге (0x34E110) строит маршрут от перса до точки
+    // (0x357F60, объект маршрута 0xCB9A10) и бежит по нему, обходя препятствия; маршрут не нашёлся — бежит по прямой (тип 0)
+    "workMoveSetDestination": { "rva": "0x34DDF0", "convention": "thiscall", "args": [ "5", "data" ],
+                                "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
     "workStart": { "rva": "0x3484D0", "convention": "thiscall", "args": [ "1", "work", "0" ],
                    "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
   }

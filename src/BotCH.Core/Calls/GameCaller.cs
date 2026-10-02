@@ -104,7 +104,10 @@ public sealed class GameCaller
     public CallResult PickupObject(uint host, uint id, bool gather = false)
         => Call(GameFunctions.HostPickupObject, host, null, ["id", "gather"], ("id", id), ("gather", gather ? 1u : 0u));
 
-    /// <summary>Идти в точку, как кликом по земле. Тип 0 — точка на земле (2 = направление, бежит бесконечно — запрещено).</summary>
+    /// <summary>
+    /// Идти в точку, как кликом по земле (или по карте — с автопутём, если так в профиле). Аргументы SetDestination и StartWork —
+    /// из профиля, по умолчанию как в 1.3.6. Тип точки 0 — по прямой; 2 — направление, бежит бесконечно, не использовать.
+    /// </summary>
     public CallResult MoveTo(uint host, float x, float height, float y)
     {
         var names = new[] { GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart };
@@ -119,23 +122,35 @@ public sealed class GameCaller
         if (_profile.Host.WorkMan == 0 || !_memory.TryReadUInt32(host + _profile.Host.WorkMan, out var workMan) || workMan == 0)
             return CallResult.Refused("нет менеджера работ персонажа");
 
-        // StartWork: 1.3.6 — (1, work, 1, 0), у других клиентов — как в args профиля
-        var startNames = _profile.Functions[GameFunctions.WorkStart].Args ?? ["1", WorkArg, "1", "0"];
-        var startArgs = new uint?[startNames.Count];
-        for (var i = 0; i < startNames.Count; i++)
-        {
-            if (startNames[i] == WorkArg)
-                continue;
-            if (!TryParseNumber(startNames[i], out var number))
-                return CallResult.Refused($"{GameFunctions.WorkStart}: в профиле аргумент «{startNames[i]}», а бот его не даёт");
-            startArgs[i] = number;
-        }
+        // 1.3.6: SetDestination(0, &point), StartWork(1, work, 1, 0); у других клиентов — как в args профиля
+        if (MoveArgs(GameFunctions.WorkMoveSetDestination, ["0", DataArg], DataArg, out var destinationArgs) is { } badDestination)
+            return badDestination;
+        if (MoveArgs(GameFunctions.WorkStart, ["1", WorkArg, "1", "0"], WorkArg, out var startArgs) is { } badStart)
+            return badStart;
 
         var point = new byte[12];
         Buffer.BlockCopy(BitConverter.GetBytes(x), 0, point, 0, 4);
         Buffer.BlockCopy(BitConverter.GetBytes(height), 0, point, 4, 4);
         Buffer.BlockCopy(BitConverter.GetBytes(y), 0, point, 8, 4);
-        return Result(_runner.Run(point, address => StubBuilder.MoveTo(workMan, addresses[0], addresses[1], addresses[2], address, 0, startArgs)));
+        return Result(_runner.Run(point, address => StubBuilder.MoveTo(workMan, addresses[0], addresses[1],
+            destinationArgs.Select(a => a ?? address).ToArray(), addresses[2], startArgs)));
+    }
+
+    /// <summary>Числа из args профиля; на месте <paramref name="slot"/> — null (подставится при сборке заглушки).</summary>
+    private CallResult? MoveArgs(string function, string[] defaultArgs, string slot, out uint?[] args)
+    {
+        var names = _profile.Functions[function].Args ?? (IReadOnlyList<string>)defaultArgs;
+        args = new uint?[names.Count];
+        for (var i = 0; i < names.Count; i++)
+        {
+            if (names[i] == slot)
+                continue;
+            if (!TryParseNumber(names[i], out var number))
+                return CallResult.Refused($"{function}: в профиле аргумент «{names[i]}», а бот его не даёт");
+            args[i] = number;
+        }
+
+        return null;
     }
 
     /// <param name="defaultArgs">Порядок аргументов, если в профиле нет args.</param>
