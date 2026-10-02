@@ -28,7 +28,9 @@
     "basePointer": "0x8EBC1C",
     "game": "0x1C",
     // Не нужен: в настройках клиента есть своя «работа в фоне». Флаг, похоже, +0x4E8 (как в старом 146), но не проверен
-    "unfreeze": "0x0"
+    "unfreeze": "0x0",
+    // Объект связи с сервером: в нём SendGameData (ecx = [[база]+0x20]) и ограничитель частоты команд (+0x104)
+    "session": "0x20"
   },
 
   "host": {
@@ -217,6 +219,23 @@
     // в регистрах: cl = where (0 — сумка), dl = ячейка, в стеке tid и count, стек чистит вызывающий (так вызывает клиент: add esp, 8)
     "useItem": { "rva": "0x3F6FD0", "convention": "cdecl", "args": [ "tid", "count" ],
                  "registers": { "ecx": "where", "edx": "slot" },
-                 "signature": "55 8B EC 53 56 6A 0A 8A DA 8A F9 FF" }
+                 "signature": "55 8B EC 53 56 6A 0A 8A DA 8A F9 FF" },
+
+    // Скилл пакетом, команда 0x29: метод объекта связи (this = [[база]+0x20], ret 0x10), args (skill, pvpMask, —, &цель).
+    // Число целей в пакете клиент всегда пишет 1 (третий аргумент не читает), цель — *&цель. Перед отправкой — ограничитель частоты.
+    // Вызывают: ApplySkill (особые 167 и 0x720) и логика скилла 0x33B000
+    "castSkill": { "rva": "0x32B160", "convention": "thiscall", "this": "session",
+                   "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
+
+    // c2s_SendCmdPetCtrl(int target, int cmd, void* data, int size), команда 0x67, пакет 10 + size — как в 1.3.6, но метод объекта
+    // связи (this = [[база]+0x20], ret 0x10) с ограничителем частоты. Рядом 0x1E3BA0… — готовые приказы с постоянными данными
+    "petCtrl": { "rva": "0x1E3820", "convention": "thiscall", "this": "session",
+                 "signature": "55 8B EC 51 53 56 57 8D 45 FC C7 45" },
+
+    // Кнопка «призвать пета»: CECHostPlayer::SummonPet(int index), this = перс, ret 4. Пет — [менеджер петов + 0x10 + index*4]
+    // (по ней и нашли менеджер). Не призывает мёртвого и неподходящего по уровню, шлёт c2s 0x64.
+    // Отзыв (0x65) — отдельная функция 0x33FED0, сюда не входит
+    "summonPet": { "rva": "0x33FD20", "convention": "thiscall", "this": "host",
+                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E 64 1C 00" }
   }
 }
