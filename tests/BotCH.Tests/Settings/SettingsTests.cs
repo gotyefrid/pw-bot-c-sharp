@@ -66,7 +66,7 @@ public class SettingsTests
     {
         var s = SettingsJson.Parse("""{ "pet": { "cage": 42, "healPercent": -5 }, "potions": { "hpPercent": 300 } }""");
 
-        Assert.Equal(10, s.Pet.Cage);
+        Assert.Equal(32, s.Pet.Cage);
         Assert.Equal(0, s.Pet.HealPercent);
         Assert.Equal(100, s.Potions.HpPercent);
     }

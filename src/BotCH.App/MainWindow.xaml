@@ -337,7 +337,7 @@
                        Visibility="{Binding HasPets, Converter={StaticResource Hidden}}" />
             <StackPanel IsEnabled="{Binding Settings.Pet.Enabled}">
               <DockPanel Style="{StaticResource SettingRow}">
-                <TextBlock Text="Клетка (1–10)" VerticalAlignment="Center" />
+                <TextBlock Text="Клетка" VerticalAlignment="Center" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.Cage, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">

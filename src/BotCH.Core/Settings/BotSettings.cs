@@ -42,7 +42,8 @@ public sealed class BotSettings
         Loot.Radius = Clamp(Loot.Radius, 1, 30);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
         Potions.MpBelow = Math.Max(0, Potions.MpBelow);
-        Pet.Cage = Clamp(Pet.Cage, 1, 10);
+        // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
+        Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
         return this;
     }
