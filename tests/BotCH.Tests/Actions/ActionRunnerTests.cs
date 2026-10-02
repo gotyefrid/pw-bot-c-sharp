@@ -99,6 +99,60 @@ public class ActionRunnerTests
     }
 
     [Fact]
+    public void GatherKnockedDownIsRejectedAtOnce()
+    {
+        // Копали камень 8 с, моб сбил на 1,8 с — не ждём 30 с
+        var stone = new GroundItem(1, 0xC0100AD9, 3079, GroundItemKind.Resource, default, 2, "Залежи камня");
+        _world.Ground.Add(stone);
+        _world.Gather = new GatherProgress(false, 8000, 8000);
+        _runner.Submit(new GatherAction(stone), _world.Snapshot());
+
+        _world.Gather = new GatherProgress(true, 200, 8000);
+        Assert.Empty(_runner.Update(_world.Wait(0.2).Snapshot()));
+        _world.Gather = new GatherProgress(false, 1800, 8000);
+
+        var outcome = Single(_runner.Update(_world.Wait(1.6).Snapshot()));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("сбили: 1,8 из 8 с", outcome.ToString());
+    }
+
+    [Fact]
+    public void GatherFinishedWaitsForLoot()
+    {
+        // Полоска дошла до конца, ресурс ещё виден пару кадров — это не срыв
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, default, 2, "Железная руда");
+        _world.Ground.Add(ore);
+        _runner.Submit(new GatherAction(ore), _world.Snapshot());
+        _world.Gather = new GatherProgress(true, 2500, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(2.5).Snapshot()));
+
+        _world.Gather = new GatherProgress(false, 5000, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(2.5).Snapshot()));
+        _world.Ground.Clear();
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.2).Snapshot())).Status);
+    }
+
+    [Fact]
+    public void GatherNotStartedWhileStandingIsRejected()
+    {
+        // Подошли, а полоски нет (нет кирки) — 4 с стоим и бросаем
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, default, 2, "Железная руда");
+        _world.Ground.Add(ore);
+        _world.Gather = new GatherProgress(false, 0, 0);
+        _runner.Submit(new GatherAction(ore), _world.Snapshot());
+
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        _world.Position = new Position(1, 0, 0); // ещё бежим
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(3).Snapshot()));
+
+        var outcome = Single(_runner.Update(_world.Wait(1.2).Snapshot()));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("нет инструмента", outcome.ToString());
+    }
+
+    [Fact]
     public void SecondBodyActionWaitsWhileFirstPending()
     {
         // Бег к мобу ещё идёт — скилл «как кнопкой» не отправляется поверх (оба — «работы» персонажа)

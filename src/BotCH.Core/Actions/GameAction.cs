@@ -242,6 +242,8 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
 /// <summary>
 /// Собрать ресурс «как мышкой»: клиент подводит персонажа, копает (полоска) и кладёт добычу в сумку.
 /// Подтверждение — в сумке прибавилось или ресурс пропал с земли. Нужен инструмент (для руды — кирка): без него откажет игра.
+/// Если сервер показывает полоску копания (<see cref="HostState.Gather"/>): полоска кончилась раньше времени — сбили;
+/// стоим на месте, а копать не начали — игра не даёт (нет инструмента).
 /// </summary>
 public sealed class GatherAction(GroundItem resource) : GameAction
 {
@@ -258,13 +260,43 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 
     public override CallResult Send(IGameActions actions, WorldState now) => actions.Gather(now.Host, Item);
 
+    private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(4);
+    private bool _started;
+    private Position? _lastPosition;
+    private DateTime? _standingSince;
+
     public override Verdict Check(WorldState start, WorldState now)
     {
         var before = start.Inventory.Sum(i => i.Count);
         var after = now.Inventory.Sum(i => i.Count);
         if (after > before)
             return Verdict.Confirmed($"в сумке +{after - before}");
-        return now.GroundItems.Any(i => i.Id == Item.Id) ? Verdict.Pending : Verdict.Confirmed("ресурс пропал с земли");
+        if (!now.GroundItems.Any(i => i.Id == Item.Id))
+            return Verdict.Confirmed("ресурс пропал с земли");
+        if (now.Host.Gather is not { } g)
+            return Verdict.Pending;
+
+        if (g.Active)
+        {
+            _started = true;
+            return Verdict.Pending;
+        }
+
+        // Полоска кончилась: дошла до конца — ждём добычу, нет — сбили
+        if (_started)
+            return g.Finished ? Verdict.Pending : Verdict.Rejected($"копание сбили: {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с");
+
+        // Ещё не начали: бежим — ждём; стоим — игра не даёт копать
+        if (_lastPosition is not { } last || now.Host.Position.HorizontalDistanceTo(last) > 0.1f)
+        {
+            _lastPosition = now.Host.Position;
+            _standingSince = now.Time;
+            return Verdict.Pending;
+        }
+
+        return now.Time - _standingSince!.Value >= StandPatience
+            ? Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0} с, а копать не начали — нет инструмента?")
+            : Verdict.Pending;
     }
 }
 

@@ -82,8 +82,18 @@ public sealed record HostState(
     /// <summary>Сколько мс осталось до конца перезарядки корма пета (0 — можно кормить или поле не найдено).</summary>
     int PetFoodCooldownMs)
 {
+    /// <summary>Полоска копания; null — поля не найдены для этого сервера.</summary>
+    public GatherProgress? Gather { get; init; }
+
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
     public bool IsDead => Hp <= 0;
+}
+
+/// <summary>Полоска копания ресурса. После конца или срыва <see cref="ElapsedMs"/> и <see cref="TotalMs"/> остаются последними.</summary>
+public sealed record GatherProgress(bool Active, int ElapsedMs, int TotalMs)
+{
+    /// <summary>Полоска дошла до конца (с запасом на кадр).</summary>
+    public bool Finished => TotalMs > 0 && ElapsedMs >= TotalMs - 300;
 }
 
 public enum NpcKind

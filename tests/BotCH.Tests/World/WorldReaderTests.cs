@@ -150,6 +150,19 @@ public class WorldReaderTests
         Assert.Equal(expected, npc.TargetWid);
     }
 
+    [Fact]
+    public void ComebackReadsGatherProgress()
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        ComebackWorldWithMob(p);
+        const uint host = 0x1002_0000;
+        _memory.WriteBytes(host + p.Host.GatherIdle, [0]);
+        _memory.WriteUInt32(host + p.Host.GatherElapsed, 1800);
+        _memory.WriteUInt32(host + p.Host.GatherTotal, 8000);
+
+        Assert.Equal(new GatherProgress(true, 1800, 8000), new WorldReader(_memory, ModuleBase, p).Read().Host.Gather);
+    }
+
     // Мир Comeback 1.4.6 с одним мобом; возвращает адрес моба
     private uint ComebackWorldWithMob(ProfileData p)
     {

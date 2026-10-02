@@ -77,6 +77,12 @@ public sealed class HostOffsets
     public uint PetFoodCooldown { get; init; }
     /// <summary>Координаты: X, высота, Y — три float подряд.</summary>
     public uint Location { get; init; }
+    /// <summary>Байт: 0 — идёт полоска копания, иначе нет (0 в профиле — поле не найдено).</summary>
+    public uint GatherIdle { get; init; }
+    /// <summary>Полоска копания: сколько мс прошло.</summary>
+    public uint GatherElapsed { get; init; }
+    /// <summary>Полоска копания: сколько мс всего.</summary>
+    public uint GatherTotal { get; init; }
     /// <summary>[перс + WorkMan] — менеджер «работ» (CECHPWorkMan).</summary>
     public uint WorkMan { get; init; }
     /// <summary>[перс + Inventory] — сумка.</summary>
