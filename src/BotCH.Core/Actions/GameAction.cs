@@ -22,6 +22,18 @@ public readonly record struct Verdict(VerdictKind Kind, string Details = "")
     public static Verdict Cancelled(string details) => new(VerdictKind.Cancelled, details);
 }
 
+/// <summary>Что действие занимает у персонажа, пока ждёт подтверждения.</summary>
+public enum ActionResource
+{
+    /// <summary>Ничего: банка, корм, приказ пету, выбор цели — идут параллельно с чем угодно.</summary>
+    None,
+    /// <summary>
+    /// Тело: бег, скилл, атака, подбор с подходом — у клиента это «работы» персонажа, новая заменяет прежнюю. Два таких разом
+    /// перебивают друг друга (так 2026-10-02 упал клиент 1.4.6), поэтому одновременно — только одно.
+    /// </summary>
+    Body,
+}
+
 /// <summary>
 /// Действие бота: как отправить и как по снимкам понять, что оно сработало.
 /// Пока не подтверждено (или не вышел срок), такое же действие (<see cref="Key"/>) повторно не отправляется.
@@ -33,6 +45,9 @@ public abstract class GameAction
 
     /// <summary>Одинаковый ключ — «то же самое действие». По умолчанию — <see cref="Name"/>.</summary>
     public virtual string Key => Name;
+
+    /// <summary>Что занимает, пока ждёт подтверждения: тело — одновременно только одно такое действие.</summary>
+    public virtual ActionResource Resource => ActionResource.None;
 
     /// <summary>Сколько ждать подтверждения.</summary>
     public abstract TimeSpan Timeout { get; }
@@ -77,6 +92,7 @@ public sealed class NormalAttackAction : GameAction
 {
     public override string Name => "обычная атака";
     public override TimeSpan Timeout => TimeSpan.FromSeconds(6);
+    public override ActionResource Resource => ActionResource.Body;
 
     public override string? Precondition(WorldState now) => now.Target is null ? "нет цели" : null;
 
@@ -122,6 +138,7 @@ public sealed class SkillAction : GameAction
 
     public override string Name => TargetWid == 0 ? Title : $"{Title} → 0x{TargetWid:X8}";
     public override string Key => $"скилл {Skill}";
+    public override ActionResource Resource => ActionResource.Body;
     // Как кнопкой: не дождались за 5 с — бот просто нажмёт ещё раз (клиент продолжит подход), долго ждать незачем
     public override TimeSpan Timeout => TimeSpan.FromSeconds(_approach ? 5 : 8);
 
@@ -187,6 +204,8 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
 
     public override string Name => $"подобрать {Item.Name} ({Item.Distance:0.0} м{(approach ? ", с подходом" : "")})";
     public override string Key => $"подбор 0x{Item.Id:X8}";
+    // Пакетом персонаж не двигается; «как мышкой» — бежит к предмету
+    public override ActionResource Resource => approach ? ActionResource.Body : ActionResource.None;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(approach ? 10 : 3);
 
     public override string? Precondition(WorldState now)
@@ -228,6 +247,7 @@ public sealed class MoveAction(Position point, float tolerance = 2f) : GameActio
 
     public override string Name => $"идти в {Point}";
     public override string Key => "движение";
+    public override ActionResource Resource => ActionResource.Body;
 
     // Бег ~5 м/с, с запасом: 5 с + 0.4 с на метр (считается от точки отправки в Check); здесь — только верхний предел
     // (автопуть на 1.4.6 водит и на сотни метров)
@@ -252,6 +272,7 @@ public sealed class SummonPetAction(int cage) : GameAction
     public int Cage { get; } = cage;
     public override string Name => $"призвать пета из клетки {Cage}";
     public override string Key => "пет";
+    public override ActionResource Resource => ActionResource.Body;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(8);
 
     public override string? Precondition(WorldState now)
@@ -274,6 +295,7 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
     public int Cage { get; } = cage;
     public override string Name => $"воскресить пета (клетка {Cage})";
     public override string Key => "пет";
+    public override ActionResource Resource => ActionResource.Body;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(20);
 
     public override string? Precondition(WorldState now)

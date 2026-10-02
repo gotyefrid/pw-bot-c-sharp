@@ -42,10 +42,13 @@ public enum SubmitStatus
     Sent,
     /// <summary>Такое же действие ещё ждёт подтверждения — второй раз не отправлено.</summary>
     AlreadyPending,
+    /// <summary>Тело занято другим действием — не отправлено, это не ошибка: отправить позже.</summary>
+    Busy,
     Failed,
 }
 
-public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = null)
+/// <param name="BusyWith">При <see cref="SubmitStatus.Busy"/> — чем занято тело.</param>
+public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = null, GameAction? BusyWith = null)
 {
     public bool Sent => Status == SubmitStatus.Sent;
 }
@@ -53,6 +56,7 @@ public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = 
 /// <summary>
 /// Единственный исполнитель действий. Вызовы в игре идут строго по одному (lock), действие «в процессе» не
 /// отправляется повторно, подтверждение — по снимкам (<see cref="Update"/>), время — по меткам снимков.
+/// Тело персонажа (<see cref="ActionResource.Body"/>) занимает одно действие за раз: второе получает «занято».
 /// </summary>
 public sealed class ActionRunner(IGameActions actions, ILogger log)
 {
@@ -68,6 +72,16 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
     {
         lock (_lock)
             return _pending.Any(p => p.Action.Key == key);
+    }
+
+    /// <summary>Действие, которое сейчас занимает тело; null — свободно.</summary>
+    public GameAction? BodyAction
+    {
+        get
+        {
+            lock (_lock)
+                return _pending.Select(p => p.Action).FirstOrDefault(a => a.Resource == ActionResource.Body);
+        }
     }
 
     public IReadOnlyList<GameAction> Pending
@@ -100,6 +114,9 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         {
             if (_pending.Any(p => p.Action.Key == action.Key))
                 return new SubmitResult(SubmitStatus.AlreadyPending);
+
+            if (action.Resource == ActionResource.Body && BodyAction is { } busy)
+                return new SubmitResult(SubmitStatus.Busy, BusyWith: busy);
 
             if (action.Precondition(now) is { } reason)
             {

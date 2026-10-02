@@ -99,6 +99,49 @@ public class ActionRunnerTests
     }
 
     [Fact]
+    public void SecondBodyActionWaitsWhileFirstPending()
+    {
+        // Бег к мобу ещё идёт — скилл «как кнопкой» не отправляется поверх (оба — «работы» персонажа)
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
+        var move = new MoveAction(new Position(10, 0, 0));
+
+        Assert.True(_runner.Submit(move, _world.Snapshot()).Sent);
+        var skill = _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.Busy, skill.Status);
+        Assert.Same(move, skill.BusyWith);
+        Assert.Equal(["move (10,0; 0,0; h 0,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void FreeActionsGoAlongsideBody()
+    {
+        // Банка и приказ пету тело не занимают — идут, пока бежим
+        var potion = _world.AddPotion(2, 8618, 25, hp: 80);
+        _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
+        _world.SetPet(1);
+        _runner.Submit(new MoveAction(new Position(10, 0, 0)), _world.Snapshot());
+
+        Assert.True(_runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(new PetAttackAction(1), _world.Snapshot()).Sent);
+    }
+
+    [Fact]
+    public void BodyFreesWhenActionCompletes()
+    {
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
+        _runner.Submit(new MoveAction(new Position(10, 0, 0)), _world.Snapshot());
+
+        _world.Position = new Position(10, 0, 0);
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.3).Snapshot())).Status);
+
+        Assert.Null(_runner.BodyAction);
+        Assert.True(_runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot()).Sent);
+    }
+
+    [Fact]
     public void SkillOnCooldownIsNotSent()
     {
         _world.AddSkill(299, cooldownLeftMs: 1500);
