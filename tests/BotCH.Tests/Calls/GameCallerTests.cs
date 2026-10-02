@@ -193,6 +193,71 @@ public class GameCallerTests
             Address(GameFunctions.WorkStart), DataAddress, 0), run.Stub);
     }
 
+    // Comeback 1.4.6: «выбрать цель» — метод персонажа (this = перс, stdcall-очистка как у thiscall), «снять цель» — он же с 0
+    private ProfileData HostMethodProfile(uint host)
+    {
+        const uint basePtr = 0x1000_0000, game = 0x1001_0000;
+        _memory.WriteUInt32(ModuleBase + 0x100, basePtr);
+        _memory.WriteUInt32(basePtr + 0x1C, game);
+        _memory.WriteUInt32(game + 0x28, host);
+        var select = Profile.Functions[GameFunctions.SelectTarget];
+        GameFunction Method(params string[] args) => new() { Rva = select.Rva, Signature = select.Signature, Convention = CallingConvention.Thiscall,
+            This = FunctionThis.Host, Args = [.. args] };
+        return new ProfileData
+        {
+            Base = new BaseOffsets { BasePointer = 0x100, Game = 0x1C },
+            Host = new HostOffsets { Struct = 0x28 },
+            Functions = new() { [GameFunctions.SelectTarget] = Method("wid"), [GameFunctions.Unselect] = Method("0") },
+        };
+    }
+
+    [Fact]
+    public void HostMethodGetsHostFromMemory()
+    {
+        const uint host = 0x2F37_2008;
+
+        var result = Caller(HostMethodProfile(host)).SelectTarget(0x801040C0);
+
+        Assert.True(result.Ok, result.Details);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SelectTarget), CallingConvention.Thiscall, host, [0x801040C0]), _runner.Runs.Single().Stub);
+    }
+
+    [Fact]
+    public void ArgsFromProfileCanBeNumbers()
+    {
+        const uint host = 0x2F37_2008;
+
+        Caller(HostMethodProfile(host)).Unselect();
+
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SelectTarget), CallingConvention.Thiscall, host, [0]), _runner.Runs.Single().Stub);
+    }
+
+    [Fact]
+    public void HostMethodWithoutHostIsRefused()
+    {
+        var result = Caller(HostMethodProfile(0)).SelectTarget(1);
+
+        Assert.False(result.Ok);
+        Assert.Contains("не в мире", result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
+    public void UnknownArgInProfileIsRefused()
+    {
+        var select = Profile.Functions[GameFunctions.SelectTarget];
+        var profile = new ProfileData
+        {
+            Functions = new() { [GameFunctions.SelectTarget] = new GameFunction { Rva = select.Rva, Signature = select.Signature, Args = ["wid", "опечатка"] } },
+        };
+
+        var result = Caller(profile).SelectTarget(1);
+
+        Assert.False(result.Ok);
+        Assert.Contains("опечатка", result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
     [Fact]
     public void RunnerTimeoutIsReported()
     {
