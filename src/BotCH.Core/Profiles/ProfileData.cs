@@ -148,6 +148,11 @@ public sealed class NpcOffsets
     public uint Distance { get; init; }
     /// <summary>WID того, кого бьёт моб; 0 — нейтрален.</summary>
     public uint Target { get; init; }
+    /// <summary>
+    /// WID того, в кого моб кастует (0 — поля нет). Нужен, если у кастующего <see cref="Target"/> пуст: так у заклинателей
+    /// Comeback 1.4.6 — иначе бот не видит, что моб бьёт пета.
+    /// </summary>
+    public uint CastTarget { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }
 }

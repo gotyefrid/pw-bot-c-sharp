@@ -134,6 +134,48 @@ public class WorldReaderTests
         Assert.Empty(Reader().Read().Npcs);
     }
 
+    [Theory]
+    [InlineData(NpcInfo.StateCasting, 0xA0126CE5u)] // кастует — цель каста
+    [InlineData(2, 0xFFFFFFFFu)]                     // бьёт рукой — обычное поле, цель каста не смотрим
+    public void CastingMobTargetsWhomItCastsAt(int state, uint expected)
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        var mob = ComebackWorldWithMob(p);
+        _memory.WriteUInt32(mob + p.Npc.State, (uint)state);
+        _memory.WriteUInt32(mob + p.Npc.Target, 0xFFFFFFFF);
+        _memory.WriteUInt32(mob + p.Npc.CastTarget, 0xA0126CE5);
+
+        var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
+
+        Assert.Equal(expected, npc.TargetWid);
+    }
+
+    // Мир Comeback 1.4.6 с одним мобом; возвращает адрес моба
+    private uint ComebackWorldWithMob(ProfileData p)
+    {
+        const uint basePtr = 0x1000_0000, game = 0x1001_0000, host = 0x1002_0000, world = 0x1003_0000, name = 0x1004_0000;
+        const uint manager = 0x3000_0000, slots = 0x3001_0000, node = 0x3002_0000, mob = 0x3003_0000;
+        _memory.WriteUInt32(ModuleBase + p.Base.BasePointer, basePtr);
+        _memory.WriteUInt32(basePtr + p.Base.Game, game);
+        _memory.WriteUInt32(game + p.Host.Struct, host);
+        _memory.WriteUInt32(game + p.World.World, world);
+        _memory.Map(host, 0x2000);
+        _memory.WriteUInt32(host + p.Host.NamePointer, name);
+        _memory.WriteBytes(name, System.Text.Encoding.Unicode.GetBytes("Кот\0"));
+        _memory.Map(world, 0x100);
+        _memory.WriteUInt32(world + p.World.Npcs.Manager, manager);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + p.World.Npcs.SlotArray, slots);
+        _memory.WriteUInt32(manager + p.World.Npcs.Count, 1);
+        _memory.Map(slots, p.World.SlotCount * 4);
+        _memory.WriteUInt32(slots + 7 * 4, node);
+        _memory.WriteUInt32(node + p.World.ObjectInSlot, mob);
+        _memory.Map(mob, 0x400);
+        _memory.WriteUInt32(mob + p.Npc.Wid, 0x80100018);
+        _memory.WriteUInt32(mob + p.Npc.Type, 6);
+        return mob;
+    }
+
     [Fact]
     public void ComebackReadsMobsFromOwnLayoutAndSkipsUnknownFields()
     {
