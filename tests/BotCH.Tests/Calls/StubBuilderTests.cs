@@ -61,6 +61,23 @@ public class StubBuilderTests
     }
 
     [Fact]
+    public void RegisterArgumentsGoToEcxAndEdx()
+    {
+        // Comeback 1.4.6, «использовать предмет»: cl = откуда, dl = ячейка, в стеке tid и количество, стек чистит вызывающий
+        var stub = StubBuilder.Call(0x7F6FD0, CallingConvention.Cdecl, 0, [8647, 1], ecx: 0, edx: 1);
+
+        Assert.Equal(
+            "68 01 00 00 00 68 C7 21 00 00 B9 00 00 00 00 BA 01 00 00 00 B8 D0 6F 7F 00 FF D0 83 C4 08 31 C0 C2 04 00",
+            Hex(stub));
+    }
+
+    [Fact]
+    public void ThiscallWithEcxArgumentIsRefused()
+    {
+        Assert.Throws<ArgumentException>(() => StubBuilder.Call(0x45CC50, CallingConvention.Thiscall, 0x1000, [1], ecx: 2));
+    }
+
+    [Fact]
     public void ThiscallWithoutObjectIsRefused()
     {
         Assert.Throws<ArgumentException>(() => StubBuilder.Call(0x45CC50, CallingConvention.Thiscall, 0, [1]));

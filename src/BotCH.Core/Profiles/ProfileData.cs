@@ -239,6 +239,8 @@ public sealed class GameFunction
     /// Нет в профиле — порядок по умолчанию (как у PW Classic 1.3.6), см. методы GameCaller.
     /// </summary>
     public List<string>? Args { get; init; }
+    /// <summary>Аргументы в регистрах: «ecx»/«edx» → имя значения или число (как в Args).</summary>
+    public Dictionary<string, string>? Registers { get; init; }
 }
 
 public enum FunctionThis

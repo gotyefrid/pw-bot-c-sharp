@@ -134,15 +134,27 @@ public sealed class GameCaller
             return CallResult.Refused($"{name}: нет объекта для вызова");
 
         var names = definition.Args ?? (IReadOnlyList<string>)defaultArgs;
+        var registers = definition.Registers ?? new Dictionary<string, string>();
         var known = values.ToDictionary(v => v.Name, v => v.Value);
-        foreach (var arg in names)
+        foreach (var arg in names.Concat(registers.Values))
         {
             if (arg == DataArg ? data is null : !known.ContainsKey(arg) && !TryParseNumber(arg, out _))
                 return CallResult.Refused($"{name}: в профиле аргумент «{arg}», а бот его не даёт");
         }
 
-        return Result(_runner.Run(data, address => StubBuilder.Call(function.Address, definition.Convention, thisPointer,
-            names.Select(arg => arg == DataArg ? address : known.TryGetValue(arg, out var value) ? value : ParseNumber(arg)).ToArray())));
+        var unknownRegister = registers.Keys.FirstOrDefault(r => r is not ("ecx" or "edx"));
+        if (unknownRegister is not null)
+            return CallResult.Refused($"{name}: в профиле регистр «{unknownRegister}», умеем только ecx и edx");
+        if (definition.Convention == CallingConvention.Thiscall && registers.ContainsKey("ecx"))
+            return CallResult.Refused($"{name}: у thiscall в ecx уже лежит объект");
+
+        return Result(_runner.Run(data, address =>
+        {
+            uint Value(string arg) => arg == DataArg ? address : known.TryGetValue(arg, out var value) ? value : ParseNumber(arg);
+            uint? Register(string register) => registers.TryGetValue(register, out var arg) ? Value(arg) : null;
+            return StubBuilder.Call(function.Address, definition.Convention, thisPointer, names.Select(Value).ToArray(),
+                Register("ecx"), Register("edx"));
+        }));
     }
 
     private bool TryReadHost(out uint host)

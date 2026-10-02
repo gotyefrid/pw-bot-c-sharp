@@ -259,6 +259,47 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void RegistersFromProfile()
+    {
+        var useItem = Profile.Functions[GameFunctions.UseItem];
+        var profile = new ProfileData
+        {
+            Functions = new()
+            {
+                [GameFunctions.UseItem] = new GameFunction
+                {
+                    Rva = useItem.Rva, Signature = useItem.Signature, Convention = CallingConvention.Cdecl,
+                    Args = ["tid", "count"], Registers = new() { ["ecx"] = "where", ["edx"] = "slot" },
+                },
+            },
+        };
+
+        Caller(profile).UseItem(1, 8647);
+
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.UseItem), CallingConvention.Cdecl, 0, [8647, 1], ecx: 0, edx: 1),
+            _runner.Runs.Single().Stub);
+    }
+
+    [Fact]
+    public void UnknownRegisterIsRefused()
+    {
+        var useItem = Profile.Functions[GameFunctions.UseItem];
+        var profile = new ProfileData
+        {
+            Functions = new()
+            {
+                [GameFunctions.UseItem] = new GameFunction { Rva = useItem.Rva, Signature = useItem.Signature, Registers = new() { ["esi"] = "slot" } },
+            },
+        };
+
+        var result = Caller(profile).UseItem(1, 8647);
+
+        Assert.False(result.Ok);
+        Assert.Contains("esi", result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
     public void RunnerTimeoutIsReported()
     {
         _runner.Result = new RemoteRunResult(RemoteRunStatus.Timeout, "поток в игре не закончился за 5 с");

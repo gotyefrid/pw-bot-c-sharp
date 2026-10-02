@@ -11,13 +11,17 @@ namespace BotCH.Core.Calls;
 public static class StubBuilder
 {
     /// <summary>
-    /// <c>push argN … push arg1; [mov ecx, this]; mov eax, func; call eax; [add esp, 4*N]; xor eax, eax; ret 4</c>.
+    /// <c>push argN … push arg1; [mov ecx, this]; [mov ecx/edx, значение]; mov eax, func; call eax; [add esp, 4*N]; xor eax, eax; ret 4</c>.
     /// cdecl — стек после вызова чистим сами; thiscall — this в ecx, стек чистит функция; stdcall — стек чистит функция.
+    /// ecx/edx — аргументы в регистрах (так собраны некоторые функции Comeback 1.4.6).
     /// </summary>
-    public static byte[] Call(uint function, CallingConvention convention, uint thisPointer, IReadOnlyList<uint> args)
+    public static byte[] Call(uint function, CallingConvention convention, uint thisPointer, IReadOnlyList<uint> args,
+        uint? ecx = null, uint? edx = null)
     {
         if (convention == CallingConvention.Thiscall && thisPointer == 0)
             throw new ArgumentException("Для thiscall нужен объект (this)", nameof(thisPointer));
+        if (convention == CallingConvention.Thiscall && ecx is not null)
+            throw new ArgumentException("У thiscall в ecx уже лежит объект", nameof(ecx));
         if (args.Count > 31)
             throw new ArgumentException("Слишком много аргументов", nameof(args));
 
@@ -27,6 +31,13 @@ public static class StubBuilder
 
         if (convention == CallingConvention.Thiscall)
             MovEcx(code, thisPointer);
+        if (ecx is { } ecxValue)
+            MovEcx(code, ecxValue);
+        if (edx is { } edxValue)
+        {
+            code.Add(0xBA);                                 // mov edx, значение
+            code.AddRange(BitConverter.GetBytes(edxValue));
+        }
 
         CallAbsolute(code, function);
 
