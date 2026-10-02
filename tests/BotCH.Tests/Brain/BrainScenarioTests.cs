@@ -795,4 +795,25 @@ public class BrainScenarioTests
         Assert.Equal("gather C0000002", LastCall);
         Assert.Contains(_log, e => e.Message.Contains("сбили 3 раза подряд"));
     }
+
+    [Fact]
+    public void AfterLootDigsBeforeSelectingNextMob()
+    {
+        // Лут кончился — следующую цель не выбираем, пока в радиусе есть ресурсы
+        GatherWithPickaxe();
+        KillMobForLoot();
+        _world.Ground.Add(new GroundItem(0, 0xC0000009, 3044, GroundItemKind.Money, new Position(2, 0, 0), 2, "Монета"));
+        _world.AddMob(0x80000002, "Волк", 15, hp: 100);
+        _world.TargetWid = 0;
+        Tick();
+        Assert.Equal("pickup-approach C0000009", LastCall);
+        _world.Ground.Clear();
+        AddOre(0xC0000001, 12);
+        Tick();
+        Tick(1.5);
+        Tick();
+
+        Assert.Equal("gather C0000001", LastCall);
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
 }

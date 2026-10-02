@@ -281,7 +281,7 @@ public sealed class CombatBehavior : IBehavior
         var w = c.World;
         var loot = c.Settings.Loot;
         if (!loot.Enabled)
-            return BackToSearch(c);
+            return LootDone();
 
         // Напали — лут подождёт
         if (c.Settings.Target.PreferAggressive && TargetSelector.Aggressor(w) is { } aggressor)
@@ -293,7 +293,7 @@ public sealed class CombatBehavior : IBehavior
         if (c.Now - _lootStarted > LootLimit)
         {
             c.Log.Warning("Лут занял слишком долго — дальше");
-            return BackToSearch(c);
+            return LootDone();
         }
 
         // Подбор занимает тело: ждём прошлый подбор, бег, каст (скилл, заказанный ещё по живому, кастуется после смерти;
@@ -307,7 +307,7 @@ public sealed class CombatBehavior : IBehavior
         if (_lootAttempts >= loot.Attempts)
         {
             c.Log.Info($"Лут: {_lootAttempts} из {loot.Attempts}");
-            return BackToSearch(c);
+            return LootDone();
         }
 
         if (c.Now < _nextPickup)
@@ -330,7 +330,7 @@ public sealed class CombatBehavior : IBehavior
         {
             if (_lootAttempts > 0)
                 c.Log.Info($"Лут: подобрано {_lootAttempts}, больше нечего");
-            return BackToSearch(c);
+            return LootDone();
         }
 
         _lootAttempts++;
@@ -358,6 +358,14 @@ public sealed class CombatBehavior : IBehavior
             }
         }
         _nextPickup = c.Now + TimeSpan.FromMilliseconds(c.Random.Next(700, 1300));
+    }
+
+    // Лут кончился: цель не выбираем сразу — ход отдаём, на следующем шаге первым решает копание ресурсов
+    private bool LootDone()
+    {
+        State = CombatState.Search;
+        _mob = 0;
+        return false;
     }
 
     private bool BackToSearch(BrainContext c)
