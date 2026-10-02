@@ -47,8 +47,8 @@ public enum SubmitStatus
     Failed,
 }
 
-/// <param name="BusyWith">При <see cref="SubmitStatus.Busy"/> — чем занято тело.</param>
-public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = null, GameAction? BusyWith = null)
+/// <param name="Busy">При <see cref="SubmitStatus.Busy"/> — чем занято тело («бег …», «персонаж кастует»).</param>
+public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = null, string? Busy = null)
 {
     public bool Sent => Status == SubmitStatus.Sent;
 }
@@ -56,7 +56,8 @@ public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = 
 /// <summary>
 /// Единственный исполнитель действий. Вызовы в игре идут строго по одному (lock), действие «в процессе» не
 /// отправляется повторно, подтверждение — по снимкам (<see cref="Update"/>), время — по меткам снимков.
-/// Тело персонажа (<see cref="ActionResource.Body"/>) занимает одно действие за раз: второе получает «занято».
+/// Тело персонажа (<see cref="ActionResource.Body"/>) занимает одно действие за раз, и не занимается, пока персонаж кастует
+/// (новое действие сбило бы каст): иначе — «занято».
 /// </summary>
 public sealed class ActionRunner(IGameActions actions, ILogger log)
 {
@@ -83,6 +84,12 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
                 return _pending.Select(p => p.Action).FirstOrDefault(a => a.Resource == ActionResource.Body);
         }
     }
+
+    /// <summary>Чем занято тело: ждущее действие или каст; null — свободно.</summary>
+    public string? BodyBusy(WorldState now)
+        => BodyAction is { } action ? action.Name
+            : now.Host.IsCasting ? "персонаж кастует"
+            : null;
 
     public IReadOnlyList<GameAction> Pending
     {
@@ -115,8 +122,8 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
             if (_pending.Any(p => p.Action.Key == action.Key))
                 return new SubmitResult(SubmitStatus.AlreadyPending);
 
-            if (action.Resource == ActionResource.Body && BodyAction is { } busy)
-                return new SubmitResult(SubmitStatus.Busy, BusyWith: busy);
+            if (action.Resource == ActionResource.Body && BodyBusy(now) is { } busy)
+                return new SubmitResult(SubmitStatus.Busy, Busy: busy);
 
             if (action.Precondition(now) is { } reason)
             {

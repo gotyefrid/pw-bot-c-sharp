@@ -47,12 +47,15 @@ public sealed class BrainContext
     /// Отправить действие. true — отправлено или такое уже ждёт подтверждения (ход занят ожиданием).
     /// Тело занято другим действием — false: ход не занят, пусть решают другие поведения.
     /// </summary>
-    public bool Submit(GameAction action)
+    public bool Submit(GameAction action) => Send(action) is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+
+    /// <summary>Отправить и узнать, что вышло: Sent — ушло сейчас (можно писать в лог «лечу», сдвигать таймеры).</summary>
+    public SubmitStatus Send(GameAction action)
     {
         var result = Runner.Submit(action, World);
         if (result.Status == SubmitStatus.Busy)
-            Log.Debug($"{action.Name}: тело занято — {result.BusyWith?.Name}");
-        return result.Status is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+            Log.Debug($"{action.Name}: тело занято — {result.Busy}");
+        return result.Status;
     }
 
     /// <summary>

@@ -110,8 +110,24 @@ public class ActionRunnerTests
         var skill = _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
 
         Assert.Equal(SubmitStatus.Busy, skill.Status);
-        Assert.Same(move, skill.BusyWith);
+        Assert.Equal(move.Name, skill.Busy);
         Assert.Equal(["move (10,0; 0,0; h 0,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void BodyActionWaitsWhileCasting()
+    {
+        // Новое действие с телом сбило бы каст; банка — нет
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
+        var potion = _world.AddPotion(2, 8618, 25, hp: 80);
+        _world.Casting = true;
+
+        var skill = _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.Busy, skill.Status);
+        Assert.Equal("персонаж кастует", skill.Busy);
+        Assert.True(_runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot()).Sent);
     }
 
     [Fact]

@@ -50,8 +50,10 @@ public sealed class PetBehavior : IBehavior
             }
 
             Status = "воскрешаю пета";
+            if (c.Send(new RevivePetAction(settings.Cage, c.Skills.RevivePet)) != SubmitStatus.Sent)
+                return false;
             c.Log.Info("Пет мёртв — воскрешаю");
-            return c.Submit(new RevivePetAction(settings.Cage, c.Skills.RevivePet));
+            return true;
         }
 
         if (pet.ActiveCage != settings.Cage)
@@ -60,12 +62,17 @@ public sealed class PetBehavior : IBehavior
             return false;
         }
 
-        if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true }
-            && !c.Runner.IsPending($"скилл {c.Skills.HealPet}"))
+        if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true })
         {
-            Status = "лечу пета";
-            c.Log.Info($"HP пета {inCage.HpPercent} % < {settings.HealPercent} % — лечу");
-            return c.Submit(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета"));
+            // Тело занято (бег, атака, каст) — вылечим, как освободится; пока не мешаем остальным
+            var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета"));
+            if (heal == SubmitStatus.Sent)
+                c.Log.Info($"HP пета {inCage.HpPercent} % < {settings.HealPercent} % — лечу");
+            if (heal is SubmitStatus.Sent or SubmitStatus.AlreadyPending)
+            {
+                Status = "лечу пета";
+                return true;
+            }
         }
 
         var food = _feeding.Choose(c.World, out var why);

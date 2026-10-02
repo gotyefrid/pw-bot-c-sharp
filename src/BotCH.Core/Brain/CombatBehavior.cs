@@ -192,27 +192,20 @@ public sealed class CombatBehavior : IBehavior
                 return true;
         }
 
-        // Во время каста новое не отправляем — сбили бы каст
-        if (w.Host.IsCasting)
-            return true;
-
-        // Строго по очереди: сначала подходим, потом бьём. Скилл «как кнопкой» и обычная атака тоже ведут персонажа — два подхода
-        // разом перебивают «работы» клиента друг друга (так 2026-10-02 упал клиент 1.4.6, повреждение кучи)
-        var skillKey = $"скилл {combat.AttackSkillId}";
-        var sword = new NormalAttackAction();
-        if (combat.ComeCloser && c.Runner.Actions.CanMove && !c.Runner.IsPending(skillKey) && !c.Runner.IsPending(sword.Key)
-            && ComeCloser(c, mob))
+        // Строго по очереди: сначала подходим, потом бьём. Бег, скилл и удар занимают тело — пока одно ждёт или персонаж кастует,
+        // другое исполнитель не отправит («занято»), так что здесь только порядок
+        if (combat.ComeCloser && c.Runner.Actions.CanMove && ComeCloser(c, mob))
             return true;
 
         if (combat.UseSkill && w.Skill(combat.AttackSkillId) is { IsReady: true }
-            && !c.Runner.IsPending(skillKey))
-            return c.Submit(new SkillAction(combat.AttackSkillId, 0, approach: true, $"атака скиллом {combat.AttackSkillId}"));
+            && c.Submit(new SkillAction(combat.AttackSkillId, 0, approach: true, $"атака скиллом {combat.AttackSkillId}")))
+            return true;
 
-        // Таймер сдвигаем, только когда удар действительно ушёл (а не «прошлый ещё ждёт подтверждения»)
-        if (combat.UseSword && c.Now - _lastSword >= SwordPeriod && !c.Runner.IsPending(sword.Key))
+        // Таймер сдвигаем, только когда удар действительно ушёл (а не «занято» или «прошлый ещё ждёт подтверждения»)
+        if (combat.UseSword && c.Now - _lastSword >= SwordPeriod && c.Send(new NormalAttackAction()) == SubmitStatus.Sent)
         {
             _lastSword = c.Now;
-            return c.Submit(sword);
+            return true;
         }
 
         if (!combat.UseSkill && !combat.UseSword && !(c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true }))
@@ -240,9 +233,13 @@ public sealed class CombatBehavior : IBehavior
         Status = $"бой: {_mobName} — подхожу, {mob.Distance:0.0} м";
         if (running is null)
         {
-            c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
-            _lastApproach = c.Now;
-            c.Submit(new MoveAction(point, tolerance: 1.5f));
+            // Тело занято (скилл ещё ждёт, каст) — бежать позже; в лог только когда бег правда начался
+            if (c.Send(new MoveAction(point, tolerance: 1.5f)) == SubmitStatus.Sent)
+            {
+                c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
+                _lastApproach = c.Now;
+            }
+
             return true;
         }
 
@@ -299,17 +296,11 @@ public sealed class CombatBehavior : IBehavior
             return BackToSearch(c);
         }
 
-        if (c.Runner.IsPending("движение") || c.Runner.Pending.Any(a => a is PickupAction))
+        // Подбор занимает тело: ждём прошлый подбор, бег, каст (скилл, заказанный ещё по живому, кастуется после смерти;
+        // клиент 1.4.6 при касте молча отбрасывает подбор). Ждём здесь, а не отправляем «в занято», — иначе считали бы попытки
+        if (c.Runner.BodyBusy(w) is { } busy)
         {
-            Status = "лут: жду";
-            return true;
-        }
-
-        // Пока персонаж кастует, клиент молча отбрасывает подбор (на Comeback 1.4.6 видно по коду: работа «каст» блокирует
-        // PickupObject). Каст после смерти моба бывает: скилл, заказанный ещё по живому
-        if (w.Host.IsCasting)
-        {
-            Status = "лут: жду конца каста";
+            Status = $"лут: жду — {busy}";
             return true;
         }
 
