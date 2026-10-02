@@ -90,18 +90,24 @@
       </StackPanel>
     </Border>
 
-    <!-- Бот | Настройки -->
-    <Border Grid.Row="2" Background="#E6E9F0" CornerRadius="9" Padding="3" Margin="0,0,0,10" HorizontalAlignment="Left">
-      <StackPanel Orientation="Horizontal">
-        <RadioButton Style="{StaticResource Segment}" Content="Бот" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=0}" />
-        <RadioButton Style="{StaticResource Segment}" Content="Ресы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=3}"
-                     Visibility="{Binding ShowResourcesTab, Converter={StaticResource Visible}}" />
-        <RadioButton Style="{StaticResource Segment}" Content="Кликер" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=4}"
-                     Visibility="{Binding ShowClickerTab, Converter={StaticResource Visible}}" />
-        <RadioButton Style="{StaticResource Segment}" Content="Настройки" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}" />
-        <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
+    <!-- Бот | Настройки; Старт/Стоп — справа, видны на любой вкладке -->
+    <DockPanel Grid.Row="2" Margin="0,0,0,10">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" ToolTip="Ctrl+Alt+Num1" />
+        <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" ToolTip="Ctrl+Alt+Num0" />
       </StackPanel>
-    </Border>
+      <Border Background="#E6E9F0" CornerRadius="9" Padding="3" HorizontalAlignment="Left">
+        <StackPanel Orientation="Horizontal">
+          <RadioButton Style="{StaticResource Segment}" Content="Бот" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=0}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Ресы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=3}"
+                       Visibility="{Binding ShowResourcesTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Кликер" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=4}"
+                       Visibility="{Binding ShowClickerTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Настройки" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
+        </StackPanel>
+      </Border>
+    </DockPanel>
 
     <!-- Персонаж, цель, пет -->
     <Border Grid.Row="3" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
@@ -176,10 +182,6 @@
     <!-- Бот -->
     <Border Grid.Row="4" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" ToolTip="Ctrl+Alt+Num1" />
-          <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" ToolTip="Ctrl+Alt+Num0" />
-        </StackPanel>
         <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
           <TextBlock Text="БОТ" Style="{StaticResource CardTitle}" Margin="0,0,0,2" />
           <TextBlock Text="{Binding BotState}" FontWeight="SemiBold" TextWrapping="Wrap" />
