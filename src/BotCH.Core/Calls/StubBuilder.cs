@@ -50,9 +50,11 @@ public static class StubBuilder
 
     /// <summary>
     /// Идти в точку, как кликом по земле:
-    /// <c>work = WorkMan->CreateWork(1); if (work) { work->SetDestination(type, &amp;point); WorkMan->StartWork(1, work, 1, 0); }</c>.
+    /// <c>work = WorkMan->CreateWork(1); if (work) { work->SetDestination(type, &amp;point); WorkMan->StartWork(startArgs); }</c>.
+    /// startArgs — по порядку, null — сама работа (1.3.6: 1, work, 1, 0; Comeback 1.4.6: 1, work, 0).
     /// </summary>
-    public static byte[] MoveTo(uint workMan, uint create, uint setDestination, uint start, uint pointAddress, byte destinationType)
+    public static byte[] MoveTo(uint workMan, uint create, uint setDestination, uint start, uint pointAddress, byte destinationType,
+        IReadOnlyList<uint?> startArgs)
     {
         var code = new List<byte> { 0x56 };                 // push esi
         MovEcx(code, workMan);
@@ -66,7 +68,15 @@ public static class StubBuilder
         code.AddRange([0x6A, destinationType]);             // push type (0 — точка на земле)
         code.AddRange([0x8B, 0xCE]);                        // mov ecx, esi
         CallAbsolute(code, setDestination);
-        code.AddRange([0x6A, 0x00, 0x6A, 0x01, 0x56, 0x6A, 0x01]); // push 0; push 1; push esi; push 1
+        for (var i = startArgs.Count - 1; i >= 0; i--)
+        {
+            if (startArgs[i] is not { } value)
+                code.Add(0x56);                             // push esi (работа)
+            else if (value <= 0x7F)
+                code.AddRange([0x6A, (byte)value]);         // push imm8
+            else
+                Push(code, value);
+        }
         MovEcx(code, workMan);
         CallAbsolute(code, start);
         code[jz + 1] = (byte)(code.Count - (jz + 2));

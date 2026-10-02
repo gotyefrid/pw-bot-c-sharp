@@ -57,7 +57,7 @@
     // Найдено по коду клиента: кнопка «призвать/отозвать» (0x33FD20, шлёт c2s 0x64/0x65) берёт пета из [перс + 0x1980].
     // (+0x95C тоже хранит WID пета, но после отзыва не обнуляется — не годится)
     "petManager": "0x1980",
-    // CECHPWorkMan — менеджер «работ» (идти, подойти к цели): PickupObject берёт его из [перс + 0x1968]. Для ходьбы ещё нужны функции
+    // CECHPWorkMan — менеджер «работ» (идти, подойти к цели): PickupObject берёт его из [перс + 0x1968]
     "workMan": "0x1968",
     // Сумка: массив указателей на объекты-предметы (у каждого первым полем vtable из .rdata), 32 ячейки, как в 1.3.6.
     // Рядом +0x10C8 — 38 ячеек (похоже, экипировка)
@@ -236,6 +236,16 @@
     // (по ней и нашли менеджер). Не призывает мёртвого и неподходящего по уровню, шлёт c2s 0x64.
     // Отзыв (0x65) — отдельная функция 0x33FED0, сюда не входит
     "summonPet": { "rva": "0x33FD20", "convention": "thiscall", "this": "host",
-                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E 64 1C 00" }
+                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E 64 1C 00" },
+
+    // Идти в точку — как в 1.3.6: work = WorkMan->CreateWork(1); work->SetDestination(0, &point); WorkMan->StartWork(1, work, 0).
+    // Так клиент делает ход с клавиатуры (0x3358D0, там тип 2 — направление); клик по земле (0x31BAC6) — то же, но SetDestination
+    // вписан прямо в код. Отличие от 1.3.6 — у StartWork на один аргумент меньше (ret 0xC).
+    // CreateWork(type) — switch по 0..0x14, тип 1 = CECHPWorkMove (vtable 0xBFC9DC), ret 4
+    "workCreate": { "rva": "0x347A70", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 14 0F 87" },
+    // SetDestination(type, &point): пишет точку в +0x20, тип в +0x2C, направление в +0x34 (нормированное), ret 8
+    "workMoveSetDestination": { "rva": "0x34DDF0", "convention": "thiscall", "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
+    "workStart": { "rva": "0x3484D0", "convention": "thiscall", "args": [ "1", "work", "0" ],
+                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
   }
 }

@@ -190,7 +190,31 @@ public class GameCallerTests
         var run = _runner.Runs.Single();
         Assert.Equal(BitConverter.GetBytes(-1800f).Concat(BitConverter.GetBytes(220f)).Concat(BitConverter.GetBytes(-110.5f)), run.Data!);
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
-            Address(GameFunctions.WorkStart), DataAddress, 0), run.Stub);
+            Address(GameFunctions.WorkStart), DataAddress, 0, [1, null, 1, 0]), run.Stub);
+    }
+
+    [Fact]
+    public void MoveToTakesStartArgsFromProfile()
+    {
+        // Comeback 1.4.6: StartWork(1, work, 0) — на аргумент меньше, чем в 1.3.6
+        const uint host = 0x1FA1F868, workMan = 0x2222_0000;
+        _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
+        var start = Profile.Functions[GameFunctions.WorkStart];
+        var profile = new ProfileData
+        {
+            Host = Profile.Host,
+            Functions = new(Profile.Functions)
+            {
+                [GameFunctions.WorkStart] = new GameFunction { Rva = start.Rva, Signature = start.Signature, Convention = start.Convention,
+                    Args = ["1", "work", "0"] },
+            },
+        };
+
+        var result = Caller(profile).MoveTo(host, 1f, 2f, 3f);
+
+        Assert.True(result.Ok, result.Details);
+        Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
+            Address(GameFunctions.WorkStart), DataAddress, 0, [1, null, 0]), _runner.Runs.Single().Stub);
     }
 
     // Comeback 1.4.6: «выбрать цель» — метод персонажа (this = перс, stdcall-очистка как у thiscall), «снять цель» — он же с 0

@@ -32,6 +32,9 @@ public sealed class GameCaller
 
     private const string DataArg = "data";
 
+    /// <summary>Аргумент StartWork «созданная работа».</summary>
+    private const string WorkArg = "work";
+
     private readonly IMemory _memory;
     private readonly IRemoteRunner _runner;
     private readonly uint _moduleBase;
@@ -116,11 +119,23 @@ public sealed class GameCaller
         if (_profile.Host.WorkMan == 0 || !_memory.TryReadUInt32(host + _profile.Host.WorkMan, out var workMan) || workMan == 0)
             return CallResult.Refused("нет менеджера работ персонажа");
 
+        // StartWork: 1.3.6 — (1, work, 1, 0), у других клиентов — как в args профиля
+        var startNames = _profile.Functions[GameFunctions.WorkStart].Args ?? ["1", WorkArg, "1", "0"];
+        var startArgs = new uint?[startNames.Count];
+        for (var i = 0; i < startNames.Count; i++)
+        {
+            if (startNames[i] == WorkArg)
+                continue;
+            if (!TryParseNumber(startNames[i], out var number))
+                return CallResult.Refused($"{GameFunctions.WorkStart}: в профиле аргумент «{startNames[i]}», а бот его не даёт");
+            startArgs[i] = number;
+        }
+
         var point = new byte[12];
         Buffer.BlockCopy(BitConverter.GetBytes(x), 0, point, 0, 4);
         Buffer.BlockCopy(BitConverter.GetBytes(height), 0, point, 4, 4);
         Buffer.BlockCopy(BitConverter.GetBytes(y), 0, point, 8, 4);
-        return Result(_runner.Run(point, address => StubBuilder.MoveTo(workMan, addresses[0], addresses[1], addresses[2], address, 0)));
+        return Result(_runner.Run(point, address => StubBuilder.MoveTo(workMan, addresses[0], addresses[1], addresses[2], address, 0, startArgs)));
     }
 
     /// <param name="defaultArgs">Порядок аргументов, если в профиле нет args.</param>

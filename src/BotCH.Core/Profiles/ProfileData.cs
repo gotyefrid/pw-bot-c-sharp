@@ -237,7 +237,7 @@ public sealed class GameFunction
     /// <summary>Откуда взять this: host — персонаж (бот находит его сам). None — передаёт вызывающий.</summary>
     public FunctionThis This { get; init; }
     /// <summary>
-    /// Аргументы по порядку: имена значений, которые даёт бот («wid», «data»…), или числа («0», «0xFFFFFFFF»).
+    /// Аргументы по порядку: имена значений, которые даёт бот («wid», «data», у workStart — «work»…), или числа («0», «0xFFFFFFFF»).
     /// Нет в профиле — порядок по умолчанию (как у PW Classic 1.3.6), см. методы GameCaller.
     /// </summary>
     public List<string>? Args { get; init; }
