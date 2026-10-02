@@ -239,6 +239,35 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
     }
 }
 
+/// <summary>
+/// Собрать ресурс «как мышкой»: клиент подводит персонажа, копает (полоска) и кладёт добычу в сумку.
+/// Подтверждение — в сумке прибавилось или ресурс пропал с земли. Нужен инструмент (для руды — кирка): без него откажет игра.
+/// </summary>
+public sealed class GatherAction(GroundItem resource) : GameAction
+{
+    public GroundItem Item { get; } = resource;
+
+    public override string Name => $"собрать {Item.Name} ({Item.Distance:0.0} м)";
+    public override string Key => $"сбор 0x{Item.Id:X8}";
+    public override ActionResource Resource => ActionResource.Body;
+    // Подойти + копать несколько секунд
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(30);
+
+    public override string? Precondition(WorldState now)
+        => Item.Kind != GroundItemKind.Resource ? "это не ресурс — его подбирают" : null;
+
+    public override CallResult Send(IGameActions actions, WorldState now) => actions.Gather(now.Host, Item);
+
+    public override Verdict Check(WorldState start, WorldState now)
+    {
+        var before = start.Inventory.Sum(i => i.Count);
+        var after = now.Inventory.Sum(i => i.Count);
+        if (after > before)
+            return Verdict.Confirmed($"в сумке +{after - before}");
+        return now.GroundItems.Any(i => i.Id == Item.Id) ? Verdict.Pending : Verdict.Confirmed("ресурс пропал с земли");
+    }
+}
+
 /// <summary>Идти в точку. Подтверждение — дошли ближе <see cref="Tolerance"/>.</summary>
 public sealed class MoveAction(Position point, float tolerance = 2f) : GameAction
 {

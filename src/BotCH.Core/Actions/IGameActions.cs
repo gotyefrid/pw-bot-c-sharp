@@ -39,7 +39,7 @@ public interface IGameActions
 
     // ── Режим «сбор ресурсов» (часть 8, не сделано) ──
 
-    /// <summary>Собрать ресурс (трава, руда): PickupObject с gather. В игре ещё не проверено.</summary>
+    /// <summary>Собрать ресурс (трава, руда) как кликом мыши: PickupObject с gather — клиент подходит и копает сам.</summary>
     CallResult Gather(HostState host, GroundItem resource);
 
     /// <summary>Лететь в точку. Не исследовано (SetDestination тип 1 «3D»?).</summary>
@@ -65,8 +65,7 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public CallResult SummonPet(int cage) => caller.SummonPet(cage);
     public CallResult MoveTo(HostState host, Position point) => caller.MoveTo(host.Address, point.X, point.Height, point.Y);
 
-    public CallResult Gather(HostState host, GroundItem resource)
-        => CallResult.Refused("сбор ресурсов ещё не сделан (часть 8)");
+    public CallResult Gather(HostState host, GroundItem resource) => caller.PickupObject(host.Address, resource.Id, gather: true);
 
     public CallResult FlyTo(HostState host, Position point)
         => CallResult.Refused("полёт ещё не исследован (часть 8)");

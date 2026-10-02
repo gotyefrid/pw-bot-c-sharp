@@ -34,6 +34,7 @@ internal static class ActCommands
           act pet-attack        приказать пету атаковать цель
           act pickup            подобрать ближайший предмет в 10 м пакетом
           act pickup-approach   подобрать ближайший предмет «как мышкой»
+          act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
           act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
           act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
@@ -169,6 +170,12 @@ internal static class ActCommands
             case "pickup-approach":
                 problem = "на земле нет предметов";
                 return nearestItem is null ? null : new PickupAction(nearestItem, approach: true);
+
+            case "gather":
+                var resource = w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).OrderBy(i => i.Distance).FirstOrDefault();
+                Console.WriteLine($"Сумка: {string.Join(", ", w.Inventory.Select(i => $"{i.Tid}×{i.Count}"))}");
+                problem = resource is null ? "рядом нет ресурсов" : $"{resource.Name} дальше 50 м";
+                return resource is { Distance: <= 50 } ? new GatherAction(resource) : null;
 
             case "move":
                 var numbers = args.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
