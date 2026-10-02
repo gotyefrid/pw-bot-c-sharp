@@ -182,6 +182,28 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         return done;
     }
 
+    /// <summary>Перестать ждать действие (бот сам передумал): итог «отменено». false — такого не ждали.</summary>
+    public bool Cancel(string key, string why, WorldState now)
+    {
+        ActionOutcome? outcome = null;
+        lock (_lock)
+        {
+            var index = _pending.FindIndex(p => p.Action.Key == key);
+            if (index >= 0)
+            {
+                var (action, start) = _pending[index];
+                _pending.RemoveAt(index);
+                outcome = new ActionOutcome(action, ActionStatus.Cancelled, why, now.Time - start.Time);
+            }
+        }
+
+        if (outcome is null)
+            return false;
+
+        Report(outcome);
+        return true;
+    }
+
     /// <summary>Забыть всё ожидающее (бот остановлен, сменился клиент).</summary>
     public void Clear()
     {

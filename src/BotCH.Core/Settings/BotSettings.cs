@@ -18,6 +18,7 @@ public sealed class BotSettings
     public TargetSettings Target { get; set; } = new();
     public CombatSettings Combat { get; set; } = new();
     public LootSettings Loot { get; set; } = new();
+    public GatherSettings Gather { get; set; } = new();
     public PotionSettings Potions { get; set; } = new();
     public PetSettings Pet { get; set; } = new();
 
@@ -30,11 +31,13 @@ public sealed class BotSettings
         Target ??= new();
         Combat ??= new();
         Loot ??= new();
+        Gather ??= new();
         Potions ??= new();
         Pet ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
+        Gather.Names = MobNameFilter.Clean(Gather.Names);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
         Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
@@ -135,6 +138,16 @@ public sealed class LootSettings
 
     /// <summary>Названия предметов на земле (как в игре: «Мягкий мех»).</summary>
     public List<string> ItemNames { get; set; } = [];
+}
+
+/// <summary>Копать ресурсы в радиусе фарма (в режиме «бить мобов»).</summary>
+public sealed class GatherSettings
+{
+    /// <summary>Копать: сначала все ресурсы в радиусе, потом мобы. Нужна кирка в сумке.</summary>
+    public bool Enabled { get; set; }
+
+    /// <summary>Какие ресурсы копать (как в игре: «Железная руда»). Пусто — все.</summary>
+    public List<string> Names { get; set; } = [];
 }
 
 public enum LootListMode

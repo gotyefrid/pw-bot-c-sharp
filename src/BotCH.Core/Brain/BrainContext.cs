@@ -35,10 +35,13 @@ public sealed class BrainContext
     public Position? StartPosition { get; internal set; }
 
     /// <summary>Моб в радиусе фарма от точки старта (или радиус не задан).</summary>
-    public bool InFarmArea(NpcInfo mob)
+    public bool InFarmArea(NpcInfo mob) => InFarmArea(mob.Position);
+
+    /// <summary>Точка в радиусе фарма от точки старта (или радиус не задан).</summary>
+    public bool InFarmArea(Position point)
     {
         var radius = Settings.Target.FarmRadius;
-        return radius <= 0 || StartPosition is not { } start || mob.Position.HorizontalDistanceTo(start) <= radius;
+        return radius <= 0 || StartPosition is not { } start || point.HorizontalDistanceTo(start) <= radius;
     }
 
     public DateTime Now => World.Time;

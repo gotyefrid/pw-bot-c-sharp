@@ -262,6 +262,9 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(4);
     private bool _started;
+
+    /// <summary>Копание началось и оборвалось раньше конца полоски (ударили, сдвинули).</summary>
+    public bool KnockedDown { get; private set; }
     private Position? _lastPosition;
     private DateTime? _standingSince;
 
@@ -284,7 +287,12 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 
         // Полоска кончилась: дошла до конца — ждём добычу, нет — сбили
         if (_started)
-            return g.Finished ? Verdict.Pending : Verdict.Rejected($"копание сбили: {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с");
+        {
+            if (g.Finished)
+                return Verdict.Pending;
+            KnockedDown = true;
+            return Verdict.Rejected($"копание сбили: {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с");
+        }
 
         // Ещё не начали: бежим — ждём; стоим — игра не даёт копать
         if (_lastPosition is not { } last || now.Host.Position.HorizontalDistanceTo(last) > 0.1f)

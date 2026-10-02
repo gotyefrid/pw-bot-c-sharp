@@ -134,6 +134,6 @@ internal sealed class FakeActions : IGameActions
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");
     public CallResult MoveTo(HostState host, Position point) => Record($"move {point}");
-    public CallResult Gather(HostState host, GroundItem resource) => Record("gather");
+    public CallResult Gather(HostState host, GroundItem resource) => Record($"gather {resource.Id:X}");
     public CallResult FlyTo(HostState host, Position point) => Record("fly");
 }

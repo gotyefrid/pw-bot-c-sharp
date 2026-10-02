@@ -11,7 +11,7 @@ namespace BotCH.Core.Brain;
 
 /// <summary>
 /// Мозг бота: на каждом снимке — проверить ждущие действия, затем поведения по приоритету
-/// (выжить → пет → бой), первое занявшее ход останавливает перебор. Один поток решений: <see cref="Tick"/>
+/// (выжить → пет → копать ресурсы → бой), первое занявшее ход останавливает перебор. Один поток решений: <see cref="Tick"/>
 /// вызывается из потока снимков. Режим «фарм мобов»; другие режимы (сбор ресурсов) — другим набором поведений.
 /// </summary>
 public sealed class BotBrain : IBotRunner
@@ -22,18 +22,21 @@ public sealed class BotBrain : IBotRunner
     private BotSettings? _newSettings;
     private string _status = "ожидание";
 
-    public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null)
+    public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
+        IReadOnlyCollection<uint>? gatherTools = null)
     {
         _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
         Survival = new SurvivalBehavior();
         Pet = new PetBehavior();
         Combat = new CombatBehavior();
-        _behaviors = [Survival, Pet, Combat];
+        Gather = new GatherBehavior(Combat, gatherTools ?? []);
+        _behaviors = [Survival, Pet, Gather, Combat];
     }
 
     public SurvivalBehavior Survival { get; }
     public PetBehavior Pet { get; }
     public CombatBehavior Combat { get; }
+    public GatherBehavior Gather { get; }
 
     /// <summary>Что делает бот — для окна.</summary>
     public string Status => _status;

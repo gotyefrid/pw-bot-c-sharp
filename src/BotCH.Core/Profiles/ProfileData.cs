@@ -26,6 +26,8 @@ public sealed class ProfileData
     public PetFoodOffsets PetFood { get; init; } = new();
     public SkillOffsets Skill { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
+    /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
+    public List<uint> GatherTools { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
 
     /// <summary>Функции клиента для прямого вызова, ключи — <see cref="GameFunctions"/>.</summary>

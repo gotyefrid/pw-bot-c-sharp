@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Actions;
@@ -30,7 +30,9 @@ public class BrainScenarioTests
 
     private BotBrain Brain => _brain ??= new BotBrain(
         new ActionRunner(_actions, NullLogger.Instance), Skills, _settings,
-        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1));
+        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe]);
+
+    private const uint Pickaxe = 3073;
 
     private void Tick(double seconds = 0.25) => Brain.Tick(_world.Wait(seconds).Snapshot());
 
@@ -684,5 +686,111 @@ public class BrainScenarioTests
         Tick();
 
         Assert.Equal("select 80000001", LastCall);
+    }
+
+    // ── Копать ресурсы ─────────────────────────────────────────────────────────
+
+    private GroundItem AddOre(uint id, float distance, string name = "Железная руда")
+    {
+        var ore = new GroundItem(0, id, 3079, GroundItemKind.Resource, new Position(distance, 0, 0), distance, name);
+        _world.Ground.Add(ore);
+        return ore;
+    }
+
+    private void GatherWithPickaxe()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Gather.Enabled = true;
+        _world.Bag.Add(new InventoryItem(5, Pickaxe, 0, 1, null, null));
+    }
+
+    [Fact]
+    public void GatherDigsResourcesBeforeMobs()
+    {
+        GatherWithPickaxe();
+        _world.AddMob(0x80000001, "Волк", 8, hp: 100);
+        AddOre(0xC0000002, 20);
+        AddOre(0xC0000001, 12);
+
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void GatherSkipsResourcesNotInList()
+    {
+        GatherWithPickaxe();
+        _settings.Gather.Names = ["Залежи камня"];
+        AddOre(0xC0000001, 5);
+        AddOre(0xC0000002, 15, "Залежи камня");
+
+        Tick();
+
+        Assert.Equal(["gather C0000002"], _actions.Calls);
+    }
+
+    [Fact]
+    public void NoPickaxeNoGatherFightsInstead()
+    {
+        GatherWithPickaxe();
+        _world.Bag.Clear();
+        _world.AddMob(0x80000001, "Волк", 8, hp: 100);
+        AddOre(0xC0000001, 5);
+
+        Tick();
+
+        Assert.Equal("select 80000001", LastCall);
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("gather"));
+        Assert.Contains(_log, e => e.Message.Contains("нет кирки"));
+    }
+
+    [Fact]
+    public void AttackWhileGatheringDropsItAndFightsThenDigsAgain()
+    {
+        GatherWithPickaxe();
+        var ore = AddOre(0xC0000001, 5);
+        Tick();
+        Assert.Equal("gather C0000001", LastCall);
+
+        // Моб бьёт перса — копание бросаем, бьём его
+        var mob = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.HostWid, hp: 100);
+        Tick();
+        Assert.Equal("select 80000001", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("бросаю копать"));
+
+        // Убили — копаем тот же ресурс снова
+        _world.TargetWid = mob.Wid;
+        Tick();
+        _world.Replace(mob, m => m with { State = NpcInfo.StateDead, TargetWid = 0 });
+        _world.TargetWid = 0;
+        Tick();
+        Tick();
+
+        Assert.Equal($"gather {ore.Id:X}", LastCall);
+    }
+
+    [Fact]
+    public void GatherKnockedDownThreeTimesSkipsResource()
+    {
+        GatherWithPickaxe();
+        AddOre(0xC0000001, 3);
+        AddOre(0xC0000002, 10);
+        for (var i = 0; i < 3; i++)
+        {
+            _world.Gather = new GatherProgress(false, 0, 0);
+            Tick();
+            Assert.Equal("gather C0000001", LastCall);
+            _world.Gather = new GatherProgress(true, 500, 5000);
+            Tick();
+            _world.Gather = new GatherProgress(false, 1000, 5000);
+            Tick();
+        }
+
+        Tick();
+
+        Assert.Equal("gather C0000002", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("сбили 3 раза подряд"));
     }
 }

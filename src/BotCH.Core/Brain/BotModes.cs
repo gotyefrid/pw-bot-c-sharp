@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
 using BotCH.Core.Profiles;
@@ -37,12 +38,13 @@ public static class BotModes
         _ => "Бить мобов",
     };
 
-    public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log)
+    public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
+        IReadOnlyCollection<uint>? gatherTools = null)
         => mode switch
         {
             BotMode.GatherResources => new NotReadyMode("сбор ресурсов", "часть 8", log),
             BotMode.Clicker => new NotReadyMode("кликер", "часть 10", log),
-            _ => new BotBrain(runner, skills, settings, log),
+            _ => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools),
         };
 }
 
