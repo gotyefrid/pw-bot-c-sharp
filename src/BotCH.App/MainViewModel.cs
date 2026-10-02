@@ -78,6 +78,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         LoadNameLists();
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
+        GatherNames.CollectionChanged += (_, _) => NameListsEdited();
 
         RefreshCommand = new RelayCommand(RefreshClients);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning);
@@ -267,7 +268,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
             var runner = new ActionRunner(new DirectCallActions(caller), _logger.For("действия"));
-            _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"));
+            _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools);
             _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
             _brain.StopRequested += reason => OnUi(Stop);
             var brain = _brain;
@@ -357,9 +358,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Предметы для белого/чёрного списка лута.</summary>
     public ObservableCollection<string> LootNames { get; } = new();
 
+    /// <summary>Какие ресурсы копать (пусто — все).</summary>
+    public ObservableCollection<string> GatherNames { get; } = new();
+
     // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
     private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _seenResources = new(StringComparer.OrdinalIgnoreCase);
     private bool _syncingLists;
 
     public Func<IReadOnlyList<PickOption>> MobOptions
@@ -367,6 +372,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public Func<IReadOnlyList<PickOption>> LootOptions
         => () => PickOptions(_lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld), _seenItems.Select(n => new NameCount(n, 0, 0)));
+
+    public Func<IReadOnlyList<PickOption>> GatherOptions
+        => () => PickOptions(_lastWorld is null ? [] : NearbyNames.Resources(_lastWorld), _seenResources.Select(n => new NameCount(n, 0, 0)));
 
     // Сначала то, что вокруг сейчас, потом — встреченное за сессию (с пометкой «не рядом»)
     private static IReadOnlyList<PickOption> PickOptions(IReadOnlyList<NameCount> nearby, IEnumerable<NameCount> seen)
@@ -389,6 +397,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             LootNames.Clear();
             foreach (var name in _settings.Loot.ItemNames)
                 LootNames.Add(name);
+            GatherNames.Clear();
+            foreach (var name in _settings.Gather.Names)
+                GatherNames.Add(name);
         }
         finally
         {
@@ -404,6 +415,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _settings.Target.MobNames = MobNameFilter.Clean(MobNames);
         _settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
+        _settings.Gather.Names = MobNameFilter.Clean(GatherNames);
         SettingsEdited();
     }
 
@@ -588,8 +600,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 ? kind with { MinLevel = Math.Min(seen.MinLevel, kind.MinLevel), MaxLevel = Math.Max(seen.MaxLevel, kind.MaxLevel) }
                 : kind;
         }
-        foreach (var item in w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource && i.Name.Length > 0))
-            _seenItems.Add(item.Name.Trim());
+        foreach (var item in w.GroundItems.Where(i => i.Name.Length > 0))
+            (item.Kind == GroundItemKind.Resource ? _seenResources : _seenItems).Add(item.Name.Trim());
         var h = w.Host;
         if (h.Name.Length > 0)
             SwitchCharacter(h.Name);

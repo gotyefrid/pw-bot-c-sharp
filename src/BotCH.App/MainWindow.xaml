@@ -316,6 +316,17 @@
 
         <Border Style="{StaticResource Card}">
           <StackPanel>
+            <TextBlock Text="РЕСУРСЫ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Копать ресурсы в радиусе фарма" IsChecked="{Binding Settings.Gather.Enabled}"
+                      ToolTip="Сначала все ресурсы в радиусе фарма, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше" />
+            <app:TagPicker Margin="0,4,0,0" Selected="{Binding GatherNames}" Options="{Binding GatherOptions}"
+                           Placeholder="Копать все" EmptyOptionsText="Рядом нет ресурсов — подойдите к ним"
+                           ToolTip="Какие ресурсы копать; пусто — все. Варианты — ресурсы вокруг и те, что встречались за сессию" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
             <TextBlock Text="БАНКИ" Style="{StaticResource CardTitle}" />
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Банка HP, когда HP ниже, %" VerticalAlignment="Center" />
