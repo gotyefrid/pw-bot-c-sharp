@@ -196,42 +196,63 @@ public sealed class CombatBehavior : IBehavior
         if (w.Host.IsCasting)
             return true;
 
+        // Строго по очереди: сначала подходим, потом бьём. Скилл «как кнопкой» и обычная атака тоже ведут персонажа — два подхода
+        // разом перебивают «работы» клиента друг друга (так 2026-10-02 упал клиент 1.4.6, повреждение кучи)
+        var skillKey = $"скилл {combat.AttackSkillId}";
+        var sword = new NormalAttackAction();
+        if (combat.ComeCloser && c.Runner.Actions.CanMove && !c.Runner.IsPending(skillKey) && !c.Runner.IsPending(sword.Key)
+            && ComeCloser(c, mob))
+            return true;
+
         if (combat.UseSkill && w.Skill(combat.AttackSkillId) is { IsReady: true }
-            && !c.Runner.IsPending($"скилл {combat.AttackSkillId}"))
+            && !c.Runner.IsPending(skillKey))
             return c.Submit(new SkillAction(combat.AttackSkillId, 0, approach: true, $"атака скиллом {combat.AttackSkillId}"));
 
         // Таймер сдвигаем, только когда удар действительно ушёл (а не «прошлый ещё ждёт подтверждения»)
-        var sword = new NormalAttackAction();
         if (combat.UseSword && c.Now - _lastSword >= SwordPeriod && !c.Runner.IsPending(sword.Key))
         {
             _lastSword = c.Now;
             return c.Submit(sword);
         }
 
-        // Сами подходим, только если нечем подвести клиенту: скилл «как кнопкой» и обычная атака подводят сами. Два подхода разом
-        // перебивают «работы» друг друга — так 2026-10-02 упал клиент 1.4.6 (повреждение кучи)
-        if (!combat.UseSkill && !combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && c.Runner.Actions.CanMove)
-        {
-            var point = PointNear(w.Host.Position, mob.Position, combat.ComeCloserDistance - 1);
-            var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault();
-            if (running is null)
-            {
-                c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {combat.ComeCloserDistance:0} м");
-                _lastApproach = c.Now;
-                return c.Submit(new MoveAction(point, tolerance: 1.5f));
-            }
-
-            // Моб убегает — не добегать до старой точки, а сразу к новой
-            if (running.Point.HorizontalDistanceTo(point) > RetargetDistance && c.Now - _lastApproach >= RetargetPeriod)
-            {
-                c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
-                _lastApproach = c.Now;
-                return c.Runner.Replace(new MoveAction(point, tolerance: 1.5f), w).Status != SubmitStatus.Failed;
-            }
-        }
-
         if (!combat.UseSkill && !combat.UseSword && !(c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true }))
             c.Say("nothing-to-attack", "Нечем бить: включите скилл или меч (или пета)", LogLevel.Warning, 60);
+
+        return true;
+    }
+
+    /// <summary>true — подходим (или ещё бежим), бить пока рано.</summary>
+    private bool ComeCloser(BrainContext c, NpcInfo mob)
+    {
+        var w = c.World;
+        var distance = c.Settings.Combat.ComeCloserDistance;
+        var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault();
+        if (mob.Distance <= distance)
+        {
+            // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
+            if (running is null)
+                return false;
+            Status = $"бой: {_mobName} — добегаю";
+            return true;
+        }
+
+        var point = PointNear(w.Host.Position, mob.Position, distance - 1);
+        Status = $"бой: {_mobName} — подхожу, {mob.Distance:0.0} м";
+        if (running is null)
+        {
+            c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
+            _lastApproach = c.Now;
+            c.Submit(new MoveAction(point, tolerance: 1.5f));
+            return true;
+        }
+
+        // Моб убегает — не добегать до старой точки, а сразу к новой
+        if (running.Point.HorizontalDistanceTo(point) > RetargetDistance && c.Now - _lastApproach >= RetargetPeriod)
+        {
+            c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
+            _lastApproach = c.Now;
+            c.Runner.Replace(new MoveAction(point, tolerance: 1.5f), w);
+        }
 
         return true;
     }

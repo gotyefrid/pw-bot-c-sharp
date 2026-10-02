@@ -394,17 +394,48 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void NoComeCloserWhileSkillApproaches()
+    public void ComeCloserFirstThenSkill()
     {
-        // Скилл «как кнопкой» сам подводит; свой бег поверх него перебивает работу клиента (падение 1.4.6)
+        // Строго по очереди: бег и скилл «как кнопкой» разом перебивают работы клиента (падение 1.4.6)
         _settings.Target.KillMobs = true;
         _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
         _settings.Combat.UseSkill = true;
         _settings.Combat.AttackSkillId = 299;
         _world.AddSkill(299);
-        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
+        var mob = _world.AddMob(0x80000001, "Волк", 20);
+        _world.TargetWid = mob.Wid;
 
         Tick();
+        Tick(1);
+        Assert.Single(_actions.Calls, c => c.StartsWith("move"));
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
+
+        // Добежали: моб в 7 м — теперь скилл
+        _world.Position = new Position(13, 0, 0);
+        _world.Replace(mob, m => m with { Distance = 7 });
+        Tick();
+        Tick();
+        Assert.Equal("apply 299 0", LastCall);
+    }
+
+    [Fact]
+    public void NoRunningWhileSkillPending()
+    {
+        // Скилл ушёл, моб отошёл дальше — пока скилл ждёт подтверждения, не бежим поверх него
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackSkillId = 299;
+        _world.AddSkill(299);
+        var mob = _world.AddMob(0x80000001, "Волк", 5);
+        _world.TargetWid = mob.Wid;
+        Tick();
+        Tick();
+        Assert.Equal("apply 299 0", LastCall);
+
+        _world.Replace(mob, m => m with { Position = new Position(20, 0, 0), Distance = 20 });
         Tick(1);
 
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));

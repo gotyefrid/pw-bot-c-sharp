@@ -108,7 +108,7 @@ public sealed class CombatSettings
     /// <summary>Обычная атака (раз в ~5 с).</summary>
     public bool UseSword { get; set; }
 
-    /// <summary>Подходить к мобу на <see cref="ComeCloserDistance"/>, если и скилл, и обычная атака выключены (бьёт только пет).</summary>
+    /// <summary>Сначала подойти к мобу на <see cref="ComeCloserDistance"/>, потом бить (скиллом, атакой или только петом).</summary>
     public bool ComeCloser { get; set; }
 
     public float ComeCloserDistance { get; set; } = 8;
