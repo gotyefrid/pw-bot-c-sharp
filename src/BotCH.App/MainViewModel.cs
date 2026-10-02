@@ -102,7 +102,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             _appSettings.Connection.ServerId = value.Id;
             SaveSettings();
-            RefreshClients();
+            // Тот же клиент, но читать его теперь по другим смещениям — переподключаемся всегда
+            RefreshClients(reconnect: true);
         }
     }
 
@@ -439,7 +440,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Внутреннее ──────────────────────────────────────────────────────────
 
-    private void RefreshClients()
+    private void RefreshClients() => RefreshClients(reconnect: false);
+
+    private void RefreshClients(bool reconnect)
     {
         var keep = _selectedClient?.Pid;
         var clients = ClientList.Build(new SystemClientSource(_profile.Data), _profile.Data.ClientProcessName);
@@ -461,7 +464,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _connectionLog.Warning("Клиенты игры не найдены — запустите игру и нажмите «обновить»");
 
         RenameAll();
-        if (SelectedClient?.Pid != _game?.Pid || _game is null || _game.HasExited)
+        if (reconnect || SelectedClient?.Pid != _game?.Pid || _game is null || _game.HasExited)
             Connect(SelectedClient);
     }
 
