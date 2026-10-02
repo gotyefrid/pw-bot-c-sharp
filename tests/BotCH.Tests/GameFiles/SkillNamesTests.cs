@@ -8,6 +8,7 @@ public class SkillNamesTests
 {
     // Клиент владельца. Нет на машине — тест пропускается
     private const string GameDirectory = @"C:\Users\mel\Downloads\PWCLASSICNET[RU]\element";
+    private const string ComebackDirectory = @"D:\Torrent\Comeback146.pw\element";
 
     [Fact]
     public void ParseTakesOnlyNames()
@@ -45,5 +46,19 @@ public class SkillNamesTests
         Assert.Equal("Жалящий рой", names.Get(299));
         Assert.Equal("Городской портал", names.Get(167));
         Assert.Equal("Оживление питомца", names.Get(329));
+    }
+
+    [Fact]
+    public void RealComebackConfigsPck()
+    {
+        // Свои ключи, хвост 0x9E82 и заголовок с концом архива (дальше в файле то, что клиент дописал сам)
+        Assert.SkipUnless(Directory.Exists(ComebackDirectory), "Клиента Comeback нет на этой машине");
+
+        var names = SkillNames.LoadFromGameDirectory(ComebackDirectory, out var problem);
+
+        Assert.Null(problem);
+        Assert.True(names.Count > 1000);
+        Assert.Equal("Жалящий рой", names.Get(299));
+        Assert.Equal("Исцеление питомца", names.Get(330));
     }
 }

@@ -9,20 +9,36 @@ namespace BotCH.Core.GameFiles;
 /// <summary>
 /// Архив игры .pck (Angelica File Package, версия 0x00020002) — только чтение.
 /// <para>
-/// Хвост файла (0x118 байт): 0xFDFDFEEE, версия, (смещение оглавления ^ Key1), 0, описание 0xFC байт, 0xF00DBEEF, число файлов, версия.
+/// Хвост (0x118 байт у стандартного клиента): 0xFDFDFEEE, версия, (смещение оглавления ^ ключ смещения), 0, описание 0xFC байт,
+/// 0xF00DBEEF, число файлов, версия. Число файлов и версия — всегда последние 8 байт архива.
 /// Оглавление: для каждого файла (размер записи ^ Key1), (размер записи ^ Key2), запись 0x114 байт (меньше — сжата zlib):
 /// путь 260 байт, смещение данных, размер, сжатый размер. Данные сжаты zlib, если сжатый размер меньше размера.
+/// </para>
+/// <para>
+/// Клиенты отличаются ключами и размером хвоста (см. <see cref="Variants"/>). Ещё бывает заголовок в начале файла:
+/// 0x4DCA23EF, конец архива, 0x56A089B7 — тогда архив кончается там, а дальше в файле то, что клиент дописал сам.
 /// </para>
 /// Игра держит архив открытым, поэтому открываем с FileShare.ReadWrite.
 /// </summary>
 public static class PckArchive
 {
-    private const uint Key1 = 0xA8937462;
-    private const uint Key2 = 0xF1A43653;
     private const uint TailMagic = 0xFDFDFEEE;
-    private const int TailSize = 0x118;
+    private const uint HeaderMagic1 = 0x4DCA23EF;
+    private const uint HeaderMagic2 = 0x56A089B7;
+    private const int TailRead = 0x10;
     private const int EntrySize = 0x114;
     private const int PathSize = 260;
+
+    /// <summary>Ключи и размер хвоста одного клиента.</summary>
+    private sealed record Variant(string Name, uint Key1, uint Key2, uint OffsetKey, int TailSize);
+
+    private static readonly Variant[] Variants =
+    [
+        new("стандартный", 0xA8937462, 0xF1A43653, 0xA8937462, 0x118),
+        // Comeback 1.4.6: ключи лежат в .data клиента (VA 0xCA2468..0xCA2478), их читает загрузчик .pck (0x9A46E2):
+        // версия формата 5 → смещение оглавления ^ 0x9A4E1CB0, хвост за 0x9E82 байт до конца архива
+        new("Comeback 1.4.6", 0x1597270A, 0x604E0ECB, 0x9A4E1CB0, 0x9E82),
+    ];
 
     public sealed record Entry(string Path, uint Offset, int Size, int PackedSize);
 
@@ -54,25 +70,66 @@ public static class PckArchive
 
     private static List<Entry> ReadEntries(FileStream stream)
     {
-        if (stream.Length < TailSize)
+        var end = ArchiveEnd(stream);
+        if (end < 8)
             throw new InvalidDataException("Файл слишком короткий для .pck");
 
-        stream.Position = stream.Length - TailSize;
-        var tail = ReadExactly(stream, TailSize);
-        if (BitConverter.ToUInt32(tail, 0) != TailMagic)
-            throw new InvalidDataException("Неизвестный формат .pck");
+        stream.Position = end - 8;
+        var counts = ReadExactly(stream, 8);
+        var count = BitConverter.ToUInt32(counts, 0);
 
-        var tableOffset = BitConverter.ToUInt32(tail, 8) ^ Key1;
-        var count = BitConverter.ToUInt32(tail, TailSize - 8);
+        Exception? last = null;
+        foreach (var variant in Variants)
+        {
+            if (end < variant.TailSize)
+                continue;
 
+            stream.Position = end - variant.TailSize;
+            var tail = ReadExactly(stream, TailRead);
+            if (BitConverter.ToUInt32(tail, 0) != TailMagic)
+                continue;
+
+            var tableOffset = BitConverter.ToUInt32(tail, 8) ^ variant.OffsetKey;
+            if (tableOffset >= end)
+                continue;
+
+            try
+            {
+                return ReadTable(stream, variant, tableOffset, count);
+            }
+            catch (Exception e) when (e is InvalidDataException or EndOfStreamException)
+            {
+                last = e;
+            }
+        }
+
+        throw last ?? new InvalidDataException("Неизвестный формат .pck");
+    }
+
+    // Заголовок «0x4DCA23EF, конец, 0x56A089B7» — архив кончается раньше конца файла
+    private static long ArchiveEnd(FileStream stream)
+    {
+        if (stream.Length < 12)
+            return stream.Length;
+
+        stream.Position = 0;
+        var header = ReadExactly(stream, 12);
+        var end = BitConverter.ToUInt32(header, 4);
+        return BitConverter.ToUInt32(header, 0) == HeaderMagic1 && BitConverter.ToUInt32(header, 8) == HeaderMagic2 && end <= stream.Length
+            ? end
+            : stream.Length;
+    }
+
+    private static List<Entry> ReadTable(FileStream stream, Variant variant, uint tableOffset, uint count)
+    {
         stream.Position = tableOffset;
         var entries = new List<Entry>((int)Math.Min(count, 100_000));
         for (var i = 0u; i < count; i++)
         {
             var header = ReadExactly(stream, 8);
-            var size = BitConverter.ToUInt32(header, 0) ^ Key1;
-            if (size != (BitConverter.ToUInt32(header, 4) ^ Key2) || size > 0x10000)
-                throw new InvalidDataException($"Повреждённая запись оглавления №{i}");
+            var size = BitConverter.ToUInt32(header, 0) ^ variant.Key1;
+            if (size != (BitConverter.ToUInt32(header, 4) ^ variant.Key2) || size > 0x10000)
+                throw new InvalidDataException($"Повреждённая запись оглавления №{i} ({variant.Name})");
 
             var raw = ReadExactly(stream, (int)size);
             var entry = size == EntrySize ? raw : Inflate(raw);
