@@ -75,14 +75,10 @@
   // У менеджера предметов как у 1.3.6: счётчик +0x14, число ячеек +0x18, массив +0x1C. Обход совпал со счётчиками (75 и 16)
   "world": {
     "world": "0x14",
-    "npcs": "0x20",
-    "groundItems": "0x24",
-    "slotArray": "0x1C",
     "slotCount": 769,
-    "count": "0x14",
     "objectInSlot": "0x4",
-    "npcSlotArray": "0x20",
-    "npcCount": "0x18"
+    "npcs": { "manager": "0x20", "slotArray": "0x20", "count": "0x18" },
+    "groundItems": { "manager": "0x24", "slotArray": "0x1C", "count": "0x14" }
   },
 
   // Моб / NPC / пет. Состояние, цель и HP найдены 02.10.2026 в бою: запись полей цели 10 раз в секунду до исчезновения трупа

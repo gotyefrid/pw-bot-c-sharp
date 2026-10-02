@@ -19,7 +19,7 @@ public sealed record ServerCapabilities(
             DirectCalls: data.Functions.Count > 0,
             ApproachLikeMouse: Has(GameFunctions.HostApplySkill) && Has(GameFunctions.HostPickupObject),
             MoveToPoint: data.Host.WorkMan != 0 && Has(GameFunctions.WorkCreate) && Has(GameFunctions.WorkMoveSetDestination) && Has(GameFunctions.WorkStart),
-            GroundItems: data.World.GroundItems != 0,
+            GroundItems: data.World.GroundItems.Manager != 0,
             // configs.pck → skillstr.txt есть у всех известных клиентов; если у какого-то нет — профиль это переопределит
             SkillNamesFromGame: true);
     }

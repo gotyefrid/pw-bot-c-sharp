@@ -101,20 +101,25 @@ public sealed class WorldOffsets
 {
     /// <summary>[game + World] — мир.</summary>
     public uint World { get; init; }
-    /// <summary>[мир + Npcs] — менеджер мобов/NPC/петов.</summary>
-    public uint Npcs { get; init; }
-    /// <summary>[мир + GroundItems] — менеджер предметов на земле.</summary>
-    public uint GroundItems { get; init; }
-    /// <summary>[менеджер + SlotArray] — массив ячеек.</summary>
-    public uint SlotArray { get; init; }
+    /// <summary>Сколько ячеек в хэш-таблице любого списка мира.</summary>
     public int SlotCount { get; init; }
-    /// <summary>[менеджер + Count] — сколько объектов в списке (для самопроверки).</summary>
-    public uint Count { get; init; }
     /// <summary>[ячейка + ObjectInSlot] — объект.</summary>
     public uint ObjectInSlot { get; init; }
-    /// <summary>Если у менеджера мобов массив и счётчик лежат не там, где у остальных (Comeback 1.4.6); 0 — как SlotArray/Count.</summary>
-    public uint NpcSlotArray { get; init; }
-    public uint NpcCount { get; init; }
+    /// <summary>Мобы/NPC/петы.</summary>
+    public WorldListOffsets Npcs { get; init; } = new();
+    /// <summary>Предметы на земле.</summary>
+    public WorldListOffsets GroundItems { get; init; } = new();
+}
+
+/// <summary>Один список мира — хэш-таблица в своём менеджере. У разных списков раскладка менеджера может отличаться.</summary>
+public sealed class WorldListOffsets
+{
+    /// <summary>[мир + Manager] — менеджер; 0 — списка на этом сервере нет.</summary>
+    public uint Manager { get; init; }
+    /// <summary>[менеджер + SlotArray] — массив ячеек.</summary>
+    public uint SlotArray { get; init; }
+    /// <summary>[менеджер + Count] — сколько объектов в списке (для самопроверки); 0 — не читать.</summary>
+    public uint Count { get; init; }
 }
 
 /// <summary>Моб/NPC/пет в мире.</summary>

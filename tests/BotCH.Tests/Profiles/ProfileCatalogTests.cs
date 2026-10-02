@@ -77,7 +77,7 @@ public class ProfileCatalogTests
 
         Assert.Equal("Comeback 1.4.6", profile.Name);
         Assert.Equal(0x8EBC1Cu, profile.Data.Base.BasePointer);
-        Assert.Equal(0x20u, profile.Data.World.NpcSlotArray);
+        Assert.Equal(0x20u, profile.Data.World.Npcs.SlotArray);
         // Функции ещё не найдены: смотреть может, действовать нет
         Assert.Empty(profile.Data.Functions);
         Assert.False(profile.Capabilities.DirectCalls);

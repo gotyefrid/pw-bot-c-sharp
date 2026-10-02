@@ -55,8 +55,8 @@ public sealed class WorldReader
         var host = ReadHost(game, out var hostBlock);
         var world = _memory.ReadUInt32(game + _p.World.World);
         var w = _p.World;
-        var npcs = ReadList(world, w.Npcs, Or(w.NpcSlotArray, w.SlotArray), Or(w.NpcCount, w.Count), _npcSize, ReadNpc, out var npcCount);
-        var items = ReadList(world, w.GroundItems, w.SlotArray, w.Count, _itemSize, ReadGroundItem, out var itemCount);
+        var npcs = ReadList(world, w.Npcs, _npcSize, ReadNpc, out var npcCount);
+        var items = ReadList(world, w.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
         var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
         var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
         var pet = ReadPet(Field(hostBlock, _p.Host.PetManager));
@@ -121,20 +121,19 @@ public sealed class WorldReader
     }
 
     /// <summary>Обходит хэш-таблицу менеджера мира (мобы или предметы на земле).</summary>
-    private List<T> ReadList<T>(uint world, uint managerOffset, uint slotArray, uint countOffset, int objectSize, Func<MemoryBlock, T?> read,
-        out int countInGame)
+    private List<T> ReadList<T>(uint world, WorldListOffsets list, int objectSize, Func<MemoryBlock, T?> read, out int countInGame)
         where T : class
     {
         var result = new List<T>();
         countInGame = -1;
-        if (world == 0 || managerOffset == 0 || !_memory.TryReadUInt32(world + managerOffset, out var manager) || manager == 0)
+        if (world == 0 || list.Manager == 0 || !_memory.TryReadUInt32(world + list.Manager, out var manager) || manager == 0)
             return result;
 
         var w = _p.World;
-        if (countOffset != 0 && _memory.TryReadUInt32(manager + countOffset, out var count))
+        if (list.Count != 0 && _memory.TryReadUInt32(manager + list.Count, out var count))
             countInGame = (int)count;
 
-        var slots = _memory.ReadUInt32(manager + slotArray);
+        var slots = _memory.ReadUInt32(manager + list.SlotArray);
         if (!MemoryBlock.TryRead(_memory, slots, w.SlotCount * 4, out var slotBlock))
             return result;
 
@@ -295,8 +294,6 @@ public sealed class WorldReader
 
     // Смещение 0 в профиле — «поле не найдено»: читать нечего (иначе прочиталось бы начало объекта, vtable)
     private static uint Field(MemoryBlock b, uint offset) => offset == 0 ? 0 : b.UInt32(offset);
-
-    private static uint Or(uint value, uint fallback) => value != 0 ? value : fallback;
 
     // Размер блока, в который влезают все поля (каждое — 4 байта)
     private static int BlockSize(params uint[] offsets) => (int)offsets.Max() + 4;
