@@ -52,6 +52,15 @@ public class StubBuilderTests
     }
 
     [Fact]
+    public void StdcallNeitherCleansStackNorSetsEcx()
+    {
+        // Comeback 1.4.6: функция сама снимает аргумент (ret 4)
+        var stub = StubBuilder.Call(0x841220, CallingConvention.Stdcall, 0, [0x80104298]);
+
+        Assert.Equal("68 98 42 10 80 B8 20 12 84 00 FF D0 31 C0 C2 04 00", Hex(stub));
+    }
+
+    [Fact]
     public void ThiscallWithoutObjectIsRefused()
     {
         Assert.Throws<ArgumentException>(() => StubBuilder.Call(0x45CC50, CallingConvention.Thiscall, 0, [1]));

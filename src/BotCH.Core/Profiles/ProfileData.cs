@@ -221,6 +221,8 @@ public enum CallingConvention
     Cdecl,
     /// <summary>Методы объектов клиента: this в ecx.</summary>
     Thiscall,
+    /// <summary>Аргументы в стеке, стек чистит сама функция (ret N). Так собраны функции Comeback 1.4.6.</summary>
+    Stdcall,
 }
 
 public sealed class GameFunction

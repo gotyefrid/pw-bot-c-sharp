@@ -12,7 +12,7 @@ public static class StubBuilder
 {
     /// <summary>
     /// <c>push argN … push arg1; [mov ecx, this]; mov eax, func; call eax; [add esp, 4*N]; xor eax, eax; ret 4</c>.
-    /// cdecl — стек после вызова чистим сами; thiscall — this в ecx, стек чистит функция.
+    /// cdecl — стек после вызова чистим сами; thiscall — this в ecx, стек чистит функция; stdcall — стек чистит функция.
     /// </summary>
     public static byte[] Call(uint function, CallingConvention convention, uint thisPointer, IReadOnlyList<uint> args)
     {
