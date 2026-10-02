@@ -394,6 +394,23 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void NoComeCloserWhileSkillApproaches()
+    {
+        // Скилл «как кнопкой» сам подводит; свой бег поверх него перебивает работу клиента (падение 1.4.6)
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackSkillId = 299;
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
+
+        Tick();
+        Tick(1);
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));
+    }
+
+    [Fact]
     public void ComeCloserRetargetsWhenMobRunsAway()
     {
         _settings.Target.KillMobs = true;

@@ -208,7 +208,9 @@ public sealed class CombatBehavior : IBehavior
             return c.Submit(sword);
         }
 
-        if (!combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && c.Runner.Actions.CanMove)
+        // Сами подходим, только если нечем подвести клиенту: скилл «как кнопкой» и обычная атака подводят сами. Два подхода разом
+        // перебивают «работы» друг друга — так 2026-10-02 упал клиент 1.4.6 (повреждение кучи)
+        if (!combat.UseSkill && !combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && c.Runner.Actions.CanMove)
         {
             var point = PointNear(w.Host.Position, mob.Position, combat.ComeCloserDistance - 1);
             var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault();

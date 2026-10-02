@@ -255,7 +255,7 @@
             <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
-                        ToolTip="Только когда обычная атака выключена" />
+                        ToolTip="Только когда выключены и атакующий скилл, и обычная атака (бьёт пет): скилл и атака подводят персонажа сами" />
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">
