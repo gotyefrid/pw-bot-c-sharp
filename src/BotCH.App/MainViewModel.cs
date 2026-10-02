@@ -522,6 +522,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _game?.Dispose();
         _game = null;
         IsConnected = false;
+        ClearWorld();
     }
 
     private void LoadSkillNamesInBackground(string clientPath)
@@ -621,7 +622,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         ConnectionText = "Персонаж не в мире";
+        ClearWorld();
         SnapshotInfo = message;
+    }
+
+    // Мир не читается (другой сервер, загрузка, отключились) — старые HP/MP/пет не показываем, как будто они верные
+    private void ClearWorld()
+    {
+        _lastWorld = null;
+        HostName = "—";
+        HostDetails = "";
+        HpPercent = 0;
+        HpText = "—";
+        MpPercent = 0;
+        MpText = "—";
+        HasTarget = false;
+        TargetName = "Нет цели";
+        TargetDetails = "";
+        HasPet = false;
+        PetTitle = "Пета нет";
+        PetHpPercent = 0;
+        PetHpText = "";
+        PetDetails = "";
+        SnapshotInfo = "";
     }
 
     private static string StateText(NpcInfo n, WorldState w)
