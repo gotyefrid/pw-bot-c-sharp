@@ -545,6 +545,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             _unfreezer = new Unfreezer(_game.Pid, _profile.Data, message => _connectionLog.Warning(message));
+            if (!_unfreezer.IsSupported)
+            {
+                _unfreezer = null;
+                _connectionLog.Info("Unfreeze на этом сервере не нужен — включите в настройках клиента работу в фоне");
+                return;
+            }
+
             _unfreezer.Start();
             _connectionLog.Info("Unfreeze включён");
         }
