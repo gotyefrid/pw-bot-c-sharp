@@ -7,7 +7,13 @@
     <AssemblyName>BotCH</AssemblyName>
     <!-- Свой Main: сначала загрузчик вшитых dll, потом WPF -->
     <StartupObject>BotCH.App.Program</StartupObject>
+    <!-- Иконка exe и окна: синяя «B» с оранжевой точкой -->
+    <ApplicationIcon>BotCH.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="BotCH.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BotCH.Core\BotCH.Core.csproj" />
