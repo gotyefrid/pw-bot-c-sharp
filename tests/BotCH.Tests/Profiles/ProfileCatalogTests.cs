@@ -78,9 +78,12 @@ public class ProfileCatalogTests
         Assert.Equal("Comeback 1.4.6", profile.Name);
         Assert.Equal(0x8EBC1Cu, profile.Data.Base.BasePointer);
         Assert.Equal(0x20u, profile.Data.World.Npcs.SlotArray);
-        // Функции ещё не найдены: смотреть может, действовать нет
-        Assert.Empty(profile.Data.Functions);
-        Assert.False(profile.Capabilities.DirectCalls);
+        // Выбор цели — метод персонажа: this берётся из памяти, «снять цель» — он же с нулём
+        var select = profile.Data.Functions[GameFunctions.SelectTarget];
+        Assert.Equal(FunctionThis.Host, select.This);
+        Assert.Equal(["wid"], select.Args);
+        Assert.Equal(["0"], profile.Data.Functions[GameFunctions.Unselect].Args);
+        Assert.True(profile.Capabilities.DirectCalls);
         Assert.True(profile.Capabilities.GroundItems);
         // Выход из игры и «отпустить пета» запрещены с самого начала — до первой вызываемой функции
         Assert.Equal(0x445A20u, profile.Data.ForbiddenFunctions["logout"]);
