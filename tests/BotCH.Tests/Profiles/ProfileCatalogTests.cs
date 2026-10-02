@@ -82,6 +82,9 @@ public class ProfileCatalogTests
         Assert.Empty(profile.Data.Functions);
         Assert.False(profile.Capabilities.DirectCalls);
         Assert.True(profile.Capabilities.GroundItems);
+        // Выход из игры и «отпустить пета» запрещены с самого начала — до первой вызываемой функции
+        Assert.Equal(0x445A20u, profile.Data.ForbiddenFunctions["logout"]);
+        Assert.Equal(0x2D4EB0u, profile.Data.ForbiddenFunctions["releasePet"]);
     }
 
     [Fact]
