@@ -55,6 +55,10 @@ public sealed class GameCaller
 
     public IReadOnlyCollection<FunctionLocation> Functions => _functions.Values;
 
+    /// <summary>Есть всё для «идти в точку»: менеджер работ и три его функции.</summary>
+    public bool CanMoveTo => _profile.Host.WorkMan != 0
+                             && Can(GameFunctions.WorkCreate) && Can(GameFunctions.WorkMoveSetDestination) && Can(GameFunctions.WorkStart);
+
     public CallResult SelectTarget(uint wid) => Call(GameFunctions.SelectTarget, 0, null, ["wid"], ("wid", wid));
 
     public CallResult Unselect() => Call(GameFunctions.Unselect, 0, null, []);

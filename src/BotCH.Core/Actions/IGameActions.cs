@@ -12,6 +12,9 @@ public interface IGameActions
     /// <summary>Как выполняются действия: «вызовы» / «клавиши».</summary>
     string Mode { get; }
 
+    /// <summary>Умеет ли «идти в точку». Нет — мозг не ходит сам (подбор «как мышкой» всё равно подводит к предмету).</summary>
+    bool CanMove { get; }
+
     CallResult SelectTarget(uint wid);
     CallResult Unselect();
     CallResult NormalAttack();
@@ -47,6 +50,8 @@ public interface IGameActions
 public sealed class DirectCallActions(GameCaller caller) : IGameActions
 {
     public string Mode => "вызовы";
+
+    public bool CanMove => caller.CanMoveTo;
 
     public CallResult SelectTarget(uint wid) => caller.SelectTarget(wid);
     public CallResult Unselect() => caller.Unselect();

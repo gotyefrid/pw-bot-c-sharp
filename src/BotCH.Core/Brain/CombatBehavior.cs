@@ -207,7 +207,8 @@ public sealed class CombatBehavior : IBehavior
             return c.Submit(sword);
         }
 
-        if (!combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && !c.Runner.IsPending("движение"))
+        if (!combat.UseSword && combat.ComeCloser && mob.Distance > combat.ComeCloserDistance && c.Runner.Actions.CanMove
+            && !c.Runner.IsPending("движение"))
         {
             var point = PointNear(w.Host.Position, mob.Position, combat.ComeCloserDistance - 1);
             c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {combat.ComeCloserDistance:0} м");
@@ -269,8 +270,17 @@ public sealed class CombatBehavior : IBehavior
             return true;
         }
 
-        // Лут падает вокруг места смерти — если моба убил пет вдалеке, сначала идём туда
-        if (!_walkedToDeathPlace)
+        // Пока персонаж кастует, клиент молча отбрасывает подбор (на Comeback 1.4.6 видно по коду: работа «каст» блокирует
+        // PickupObject). Каст после смерти моба бывает: скилл, заказанный ещё по живому
+        if (w.Host.IsCasting)
+        {
+            Status = "лут: жду конца каста";
+            return true;
+        }
+
+        // Лут падает вокруг места смерти — если моба убил пет вдалеке, сначала идём туда.
+        // Не умеем ходить — подбор «как мышкой» сам подведёт к предмету
+        if (!_walkedToDeathPlace && c.Runner.Actions.CanMove)
         {
             _walkedToDeathPlace = true;
             var distance = w.Host.Position.DistanceTo(_deathPlace);

@@ -454,6 +454,42 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void LootWithoutMoveGoesStraightToPickup()
+    {
+        // Comeback 1.4.6: «идти в точку» нет — к месту смерти не идём, подбор «как мышкой» сам подводит
+        _actions.CanMove = false;
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Loot.Enabled = true;
+        var mob = _world.AddMob(0x80000001, "Волк", 10, hp: 100);
+        _world.TargetWid = mob.Wid;
+        Tick();
+
+        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.TargetWid = 0;
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(11, 0, 0), 11, "Мягкий мех"));
+        Tick();
+
+        Assert.Equal("pickup-approach C0000002", LastCall);
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));
+    }
+
+    [Fact]
+    public void LootWaitsWhileCasting()
+    {
+        // Скилл, заказанный по живому мобу, кастуется уже после его смерти — подбор в это время клиент отбрасывает
+        KillMobForLoot();
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), 3, "Монета"));
+        _world.Casting = true;
+        Tick();
+        Assert.DoesNotContain("pickup-approach C0000001", _actions.Calls);
+
+        _world.Casting = false;
+        Tick();
+        Assert.Equal("pickup-approach C0000001", LastCall);
+    }
+
+    [Fact]
     public void LootOnlyAroundDeathPlace()
     {
         _settings.Target.KillMobs = true;
