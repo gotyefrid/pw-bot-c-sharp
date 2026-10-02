@@ -29,6 +29,7 @@ internal static class NativeMethods
     public const uint MemRelease = 0x8000;
     public const uint PageReadWrite = 0x04;
     public const uint PageExecuteRead = 0x20;
+    public const uint PageExecuteReadWrite = 0x40;
     public const uint WaitObject0 = 0;
     public const uint MemFree = 0x10000;
     /// <summary>dwStackSize у CreateRemoteThread — сколько адресов зарезервировать под стек, а не сколько выделить сразу.</summary>

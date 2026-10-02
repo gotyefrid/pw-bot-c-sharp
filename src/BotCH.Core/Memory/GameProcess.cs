@@ -119,32 +119,13 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
     /// </summary>
     public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub)
     {
-        if (!Rights.HasFlag(GameProcessRights.Execute))
-            throw new InvalidOperationException("Процесс открыт без права вызывать функции игры");
-        if (data is { Length: > RemotePageSize - RemoteDataOffset })
-            return new RemoteRunResult(RemoteRunStatus.Failed, "слишком много данных для вызова");
-
-        var page = NativeMethods.VirtualAllocEx(_handle, IntPtr.Zero, new IntPtr(RemotePageSize),
-            NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageReadWrite);
-        if (page == IntPtr.Zero)
-            return Failed("VirtualAllocEx");
+        if (PrepareCall(data, buildStub, out var page) is { } failed)
+            return failed;
 
         var free = true;
         try
         {
-            var pageAddress = unchecked((uint)page.ToInt32());
-            var dataAddress = pageAddress + RemoteDataOffset;
-            if (data is not null && !TryWriteRaw(dataAddress, data))
-                return Failed("запись данных");
-
-            var stub = buildStub(dataAddress);
-            if (stub.Length > RemoteDataOffset)
-                return new RemoteRunResult(RemoteRunStatus.Failed, "заглушка не помещается перед данными");
-            if (!TryWriteRaw(pageAddress, stub)
-                || !NativeMethods.VirtualProtectEx(_handle, page, new IntPtr(RemotePageSize), NativeMethods.PageExecuteRead, out _))
-                return Failed("запись заглушки");
-
-            using var thread = NativeMethods.CreateRemoteThread(_handle, IntPtr.Zero, new IntPtr(RemoteStackSize), page, IntPtr.Zero,
+            using var thread = NativeMethods.CreateRemoteThread(_handle, IntPtr.Zero, new IntPtr(RemoteStackSize), ToPointer(page), IntPtr.Zero,
                 NativeMethods.StackSizeParamIsAReservation, IntPtr.Zero);
             if (thread.IsInvalid)
                 return Failed("CreateRemoteThread");
@@ -161,8 +142,90 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
         finally
         {
             if (free)
-                NativeMethods.VirtualFreeEx(_handle, page, IntPtr.Zero, NativeMethods.MemRelease);
+                FreePage(page);
         }
+    }
+
+    /// <summary>
+    /// Страница под вызов: данные со смещения 0x100, заглушка в начале, защита «чтение и выполнение».
+    /// null — готово, адрес в <paramref name="page"/> (освободить <see cref="FreePage"/>, когда выполнится); иначе — отказ.
+    /// </summary>
+    public RemoteRunResult? PrepareCall(byte[]? data, Func<uint, byte[]> buildStub, out uint page)
+    {
+        page = 0;
+        if (!Rights.HasFlag(GameProcessRights.Execute))
+            throw new InvalidOperationException("Процесс открыт без права вызывать функции игры");
+        if (data is { Length: > RemotePageSize - RemoteDataOffset })
+            return new RemoteRunResult(RemoteRunStatus.Failed, "слишком много данных для вызова");
+
+        var memory = NativeMethods.VirtualAllocEx(_handle, IntPtr.Zero, new IntPtr(RemotePageSize),
+            NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageReadWrite);
+        if (memory == IntPtr.Zero)
+            return Failed("VirtualAllocEx");
+
+        var pageAddress = unchecked((uint)memory.ToInt32());
+        var dataAddress = pageAddress + RemoteDataOffset;
+        RemoteRunResult? problem = null;
+        if (data is not null && !TryWriteRaw(dataAddress, data))
+            problem = Failed("запись данных");
+
+        if (problem is null)
+        {
+            var stub = buildStub(dataAddress);
+            if (stub.Length > RemoteDataOffset)
+                problem = new RemoteRunResult(RemoteRunStatus.Failed, "заглушка не помещается перед данными");
+            else if (!TryWriteRaw(pageAddress, stub)
+                     || !NativeMethods.VirtualProtectEx(_handle, memory, new IntPtr(RemotePageSize), NativeMethods.PageExecuteRead, out _))
+                problem = Failed("запись заглушки");
+        }
+
+        if (problem is not null)
+        {
+            FreePage(pageAddress);
+            return problem;
+        }
+
+        page = pageAddress;
+        return null;
+    }
+
+    public void FreePage(uint page) => NativeMethods.VirtualFreeEx(_handle, ToPointer(page), IntPtr.Zero, NativeMethods.MemRelease);
+
+    /// <summary>
+    /// Постоянная страница «код + свои данные» (чтение, запись, выполнение) — для обработчика окна: живёт до закрытия игры,
+    /// не освобождается (на её коде может стоять чей-то стек). null — не вышло.
+    /// </summary>
+    public uint? AllocateResident(byte[] content)
+    {
+        if (!Rights.HasFlag(GameProcessRights.Execute))
+            throw new InvalidOperationException("Процесс открыт без права вызывать функции игры");
+        if (content.Length > RemotePageSize)
+            return null;
+
+        var memory = NativeMethods.VirtualAllocEx(_handle, IntPtr.Zero, new IntPtr(RemotePageSize),
+            NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageExecuteReadWrite);
+        if (memory == IntPtr.Zero)
+            return null;
+
+        var address = unchecked((uint)memory.ToInt32());
+        if (TryWriteRaw(address, content))
+            return address;
+
+        FreePage(address);
+        return null;
+    }
+
+    /// <summary>Где у игры загружена системная библиотека (например user32.dll); null — не загружена.</summary>
+    public uint? ModuleBase(string name)
+    {
+        _process.Refresh();
+        foreach (ProcessModule module in _process.Modules)
+        {
+            if (string.Equals(module.ModuleName, name, StringComparison.OrdinalIgnoreCase))
+                return unchecked((uint)module.BaseAddress.ToInt32());
+        }
+
+        return null;
     }
 
     /// <summary>
