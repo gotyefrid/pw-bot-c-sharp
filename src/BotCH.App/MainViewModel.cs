@@ -52,6 +52,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // Бот (мозг) — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute
     private GameProcess? _exec;
+    private WindowCallRunner? _windowRunner;
     private IBotRunner? _brain;
     private Action<WorldState>? _brainTick;
 
@@ -256,7 +257,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             _exec = GameProcess.Open(_game.Pid, GameProcessRights.Execute);
-            var caller = new GameCaller(_game, _exec, _game.MainModuleBase, _profile.Data);
+
+            // Вызовы — в главном потоке игры через её окно: из отдельного потока клиент падал на стыке «работ» персонажа
+            _windowRunner = WindowCallRunner.Install(_exec, NativeWindows.FindMainWindow(_game.Pid, includeHidden: true), out var problem);
+            if (_windowRunner is null)
+                _log.Warning($"Вызовы через окно игры не подключились ({problem}) — вызываю отдельным потоком, клиент может падать");
+            var caller = new GameCaller(_game, _windowRunner ?? (IRemoteRunner)_exec, _game.MainModuleBase, _profile.Data);
             foreach (var function in caller.Functions.Where(f => !f.IsUsable))
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
@@ -304,6 +310,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _brainTick = null;
         _brain?.Reset();
         _brain = null;
+        _windowRunner?.Dispose();
+        _windowRunner = null;
         _exec?.Dispose();
         _exec = null;
 
