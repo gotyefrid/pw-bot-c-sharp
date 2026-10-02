@@ -122,7 +122,8 @@ public sealed class SkillAction : GameAction
 
     public override string Name => TargetWid == 0 ? Title : $"{Title} → 0x{TargetWid:X8}";
     public override string Key => $"скилл {Skill}";
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(_approach ? 15 : 8);
+    // Как кнопкой: не дождались за 5 с — бот просто нажмёт ещё раз (клиент продолжит подход), долго ждать незачем
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(_approach ? 5 : 8);
 
     public override string? Precondition(WorldState now)
         => now.Skill(Skill) switch
