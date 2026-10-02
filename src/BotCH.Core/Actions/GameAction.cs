@@ -10,6 +10,8 @@ public enum VerdictKind
     Pending,
     Confirmed,
     Rejected,
+    /// <summary>Действие больше не нужно (цель умерла раньше) — не ошибка.</summary>
+    Cancelled,
 }
 
 public readonly record struct Verdict(VerdictKind Kind, string Details = "")
@@ -17,6 +19,7 @@ public readonly record struct Verdict(VerdictKind Kind, string Details = "")
     public static readonly Verdict Pending = new(VerdictKind.Pending);
     public static Verdict Confirmed(string details = "") => new(VerdictKind.Confirmed, details);
     public static Verdict Rejected(string details) => new(VerdictKind.Rejected, details);
+    public static Verdict Cancelled(string details) => new(VerdictKind.Cancelled, details);
 }
 
 /// <summary>
@@ -136,9 +139,12 @@ public sealed class SkillAction : GameAction
     {
         if (now.Skill(Skill) is { IsReady: false })
             return Verdict.Confirmed("началась перезарядка");
-        // По текущей цели: игрок/бот сменил цель — скилл ушёл бы не туда
+        // По текущей цели: игрок/бот сменил цель — скилл ушёл бы не туда. Цель умерла (каст после смерти, бот уже снял её) —
+        // просто не понадобился
         if (_approach && TargetWid == 0 && now.Host.TargetWid != start.Host.TargetWid)
-            return Verdict.Rejected("цель сменилась");
+            return now.Mobs.Any(m => m.Wid == start.Host.TargetWid && !m.IsDead)
+                ? Verdict.Rejected("цель сменилась")
+                : Verdict.Cancelled("цель умерла, скилл не понадобился");
         return Verdict.Pending;
     }
 }

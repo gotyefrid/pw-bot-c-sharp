@@ -16,6 +16,8 @@ public enum ActionStatus
     Timeout,
     /// <summary>Не отправлено: условие не выполнено или вызов отказал.</summary>
     Failed,
+    /// <summary>Больше не нужно (цель умерла раньше) — не ошибка.</summary>
+    Cancelled,
 }
 
 public sealed record ActionOutcome(GameAction Action, ActionStatus Status, string Details, TimeSpan Elapsed)
@@ -27,6 +29,7 @@ public sealed record ActionOutcome(GameAction Action, ActionStatus Status, strin
             ActionStatus.Confirmed => "✓",
             ActionStatus.Rejected => "✗ отказ",
             ActionStatus.Timeout => "✗ не подтвердилось",
+            ActionStatus.Cancelled => "отменено",
             _ => "✗ не отправлено",
         };
         return $"{Action.Name}: {mark}{(Details.Length > 0 ? " — " + Details : "")}"
@@ -121,6 +124,7 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
                 {
                     VerdictKind.Confirmed => new(action, ActionStatus.Confirmed, verdict.Details, elapsed),
                     VerdictKind.Rejected => new(action, ActionStatus.Rejected, verdict.Details, elapsed),
+                    VerdictKind.Cancelled => new(action, ActionStatus.Cancelled, verdict.Details, elapsed),
                     _ when elapsed >= action.Timeout => new(action, action.TimeoutStatus,
                         action.TimeoutStatus == ActionStatus.Rejected ? "игра не приняла" : $"нет подтверждения за {action.Timeout.TotalSeconds:0} с", elapsed),
                     _ => null,
@@ -149,7 +153,7 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
 
     private void Report(ActionOutcome outcome)
     {
-        log.Log(outcome.Status == ActionStatus.Confirmed ? LogLevel.Info : LogLevel.Warning, outcome.ToString());
+        log.Log(outcome.Status is ActionStatus.Confirmed or ActionStatus.Cancelled ? LogLevel.Info : LogLevel.Warning, outcome.ToString());
         Completed?.Invoke(outcome);
     }
 }

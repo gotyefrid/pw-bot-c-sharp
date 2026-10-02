@@ -82,6 +82,23 @@ public class ActionRunnerTests
     }
 
     [Fact]
+    public void SkillOnDeadTargetIsCancelledNotRejected()
+    {
+        // Скилл заказан по живому, моб умер, бот снял цель — это не отказ игры
+        _world.AddSkill(299);
+        var mob = _world.AddMob(1, "Волк", 20);
+        _world.TargetWid = mob.Wid;
+
+        _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.TargetWid = 0;
+
+        var outcome = Single(_runner.Update(_world.Wait(0.3).Snapshot()));
+        Assert.Equal(ActionStatus.Cancelled, outcome.Status);
+        Assert.Contains("цель умерла", outcome.ToString());
+    }
+
+    [Fact]
     public void SkillOnCooldownIsNotSent()
     {
         _world.AddSkill(299, cooldownLeftMs: 1500);
