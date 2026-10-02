@@ -33,6 +33,7 @@ internal static class ActCommands
           act pickup            подобрать ближайший предмет в 10 м пакетом
           act pickup-approach   подобрать ближайший предмет «как мышкой»
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
+          act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
         """;
 
     public static int Act(IServerProfile profile, string[] args)
@@ -161,6 +162,11 @@ internal static class ActCommands
 
                 var p = w.Host.Position;
                 return new MoveAction(new Position(p.X + numbers[0], p.Height, p.Y + numbers[1]));
+
+            case "move-mob":
+                var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Distance).FirstOrDefault();
+                problem = near is null ? "рядом нет живых мобов" : $"{near.Name} дальше 50 м";
+                return near is { Distance: <= 50 } ? new MoveAction(near.Position) : null;
 
             default:
                 problem = $"неизвестное действие «{name}»\n{Usage}";
