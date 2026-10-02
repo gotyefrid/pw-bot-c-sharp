@@ -54,11 +54,12 @@ public sealed class WorldReader
         var game = GameAddress();
         var host = ReadHost(game, out var hostBlock);
         var world = _memory.ReadUInt32(game + _p.World.World);
-        var npcs = ReadList(world, _p.World.Npcs, _npcSize, ReadNpc, out var npcCount);
-        var items = ReadList(world, _p.World.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
-        var inventory = ReadInventory(hostBlock.UInt32(_p.Host.Inventory), out var slots);
-        var skills = ReadSkills(hostBlock.UInt32(_p.Host.Skills), hostBlock.Int32(_p.Host.SkillsCount));
-        var pet = ReadPet(hostBlock.UInt32(_p.Host.PetManager));
+        var w = _p.World;
+        var npcs = ReadList(world, w.Npcs, Or(w.NpcSlotArray, w.SlotArray), Or(w.NpcCount, w.Count), _npcSize, ReadNpc, out var npcCount);
+        var items = ReadList(world, w.GroundItems, w.SlotArray, w.Count, _itemSize, ReadGroundItem, out var itemCount);
+        var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
+        var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
+        var pet = ReadPet(Field(hostBlock, _p.Host.PetManager));
 
         return new WorldState(time, watch.Elapsed, host, npcs, items, inventory, skills, pet)
         {
@@ -106,33 +107,34 @@ public sealed class WorldReader
         var h = _p.Host;
         return new HostState(
             address,
-            block.UInt32(h.Wid),
+            Field(block, h.Wid),
             ReadName(block.UInt32(h.NamePointer)),
-            block.Int32(h.Level),
+            (int)Field(block, h.Level),
             block.Int32(h.Hp),
             block.Int32(h.MaxHp),
             block.Int32(h.Mp),
             h.MaxMp == 0 ? null : block.Int32(h.MaxMp),
             ReadPosition(block, h.Location),
-            block.UInt32(h.TargetId),
-            block.Byte(h.CastFlag) != 0,
+            Field(block, h.TargetId),
+            h.CastFlag != 0 && block.Byte(h.CastFlag) != 0,
             h.PetFoodCooldown == 0 ? 0 : Math.Max(0, block.Int32(h.PetFoodCooldown)));
     }
 
     /// <summary>Обходит хэш-таблицу менеджера мира (мобы или предметы на земле).</summary>
-    private List<T> ReadList<T>(uint world, uint managerOffset, int objectSize, Func<MemoryBlock, T?> read, out int countInGame)
+    private List<T> ReadList<T>(uint world, uint managerOffset, uint slotArray, uint countOffset, int objectSize, Func<MemoryBlock, T?> read,
+        out int countInGame)
         where T : class
     {
         var result = new List<T>();
         countInGame = -1;
-        if (world == 0 || !_memory.TryReadUInt32(world + managerOffset, out var manager) || manager == 0)
+        if (world == 0 || managerOffset == 0 || !_memory.TryReadUInt32(world + managerOffset, out var manager) || manager == 0)
             return result;
 
         var w = _p.World;
-        if (w.Count != 0 && _memory.TryReadUInt32(manager + w.Count, out var count))
+        if (countOffset != 0 && _memory.TryReadUInt32(manager + countOffset, out var count))
             countInGame = (int)count;
 
-        var slots = _memory.ReadUInt32(manager + w.SlotArray);
+        var slots = _memory.ReadUInt32(manager + slotArray);
         if (!MemoryBlock.TryRead(_memory, slots, w.SlotCount * 4, out var slotBlock))
             return result;
 
@@ -161,14 +163,14 @@ public sealed class WorldReader
             b.Address,
             b.UInt32(n.Wid),
             (NpcKind)b.Int32(n.Type),
-            b.Int32(n.State),
-            b.UInt32(n.Target),
+            (int)Field(b, n.State),
+            Field(b, n.Target),
             ReadPosition(b, n.Location),
             b.Float(n.Distance),
             ReadName(b.UInt32(n.NamePointer)),
-            b.Int32(n.Hp))
+            (int)Field(b, n.Hp))
         {
-            Level = n.Level == 0 ? 0 : b.Int32(n.Level),
+            Level = (int)Field(b, n.Level),
         };
     }
 
@@ -290,6 +292,11 @@ public sealed class WorldReader
     }
 
     private static Position ReadPosition(MemoryBlock b, uint offset) => new(b.Float(offset), b.Float(offset + 4), b.Float(offset + 8));
+
+    // Смещение 0 в профиле — «поле не найдено»: читать нечего (иначе прочиталось бы начало объекта, vtable)
+    private static uint Field(MemoryBlock b, uint offset) => offset == 0 ? 0 : b.UInt32(offset);
+
+    private static uint Or(uint value, uint fallback) => value != 0 ? value : fallback;
 
     // Размер блока, в который влезают все поля (каждое — 4 байта)
     private static int BlockSize(params uint[] offsets) => (int)offsets.Max() + 4;

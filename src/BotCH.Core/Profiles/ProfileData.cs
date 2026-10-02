@@ -3,7 +3,8 @@ using System.Collections.Generic;
 namespace BotCH.Core.Profiles;
 
 // Данные профиля сервера — 1:1 с JSON-файлом в Profiles/*.jsonc.
-// Все смещения — uint, в JSON пишутся строкой "0x...". Смещение 0 = «на этом сервере нет/не найдено».
+// Все смещения — uint, в JSON пишутся строкой "0x...". Смещение 0 = «на этом сервере нет/не найдено»:
+// такое поле не читается (иначе прочиталось бы начало объекта).
 // Пояснения «как нашли» — комментариями в самом JSON, здесь только краткий смысл полей.
 
 public sealed class ProfileData
@@ -111,6 +112,9 @@ public sealed class WorldOffsets
     public uint Count { get; init; }
     /// <summary>[ячейка + ObjectInSlot] — объект.</summary>
     public uint ObjectInSlot { get; init; }
+    /// <summary>Если у менеджера мобов массив и счётчик лежат не там, где у остальных (Comeback 1.4.6); 0 — как SlotArray/Count.</summary>
+    public uint NpcSlotArray { get; init; }
+    public uint NpcCount { get; init; }
 }
 
 /// <summary>Моб/NPC/пет в мире.</summary>

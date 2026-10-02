@@ -71,6 +71,20 @@ public class ProfileCatalogTests
     }
 
     [Fact]
+    public void ComebackHasOnlyWhatWasFound()
+    {
+        var profile = _catalog.Load("comeback146");
+
+        Assert.Equal("Comeback 1.4.6", profile.Name);
+        Assert.Equal(0x8EBC1Cu, profile.Data.Base.BasePointer);
+        Assert.Equal(0x20u, profile.Data.World.NpcSlotArray);
+        // Функции ещё не найдены: смотреть может, действовать нет
+        Assert.Empty(profile.Data.Functions);
+        Assert.False(profile.Capabilities.DirectCalls);
+        Assert.True(profile.Capabilities.GroundItems);
+    }
+
+    [Fact]
     public void UnknownServerIsReported()
     {
         var error = Assert.Throws<ArgumentException>(() => _catalog.Load("nope"));
