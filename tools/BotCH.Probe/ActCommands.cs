@@ -24,6 +24,7 @@ internal static class ActCommands
           act attack            обычная атака текущей цели
           act skill [id]        скилл пакетом по текущей цели (по умолчанию атакующий)
           act skill-approach [id]  скилл «как кнопкой»: подойти и скастовать
+          act skill-self [id]   скилл пакетом без цели (по умолчанию воскрешение пета, без проверки «пет мёртв»)
           act potion-hp / potion-mp   выпить самую слабую подходящую банку
           act pet-food          покормить пета (если сыт — отказ, это нормально)
           act pet-summon [клетка]  призвать пета (по умолчанию 1)
@@ -115,6 +116,9 @@ internal static class ActCommands
                 }
 
                 return new SkillAction(number ?? skills.DefaultAttack, w.Host.TargetWid, approach: false);
+
+            case "skill-self":
+                return new SkillAction(number ?? skills.RevivePet, 0, approach: false);
 
             case "skill-approach":
                 return new SkillAction(number ?? skills.DefaultAttack, 0, approach: true);
