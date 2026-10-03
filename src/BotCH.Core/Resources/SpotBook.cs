@@ -94,7 +94,8 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
         var now = w.Time;
         TrackDigging(w);
         var seen = new HashSet<ResourceSpot>();
-        foreach (var item in w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && i.Name.Trim().Length > 0 && i.Position.IsFinite))
+        // «Нересурсы» (квестовые, особые) появляются на время — в точки не записываем
+        foreach (var item in w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && !i.Special && i.Name.Trim().Length > 0 && i.Position.IsFinite))
         {
             var name = item.Name.Trim();
             var spot = ById(name, item.Id, item.Position, seen) ?? Nearest(name, item.Position, MergeRadius, exclude: seen) ?? AddSeen(item, host, now);
@@ -149,7 +150,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
         {
             var host = w.Host.Position;
             var item = w.GroundItems
-                .Where(i => i.Kind == GroundItemKind.Resource && i.Position.HorizontalDistanceTo(host) <= DigReach)
+                .Where(i => i.Kind == GroundItemKind.Resource && !i.Special && i.Position.HorizontalDistanceTo(host) <= DigReach)
                 .OrderBy(i => i.Position.HorizontalDistanceTo(host))
                 .FirstOrDefault();
             _dig = item is null ? null : new Dig(item.Id, w.Time, Bag(w));

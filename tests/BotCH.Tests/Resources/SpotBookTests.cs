@@ -37,6 +37,18 @@ public class SpotBookTests : IDisposable
     }
 
     [Fact]
+    public void NonResourcesAreNotSpots()
+    {
+        var corpse = Resource("Безымянный труп", 5);
+        _world.Ground[_world.Ground.IndexOf(corpse)] = corpse with { Special = true };
+        Resource("Шалфей", 10);
+
+        Observe();
+
+        Assert.Equal(["Шалфей"], _book.Spots.Select(s => s.Name));
+    }
+
+    [Fact]
     public void SeenResourceBecomesSpotAndSameNameNearbyIsSameSpot()
     {
         Resource("Высохший древесный корень", 10);

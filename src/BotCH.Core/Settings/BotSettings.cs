@@ -256,6 +256,13 @@ public static class LootFilter
     public static bool AllowsGather(LootSettings loot, string? name)
         => loot.Enabled && loot.PickResources && ByList(loot, name);
 
+    /// <summary>
+    /// Копать ли «нересурс» (квестовый, особый): лут и «Ресурсы» включены, и название явно в списке — в режимах «все» и
+    /// «только из списка». «Кроме списка» значит «эти не трогать».
+    /// </summary>
+    public static bool ListsForGather(LootSettings loot, string? name)
+        => loot.Enabled && loot.PickResources && loot.ListMode != LootListMode.ExceptListed && MobNameFilter.Contains(loot.ItemNames, name);
+
     private static bool ByList(LootSettings loot, string? name)
         => loot.ListMode switch
         {

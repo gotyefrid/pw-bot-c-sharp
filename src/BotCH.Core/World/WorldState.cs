@@ -45,9 +45,6 @@ public sealed record WorldState(
     public int NpcCountInGame { get; init; } = -1;
     public int GroundItemCountInGame { get; init; } = -1;
 
-    /// <summary>Ресурсы на земле, которые бот не считает ресурсами (квестовые, особым инструментом) — в списке их нет.</summary>
-    public int GroundItemsHidden { get; init; }
-
     public NpcInfo? Target => Host.TargetWid == 0 ? null : Npcs.FirstOrDefault(n => n.Wid == Host.TargetWid);
 
     public IEnumerable<NpcInfo> Mobs => Npcs.Where(n => n.Kind == NpcKind.Mob);
@@ -156,6 +153,12 @@ public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind 
 {
     /// <summary>Для ресурса — его запись в справочнике игры; null — не ресурс или запись не найдена для сервера.</summary>
     public MineInfo? Mine { get; init; }
+
+    /// <summary>
+    /// «Нересурс»: копается, но не киркой или только по квесту (трупы, ящики, печати). Бот копает его, только если название
+    /// явно в списке, — и тогда без условий. В точки ресурсов не попадает, в окне виден только в выборе «рядом».
+    /// </summary>
+    public bool Special { get; init; }
 }
 
 /// <summary>Ресурс по справочнику игры: чем копать (0 — ничем), нужен ли квест (0 — нет), что даёт: tid → самое большее за копку.</summary>

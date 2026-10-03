@@ -30,7 +30,6 @@ public sealed class WorldReader
     private readonly int _npcSize;
     private readonly int _itemSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
-    private int _hiddenItems;
 
     public WorldReader(IMemory memory, uint moduleBase, ProfileData profile, Func<int, string?>? skillName = null)
     {
@@ -58,7 +57,6 @@ public sealed class WorldReader
         var world = _memory.ReadUInt32(game + _p.World.World);
         var w = _p.World;
         var npcs = ReadList(world, w.Npcs, _npcSize, ReadNpc, out var npcCount);
-        _hiddenItems = 0;
         var items = ReadList(world, w.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
         var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
         var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
@@ -68,7 +66,6 @@ public sealed class WorldReader
         {
             NpcCountInGame = npcCount,
             GroundItemCountInGame = itemCount,
-            GroundItemsHidden = _hiddenItems,
             InventorySlots = slots,
         };
     }
@@ -211,17 +208,13 @@ public sealed class WorldReader
         if (item.Kind != GroundItemKind.Resource)
             return item;
 
-        item = item with { Mine = ReadMine(item.Tid, name) };
-        if (IsGatherable(item.Mine))
-            return item;
-
-        _hiddenItems++;
-        return null;
+        var mine = ReadMine(item.Tid, name);
+        return item with { Mine = mine, Special = !IsRegular(mine) };
     }
 
-    // Ресурс для бота — то, что копается нашим инструментом (киркой) без квеста. Квестовые трупы, ящики, печати и то,
-    // что копают особыми предметами, в мир не попадают: ни в список, ни в точки ресурсов. Справочник не прочитался — оставляем
-    private bool IsGatherable(MineInfo? mine)
+    // Обычный ресурс — копается нашим инструментом (киркой) без квеста. Остальное (квестовые трупы, ящики, печати, особые
+    // инструменты) — «нересурс». Справочник не прочитался — считаем обычным
+    private bool IsRegular(MineInfo? mine)
         => mine is null || _p.GatherTools.Count == 0 || (mine.Quest == 0 && _p.GatherTools.Contains(mine.Tool));
 
     // Записи справочника не меняются, пока клиент запущен, — по tid читаем один раз

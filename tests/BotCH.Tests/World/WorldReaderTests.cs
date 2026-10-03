@@ -121,7 +121,7 @@ public class WorldReaderTests
     }
 
     [Fact]
-    public void OnlyPickaxeResourcesWithoutQuestAreReadWithTheirYield()
+    public void ResourcesReadWithTheirYieldAndNonResourcesMarked()
     {
         BuildWorld();
         const uint manager = 0x3000_0000, slots = 0x3001_0000;
@@ -137,12 +137,15 @@ public class WorldReaderTests
 
         var world = Reader().Read();
 
-        Assert.Equal(["Высохший древесный корень", "Монета"], world.GroundItems.Select(i => i.Name));
+        // Обычный ресурс — кирка без квеста; квестовый и под особый инструмент — «нересурсы»; монета — не ресурс вовсе
+        Assert.Equal(
+            [("Высохший древесный корень", false), ("Безымянный труп", true), ("Особый ресурс", true), ("Монета", false)],
+            world.GroundItems.Select(i => (i.Name, i.Special)));
         var root = world.GroundItems[0].Mine!;
         Assert.Equal((3073u, 0u), (root.Tool, root.Quest));
         Assert.Equal(4, Assert.Single(root.Yields, y => y.Key == 795).Value);
-        Assert.Null(world.GroundItems[1].Mine);
-        Assert.Equal(2, world.GroundItemsHidden);
+        Assert.Equal(1093u, world.GroundItems[1].Mine!.Quest);
+        Assert.Null(world.GroundItems[3].Mine);
         Assert.Equal(4, world.GroundItemCountInGame);
     }
 

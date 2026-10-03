@@ -754,6 +754,39 @@ public class BrainScenarioTests
         Assert.Contains(_log, e => e.Message.Contains(digs ? "ляжет в начатую стопку" : "сумка полна"));
     }
 
+    [Theory]
+    [InlineData(LootListMode.All, true)]
+    [InlineData(LootListMode.OnlyListed, true)]
+    [InlineData(LootListMode.ExceptListed, false)] // «кроме списка» — эти не трогать
+    public void ListedNonResourceIsDugWithoutAnyConditions(LootListMode mode, bool digs)
+    {
+        GatherWithPickaxe();
+        _world.Bag.Clear(); // ни кирки,
+        _world.BagSlots = 1;
+        _world.Bag.Add(new InventoryItem(0, 830, 8, 1, null, null) { MaxCount = 1 }); // ни места в сумке
+        _settings.Loot.ListMode = mode;
+        _settings.Loot.ItemNames = ["Безымянный труп"];
+        var corpse = AddOre(0xC0000003, 20, "Безымянный труп");
+        _world.Ground[_world.Ground.IndexOf(corpse)] = corpse with { Special = true, Mine = new MineInfo(0, 1093, new Dictionary<uint, int>()) };
+
+        Tick();
+
+        Assert.Equal(digs ? ["gather C0000003"] : [], _actions.Calls.Where(c => c.StartsWith("gather")));
+    }
+
+    [Fact]
+    public void NonResourceNotInListIsNeverDug()
+    {
+        GatherWithPickaxe();
+        var corpse = AddOre(0xC0000003, 5, "Безымянный труп");
+        _world.Ground[_world.Ground.IndexOf(corpse)] = corpse with { Special = true };
+        AddOre(0xC0000001, 12);
+
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
     [Fact]
     public void GatherSkipsResourcesNotInList()
     {

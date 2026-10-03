@@ -10,7 +10,9 @@ namespace BotCH.Core.Brain;
 /// <summary>
 /// Копать ресурсы в радиусе фарма. Стоит перед боем: пока в радиусе есть ресурсы из списка — копаем их подряд, потом мобы.
 /// Бой и лут не перебиваем; напали на перса или пета — бросаем копание, бой убивает нападающего, потом копаем дальше.
-/// Без инструмента (кирки) в сумке к ресурсам не подходим.
+/// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по справочнику игры,
+/// <see cref="GroundItem.Mine"/>) целиком ляжет в начатые стопки. «Нересурсы» (<see cref="GroundItem.Special"/>: квестовые,
+/// особые) — только если их название явно в списке, и тогда без всяких условий: просто пробуем копать.
 /// </summary>
 public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools) : IBehavior
 {
@@ -52,35 +54,21 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         if (combat.State != CombatState.Search)
             return false;
 
-        if (tools.Count == 0)
-        {
-            c.Say("gather-no-tools", "Копать не буду: для этого сервера неизвестно, какой предмет — кирка", LogLevel.Warning, 600);
-            return false;
-        }
-
-        if (!w.Inventory.Any(i => tools.Contains(i.Tid)))
-        {
-            c.Say("gather-no-pickaxe", "Копать не буду: нет кирки в сумке", LogLevel.Warning, 300);
-            return false;
-        }
-
         foreach (var expired in _skipped.Where(s => s.Value <= c.Now).Select(s => s.Key).ToList())
             _skipped.Remove(expired);
 
-        var resource = w.GroundItems
+        var near = w.GroundItems
             .Where(i => i.Kind == GroundItemKind.Resource && !_skipped.ContainsKey(i.Id) && c.InFarmArea(i.Position))
-            .Where(i => Settings.LootFilter.AllowsGather(loot, i.Name))
-            .Where(w.FitsInBag)
+            .ToList();
+        // Нересурс (квестовый, особый) — только если явно в списке, и тогда без условий: ни инструмент, ни сумку, ни квест не проверяем
+        var special = near.Where(i => i.Special && Settings.LootFilter.ListsForGather(loot, i.Name));
+        var resource = special.Concat(Regular(c, near.Where(i => !i.Special)))
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
         if (resource is null)
-        {
-            if (w.BagFull)
-                c.Say("gather-bag-full", "Копать не буду: сумка полна, а добыча ресурсов рядом не ляжет в начатые стопки", LogLevel.Warning, 300);
             return false;
-        }
 
-        if (w.BagFull)
+        if (!resource.Special && w.BagFull)
             c.Say($"gather-into-stack-{resource.Id:X8}", $"Сумка полна, но добыча {resource.Name} ляжет в начатую стопку — копаю", seconds: 600);
 
         Status = $"копаю {resource.Name}";
@@ -88,6 +76,32 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         if (sent == SubmitStatus.Sent)
             c.Log.Info($"Копаю {resource.Name}, {resource.Distance:0.0} м");
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+    }
+
+    // Обычные ресурсы: нужна кирка в сумке, список лута разрешает, при полной сумке — добыча ляжет в начатые стопки
+    private IEnumerable<GroundItem> Regular(BrainContext c, IEnumerable<GroundItem> resources)
+    {
+        var w = c.World;
+        var allowed = resources.Where(i => Settings.LootFilter.AllowsGather(c.Settings.Loot, i.Name)).ToList();
+        if (allowed.Count == 0)
+            return [];
+
+        if (tools.Count == 0)
+        {
+            c.Say("gather-no-tools", "Копать не буду: для этого сервера неизвестно, какой предмет — кирка", LogLevel.Warning, 600);
+            return [];
+        }
+
+        if (!w.Inventory.Any(i => tools.Contains(i.Tid)))
+        {
+            c.Say("gather-no-pickaxe", "Копать не буду: нет кирки в сумке", LogLevel.Warning, 300);
+            return [];
+        }
+
+        var fits = allowed.Where(w.FitsInBag).ToList();
+        if (fits.Count == 0)
+            c.Say("gather-bag-full", "Копать не буду: сумка полна, а добыча ресурсов рядом не ляжет в начатые стопки", LogLevel.Warning, 300);
+        return fits;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)

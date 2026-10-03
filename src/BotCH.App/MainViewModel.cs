@@ -691,7 +691,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         var names = _spots.Spots.Select(s => s.Name)
-            .Concat(w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).Select(i => i.Name.Trim()))
+            .Concat(w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && !i.Special).Select(i => i.Name.Trim()))
             .Where(n => n.Length > 0)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(n => n)
