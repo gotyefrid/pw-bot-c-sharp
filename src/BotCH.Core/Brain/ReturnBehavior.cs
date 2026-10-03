@@ -47,7 +47,7 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
             return false;
         }
 
-        var smart = c.Settings.Combat.ApproachPath == ApproachPath.Smart;
+        var smart = c.Settings.Target.ReturnPath == ApproachPath.Smart;
         var sent = c.Send(new MoveAction(center, tolerance: 2f, smart) { Priority = ActionPriority.Background });
         if (sent == SubmitStatus.Sent)
             c.Log.Info($"Целей нет — возвращаюсь в центр фарма, {distance:0} м");

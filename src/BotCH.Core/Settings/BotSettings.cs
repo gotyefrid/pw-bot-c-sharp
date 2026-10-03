@@ -115,6 +115,9 @@ public sealed class TargetSettings
     /// <summary>Делать нечего — бежать в центр фарма и ждать мобов там.</summary>
     public bool ReturnToCenter { get; set; } = true;
 
+    /// <summary>Как бежать в центр: с автопутём или напрямик (отдельно от подхода к мобу).</summary>
+    public ApproachPath ReturnPath { get; set; } = ApproachPath.Smart;
+
     /// <summary>Выбранная точка фарма; null — центр — точка старта.</summary>
     [JsonIgnore]
     public FarmPoint? SelectedFarmPoint

@@ -1100,6 +1100,7 @@ public class BrainScenarioTests
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
         _settings.Combat.ApproachPath = ApproachPath.Direct;
+        _settings.Target.ReturnPath = ApproachPath.Direct;
         Tick();
         Assert.Equal("move (50,0; 0,0; h 0,0)", LastCall);
 
@@ -1127,5 +1128,18 @@ public class BrainScenarioTests
         Tick();
 
         Assert.Equal("apply 299 0", LastCall);
+    }
+
+    [Fact]
+    public void ReturnPathIsSeparateFromApproach()
+    {
+        // К мобу — умно, в центр — прямо
+        FarmAt(50);
+        _settings.Combat.ApproachPath = ApproachPath.Smart;
+        _settings.Target.ReturnPath = ApproachPath.Direct;
+
+        Tick();
+
+        Assert.Equal(["move (50,0; 0,0; h 0,0)"], _actions.Calls);
     }
 }
