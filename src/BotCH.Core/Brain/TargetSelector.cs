@@ -25,7 +25,8 @@ public static class TargetSelector
     /// <param name="petTakesAggro">«Снимать мобов с меня петом» (и пет призван).</param>
     public static Threat ThreatOf(NpcInfo mob, WorldState w, bool hitsUsFirst, bool petTakesAggro)
     {
-        if (mob.IsDead || mob.TargetWid == 0)
+        // Возвращается — неуязвим и уже не наш (цель может ещё показывать нас)
+        if (mob.IsDead || mob.TargetWid == 0 || mob.Returning)
             return Threat.None;
         if (petTakesAggro && mob.TargetWid == w.Host.Wid)
             return Threat.HitsMe;
@@ -52,7 +53,7 @@ public static class TargetSelector
     {
         var petWid = w.Pet?.ActiveWid ?? 0;
         return w.Mobs
-            .Where(m => !m.IsDead && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid))
+            .Where(m => !m.IsDead && !m.Returning && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid))
             .OrderBy(m => m.Distance)
             .FirstOrDefault();
     }

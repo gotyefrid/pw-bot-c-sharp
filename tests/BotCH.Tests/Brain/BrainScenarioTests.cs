@@ -949,6 +949,17 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void ReturningMobIsNotAnAggressor()
+    {
+        // Бросил цель и идёт назад (неуязвим) — цель ещё показывает перса, но это не «напал»
+        var mob = _world.AddMob(0x80000001, "Паук", 3, targetWid: FakeWorld.HostWid);
+        _world.Replace(mob, m => m with { Returning = true });
+
+        Assert.Null(TargetSelector.Aggressor(_world.Snapshot()));
+        Assert.Equal(Threat.None, TargetSelector.ThreatOf(_world.Snapshot().Npcs[0], _world.Snapshot(), true, true));
+    }
+
+    [Fact]
     public void GatherKnockedDownThreeTimesSkipsResource()
     {
         GatherWithPickaxe();

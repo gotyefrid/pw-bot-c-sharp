@@ -145,6 +145,12 @@ public sealed record NpcInfo(
     /// <summary>С какого расстояния агрессивный нападает, м; 0 — неизвестно.</summary>
     public int AggroRadius { get; init; }
 
+    /// <summary>
+    /// Бросил цель и возвращается на место — неуязвим и не нападает (false и там, где поле не найдено). Цель (<see cref="TargetWid"/>)
+    /// при этом может ещё показывать нас.
+    /// </summary>
+    public bool Returning { get; init; }
+
     public const int StateAttacking = 2;
     public const int StateCasting = 3;
     public const int StateDead = 4;

@@ -48,7 +48,8 @@ public sealed class WorldReader
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
             h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
-        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence);
+        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence,
+            n.Returning);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.Distance, g.NamePointer, g.Location + 8);
     }
@@ -198,6 +199,7 @@ public sealed class WorldReader
             (int)Field(b, n.Hp))
         {
             Level = (int)Field(b, n.Level),
+            Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
         };
         return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
             ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius }

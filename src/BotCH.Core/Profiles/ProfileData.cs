@@ -202,6 +202,9 @@ public sealed class NpcOffsets
     public uint Location { get; init; }
     /// <summary>Указатель на запись моба в справочнике игры (MONSTER_ESSENCE, см. <see cref="MonsterEssenceOffsets"/>); 0 — не найден.</summary>
     public uint Essence { get; init; }
+    /// <summary>Поле флагов, где <see cref="ReturningFlag"/> — «бросил цель, возвращается (неуязвим)»; 0 — не найдено.</summary>
+    public uint Returning { get; init; }
+    public uint ReturningFlag { get; init; }
 }
 
 /// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам и с какого расстояния.</summary>

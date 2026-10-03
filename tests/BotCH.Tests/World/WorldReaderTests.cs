@@ -309,6 +309,18 @@ public class WorldReaderTests
     }
 
     [Fact]
+    public void ReturningMobIsSeen()
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        var mob = ComebackWorldWithMob(p);
+        _memory.WriteUInt32(mob + p.Npc.Returning, 0x20000 | 0x1);
+
+        Assert.True(Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs).Returning);
+        _memory.WriteUInt32(mob + p.Npc.Returning, 0x1);
+        Assert.False(Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs).Returning);
+    }
+
+    [Fact]
     public void MobWithoutRecordHasUnknownAggro()
     {
         var p = new ProfileCatalog().Load("comeback146").Data;
