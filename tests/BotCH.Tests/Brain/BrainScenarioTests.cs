@@ -132,6 +132,20 @@ public class BrainScenarioTests
     private static readonly PetInCage Scorpion = new(1, 1, 0) { Name = "Молодой узорчатый скорпион", Habitat = PetHabitat.Ground };
     private static readonly PetInCage Bee = new(2, 1, 0) { Name = "Молодая лиственная пчела", Habitat = PetHabitat.Air };
     private static readonly PetInCage Phoenix = new(3, 1, 0) { Name = "Крошка пылающий феникс", Habitat = PetHabitat.Ground | PetHabitat.Water | PetHabitat.Air };
+    private static readonly PetInCage Carp = new(4, 1, 0) { Name = "Священный карп", Habitat = PetHabitat.Water };
+
+    [Fact]
+    public void InWaterSummonsWaterPet()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.WaterPet = "Священный карп";
+        _world.InWater = true;
+        _world.SetPets(null, Scorpion, Bee, Carp);
+
+        Tick();
+
+        Assert.Equal(["summon 4"], _actions.Calls);
+    }
 
     [Theory]
     [InlineData(false, "summon 1")] // на земле — скорпион

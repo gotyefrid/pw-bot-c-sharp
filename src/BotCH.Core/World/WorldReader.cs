@@ -32,7 +32,8 @@ public sealed class WorldReader
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
 
-    // Персонаж в воздухе (MOVEENV_AIR клиента; 0 — земля, 1 — вода)
+    // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
+    private const int MoveEnvWater = 1;
     private const int MoveEnvAir = 2;
 
     public WorldReader(IMemory memory, uint moduleBase, ProfileData profile, Func<int, string?>? skillName = null)
@@ -128,6 +129,7 @@ public sealed class WorldReader
             Gather = h.GatherIdle == 0 || h.GatherElapsed == 0 || h.GatherTotal == 0 ? null
                 : new GatherProgress(block.Byte(h.GatherIdle) == 0, block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
             Flying = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvAir,
+            InWater = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvWater,
         };
     }
 

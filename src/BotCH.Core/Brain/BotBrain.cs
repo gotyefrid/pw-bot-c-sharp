@@ -28,8 +28,8 @@ public sealed class BotBrain : IBotRunner
     public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
         IReadOnlyCollection<uint>? gatherTools = null, BotMode mode = BotMode.FarmMobs)
     {
-        _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
         _mode = mode;
+        _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = Effective(settings) };
         Survival = new SurvivalBehavior();
         Pet = new PetBehavior();
         if (mode == BotMode.GatherResources)
@@ -48,6 +48,9 @@ public sealed class BotBrain : IBotRunner
     }
 
     private readonly BotMode _mode;
+
+    // Копия (окно может менять свои дальше); у обхода — свои бой, лут, банки и пет
+    private BotSettings Effective(BotSettings settings) => _mode == BotMode.GatherResources ? settings.ForGathering() : settings.Clone();
 
     public SurvivalBehavior Survival { get; }
     public PetBehavior Pet { get; }
@@ -71,7 +74,7 @@ public sealed class BotBrain : IBotRunner
     public void UpdateSettings(BotSettings settings)
     {
         lock (_lock)
-            _newSettings = settings.Clone();
+            _newSettings = Effective(settings);
     }
 
     public void Tick(WorldState world)

@@ -24,5 +24,9 @@ public static class SettingsJson
     public static BotSettings Parse(string json)
         => (JsonConvert.DeserializeObject<BotSettings>(json, Options) ?? new BotSettings()).Normalize();
 
+    /// <summary>Глубокая копия раздела настроек.</summary>
+    public static T Copy<T>(T value) where T : new()
+        => JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(value, Options), Options) ?? new T();
+
     public static string Serialize(BotSettings settings) => JsonConvert.SerializeObject(settings, Options);
 }

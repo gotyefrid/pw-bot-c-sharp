@@ -32,14 +32,14 @@ public sealed class PetBehavior : IBehavior
         if (!settings.Enabled || pet is null)
             return false;
 
-        var inAir = c.World.Host.Flying == true;
-        var inCage = PetPicker.Pick(pet, settings, inAir, out var problem);
+        var where = PetPicker.Where(c.World.Host);
+        var inCage = PetPicker.Pick(pet, settings, where, out var problem);
         // Призван другой, но он живёт там, где мы сейчас (позвали руками), — он и есть наш пет
-        if (pet.ActiveCage is int active && pet.InCage(active) is { } summoned && summoned.Lives(PetPicker.Habitat(inAir)))
+        if (pet.ActiveCage is int active && pet.InCage(active) is { } summoned && summoned.Lives(where))
             inCage = summoned;
         if (inCage is null)
         {
-            c.Say($"pet-none-{inAir}", $"{char.ToUpper(problem![0])}{problem.Substring(1)} — пета пропускаю", seconds: 300);
+            c.Say($"pet-none-{where}", $"{char.ToUpper(problem![0])}{problem.Substring(1)} — пета пропускаю", seconds: 300);
             return false;
         }
 
@@ -55,7 +55,7 @@ public sealed class PetBehavior : IBehavior
             {
                 Status = "призываю пета";
                 if (inCage.Name is { } name)
-                    c.Say($"pet-summon-{inCage.Cage}", $"Зову {name} (клетка {inCage.Cage}, {(inAir ? "в воздухе" : "на земле")})", seconds: 60);
+                    c.Say($"pet-summon-{inCage.Cage}", $"Зову {name} (клетка {inCage.Cage}, {PetPicker.Text(where)})", seconds: 60);
                 return c.Submit(new SummonPetAction(inCage.Cage));
             }
 

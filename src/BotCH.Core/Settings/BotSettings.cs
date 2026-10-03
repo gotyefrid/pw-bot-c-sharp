@@ -25,6 +25,23 @@ public sealed class BotSettings
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
 
+    /// <summary>
+    /// С чем работает обход ресурсов: бой, лут, банки и пет — свои (<see cref="RouteSettings"/>), не из фарма мобов.
+    /// Напавших бьём всегда, поэтому «сначала тех, кто бьёт меня» включено.
+    /// </summary>
+    public BotSettings ForGathering()
+    {
+        var s = Clone();
+        s.Combat = s.Route.Combat;
+        s.Loot = s.Route.Loot;
+        s.Potions = s.Route.Potions;
+        s.Pet = s.Route.Pet;
+        s.Target.MobTimeoutSeconds = s.Route.MobTimeoutSeconds;
+        s.Target.PetTakesAggro = s.Route.PetTakesAggro;
+        s.Target.PreferAggressive = true;
+        return s;
+    }
+
     /// <summary>Приводит значения к допустимым (после ручной правки файла или старой версии).</summary>
     public BotSettings Normalize()
     {
@@ -35,23 +52,40 @@ public sealed class BotSettings
         Potions ??= new();
         Pet ??= new();
         Route ??= new();
+        // У обхода свои бой, лут, банки и пет; в первый раз — копия настроек фарма, дальше живут отдельно
+        Route.Combat ??= SettingsJson.Copy(Combat);
+        Route.Loot ??= SettingsJson.Copy(Loot);
+        Route.Potions ??= SettingsJson.Copy(Potions);
+        Route.Pet ??= SettingsJson.Copy(Pet);
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
-        Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
         Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
         Target.FarmPoints = FarmPoint.Clean(Target.FarmPoints);
         Target.FarmCenter = Target.FarmCenter?.Trim() ?? "";
-        Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
-        Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
-        Loot.Radius = Clamp(Loot.Radius, 1, 30);
-        Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
-        Potions.MpBelow = Math.Max(0, Potions.MpBelow);
-        // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
-        Pet.Cage = Clamp(Pet.Cage, 1, 32);
-        Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
-        Pet.GroundPet = Pet.GroundPet?.Trim() ?? "";
-        Pet.AirPet = Pet.AirPet?.Trim() ?? "";
+        foreach (var combat in new[] { Combat, Route.Combat })
+            combat.ComeCloserDistance = Clamp(combat.ComeCloserDistance, 1, 30);
+        foreach (var loot in new[] { Loot, Route.Loot })
+        {
+            loot.ItemNames = MobNameFilter.Clean(loot.ItemNames);
+            loot.Attempts = Clamp(loot.Attempts, 1, 20);
+            loot.Radius = Clamp(loot.Radius, 1, 30);
+        }
+        foreach (var potions in new[] { Potions, Route.Potions })
+        {
+            potions.HpPercent = Clamp(potions.HpPercent, 0, 100);
+            potions.MpBelow = Math.Max(0, potions.MpBelow);
+        }
+        foreach (var pet in new[] { Pet, Route.Pet })
+        {
+            // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
+            pet.Cage = Clamp(pet.Cage, 1, 32);
+            pet.HealPercent = Clamp(pet.HealPercent, 0, 100);
+            pet.GroundPet = pet.GroundPet?.Trim() ?? "";
+            pet.AirPet = pet.AirPet?.Trim() ?? "";
+            pet.WaterPet = pet.WaterPet?.Trim() ?? "";
+        }
+        Route.MobTimeoutSeconds = Clamp(Route.MobTimeoutSeconds, 10, 3600);
         Route.Points = RoutePoint.Clean(Route.Points);
         Route.Radius = Clamp(Route.Radius, 5, 500);
         return this;
@@ -146,6 +180,19 @@ public sealed class RouteSettings
 
     /// <summary>С какой точки начинать обход при «Старт» (с 0): окно ставит выбранную в списке.</summary>
     public int StartIndex { get; set; }
+
+    // Свои у обхода, не из фарма мобов (null — в файле ещё нет: Normalize возьмёт копию из фарма)
+
+    public CombatSettings Combat { get; set; } = null!;
+    public LootSettings Loot { get; set; } = null!;
+    public PotionSettings Potions { get; set; } = null!;
+    public PetSettings Pet { get; set; } = null!;
+
+    /// <summary>Сколько секунд биться с напавшим, прежде чем бросить.</summary>
+    public int MobTimeoutSeconds { get; set; } = 120;
+
+    /// <summary>Моб бьёт персонажа — бой сразу на него, и пет тоже (как «Снимать мобов с меня петом» в фарме).</summary>
+    public bool PetTakesAggro { get; set; } = true;
 }
 
 /// <summary>
@@ -312,6 +359,9 @@ public sealed class PetSettings
 
     /// <summary>Кого звать в воздухе (персонаж летит) — название питомца; пусто — первого, кто летает.</summary>
     public string AirPet { get; set; } = "";
+
+    /// <summary>Кого звать в воде — название питомца; пусто — первого, кто живёт в воде.</summary>
+    public string WaterPet { get; set; } = "";
 
     /// <summary>Лечить пета, когда его HP ниже этого процента.</summary>
     public int HealPercent { get; set; } = 70;

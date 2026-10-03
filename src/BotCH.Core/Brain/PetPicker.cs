@@ -6,13 +6,13 @@ using BotCH.Core.World;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Кого из питомцев звать: персонаж летит — того, кто живёт в воздухе, иначе — того, кто живёт на земле (наземного в
-/// воздухе сервер не призовёт). По названию из настроек, а если оно пустое — первого подходящего по порядку клеток.
+/// Кого из питомцев звать: персонаж летит — того, кто живёт в воздухе, в воде — водного, иначе — наземного (не того
+/// сервер не призовёт). По названию из настроек, а если оно пустое — первого подходящего по порядку клеток.
 /// Сервер не говорит, где питомцы живут (поля не найдены), — как раньше, по номеру клетки.
 /// </summary>
 public static class PetPicker
 {
-    public static PetInCage? Pick(PetState pet, PetSettings settings, bool inAir, out string? problem)
+    public static PetInCage? Pick(PetState pet, PetSettings settings, PetHabitat where, out string? problem)
     {
         problem = null;
         if (pet.Cages.All(p => p.Habitat is null))
@@ -23,22 +23,35 @@ public static class PetPicker
             return byCage;
         }
 
-        var where = inAir ? "в воздухе" : "на земле";
-        var name = inAir ? settings.AirPet : settings.GroundPet;
+        var text = Text(where);
+        var name = where switch
+        {
+            PetHabitat.Air => settings.AirPet,
+            PetHabitat.Water => settings.WaterPet,
+            _ => settings.GroundPet,
+        };
         if (name.Length > 0)
         {
             var named = pet.Cages.FirstOrDefault(p => string.Equals(p.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase));
             if (named is null)
-                problem = $"питомца «{name}» ({where}) нет в клетках";
+                problem = $"питомца «{name}» ({text}) нет в клетках";
             return named;
         }
 
-        var habitat = Habitat(inAir);
-        var first = pet.Cages.Where(p => p.Lives(habitat)).OrderBy(p => p.Cage).FirstOrDefault();
+        var first = pet.Cages.Where(p => p.Lives(where)).OrderBy(p => p.Cage).FirstOrDefault();
         if (first is null)
-            problem = $"нет питомца, которого можно призвать {where}";
+            problem = $"нет питомца, которого можно призвать {text}";
         return first;
     }
 
-    public static PetHabitat Habitat(bool inAir) => inAir ? PetHabitat.Air : PetHabitat.Ground;
+    /// <summary>Где персонаж: летит — воздух, в воде — вода, иначе (и если не знаем) — земля.</summary>
+    public static PetHabitat Where(HostState host)
+        => host.Flying == true ? PetHabitat.Air : host.InWater == true ? PetHabitat.Water : PetHabitat.Ground;
+
+    public static string Text(PetHabitat where) => where switch
+    {
+        PetHabitat.Air => "в воздухе",
+        PetHabitat.Water => "в воде",
+        _ => "на земле",
+    };
 }
