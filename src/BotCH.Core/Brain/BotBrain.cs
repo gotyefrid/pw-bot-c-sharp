@@ -37,7 +37,8 @@ public sealed class BotBrain : IBotRunner
             Pet = new PetBehavior(Combat);
             Route = new RouteBehavior(gatherTools ?? []);
             Gather = new GatherBehavior(Combat, gatherTools ?? [], Route.Scope);
-            _behaviors = [Survival, Pet, Gather, Combat, Route];
+            Escape = new EscapeBehavior(Route, Combat);
+            _behaviors = [Survival, Escape, Pet, Gather, Combat, Route];
             return;
         }
 
@@ -62,6 +63,9 @@ public sealed class BotBrain : IBotRunner
 
     /// <summary>Обход маршрута; null — в режиме фарма мобов.</summary>
     public RouteBehavior? Route { get; }
+
+    /// <summary>Уход вверх от опасного моба (обход); null — в режиме фарма мобов.</summary>
+    public EscapeBehavior? Escape { get; }
 
     /// <summary>Что делает бот — для окна.</summary>
     public string Status => _status;

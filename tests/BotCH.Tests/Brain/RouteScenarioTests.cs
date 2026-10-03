@@ -223,6 +223,94 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void DangerousAttackerMakesBotRecallPetTakeOffAndClimbInsteadOfFighting()
+    {
+        // На земле у точки 1 напал опасный тигр (бьёт пета): отозвать пета, взлететь, подниматься рывками по 20 м — не бить
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = false;
+        _world.SetPets(1, new PetInCage(1, 1, 0));
+        Tick();
+        Tick(); // на точке 1
+        var tiger = AddAggressive(0x80000001, "Тигр", 5, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = _world.Pet!.ActiveWid, State = NpcInfo.StateAttacking });
+        _actions.Calls.Clear();
+
+        Tick();
+        Assert.Equal(["recall"], _actions.Calls);
+        _world.SetPets(null, new PetInCage(1, 1, 0));
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid });
+        Tick();
+        Assert.Equal("fly-toggle", _actions.Calls.Last());
+        _world.Flying = true;
+        Tick();
+        Tick();
+
+        Assert.Equal("fly (0,0; 0,0; h 20,0)", _actions.Calls.Last());
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack") || a.StartsWith("apply"));
+        Assert.Contains(_log, e => e.Message == "Напал опасный Тигр (ур. 30) — улетаю вверх");
+    }
+
+    [Fact]
+    public void AfterDangerousMobGivesUpBotReturnsToLastVisitedPoint()
+    {
+        // Ушли от тигра вверх у точки 1, он отстал — снова к точке 1 (на её высоту) и ищем ресурсы там заново
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+        Tick();
+        Tick(); // на точке 1
+        var tiger = AddAggressive(0x80000001, "Тигр", 5, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        Tick();
+        _world.Position = new Position(0, 70, 0);
+        _world.Replace(tiger, m => m with { TargetWid = 0, State = 1 });
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (0,0; 0,0; h 30,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Тигр отстал на высоте +40 м — возвращаюсь на точку");
+    }
+
+    [Fact]
+    public void WeakAttackerIsFoughtAsBefore()
+    {
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        Tick();
+        Tick();
+        var wolf = AddAggressive(0x80000001, "Волк", 3, level: 20);
+        _world.Replace(wolf, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _actions.Calls.Clear();
+
+        Tick();
+
+        Assert.Equal(["select 80000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void WithoutFlightBotFightsDangerousAttacker()
+    {
+        // Полёта нет (поле не найдено для сервера) — уйти вверх нельзя, дерёмся
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = null;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _actions.Calls.Clear();
+
+        Tick();
+
+        Assert.Equal(["select 80000001"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл от Тигр"));
+    }
+
+    [Fact]
     public void DangerMarginIsAtLeastOneMetre()
     {
         var settings = new BotSettings();

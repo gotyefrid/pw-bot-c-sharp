@@ -26,6 +26,10 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
     private bool _arrived;
     private bool? _inAir;
     private int _failures;
+    // Последняя точка, до которой долетели (с 0); null — ещё ни одной
+    private int? _lastVisited;
+    // Вернуться к точке по-настоящему (с её высотой): после ухода вверх над ней «дошли по горизонтали» — неправда
+    private bool _returning;
 
     public string Name => "обход";
     public string? Status { get; private set; }
@@ -87,10 +91,11 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
             Next(c, "здесь всё");
             point = points[_index];
         }
-        else if (w.Host.Position.HorizontalDistanceTo(point.Position) <= ArriveDistance && pending?.Point != point.Position)
+        else if (!_returning && w.Host.Position.HorizontalDistanceTo(point.Position) <= ArriveDistance && pending?.Point != point.Position)
         {
             // Долетели совсем (полёт к точке закончился, с высотой): со следующего шага копаем у этой точки
             _arrived = true;
+            _lastVisited = _index;
             c.Log.Info($"На точке {_index + 1}/{points.Count} — ищу: {point.Describe()}");
             Status = $"на точке {_index + 1}/{points.Count}";
             return true;
@@ -116,9 +121,26 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         // Ещё долетаем до прошлой точки — сразу к новой
         var sent = pending is null ? c.Send(move) : c.Runner.Replace(move, w).Status;
         if (sent == SubmitStatus.Sent)
+        {
+            _returning = false;
             c.Log.Info((_inAir == true ? "Лечу к " : "Иду к ") + where);
+        }
         Status = (_inAir == true ? "лечу к " : "иду к ") + where;
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+    }
+
+    /// <summary>
+    /// Снова к последней посещённой точке и искать у неё заново (после ухода от опасного моба: он, скорее всего, отошёл).
+    /// Ни одной ещё не было — к текущей.
+    /// </summary>
+    public void BackToLastVisited(BrainContext c)
+    {
+        var points = c.Settings.Route.Points;
+        if (_lastVisited is int last && last < points.Count)
+            _index = last;
+        _arrived = false;
+        _failures = 0;
+        _returning = true;
     }
 
     // Нужный обычный ресурс у точки, который не ляжет в сумку
@@ -162,6 +184,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         _arrived = false;
         _inAir = null;
         _failures = 0;
+        _lastVisited = null;
+        _returning = false;
         Status = null;
     }
 }

@@ -243,6 +243,18 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         return done;
     }
 
+    /// <summary>
+    /// Больше не ждать этого действия: стало не нужно (моб отстал, пока поднимались). В игре его работу заменит следующее действие.
+    /// </summary>
+    public void Forget(GameAction action)
+    {
+        lock (_lock)
+        {
+            if (_pending.RemoveAll(p => p.Action == action) > 0)
+                log.Debug($"✕ {action.Name}");
+        }
+    }
+
     /// <summary>Забыть всё ожидающее (бот остановлен, сменился клиент).</summary>
     public void Clear()
     {
