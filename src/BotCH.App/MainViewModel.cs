@@ -76,6 +76,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
 
         LoadNameLists();
+        LoadFarmCenters();
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
 
@@ -84,6 +85,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StopCommand = new RelayCommand(Stop, () => IsRunning);
 
         ClearLogCommand = new RelayCommand(Log.Clear);
+        AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _lastWorld is not null);
+        RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
 
         _log.Info("BotCH запущен");
         RefreshClients();
@@ -410,6 +413,128 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public IReadOnlyList<LootListMode> LootModes { get; } = [LootListMode.All, LootListMode.OnlyListed, LootListMode.ExceptListed];
 
+    // ── Центр фарма ─────────────────────────────────────────────────────────
+
+    /// <summary>Пункт списка «центр фарма» вместо сохранённой точки.</summary>
+    public const string StartCenter = "Точка старта";
+
+    /// <summary>«Точка старта» и сохранённые точки персонажа.</summary>
+    public ObservableCollection<string> FarmCenters { get; } = new();
+
+    public ICommand AddFarmPointCommand { get; }
+    public ICommand RemoveFarmPointCommand { get; }
+
+    private bool _syncingCenters;
+
+    public string SelectedFarmCenter
+    {
+        get => _settings.Target.SelectedFarmPoint?.Name ?? StartCenter;
+        set
+        {
+            // Пересборка списка сбрасывает выбор — это не выбор пользователя
+            if (_syncingCenters || value is null)
+                return;
+
+            _settings.Target.FarmCenter = value == StartCenter ? "" : value;
+            FarmCenterChanged();
+        }
+    }
+
+    /// <summary>Выбрана сохранённая точка (а не точка старта).</summary>
+    public bool HasFarmPoint => _settings.Target.SelectedFarmPoint is not null;
+
+    /// <summary>Название выбранной точки; правка — переименование.</summary>
+    public string FarmPointName
+    {
+        get => _settings.Target.SelectedFarmPoint?.Name ?? "";
+        set
+        {
+            var point = _settings.Target.SelectedFarmPoint;
+            var name = value?.Trim() ?? "";
+            if (point is null || name.Length == 0 || name == point.Name)
+                return;
+            if (name.Equals(StartCenter, StringComparison.OrdinalIgnoreCase)
+                || _settings.Target.FarmPoints.Any(p => p != point && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+            {
+                _log.Warning($"Точка «{name}» уже есть — название не меняю");
+                OnPropertyChanged();
+                return;
+            }
+
+            point.Name = name;
+            _settings.Target.FarmCenter = name;
+            LoadFarmCenters();
+            SettingsEdited();
+        }
+    }
+
+    private string _farmPointInfo = "";
+
+    /// <summary>Сколько до выбранной точки отсюда.</summary>
+    public string FarmPointInfo { get => _farmPointInfo; private set => SetProperty(ref _farmPointInfo, value); }
+
+    /// <summary>Запомнить, где стоит персонаж, как новую точку фарма, и сделать её центром.</summary>
+    private void AddFarmPoint()
+    {
+        if (_lastWorld is not { } w)
+            return;
+
+        var points = _settings.Target.FarmPoints;
+        var n = 1;
+        while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
+            n++;
+        var point = FarmPoint.At($"Точка {n}", w.Host.Position);
+        points.Add(point);
+        _settings.Target.FarmCenter = point.Name;
+        _log.Info($"Точка фарма «{point.Name}» сохранена: {point.Position}");
+        LoadFarmCenters();
+        SettingsEdited();
+    }
+
+    private void RemoveFarmPoint()
+    {
+        if (_settings.Target.SelectedFarmPoint is not { } point)
+            return;
+
+        _settings.Target.FarmPoints.Remove(point);
+        _settings.Target.FarmCenter = "";
+        _log.Info($"Точка фарма «{point.Name}» удалена — центр: точка старта");
+        LoadFarmCenters();
+        SettingsEdited();
+    }
+
+    /// <summary>Список в окне ← точки персонажа.</summary>
+    private void LoadFarmCenters()
+    {
+        _syncingCenters = true;
+        try
+        {
+            FarmCenters.Clear();
+            FarmCenters.Add(StartCenter);
+            foreach (var point in _settings.Target.FarmPoints)
+                FarmCenters.Add(point.Name);
+        }
+        finally
+        {
+            _syncingCenters = false;
+        }
+
+        FarmCenterChanged();
+    }
+
+    private void FarmCenterChanged()
+    {
+        OnPropertyChanged(nameof(SelectedFarmCenter));
+        OnPropertyChanged(nameof(HasFarmPoint));
+        OnPropertyChanged(nameof(FarmPointName));
+        UpdateFarmPointInfo();
+    }
+
+    private void UpdateFarmPointInfo()
+        => FarmPointInfo = _settings.Target.SelectedFarmPoint is { } p && _lastWorld is { } w
+            ? $"{w.Host.Position.HorizontalDistanceTo(p.Position):0} м отсюда"
+            : "";
+
     public sealed record PathChoice(ApproachPath Path, string Title);
 
     public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
@@ -623,6 +748,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         PetDetails = active is null ? "" : active.IsHungry ? "голоден" : "сыт";
 
         UpdateAttackSkills(w);
+        UpdateFarmPointInfo();
         SnapshotInfo = $"мобов рядом {w.Mobs.Count(m => !m.IsDead)} · лута {w.GroundItems.Count}";
     }
 
@@ -739,6 +865,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _brain?.UpdateSettings(_settings);
         OnPropertyChanged(nameof(Settings));
         LoadNameLists();
+        LoadFarmCenters();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
         AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа

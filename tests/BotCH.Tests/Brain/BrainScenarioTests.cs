@@ -316,6 +316,7 @@ public class BrainScenarioTests
     {
         _settings.Target.KillMobs = true;
         _settings.Target.FarmRadius = 30;
+        _settings.Target.ReturnToCenter = false;
         Tick(); // старт в (0, 0)
         _world.Position = new Position(100, 0, 0);
         _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(110, 0, 0), 10, "Волк", 0));
@@ -1006,5 +1007,88 @@ public class BrainScenarioTests
         Tick();
 
         Assert.DoesNotContain("cancel", _actions.Calls);
+    }
+
+    // ── Центр фарма ─────────────────────────────────────────────────────────
+
+    private void FarmAt(float x, int radius = 20)
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = radius;
+        _settings.Target.FarmPoints = [FarmPoint.At("Поляна", new Position(x, 0, 0))];
+        _settings.Target.FarmCenter = "Поляна";
+    }
+
+    [Fact]
+    public void RadiusCountsFromSavedPointNotFromStart()
+    {
+        // Старт в 0, точка фарма в 100: моб рядом с персом — вне радиуса, моб у точки — цель
+        FarmAt(100);
+        _settings.Target.ReturnToCenter = false;
+        _world.AddMob(0x80000001, "Волк", 10);
+        _world.AddMob(0x80000002, "Кабан", 95);
+
+        Tick();
+
+        Assert.Equal(["select 80000002"], _actions.Calls);
+    }
+
+    [Fact]
+    public void NoTargetsFarFromCenterRunsBack()
+    {
+        FarmAt(50);
+
+        Tick();
+
+        Assert.Equal(["move (50,0; 0,0; h 0,0) умно"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Целей нет — возвращаюсь в центр фарма"));
+    }
+
+    [Fact]
+    public void MobInRadiusBeatsReturn()
+    {
+        FarmAt(50);
+        _world.AddMob(0x80000001, "Волк", 40);
+
+        Tick();
+
+        Assert.Equal(["select 80000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void NearCenterOrReturnOffStaysPut()
+    {
+        // Центр — точка старта, перс отошёл на 3 м: уже в центре
+        _settings.Target.KillMobs = true;
+        Tick();
+        _world.Position = new Position(3, 0, 0);
+        Tick();
+        Assert.Empty(_actions.Calls);
+
+        // Ушёл далеко, но возврат выключен
+        _settings.Target.ReturnToCenter = false;
+        _brain = null;
+        _world.Position = new Position(0, 0, 0);
+        Tick();
+        _world.Position = new Position(40, 0, 0);
+        Tick();
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void FightInterruptsReturn()
+    {
+        // Бежим в центр (фон) — появился моб: удар скиллом важнее бега
+        FarmAt(50, radius: 60);
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        Tick();
+        Assert.StartsWith("move", LastCall);
+
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+        Tick();
+        Tick();
+
+        Assert.Equal("apply 299 0", LastCall);
     }
 }

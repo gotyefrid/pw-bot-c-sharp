@@ -278,10 +278,25 @@
             <CheckBox Style="{StaticResource Switch}" Content="Снимать мобов с меня петом" IsChecked="{Binding Settings.Target.PetTakesAggro}"
                       ToolTip="Моб бьёт персонажа — бой сразу переходит на него, и пет тоже: он прочнее, пусть держит всех. Прежний моб подождёт. Без пета не действует" />
             <DockPanel Style="{StaticResource SettingRow}">
-              <TextBlock Text="Радиус фарма от точки старта, м" VerticalAlignment="Center"
-                         ToolTip="Новые цели — только в этом радиусе от места, где стоял персонаж при «Старт». Кто бьёт вас или пета — всегда. 0 — без ограничения" />
+              <TextBlock Text="Радиус фарма, м" VerticalAlignment="Center"
+                         ToolTip="Новые цели (мобы, ресурсы) — только в этом радиусе от центра фарма. Кто бьёт вас или пета — всегда. 0 — без ограничения" />
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.FarmRadius, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Центр фарма" VerticalAlignment="Center"
+                         ToolTip="Откуда считать радиус: место, где стоял персонаж при «Старт», или сохранённая точка — тогда «Старт» можно жать где угодно" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE74D;"
+                      Command="{Binding RemoveFarmPointCommand}" ToolTip="Удалить выбранную точку" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
+                      Command="{Binding AddFarmPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как новую точку фарма" />
+              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding FarmCenters}" SelectedItem="{Binding SelectedFarmCenter}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding HasFarmPoint, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding FarmPointInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Width="170" Margin="0,0,64,0" Text="{Binding FarmPointName}" ToolTip="Название точки — можно поменять" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр, когда целей нет" IsChecked="{Binding Settings.Target.ReturnToCenter}"
+                      ToolTip="В радиусе нет мобов и ресурсов, а персонаж отошёл от центра (погнался за мобом) — бежит в центр и ждёт там" />
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
             <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
                            Selected="{Binding MobNames}" Options="{Binding MobOptions}"

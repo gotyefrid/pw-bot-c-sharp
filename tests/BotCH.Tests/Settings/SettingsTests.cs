@@ -174,6 +174,8 @@ public class SettingsStoreTests : IDisposable
         saved.Target.MobNames = ["Волк", "Кабан"];
         saved.Pet.Enabled = false;
         saved.Combat.ComeCloserDistance = 5.5f;
+        saved.Target.FarmPoints = [FarmPoint.At("Поляна", new Position(-1800.5f, 220f, -110f))];
+        saved.Target.FarmCenter = "Поляна";
 
         store.Save(saved);
         store.Save(saved); // второй раз — подмена существующего файла
@@ -183,6 +185,7 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(["Волк", "Кабан"], loaded.Target.MobNames);
         Assert.False(loaded.Pet.Enabled);
         Assert.Equal(5.5f, loaded.Combat.ComeCloserDistance);
+        Assert.Equal(new Position(-1800.5f, 220f, -110f), loaded.Target.SelectedFarmPoint?.Position);
         Assert.False(System.IO.File.Exists(File("settings.json.tmp")));
     }
 

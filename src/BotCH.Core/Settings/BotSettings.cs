@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.World;
+using Newtonsoft.Json;
 
 namespace BotCH.Core.Settings;
 
@@ -37,6 +38,8 @@ public sealed class BotSettings
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
         Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
+        Target.FarmPoints = FarmPoint.Clean(Target.FarmPoints);
+        Target.FarmCenter = Target.FarmCenter?.Trim() ?? "";
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
         Loot.Radius = Clamp(Loot.Radius, 1, 30);
@@ -98,10 +101,47 @@ public sealed class TargetSettings
     public int MobTimeoutSeconds { get; set; } = 120;
 
     /// <summary>
-    /// Радиус фарма, м: новые цели — только не дальше этого от точки старта (где стоял перс при «Старт»).
+    /// Радиус фарма, м: новые цели (мобы, ресурсы) — только не дальше этого от центра фарма (<see cref="FarmCenter"/>).
     /// Моб, который бьёт перса или пета, — всегда. 0 — без ограничения.
     /// </summary>
     public int FarmRadius { get; set; } = 60;
+
+    /// <summary>Сохранённые точки фарма персонажа.</summary>
+    public List<FarmPoint> FarmPoints { get; set; } = [];
+
+    /// <summary>Центр фарма — название точки из <see cref="FarmPoints"/>; пусто (или точки нет) — точка старта (где стоял перс при «Старт»).</summary>
+    public string FarmCenter { get; set; } = "";
+
+    /// <summary>Делать нечего — бежать в центр фарма и ждать мобов там.</summary>
+    public bool ReturnToCenter { get; set; } = true;
+
+    /// <summary>Выбранная точка фарма; null — центр — точка старта.</summary>
+    [JsonIgnore]
+    public FarmPoint? SelectedFarmPoint
+        => FarmCenter.Length == 0 ? null : FarmPoints.FirstOrDefault(p => string.Equals(p.Name, FarmCenter, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>Сохранённая точка фарма: название и где (координаты как в снимке).</summary>
+public sealed class FarmPoint
+{
+    public string Name { get; set; } = "";
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Height { get; set; }
+
+    [JsonIgnore]
+    public Position Position => new(X, Height, Y);
+
+    public static FarmPoint At(string name, Position p) => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height };
+
+    /// <summary>Без пустых названий и повторов (без учёта регистра).</summary>
+    public static List<FarmPoint> Clean(IEnumerable<FarmPoint?>? points)
+        => (points ?? [])
+            .Where(p => p is not null && !string.IsNullOrWhiteSpace(p.Name))
+            .Select(p => { p!.Name = p.Name.Trim(); return p; })
+            .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
 }
 
 public sealed class CombatSettings

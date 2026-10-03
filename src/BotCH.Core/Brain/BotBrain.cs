@@ -11,7 +11,7 @@ namespace BotCH.Core.Brain;
 
 /// <summary>
 /// Мозг бота: на каждом снимке — проверить ждущие действия, затем поведения по приоритету
-/// (выжить → пет → копать ресурсы → бой), первое занявшее ход останавливает перебор. Один поток решений: <see cref="Tick"/>
+/// (выжить → пет → копать ресурсы → бой → вернуться в центр фарма), первое занявшее ход останавливает перебор. Один поток решений: <see cref="Tick"/>
 /// вызывается из потока снимков. Режим «фарм мобов»; другие режимы (сбор ресурсов) — другим набором поведений.
 /// </summary>
 public sealed class BotBrain : IBotRunner
@@ -21,6 +21,7 @@ public sealed class BotBrain : IBotRunner
     private readonly IReadOnlyList<IBehavior> _behaviors;
     private BotSettings? _newSettings;
     private string _status = "ожидание";
+    private string? _centerText;
 
     public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
         IReadOnlyCollection<uint>? gatherTools = null)
@@ -30,13 +31,15 @@ public sealed class BotBrain : IBotRunner
         Pet = new PetBehavior();
         Combat = new CombatBehavior();
         Gather = new GatherBehavior(Combat, gatherTools ?? []);
-        _behaviors = [Survival, Pet, Gather, Combat];
+        Return = new ReturnBehavior(Combat);
+        _behaviors = [Survival, Pet, Gather, Combat, Return];
     }
 
     public SurvivalBehavior Survival { get; }
     public PetBehavior Pet { get; }
     public CombatBehavior Combat { get; }
     public GatherBehavior Gather { get; }
+    public ReturnBehavior Return { get; }
 
     /// <summary>Что делает бот — для окна.</summary>
     public string Status => _status;
@@ -65,11 +68,13 @@ public sealed class BotBrain : IBotRunner
             }
 
             _context.World = world;
-            if (_context.StartPosition is null)
+            _context.StartPosition ??= world.Host.Position;
+            var center = CenterText();
+            if (center != _centerText)
             {
-                _context.StartPosition = world.Host.Position;
-                var radius = _context.Settings.Target.FarmRadius;
-                _context.Log.Info(radius > 0 ? $"Точка старта {world.Host.Position}, радиус фарма {radius} м" : $"Точка старта {world.Host.Position}, радиус не ограничен");
+                _centerText = center;
+                var distance = _context.FarmCenter is { } c ? $", до него {world.Host.Position.HorizontalDistanceTo(c):0} м" : "";
+                _context.Log.Info(center + distance);
             }
 
             foreach (var outcome in _context.Runner.Update(world))
@@ -112,10 +117,20 @@ public sealed class BotBrain : IBotRunner
         {
             _context.Runner.Clear();
             _context.StartPosition = null;
+            _centerText = null;
             foreach (var behavior in _behaviors)
                 behavior.Reset();
             SetStatus("ожидание");
         }
+    }
+
+    // «Центр фарма …» — в лог при старте и когда сменили точку или радиус
+    private string CenterText()
+    {
+        var target = _context.Settings.Target;
+        var point = target.SelectedFarmPoint;
+        var where = point is null ? $"точка старта {_context.StartPosition}" : $"«{point.Name}» {point.Position}";
+        return target.FarmRadius > 0 ? $"Центр фарма: {where}, радиус {target.FarmRadius} м" : $"Центр фарма: {where}, радиус не ограничен";
     }
 
     private void SetStatus(string status)

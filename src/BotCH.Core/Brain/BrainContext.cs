@@ -31,17 +31,20 @@ public sealed class BrainContext
 
     public WorldState World { get; internal set; } = null!;
 
-    /// <summary>Где стоял персонаж, когда бот запустили. От неё считается радиус фарма.</summary>
+    /// <summary>Где стоял персонаж, когда бот запустили.</summary>
     public Position? StartPosition { get; internal set; }
 
-    /// <summary>Моб в радиусе фарма от точки старта (или радиус не задан).</summary>
+    /// <summary>Центр фарма: выбранная сохранённая точка, иначе точка старта. От него считается радиус фарма.</summary>
+    public Position? FarmCenter => Settings.Target.SelectedFarmPoint?.Position ?? StartPosition;
+
+    /// <summary>Моб в радиусе фарма от центра (или радиус не задан).</summary>
     public bool InFarmArea(NpcInfo mob) => InFarmArea(mob.Position);
 
-    /// <summary>Точка в радиусе фарма от точки старта (или радиус не задан).</summary>
+    /// <summary>Точка в радиусе фарма от центра (или радиус не задан).</summary>
     public bool InFarmArea(Position point)
     {
         var radius = Settings.Target.FarmRadius;
-        return radius <= 0 || StartPosition is not { } start || point.HorizontalDistanceTo(start) <= radius;
+        return radius <= 0 || FarmCenter is not { } center || point.HorizontalDistanceTo(center) <= radius;
     }
 
     public DateTime Now => World.Time;
