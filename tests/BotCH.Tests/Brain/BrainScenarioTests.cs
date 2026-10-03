@@ -816,4 +816,87 @@ public class BrainScenarioTests
         Assert.Equal("gather C0000001", LastCall);
         Assert.DoesNotContain("select 80000002", _actions.Calls);
     }
+
+    // ── Пет важнее всего ──────────────────────────────────────────────────────
+
+    private void PetNeedsHealSoon()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.HealPercent = 70;
+        _world.SetPet(1, hpRatio: 1f);
+        _world.AddSkill(330);
+    }
+
+    [Fact]
+    public void PetHealStopsRunToMob()
+    {
+        PetNeedsHealSoon();
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _settings.Combat.UseSword = true;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 40).Wid;
+        Tick();
+        Tick();
+        Assert.StartsWith("move", LastCall);
+
+        // Бежим, а пету плохо — лечим сразу, не добегая
+        _world.SetPet(1, hpRatio: 0.4f);
+        Tick();
+
+        Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("Пет важнее"));
+    }
+
+    [Fact]
+    public void PetHealInterruptsDiggingThenHeals()
+    {
+        PetNeedsHealSoon();
+        GatherWithPickaxe();
+        AddOre(0xC0000001, 3);
+        Tick();
+        Assert.Equal("gather C0000001", LastCall);
+        _world.Gather = new GatherProgress(true, 1000, 8000);
+        Tick();
+
+        // Копаем, пету плохо — прерываем копание (как Esc), лечить — когда полоска пропала
+        _world.SetPet(1, hpRatio: 0.4f);
+        Tick();
+        Assert.Equal("cancel", LastCall);
+        Tick();
+        Assert.Equal("cancel", LastCall);
+
+        _world.Gather = new GatherProgress(false, 1500, 8000);
+        Tick();
+        Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("Прерываю копание"));
+    }
+
+    [Fact]
+    public void PetHealInterruptsCast()
+    {
+        PetNeedsHealSoon();
+        _world.SetPet(1, hpRatio: 0.4f);
+        _world.Casting = true;
+
+        Tick();
+        Assert.Equal("cancel", LastCall);
+
+        _world.Casting = false;
+        Tick();
+        Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
+    }
+
+    [Fact]
+    public void WithoutCancelPetWaitsForCastToEnd()
+    {
+        PetNeedsHealSoon();
+        _actions.CanCancel = false;
+        _world.SetPet(1, hpRatio: 0.4f);
+        _world.Casting = true;
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
 }

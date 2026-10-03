@@ -117,6 +117,8 @@ internal sealed class FakeActions : IGameActions
 
     public bool CanMove { get; set; } = true;
 
+    public bool CanCancel { get; set; } = true;
+
     private CallResult Record(string call)
     {
         Calls.Add(call);

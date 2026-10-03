@@ -1,4 +1,5 @@
 using BotCH.Core.Calls;
+using BotCH.Core.Profiles;
 using BotCH.Core.World;
 
 namespace BotCH.Core.Actions;
@@ -14,6 +15,9 @@ public interface IGameActions
 
     /// <summary>Умеет ли «идти в точку». Нет — мозг не ходит сам (подбор «как мышкой» всё равно подводит к предмету).</summary>
     bool CanMove { get; }
+
+    /// <summary>Умеет ли прерывать каст и копание (<see cref="CancelAction"/>). Нет — пет ждёт, пока персонаж освободится.</summary>
+    bool CanCancel { get; }
 
     CallResult SelectTarget(uint wid);
     CallResult Unselect();
@@ -55,6 +59,8 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public string Mode => "вызовы";
 
     public bool CanMove => caller.CanMoveTo;
+
+    public bool CanCancel => caller.Can(GameFunctions.CancelAction);
 
     public CallResult SelectTarget(uint wid) => caller.SelectTarget(wid);
     public CallResult Unselect() => caller.Unselect();

@@ -6,6 +6,7 @@ namespace BotCH.Core.Brain;
 /// <summary>
 /// Пет из выбранной клетки: не призван — призвать (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить.
 /// Выключен в настройках или петов нет (не друид) — поведение молча пропускается.
+/// Лечение и воскрешение важнее всего: занятое тело освобождаем — бег/атаку забываем, каст или копание прерываем (как Esc).
 /// </summary>
 public sealed class PetBehavior : IBehavior
 {
@@ -50,6 +51,8 @@ public sealed class PetBehavior : IBehavior
             }
 
             Status = "воскрешаю пета";
+            if (FreeBody(c, "воскрешаю пета"))
+                return true;
             if (c.Send(new RevivePetAction(settings.Cage, c.Skills.RevivePet)) != SubmitStatus.Sent)
                 return false;
             c.Log.Info("Пет мёртв — воскрешаю");
@@ -64,7 +67,11 @@ public sealed class PetBehavior : IBehavior
 
         if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true })
         {
-            // Тело занято (бег, атака, каст) — вылечим, как освободится; пока не мешаем остальным
+            Status = "лечу пета";
+            if (FreeBody(c, "лечу пета"))
+                return true;
+
+            // Тело всё ещё занято (прерывать нечем) — вылечим, как освободится; пока не мешаем остальным
             var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета"));
             if (heal == SubmitStatus.Sent)
                 c.Log.Info($"HP пета {inCage.HpPercent} % < {settings.HealPercent} % — лечу");
@@ -89,6 +96,38 @@ public sealed class PetBehavior : IBehavior
 
         Status = "кормлю пета";
         return c.Submit(feed);
+    }
+
+    /// <summary>
+    /// Освободить тело ради пета. true — ждём (отправлена отмена каста/копания, она ещё идёт); false — можно слать сразу
+    /// (тело свободно, ждущее действие забыто, или это наше же лечение/воскрешение).
+    /// </summary>
+    private static bool FreeBody(BrainContext c, string why)
+    {
+        var w = c.World;
+        var body = c.Runner.BodyAction;
+        if (body is RevivePetAction || body is SkillAction skill && skill.Skill == c.Skills.HealPet)
+            return false;
+
+        if (c.Runner.IsPending(new CancelAction(why).Key))
+            return true;
+
+        // Бег, подход, атака: игра заменит их скиллом — просто перестаём ждать
+        if (body is not null)
+        {
+            c.Log.Info($"Пет важнее — бросаю «{body.Name}»: {why}");
+            c.Runner.Cancel(body.Key, $"пет важнее: {why}", w);
+        }
+
+        var digging = w.Host.Gather is { Active: true };
+        if (!w.Host.IsCasting && !digging)
+            return false;
+        if (!c.Runner.Actions.CanCancel)
+            return false;
+
+        if (c.Send(new CancelAction(why)) == SubmitStatus.Sent)
+            c.Log.Info($"Прерываю {(digging ? "копание" : "каст")}: {why}");
+        return true;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)

@@ -448,6 +448,7 @@ public class ActionRunnerTests
         public int MaxParallel { get; private set; }
         public string Mode => "тест";
         public bool CanMove => true;
+        public bool CanCancel => true;
 
         private CallResult Slow()
         {
