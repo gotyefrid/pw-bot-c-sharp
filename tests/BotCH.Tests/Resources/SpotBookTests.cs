@@ -231,6 +231,36 @@ public class SpotBookTests : IDisposable
     }
 
     [Fact]
+    public void MergeAddsOtherCopiesSpotsAndKeepsFreshestState()
+    {
+        Resource("Шалфей", 10);
+        Observe();
+        var mine = _book.Spots[0];
+
+        // Другая копия бота: тот же шалфей (выкопан позже, чем мы его видели) и новый корень
+        var dug = _world.Time.AddMinutes(1);
+        var other = new[]
+        {
+            new ResourceSpot { Name = "Шалфей", X = 14, Seen = 3, LastSeen = _world.Time.AddSeconds(30), GoneAt = dug, Ids = { ["pwclassic136"] = 7 } },
+            new ResourceSpot { Name = "Высохший древесный корень", X = 300, Seen = 1 },
+        };
+        _world.Ground.Clear();
+        _book.Forget();
+
+        Assert.Equal(1, _book.Merge(other));
+        Assert.Equal(2, _book.Spots.Count);
+        Assert.Equal(dug, mine.GoneAt);
+        Assert.Equal(3, mine.Seen);
+        Assert.Equal(7u, mine.Ids["pwclassic136"]);
+
+        // Повторное слияние ничего не дублирует; удалённая у нас точка из файла не возвращается
+        Assert.Equal(0, _book.Merge(other));
+        _book.Remove(_book.Spots.Single(s => s.X == 300));
+        Assert.Equal(0, _book.Merge(other));
+        Assert.Single(_book.Spots);
+    }
+
+    [Fact]
     public void StoreRoundTripAndBadFile()
     {
         var store = new SpotBookStore(_file);

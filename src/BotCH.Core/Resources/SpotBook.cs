@@ -39,6 +39,8 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly HashSet<ResourceSpot> _present = [];
     private readonly Dictionary<ResourceSpot, DateTime> _missingSince = [];
+    // Удалённые за эту сессию: слияние с файлом не возвращает их обратно
+    private readonly List<ResourceSpot> _removed = [];
     private Position? _lastHost;
 
     public IReadOnlyList<ResourceSpot> Spots => _spots;
@@ -142,9 +144,55 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
 
         _present.Remove(spot);
         _missingSince.Remove(spot);
+        _removed.Add(spot);
         Changed = true;
         _log.Info($"Точка «{spot.Name}» удалена, осталось {_spots.Count}");
         return true;
+    }
+
+    /// <summary>
+    /// Слить с точками из общего файла (их пишут и другие копии бота): незнакомые добавляются, у знакомых — самое
+    /// свежее «видели»/«выкопан» и номера с других серверов. Возвращает, сколько точек добавилось.
+    /// </summary>
+    public int Merge(IEnumerable<ResourceSpot> other)
+    {
+        var added = 0;
+        foreach (var o in other.Where(o => o.Name.Trim().Length > 0))
+        {
+            if (_removed.Any(r => Same(r, o)))
+                continue;
+
+            var spot = _spots.FirstOrDefault(s => Same(s, o));
+            if (spot is null)
+            {
+                _spots.Add(o);
+                added++;
+                continue;
+            }
+
+            if (o.LastSeen > spot.LastSeen)
+                spot.LastSeen = o.LastSeen;
+            if (o.GoneAt is { } gone && !_present.Contains(spot) && gone > (spot.GoneAt ?? DateTime.MinValue) && gone > (spot.LastSeen ?? DateTime.MinValue))
+                spot.GoneAt = gone;
+            spot.Seen = Math.Max(spot.Seen, o.Seen);
+            spot.Spread = Math.Max(spot.Spread, o.Spread);
+            foreach (var id in o.Ids.Where(id => !spot.Ids.ContainsKey(id.Key)))
+                spot.Ids[id.Key] = id.Value;
+        }
+
+        if (added > 0)
+            _log.Debug($"Из общего файла добавлено точек: {added}, всего {_spots.Count}");
+        return added;
+    }
+
+    // Одна и та же точка в двух списках: тот же номер на каком-то сервере, иначе то же название ближе MergeRadius
+    private static bool Same(ResourceSpot a, ResourceSpot b)
+    {
+        if (!a.Name.Equals(b.Name, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var distance = a.Position.HorizontalDistanceTo(b.Position);
+        return distance <= MergeRadius
+            || (distance <= SameIdRadius && a.Ids.Any(id => b.Ids.TryGetValue(id.Key, out var other) && other == id.Value));
     }
 
     private ResourceSpot? Nearest(string name, Position position, float radius, ISet<ResourceSpot>? exclude = null)
