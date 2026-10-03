@@ -71,7 +71,11 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
         }
 
         var smart = c.Settings.Target.ReturnPath == ApproachPath.Smart;
-        var sent = c.Send(new MoveAction(center, tolerance: 2f, smart) { Priority = ActionPriority.Background });
+        // В воздухе — летим к центру на своей высоте (обычный ход в полёте высоту не держит, а к земле на перелёте — в склон)
+        var move = w.Host.Flying == true
+            ? new MoveAction(center with { Height = w.Host.Position.Height }, tolerance: 2f, fly: true) { Priority = ActionPriority.Background }
+            : new MoveAction(center, tolerance: 2f, smart) { Priority = ActionPriority.Background };
+        var sent = c.Send(move);
         if (sent == SubmitStatus.Sent)
             c.Log.Info(inside
                 ? $"Целей рядом нет {IdleInside.TotalSeconds:0} с — иду в центр фарма, {distance:0} м"

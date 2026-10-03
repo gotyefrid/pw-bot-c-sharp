@@ -255,7 +255,7 @@ public sealed class CombatBehavior : IBehavior
         if (running is null)
         {
             // Тело занято (скилл ещё ждёт, каст) — бежать позже; в лог только когда бег правда начался
-            if (c.Send(new MoveAction(point, ApproachTolerance, smart)) == SubmitStatus.Sent)
+            if (c.Send(Approach(w, point, smart)) == SubmitStatus.Sent)
             {
                 c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
                 _lastApproach = c.Now;
@@ -269,11 +269,15 @@ public sealed class CombatBehavior : IBehavior
         {
             c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
             _lastApproach = c.Now;
-            c.Runner.Replace(new MoveAction(point, ApproachTolerance, smart), w);
+            c.Runner.Replace(Approach(w, point, smart), w);
         }
 
         return true;
     }
+
+    // В воздухе обычный ход ведёт только по горизонтали — летим в точку вместе с высотой моба
+    private static MoveAction Approach(WorldState w, Position point, bool smart)
+        => w.Host.Flying == true ? new MoveAction(point, ApproachTolerance, fly: true) : new MoveAction(point, ApproachTolerance, smart);
 
     // Точка на линии «моб → перс» на расстоянии distance от моба
     private static Position PointNear(Position from, Position mob, float distance)

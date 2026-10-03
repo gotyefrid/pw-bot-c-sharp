@@ -396,6 +396,23 @@ public class BrainScenarioTests
         Assert.Contains("(14,0;", LastCall); // 20 м до моба → точка в 6 м от него (8 − запас 2)
     }
 
+    [Fact]
+    public void ComeCloserInAirFliesDownToMob()
+    {
+        // Перс висит в 30 м над землёй: обычный ход в полёте высоту не меняет — летим в точку с высотой у моба
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _settings.Combat.ApproachPath = ApproachPath.Smart;
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
+
+        Tick();
+
+        Assert.Equal("fly (16,7; 0,0; h 5,0)", LastCall); // 6 м до моба по прямой, с высотой
+    }
+
     [Theory]
     [InlineData(ApproachPath.Smart, true)]
     [InlineData(ApproachPath.Direct, false)]
@@ -1195,6 +1212,20 @@ public class BrainScenarioTests
         Assert.Equal(goes ? [$"move ({fromCenter:0.0}; 0,0; h 0,0) умно"] : [], _actions.Calls);
         if (goes)
             Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с — иду в центр фарма"));
+    }
+
+    [Fact]
+    public void ReturnInAirFliesAtOwnHeight()
+    {
+        // В воздухе к центру — на своей высоте, а не к земле (на перелёте — в склон)
+        FarmAt(30, radius: 60);
+        _world.Flying = true;
+        _world.Position = new Position(0, 25, 0);
+
+        for (var i = 0; i < 44; i++)
+            Tick();
+
+        Assert.Equal(["fly (30,0; 0,0; h 25,0)"], _actions.Calls);
     }
 
     [Fact]
