@@ -93,8 +93,8 @@
     <!-- Бот | Настройки; Старт/Стоп — справа, видны на любой вкладке -->
     <DockPanel Grid.Row="2" Margin="0,0,0,10">
       <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-        <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" ToolTip="Ctrl+Alt+Num1" />
-        <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" ToolTip="Ctrl+Alt+Num0" />
+        <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />
+        <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" />
       </StackPanel>
       <Border Background="#E6E9F0" CornerRadius="9" Padding="3" HorizontalAlignment="Left">
         <StackPanel Orientation="Horizontal">

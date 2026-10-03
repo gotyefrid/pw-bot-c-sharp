@@ -235,16 +235,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand StopCommand { get; }
     public ICommand ClearLogCommand { get; }
 
-    /// <summary>Горячие клавиши: окно сообщает, удалось ли их занять.</summary>
-    public void ReportHotKeys(bool start, bool stop)
-    {
-        if (start && stop)
-            _log.Info("Горячие клавиши: Ctrl+Alt+Num1 — старт, Ctrl+Alt+Num0 — стоп");
-        else
-            _log.Warning("Горячие клавиши заняты другой программой (запущен старый бот?): "
-                + (start ? "" : "Ctrl+Alt+Num1 ") + (stop ? "" : "Ctrl+Alt+Num0") + ". Кнопки в окне работают");
-    }
-
     private bool _isRunning;
 
     public bool IsRunning

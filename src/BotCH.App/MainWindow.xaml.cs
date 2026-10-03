@@ -6,7 +6,6 @@ using System.Windows.Media;
 using System.Windows.Controls;
 using BotCH.Core.Logging;
 using System.Windows;
-using System.Windows.Interop;
 using System.Windows.Threading;
 
 namespace BotCH.App;
@@ -14,7 +13,6 @@ namespace BotCH.App;
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _model;
-    private GlobalHotKeys? _hotKeys;
 
     public MainWindow()
     {
@@ -105,18 +103,8 @@ public partial class MainWindow : Window
         System.Diagnostics.Process.Start("explorer.exe", folder);
     }
 
-    protected override void OnSourceInitialized(EventArgs e)
-    {
-        base.OnSourceInitialized(e);
-        _hotKeys = new GlobalHotKeys(new WindowInteropHelper(this).Handle);
-        var start = _hotKeys.Register(GlobalHotKeys.Control | GlobalHotKeys.Alt, GlobalHotKeys.NumPad1, _model.Start);
-        var stop = _hotKeys.Register(GlobalHotKeys.Control | GlobalHotKeys.Alt, GlobalHotKeys.NumPad0, _model.Stop);
-        _model.ReportHotKeys(start, stop);
-    }
-
     protected override void OnClosed(EventArgs e)
     {
-        _hotKeys?.Dispose();
         _model.Dispose();
         base.OnClosed(e);
     }
