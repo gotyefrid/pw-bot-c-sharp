@@ -22,6 +22,7 @@ public sealed class ProfileData
     public NpcOffsets Npc { get; init; } = new();
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
+    public MonsterEssenceOffsets MonsterEssence { get; init; } = new();
     public ElementDataOffsets ElementData { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
     public PotionOffsets Potion { get; init; } = new();
@@ -199,6 +200,17 @@ public sealed class NpcOffsets
     public uint AttackTarget { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }
+    /// <summary>Указатель на запись моба в справочнике игры (MONSTER_ESSENCE, см. <see cref="MonsterEssenceOffsets"/>); 0 — не найден.</summary>
+    public uint Essence { get; init; }
+}
+
+/// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам и с какого расстояния.</summary>
+public sealed class MonsterEssenceOffsets
+{
+    /// <summary>Нападает сам (int: 1 — агрессивный, 0 — нет).</summary>
+    public uint Aggressive { get; init; }
+    /// <summary>Радиус агра, м (int): подошли ближе — агрессивный нападает.</summary>
+    public uint AggroRadius { get; init; }
 }
 
 public sealed class GroundItemOffsets

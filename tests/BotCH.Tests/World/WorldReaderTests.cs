@@ -290,6 +290,35 @@ public class WorldReaderTests
         Assert.Equal(expected, npc.TargetWid);
     }
 
+    [Theory]
+    [InlineData(1u, true)]
+    [InlineData(0u, false)]
+    public void MobAggroComesFromItsRecord(uint aggressive, bool expected)
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        var mob = ComebackWorldWithMob(p);
+        const uint record = 0x3100_0000;
+        _memory.Map(record, 0x600);
+        _memory.WriteUInt32(mob + p.Npc.Essence, record);
+        _memory.WriteUInt32(record + p.MonsterEssence.Aggressive, aggressive);
+        _memory.WriteUInt32(record + p.MonsterEssence.AggroRadius, 7);
+
+        var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
+
+        Assert.Equal((expected, 7), (npc.Aggressive, npc.AggroRadius));
+    }
+
+    [Fact]
+    public void MobWithoutRecordHasUnknownAggro()
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        ComebackWorldWithMob(p);
+
+        var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
+
+        Assert.Null(npc.Aggressive);
+    }
+
     [Fact]
     public void ComebackReadsGatherProgress()
     {

@@ -180,7 +180,7 @@ internal static class WorldCommands
         foreach (var n in npcs)
         {
             var aggro = n.TargetWid == 0 ? "" : n.TargetWid == h.Wid ? "  ⚔ бьёт перса" : w.Pet?.ActiveWid == n.TargetWid ? "  ⚔ бьёт пета" : $"  → 0x{n.TargetWid:X8}";
-            s.AppendLine($"       {n.Distance,6:0.0} м  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}  {State(n)}{aggro}");
+            s.AppendLine($"       {n.Distance,6:0.0} м  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}  {State(n)}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{aggro}");
         }
 
         if (full)

@@ -139,6 +139,12 @@ public sealed record NpcInfo(
     /// <summary>Уровень; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Level { get; init; }
 
+    /// <summary>Нападает сам (агрессивный); null — неизвестно (запись моба не найдена для сервера).</summary>
+    public bool? Aggressive { get; init; }
+
+    /// <summary>С какого расстояния агрессивный нападает, м; 0 — неизвестно.</summary>
+    public int AggroRadius { get; init; }
+
     public const int StateAttacking = 2;
     public const int StateCasting = 3;
     public const int StateDead = 4;

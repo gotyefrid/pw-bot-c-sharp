@@ -31,6 +31,7 @@ public sealed class WorldReader
     private readonly int _itemSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
+    private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
 
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
     private const int MoveEnvWater = 1;
@@ -47,7 +48,7 @@ public sealed class WorldReader
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
             h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
-        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8);
+        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.Distance, g.NamePointer, g.Location + 8);
     }
@@ -185,7 +186,7 @@ public sealed class WorldReader
             };
         }
 
-        return new NpcInfo(
+        var npc = new NpcInfo(
             b.Address,
             b.UInt32(n.Wid),
             (NpcKind)b.Int32(n.Type),
@@ -198,6 +199,23 @@ public sealed class WorldReader
         {
             Level = (int)Field(b, n.Level),
         };
+        return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
+            ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius }
+            : npc;
+    }
+
+    // Запись моба в справочнике не меняется, пока клиент запущен, — у каждой читаем один раз
+    private (bool Aggressive, int Radius)? ReadMonster(uint record)
+    {
+        if (record == 0)
+            return null;
+        if (_monsters.TryGetValue(record, out var known))
+            return known;
+
+        var m = _p.MonsterEssence;
+        if (!_memory.TryReadUInt32(record + m.Aggressive, out var aggressive) || !_memory.TryReadUInt32(record + m.AggroRadius, out var radius))
+            return null;
+        return _monsters[record] = (aggressive != 0, unchecked((int)radius));
     }
 
     private GroundItem? ReadGroundItem(MemoryBlock b)
