@@ -20,7 +20,8 @@ public sealed class SpotRow(ResourceSpot spot) : ObservableObject
 
     public string State { get => _state; private set => SetProperty(ref _state, value); }
 
-    public void Update(float distance, bool present, DateTime now)
+    /// <param name="gone">Когда ресурс выкопали на сервере подключённого клиента.</param>
+    public void Update(float distance, bool present, DateTime? gone, DateTime now)
     {
         if (float.IsNaN(_distance) || Math.Abs(distance - _distance) >= 1)
         {
@@ -30,7 +31,7 @@ public sealed class SpotRow(ResourceSpot spot) : ObservableObject
         }
 
         State = present ? "есть"
-            : Spot.GoneAt is { } gone ? $"выкопан {Ago(now - gone)}"
+            : gone is { } dug ? $"выкопан {Ago(now - dug)}"
             : Spot.LastSeen is { } seen ? $"видели {Ago(now - seen)}"
             : "ещё не видели";
     }

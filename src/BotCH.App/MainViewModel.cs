@@ -91,6 +91,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _spots = new SpotBook(_spotStore.Load(out var spotsProblem), logger.For("ресурсы"));
         if (spotsProblem is not null)
             _log.Warning(spotsProblem);
+        _spots.Consolidate();
         ImportLocalSpots(Path.Combine(appDirectory, "resources.json"));
         _spotJournal = new SpotJournal(Path.Combine(shared, "resource-events.csv"));
         _spots.Happened += WriteSpotEvent;
@@ -678,7 +679,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             if (!rows.TryGetValue(spot, out var row))
                 SpotRows.Add(row = new SpotRow(spot));
-            row.Update(here.HorizontalDistanceTo(spot.Position), _spots.IsPresent(spot), w.Time);
+            row.Update(here.HorizontalDistanceTo(spot.Position), _spots.IsPresent(spot), spot.GoneOn(_spots.Server), w.Time);
         }
 
         // Ближние сверху; Move, а не пересборка — выделение не сбрасывается

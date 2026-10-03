@@ -13,14 +13,17 @@ namespace BotCH.Core.Resources;
 /// </summary>
 public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = null)
 {
-    /// <summary>Ресурс с тем же названием ближе — та же точка (появился снова с разбросом).</summary>
-    public const float MergeRadius = 20f;
+    /// <summary>
+    /// Ресурс с тем же названием ближе — та же точка (участок), если у неё на этом сервере нет другого номера:
+    /// участок ~110 м в поперечнике, от центра до ~55 м.
+    /// </summary>
+    public const float MergeRadius = 60f;
 
     /// <summary>
-    /// Тот же номер ресурса — та же точка, если ближе этого: разброс бывает и больше <see cref="MergeRadius"/>,
-    /// а дальше — номер, видимо, достался другому месту (после перезапуска сервера номера могут быть другими).
+    /// Тот же номер ресурса — та же точка, если ближе этого: возрождается в другом месте участка, до ~110 м от прошлого;
+    /// дальше — номер, видимо, достался другому месту (после перезапуска сервера номера могут быть другими).
     /// </summary>
-    public const float SameIdRadius = 50f;
+    public const float SameIdRadius = 130f;
 
     /// <summary>
     /// Ближе к точке клиент видит ресурсы наверняка. Замер 2026-10-03: пропадают и появляются пачками на 90–125 м, но
@@ -29,8 +32,11 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     /// </summary>
     public const float SureVisible = 50f;
 
-    /// <summary>Ближе к точке без ресурса (и мы его не копали) — «пусто»: выкопал кто-то другой или ещё не появился.</summary>
-    public const float EmptyCheck = SureVisible;
+    /// <summary>
+    /// Ближе к центру точки без ресурса (и мы его не копали) — «пусто»: выкопал кто-то другой или ещё не появился.
+    /// Ресурс может быть в ~55 м от центра, а виден наверняка с ~80 м — отсюда видно весь участок.
+    /// </summary>
+    public const float EmptyCheck = 25f;
     private static readonly TimeSpan EmptyAfter = TimeSpan.FromSeconds(3);
 
     // Пропал на столько подряд — правда пропал, а не мигнул список (загрузка после телепорта)
@@ -43,6 +49,8 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     private readonly List<ResourceSpot> _spots = spots.Where(s => s.Name.Length > 0).ToList();
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly HashSet<ResourceSpot> _present = [];
+    // Где ресурс точки виден сейчас (точка — участок, ресурс может быть далеко от центра)
+    private readonly Dictionary<ResourceSpot, Position> _at = [];
     private readonly Dictionary<ResourceSpot, DateTime> _missingSince = [];
     // Удалённые за эту сессию: слияние с файлом не возвращает их обратно
     private readonly List<ResourceSpot> _removed = [];
@@ -98,22 +106,26 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
         foreach (var item in w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && !i.Special && i.Name.Trim().Length > 0 && i.Position.IsFinite))
         {
             var name = item.Name.Trim();
-            var spot = ById(name, item.Id, item.Position, seen) ?? Nearest(name, item.Position, MergeRadius, exclude: seen) ?? AddSeen(item, host, now);
+            var spot = ById(name, item.Id, item.Position, seen) ?? Nearest(name, item.Position, MergeRadius, exclude: seen, id: item.Id)
+                ?? AddSeen(item, host, now);
             seen.Add(spot);
             if (Server.Length > 0 && item.Id != 0 && (!spot.Ids.TryGetValue(Server, out var id) || id != item.Id))
                 (spot.Ids[Server], Changed) = (item.Id, true);
             if (!_present.Contains(spot))
                 Appeared(spot, item, host, now);
+            _at[spot] = item.Position;
             spot.LastSeen = now;
         }
 
         foreach (var spot in _present.Where(s => !seen.Contains(s)).ToList())
         {
             // Ушли дальше — просто не видно. Ближе SureVisible — исчез у нас на глазах
-            if (host.HorizontalDistanceTo(spot.Position) > SureVisible)
+            var at = _at.TryGetValue(spot, out var where) ? where : spot.Position;
+            if (host.HorizontalDistanceTo(at) > SureVisible)
             {
                 _present.Remove(spot);
                 _missingSince.Remove(spot);
+                _at.Remove(spot);
                 continue;
             }
 
@@ -127,14 +139,15 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
 
             _present.Remove(spot);
             _missingSince.Remove(spot);
-            spot.GoneAt = since;
+            _at.Remove(spot);
+            spot.Gone[Server] = since;
             Changed = true;
             var (who, gained, digSeconds) = WhoDug(w, spot, since);
             var loot = string.Join(", ", gained.Select(g => $"{g.Key}×{g.Value}"));
             _log.Info(who == "мы"
                 ? $"{spot.Name}: выкопали мы (копка {digSeconds:0.0} с), в сумку {(loot.Length > 0 ? loot : "ничего не прибавилось")}"
-                : $"{spot.Name} пропал, {host.HorizontalDistanceTo(spot.Position):0} м — " + (who == "другой" ? "выкопал кто-то другой" : "кто — не видно"));
-            Tell(SpotEventKind.Dug, since, spot, spot.Position, IdHere(spot), host, who: who, gained: gained, digSeconds: digSeconds);
+                : $"{spot.Name} пропал, {host.HorizontalDistanceTo(at):0} м — " + (who == "другой" ? "выкопал кто-то другой" : "кто — не видно"));
+            Tell(SpotEventKind.Dug, since, spot, at, IdHere(spot), host, who: who, gained: gained, digSeconds: digSeconds);
         }
 
         foreach (var spot in seen)
@@ -191,7 +204,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
                 _emptyReported.Remove(spot);
                 continue;
             }
-            if (distance > EmptyCheck || spot.GoneAt is not null || _emptyReported.Contains(spot))
+            if (distance > EmptyCheck || spot.GoneOn(Server) is not null || _emptyReported.Contains(spot))
                 continue;
 
             if (!_emptySince.TryGetValue(spot, out var since))
@@ -216,6 +229,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     public void Forget()
     {
         _present.Clear();
+        _at.Clear();
         _missingSince.Clear();
         _emptySince.Clear();
         _emptyReported.Clear();
@@ -248,6 +262,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
             return false;
 
         _present.Remove(spot);
+        _at.Remove(spot);
         _missingSince.Remove(spot);
         _removed.Add(spot);
         Changed = true;
@@ -277,8 +292,14 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
 
             if (o.LastSeen > spot.LastSeen)
                 spot.LastSeen = o.LastSeen;
-            if (o.GoneAt is { } gone && !_present.Contains(spot) && gone > (spot.GoneAt ?? DateTime.MinValue) && gone > (spot.LastSeen ?? DateTime.MinValue))
-                spot.GoneAt = gone;
+            // Копки — по серверам, самая свежая; ресурс нашего сервера сейчас виден — он не выкопан
+            foreach (var gone in o.Gone)
+            {
+                if (gone.Key == Server && _present.Contains(spot))
+                    continue;
+                if (spot.GoneOn(gone.Key) is not { } known || gone.Value > known)
+                    spot.Gone[gone.Key] = gone.Value;
+            }
             spot.Seen = Math.Max(spot.Seen, o.Seen);
             spot.Spread = Math.Max(spot.Spread, o.Spread);
             foreach (var id in o.Ids.Where(id => !spot.Ids.ContainsKey(id.Key)))
@@ -287,7 +308,67 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
 
         if (added > 0)
             _log.Debug($"Из общего файла добавлено точек: {added}, всего {_spots.Count}");
+        Consolidate();
         return added;
+    }
+
+    /// <summary>
+    /// Склеить точки одного участка: то же название и тот же номер на каком-то сервере (и нигде не разные номера).
+    /// Раньше точка считалась местом (сливались только ближе 20 м), и возродившийся в другом углу участка ресурс
+    /// заводил новую точку.
+    /// </summary>
+    public void Consolidate()
+    {
+        var merged = 0;
+        for (var i = 0; i < _spots.Count; i++)
+        {
+            for (var j = _spots.Count - 1; j > i; j--)
+            {
+                var (a, b) = (_spots[i], _spots[j]);
+                if (!a.Name.Equals(b.Name, StringComparison.OrdinalIgnoreCase) || a.Position.HorizontalDistanceTo(b.Position) > SameIdRadius
+                    || !a.Ids.Any(id => b.Ids.TryGetValue(id.Key, out var other) && other == id.Value)
+                    || a.Ids.Any(id => b.Ids.TryGetValue(id.Key, out var other) && other != id.Value))
+                    continue;
+
+                Fold(a, b);
+                _spots.RemoveAt(j);
+                if (_present.Remove(b))
+                    _present.Add(a);
+                if (_at.TryGetValue(b, out var at))
+                {
+                    _at[a] = at;
+                    _at.Remove(b);
+                }
+                _missingSince.Remove(b);
+                merged++;
+            }
+        }
+
+        if (merged == 0)
+            return;
+        Changed = true;
+        _log.Info($"Склеено точек одного участка: {merged}, всего точек {_spots.Count}");
+    }
+
+    // b — та же точка, что a: центр — среднее по числу появлений, остальное — самое полное
+    private static void Fold(ResourceSpot a, ResourceSpot b)
+    {
+        var (wa, wb) = (Math.Max(a.Seen, 1), Math.Max(b.Seen, 1));
+        var center = new Position(
+            (a.X * wa + b.X * wb) / (wa + wb), (a.Height * wa + b.Height * wb) / (wa + wb), (a.Y * wa + b.Y * wb) / (wa + wb));
+        a.Spread = Math.Max(a.Spread + a.Position.HorizontalDistanceTo(center), b.Spread + b.Position.HorizontalDistanceTo(center));
+        a.Position = center;
+        a.Seen += b.Seen;
+        if (a.LastSeen is null || b.LastSeen > a.LastSeen)
+            a.LastSeen = b.LastSeen;
+        foreach (var gone in b.Gone)
+        {
+            if (a.GoneOn(gone.Key) is not { } known || gone.Value > known)
+                a.Gone[gone.Key] = gone.Value;
+        }
+        foreach (var id in b.Ids.Where(id => !a.Ids.ContainsKey(id.Key)))
+            a.Ids[id.Key] = id.Value;
+        a.Manual |= b.Manual;
     }
 
     // Одна и та же точка в двух списках: тот же номер на каком-то сервере, иначе то же название ближе MergeRadius
@@ -300,9 +381,11 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
             || (distance <= SameIdRadius && a.Ids.Any(id => b.Ids.TryGetValue(id.Key, out var other) && other == id.Value));
     }
 
-    private ResourceSpot? Nearest(string name, Position position, float radius, ISet<ResourceSpot>? exclude = null)
+    // id — номер увиденного ресурса: точка, у которой на этом сервере другой номер, — соседний участок, не эта
+    private ResourceSpot? Nearest(string name, Position position, float radius, ISet<ResourceSpot>? exclude = null, uint id = 0)
         => _spots
-            .Where(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && exclude?.Contains(s) != true)
+            .Where(s => s.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && exclude?.Contains(s) != true
+                        && (id == 0 || Server.Length == 0 || !s.Ids.TryGetValue(Server, out var known) || known == id))
             .Select(s => (Spot: s, Distance: s.Position.HorizontalDistanceTo(position)))
             .Where(x => x.Distance <= radius)
             .OrderBy(x => x.Distance)
@@ -330,7 +413,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
         if (spot.Seen > 0)
         {
             // Видели, как выкопали, — это новое появление; иначе точка просто снова попала в поле зрения
-            if (spot.GoneAt is { } gone)
+            if (spot.GoneOn(Server) is { } gone)
             {
                 var after = now - gone;
                 _log.Info($"{spot.Name} появился снова через {after.TotalMinutes:0.0} мин после копки, в {fromCenter:0} м от центра точки");
@@ -345,7 +428,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
         _present.Add(spot);
         _emptySince.Remove(spot);
         _emptyReported.Remove(spot);
-        spot.GoneAt = null;
+        spot.Gone.Remove(Server);
         if (spot.Seen == 0)
         {
             // Ручная точка — туда, где ресурс правда появился

@@ -12,7 +12,8 @@ namespace BotCH.Tests.Resources;
 public class SpotBookTests : IDisposable
 {
     private readonly FakeWorld _world = new();
-    private readonly SpotBook _book = new([]) { Server = "comeback146" };
+    private const string Server = "comeback146";
+    private readonly SpotBook _book = new([]) { Server = Server };
     private readonly string _file = Path.Combine(Path.GetTempPath(), "botch-spots-" + Guid.NewGuid().ToString("N") + ".json");
     private uint _nextId = 0xC0100E80;
 
@@ -51,7 +52,7 @@ public class SpotBookTests : IDisposable
     [Fact]
     public void SeenResourceBecomesSpotAndSameNameNearbyIsSameSpot()
     {
-        Resource("Высохший древесный корень", 10);
+        var root = Resource("Высохший древесный корень", 10);
         Observe();
         Assert.Single(_book.Spots);
 
@@ -62,7 +63,7 @@ public class SpotBookTests : IDisposable
             Observe();
         _world.Position = new Position(0, 0, 0);
         Observe();
-        Resource("Высохший древесный корень", 16);
+        _world.Ground.Add(root with { Position = new Position(16, 0, 0) });
         Observe();
 
         var spot = Assert.Single(_book.Spots);
@@ -87,7 +88,7 @@ public class SpotBookTests : IDisposable
         var spot = Assert.Single(_book.Spots);
         Assert.Equal(root.Id, spot.Ids["comeback146"]);
         Assert.Equal(2, spot.Seen);
-        Assert.Null(spot.GoneAt);
+        Assert.Null(spot.GoneOn(Server));
 
         // Тот же номер, но в 200 м — другое место
         _world.Ground.Clear();
@@ -156,7 +157,7 @@ public class SpotBookTests : IDisposable
             Observe();
 
         var spot = Assert.Single(_book.Spots);
-        Assert.Null(spot.GoneAt);
+        Assert.Null(spot.GoneOn(Server));
         Assert.False(_book.IsPresent(spot));
     }
 
@@ -171,9 +172,9 @@ public class SpotBookTests : IDisposable
         Observe();
         var gone = _world.Time;
         Observe(1);
-        Assert.Null(_book.Spots[0].GoneAt);
+        Assert.Null(_book.Spots[0].GoneOn(Server));
         Observe(1.5);
-        Assert.Equal(gone, _book.Spots[0].GoneAt);
+        Assert.Equal(gone, _book.Spots[0].GoneOn(Server));
         Assert.True(_book.Changed);
     }
 
@@ -189,7 +190,7 @@ public class SpotBookTests : IDisposable
         Observe(1);
         _world.Ground.Add(item);
         Observe(1);
-        Assert.Null(_book.Spots[0].GoneAt);
+        Assert.Null(_book.Spots[0].GoneOn(Server));
 
         // Телепорт рядом с точкой: всё, что было видно, забыто — пропажа не засчитывается
         _world.Ground.Clear();
@@ -198,22 +199,22 @@ public class SpotBookTests : IDisposable
         _world.Position = new Position(5, 0, 0);
         for (var i = 0; i < 12; i++)
             Observe();
-        Assert.Null(_book.Spots[0].GoneAt);
+        Assert.Null(_book.Spots[0].GoneOn(Server));
     }
 
     [Fact]
     public void AppearedAgainClearsGone()
     {
-        Resource("Шалфей", 10);
+        var sage = Resource("Шалфей", 10);
         Observe();
         _world.Ground.Clear();
         for (var i = 0; i < 12; i++)
             Observe();
-        Assert.NotNull(_book.Spots[0].GoneAt);
+        Assert.NotNull(_book.Spots[0].GoneOn(Server));
 
-        Resource("Шалфей", 11);
+        _world.Ground.Add(sage with { Position = new Position(11, 0, 0) });
         Observe();
-        Assert.Null(_book.Spots[0].GoneAt);
+        Assert.Null(_book.Spots[0].GoneOn(Server));
         Assert.True(_book.IsPresent(_book.Spots[0]));
     }
 
@@ -254,7 +255,7 @@ public class SpotBookTests : IDisposable
         var dug = _world.Time.AddMinutes(1);
         var other = new[]
         {
-            new ResourceSpot { Name = "Шалфей", X = 14, Seen = 3, LastSeen = _world.Time.AddSeconds(30), GoneAt = dug, Ids = { ["pwclassic136"] = 7 } },
+            new ResourceSpot { Name = "Шалфей", X = 14, Seen = 3, LastSeen = _world.Time.AddSeconds(30), Gone = { [Server] = dug }, Ids = { ["pwclassic136"] = 7 } },
             new ResourceSpot { Name = "Высохший древесный корень", X = 300, Seen = 1 },
         };
         _world.Ground.Clear();
@@ -262,7 +263,7 @@ public class SpotBookTests : IDisposable
 
         Assert.Equal(1, _book.Merge(other));
         Assert.Equal(2, _book.Spots.Count);
-        Assert.Equal(dug, mine.GoneAt);
+        Assert.Equal(dug, mine.GoneOn(Server));
         Assert.Equal(3, mine.Seen);
         Assert.Equal(7u, mine.Ids["pwclassic136"]);
 
@@ -303,12 +304,12 @@ public class SpotBookTests : IDisposable
         var book = new SpotBook([new ResourceSpot { Name = "Шалфей", X = 50, Seen = 2 }]) { Server = "comeback146" };
         book.Happened += events.Add;
 
-        // Далеко (70 м) — молчим; подошли на 40 м и постояли 3 с — «пусто», один раз
+        // Далеко (70 м) — молчим; подошли на 20 м к центру и постояли 3 с — «пусто», один раз
         _world.Position = new Position(-20, 0, 0);
         for (var i = 0; i < 20; i++)
             book.Observe(_world.Wait(0.25).Snapshot());
         Assert.Empty(events);
-        for (var x = 0; x <= 10; x += 10)
+        for (var x = 0; x <= 30; x += 10)
         {
             _world.Position = new Position(x, 0, 0);
             book.Observe(_world.Wait(0.25).Snapshot());
@@ -358,6 +359,88 @@ public class SpotBookTests : IDisposable
         Assert.Equal(("Высохший древесный корень", "мы", "3074×1"), (dug[0].Name, dug[0].Who, dug[0].Loot));
         Assert.Equal(5, dug[0].DigSeconds!.Value, 1);
         Assert.Equal(("Шалфей", "другой"), (dug[1].Name, dug[1].Who));
+    }
+
+    [Fact]
+    public void ResourceRespawnsAnywhereInItsAreaWithSameId()
+    {
+        // Как в игре: тот же номер возродился в 90 м от прежнего места — тот же участок, не новая точка
+        var root = Resource("Высохший древесный корень", 10);
+        Observe();
+        _world.Ground.Clear();
+        for (var i = 0; i < 12; i++)
+            Observe();
+
+        _world.Ground.Add(root with { Position = new Position(-80, 0, 0) });
+        Observe();
+
+        var spot = Assert.Single(_book.Spots);
+        Assert.Null(spot.GoneOn(Server));
+        Assert.True(_book.IsPresent(spot));
+    }
+
+    [Fact]
+    public void OtherIdNearbyIsNeighbourArea()
+    {
+        // Корень с другим номером в 30 м от точки, у которой на этом сервере свой номер, — соседний участок
+        Resource("Высохший древесный корень", 10);
+        Observe();
+        Resource("Высохший древесный корень", 40);
+        Observe();
+
+        Assert.Equal(2, _book.Spots.Count);
+    }
+
+    [Fact]
+    public void ResourceFarFromCenterIsWatchedWhereItIs()
+    {
+        // Точка — участок с центром в 0; ресурс сейчас в 50 м от центра, перс рядом с ним (в 60 м от центра):
+        // ресурс пропал — это копка, а не «ушёл из виду»
+        var spot = new ResourceSpot { Name = "Шалфей", Seen = 5, Ids = { [Server] = 0xC0100B37 } };
+        var book = new SpotBook([spot]) { Server = Server };
+        var sage = new GroundItem(1, 0xC0100B37, 3536, GroundItemKind.Resource, new Position(50, 0, 0), 0, "Шалфей");
+        _world.Ground.Add(sage);
+        _world.Position = new Position(60, 0, 0);
+        book.Observe(_world.Wait(0.25).Snapshot());
+
+        _world.Ground.Clear();
+        for (var i = 0; i < 12; i++)
+            book.Observe(_world.Wait(0.25).Snapshot());
+
+        Assert.NotNull(spot.GoneOn(Server));
+    }
+
+    [Fact]
+    public void DigOnOneServerMeansNothingOnAnother()
+    {
+        // Общий файл точек: копка на 1.3.6 не делает ресурс 1.4.6 «выкопанным»
+        var dug = _world.Time.AddMinutes(-3);
+        var spot = new ResourceSpot { Name = "Шалфей", Seen = 2, Gone = { ["pwclassic136"] = dug } };
+        var book = new SpotBook([spot]) { Server = Server };
+
+        Assert.Null(spot.GoneOn(Server));
+        Assert.Equal(dug, spot.GoneOn("pwclassic136"));
+
+        // Слияние с файлом другой копии тоже держит копки по серверам
+        book.Merge([new ResourceSpot { Name = "Шалфей", Seen = 2, Gone = { [Server] = dug.AddMinutes(1) } }]);
+        Assert.Equal((dug.AddMinutes(1), dug), (spot.GoneOn(Server)!.Value, spot.GoneOn("pwclassic136")!.Value));
+    }
+
+    [Fact]
+    public void SpotsOfOneAreaAreGluedTogether()
+    {
+        // Раньше одна точка на место: возродившийся в 40 м ресурс с тем же номером заводил вторую точку
+        var a = new ResourceSpot { Name = "Шалфей", X = 0, Seen = 3, Ids = { [Server] = 7 } };
+        var b = new ResourceSpot { Name = "Шалфей", X = 40, Seen = 1, Ids = { [Server] = 7, ["pwclassic136"] = 9 }, Gone = { [Server] = _world.Time } };
+        var other = new ResourceSpot { Name = "Шалфей", X = 20, Seen = 1, Ids = { [Server] = 8 } };
+        var book = new SpotBook([a, b, other]) { Server = Server };
+
+        book.Consolidate();
+
+        Assert.Equal([a, other], book.Spots);
+        Assert.Equal((10f, 4, 9u), (a.X, a.Seen, a.Ids["pwclassic136"]));
+        Assert.Equal(_world.Time, a.GoneOn(Server));
+        Assert.True(book.Changed);
     }
 
     [Fact]
