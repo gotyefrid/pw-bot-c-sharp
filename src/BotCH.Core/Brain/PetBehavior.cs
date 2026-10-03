@@ -1,3 +1,4 @@
+using System;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
 
@@ -10,7 +11,11 @@ namespace BotCH.Core.Brain;
 /// </summary>
 public sealed class PetBehavior : IBehavior
 {
+    // Свой каст (лечение, воскрешение) может идти дольше, чем ждёт подтверждение, — его не прерываем
+    private static readonly TimeSpan OwnCastWindow = TimeSpan.FromSeconds(10);
+
     private readonly PetFeeding _feeding = new();
+    private DateTime _ownCastAt = DateTime.MinValue;
 
     public string Name => "пет";
     public string? Status { get; private set; }
@@ -55,6 +60,7 @@ public sealed class PetBehavior : IBehavior
                 return true;
             if (c.Send(new RevivePetAction(settings.Cage, c.Skills.RevivePet)) != SubmitStatus.Sent)
                 return false;
+            _ownCastAt = c.Now;
             c.Log.Info("Пет мёртв — воскрешаю");
             return true;
         }
@@ -74,7 +80,10 @@ public sealed class PetBehavior : IBehavior
             // Тело всё ещё занято (прерывать нечем) — вылечим, как освободится; пока не мешаем остальным
             var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета"));
             if (heal == SubmitStatus.Sent)
+            {
+                _ownCastAt = c.Now;
                 c.Log.Info($"HP пета {inCage.HpPercent} % < {settings.HealPercent} % — лечу");
+            }
             if (heal is SubmitStatus.Sent or SubmitStatus.AlreadyPending)
             {
                 Status = "лечу пета";
@@ -102,7 +111,7 @@ public sealed class PetBehavior : IBehavior
     /// Освободить тело ради пета. true — ждём (отправлена отмена каста/копания, она ещё идёт); false — можно слать сразу
     /// (тело свободно, ждущее действие забыто, или это наше же лечение/воскрешение).
     /// </summary>
-    private static bool FreeBody(BrainContext c, string why)
+    private bool FreeBody(BrainContext c, string why)
     {
         var w = c.World;
         var body = c.Runner.BodyAction;
@@ -122,6 +131,10 @@ public sealed class PetBehavior : IBehavior
         var digging = w.Host.Gather is { Active: true };
         if (!w.Host.IsCasting && !digging)
             return false;
+
+        // Кастуем, а поверх ничего не отправляли — это ещё наше лечение/воскрешение (подтверждение не дождалось конца каста)
+        if (!digging && body is null && c.Now - _ownCastAt < OwnCastWindow)
+            return true;
         if (!c.Runner.Actions.CanCancel)
             return false;
 
@@ -136,5 +149,9 @@ public sealed class PetBehavior : IBehavior
             c.Log.Info(_feeding.Report(feed.Item.Tid, outcome.Status == ActionStatus.Confirmed, c.Now));
     }
 
-    public void Reset() => Status = null;
+    public void Reset()
+    {
+        Status = null;
+        _ownCastAt = DateTime.MinValue;
+    }
 }

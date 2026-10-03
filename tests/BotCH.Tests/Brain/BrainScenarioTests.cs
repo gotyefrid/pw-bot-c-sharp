@@ -958,4 +958,21 @@ public class BrainScenarioTests
 
         Assert.DoesNotContain("select 80000002", _actions.Calls);
     }
+
+    [Fact]
+    public void PetHealDoesNotInterruptItself()
+    {
+        // Лечение не подтвердилось за 5 с, а каст ещё идёт — это наш каст, отмену не шлём
+        PetNeedsHealSoon();
+        _world.SetPet(1, hpRatio: 0.4f);
+        Tick();
+        Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
+
+        _world.Casting = true;
+        Tick(5.5);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("cancel", _actions.Calls);
+    }
 }
