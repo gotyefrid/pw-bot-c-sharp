@@ -38,11 +38,16 @@
   "name": "PW Classic 1.3.6",
   "clientProcessName": "elementclient",
 
+  // Архивы .pck (configs.pck → названия скиллов) — со стандартными ключами Angelica, поэтому gameFiles.pck здесь не задан
+  // (на 1.4.6 ключи свои). Проверено: Probe snapshot показывает названия скиллов
+
   "base": {
     // Тот же указатель, что использует SendGameData: [0x9B3EEC] = [0x400000 + 0x5B3EEC]
     "basePointer": "0x5B3EEC",
     "game": "0x1C",
     "unfreeze": "0x48C"
+    // session (объект связи, this для отправки на 1.4.6) здесь не нужен: функции отправки c2s_* — cdecl и сами берут
+    // его из [[0x9B3EEC] + 0x20]
   },
 
   // Персонаж: [game + 0x20]. Это объект CECHostPlayer (vtable 0x8D74C8)
