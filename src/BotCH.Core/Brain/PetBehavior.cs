@@ -13,6 +13,8 @@ public sealed class PetBehavior : IBehavior
 {
     // Свой каст (лечение, воскрешение) может идти дольше, чем ждёт подтверждение, — его не прерываем
     private static readonly TimeSpan OwnCastWindow = TimeSpan.FromSeconds(10);
+    // Лечение не пошло — жмём снова быстро. Подтверждение (перезарядка) в игре видно через 1,8–2,1 с, поэтому не 2 с
+    private static readonly TimeSpan HealTimeout = TimeSpan.FromSeconds(2.5);
 
     private readonly PetFeeding _feeding = new();
     private DateTime _ownCastAt = DateTime.MinValue;
@@ -78,7 +80,7 @@ public sealed class PetBehavior : IBehavior
                 return true;
 
             // Тело всё ещё занято (прерывать нечем) — вылечим, как освободится; пока не мешаем остальным
-            var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета"));
+            var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета", HealTimeout));
             if (heal == SubmitStatus.Sent)
             {
                 _ownCastAt = c.Now;

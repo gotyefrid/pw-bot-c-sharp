@@ -135,12 +135,15 @@ public sealed class NormalAttackAction : GameAction
 public sealed class SkillAction : GameAction
 {
     private readonly bool _approach;
+    private readonly TimeSpan? _timeout;
 
     /// <param name="skill">ID скилла.</param>
     /// <param name="targetWid">Цель; 0 — текущая цель перса (approach) или без цели (пакет).</param>
     /// <param name="approach">Как кнопкой: клиент сам подходит на дальность. Иначе — пакетом.</param>
-    public SkillAction(int skill, uint targetWid, bool approach, string? title = null)
+    /// <param name="timeout">Сколько ждать подтверждения; по умолчанию 5 с (как кнопкой) или 8 с (пакетом).</param>
+    public SkillAction(int skill, uint targetWid, bool approach, string? title = null, TimeSpan? timeout = null)
     {
+        _timeout = timeout;
         Skill = skill;
         TargetWid = targetWid;
         _approach = approach;
@@ -155,7 +158,7 @@ public sealed class SkillAction : GameAction
     public override string Key => $"скилл {Skill}";
     public override ActionResource Resource => ActionResource.Body;
     // Как кнопкой: не дождались за 5 с — бот просто нажмёт ещё раз (клиент продолжит подход), долго ждать незачем
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(_approach ? 5 : 8);
+    public override TimeSpan Timeout => _timeout ?? TimeSpan.FromSeconds(_approach ? 5 : 8);
 
     public override string? Precondition(WorldState now)
         => now.Skill(Skill) switch
