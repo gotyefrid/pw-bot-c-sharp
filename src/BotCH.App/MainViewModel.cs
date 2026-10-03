@@ -814,6 +814,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Кого звать в воздухе: «авто» и питомцы, которые летают.</summary>
     public ObservableCollection<PetChoice> AirPets { get; } = new();
 
+    /// <summary>Кого звать в воде: «авто» и питомцы, которые живут в воде.</summary>
+    public ObservableCollection<PetChoice> WaterPets { get; } = new();
+
     private bool _knowsPetHabitats;
     private bool _syncingPets;
 
@@ -830,6 +833,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         get => _settings.Pet.AirPet;
         set => SetPet(value, () => _settings.Pet.AirPet, v => _settings.Pet.AirPet = v);
+    }
+
+    public string WaterPet
+    {
+        get => _settings.Pet.WaterPet;
+        set => SetPet(value, () => _settings.Pet.WaterPet, v => _settings.Pet.WaterPet = v);
     }
 
     // Пересборка списка сбрасывает выбор — это не выбор пользователя
@@ -851,6 +860,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         Sync(GroundPets, Choices(cages, PetHabitat.Ground, _settings.Pet.GroundPet), nameof(GroundPet));
         Sync(AirPets, Choices(cages, PetHabitat.Air, _settings.Pet.AirPet), nameof(AirPet));
+        Sync(WaterPets, Choices(cages, PetHabitat.Water, _settings.Pet.WaterPet), nameof(WaterPet));
     }
 
     private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, PetHabitat where, string chosen)
@@ -923,6 +933,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Settings));
         OnPropertyChanged(nameof(GroundPet));
         OnPropertyChanged(nameof(AirPet));
+        OnPropertyChanged(nameof(WaterPet));
     }
 
     public void Dispose()
@@ -1234,6 +1245,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Settings));
         OnPropertyChanged(nameof(GroundPet));
         OnPropertyChanged(nameof(AirPet));
+        OnPropertyChanged(nameof(WaterPet));
         LoadNameLists();
         LoadFarmCenters();
         LoadRoute();
@@ -1289,6 +1301,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public bool ShowResourcesTab => _settings.Mode == BotMode.GatherResources;
+    public bool ShowMobsTab => _settings.Mode == BotMode.FarmMobs;
     public bool ShowClickerTab => _settings.Mode == BotMode.Clicker;
 
     private void ModeChanged()
@@ -1296,15 +1309,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Mode));
         OnPropertyChanged(nameof(ShowResourcesTab));
         OnPropertyChanged(nameof(ShowClickerTab));
+        OnPropertyChanged(nameof(ShowMobsTab));
         // Вкладка исчезла — на «Бот»
-        if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab))
+        if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab) || (Tab == TabMobs && !ShowMobsTab))
             Tab = 0;
     }
 
+    public const int TabMobs = 1;
     public const int TabResources = 3;
     public const int TabClicker = 4;
 
-    /// <summary>Чьи настройки сейчас на вкладке «Настройки».</summary>
+    /// <summary>Чьи настройки сейчас на вкладках «Мобы» и «Общее».</summary>
     public string SettingsOwner => _nick is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_nick}";
 
     private static void OnUi(Action action)

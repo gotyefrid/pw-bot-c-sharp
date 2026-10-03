@@ -103,7 +103,9 @@
                        Visibility="{Binding ShowResourcesTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Кликер" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=4}"
                        Visibility="{Binding ShowClickerTab, Converter={StaticResource Visible}}" />
-          <RadioButton Style="{StaticResource Segment}" Content="Настройки" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Мобы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}"
+                       Visibility="{Binding ShowMobsTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Общее" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=5}" />
           <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
         </StackPanel>
       </Border>
@@ -286,7 +288,7 @@
       </DockPanel>
     </Border>
 
-    <!-- Настройки бота: любое изменение сразу сохраняется и уходит работающему боту (SettingChanged) -->
+    <!-- Мобы — что делает режим «Бить мобов»: кого бить и где: любое изменение сразу сохраняется и уходит работающему боту (SettingChanged) -->
     <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
                   Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=1}"
                   ToggleButton.Checked="SettingChanged" ToggleButton.Unchecked="SettingChanged"
@@ -296,37 +298,10 @@
                    ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
         <Border Style="{StaticResource Card}">
           <StackPanel>
-            <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
+            <TextBlock Text="МОБЫ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Нападать на мобов" IsChecked="{Binding Settings.Target.KillMobs}"
                       ToolTip="Выключено — бот только пьёт банки и следит за петом" />
-            <DockPanel Style="{StaticResource SettingRow}">
-              <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
-              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding AttackSkills}" DisplayMemberPath="Title"
-                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}" />
-            </DockPanel>
-            <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
-            <DockPanel Style="{StaticResource SettingRow}">
-              <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
-                        ToolTip="Сначала подойти к мобу на это расстояние, потом бить. Пока бежим — не бьём, пока бьём — не бежим" />
-              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
-                        SelectedValuePath="Path" SelectedValue="{Binding Settings.Combat.ApproachPath}"
-                        Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
-                        ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="40" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
-            </DockPanel>
-            <DockPanel Style="{StaticResource SettingRow}">
-              <TextBlock Text="Бросить моба через, с" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.MobTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" />
-            </DockPanel>
-          </StackPanel>
-        </Border>
-
-        <Border Style="{StaticResource Card}">
-          <StackPanel>
-            <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
-            <CheckBox Style="{StaticResource Switch}" Content="Снимать мобов с меня петом" IsChecked="{Binding Settings.Target.PetTakesAggro}"
-                      ToolTip="Моб бьёт персонажа — бой сразу переходит на него, и пет тоже: он прочнее, пусть держит всех. Прежний моб подождёт. Без пета не действует" />
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Радиус фарма, м" VerticalAlignment="Center"
                          ToolTip="Новые цели (мобы, ресурсы) — только в этом радиусе от центра фарма. Кто бьёт вас или пета — всегда. 0 — без ограничения" />
@@ -354,11 +329,50 @@
                         Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
             </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Копать ресурсы в радиусе фарма" IsChecked="{Binding Settings.Loot.PickResources}"
+                      ToolTip="Сначала все ресурсы, потом мобы. Что копать — по списку лута (вкладка «Общее»). Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше" />
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
             <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
                            Selected="{Binding MobNames}" Options="{Binding MobOptions}"
                            Placeholder="Мобы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
                            ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Общее — как бот бьёт, лутает, лечится и зовёт пета в любом режиме: любое изменение сразу сохраняется и уходит работающему боту (SettingChanged) -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=5}"
+                  ToggleButton.Checked="SettingChanged" ToggleButton.Unchecked="SettingChanged"
+                  TextBoxBase.TextChanged="SettingChanged" Selector.SelectionChanged="SettingChanged">
+      <StackPanel>
+        <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
+                   ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding AttackSkills}" DisplayMemberPath="Title"
+                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
+                        ToolTip="Сначала подойти к мобу на это расстояние, потом бить. Пока бежим — не бьём, пока бьём — не бежим" />
+              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
+                        SelectedValuePath="Path" SelectedValue="{Binding Settings.Combat.ApproachPath}"
+                        Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
+                        ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="40" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Снимать мобов с меня петом" IsChecked="{Binding Settings.Target.PetTakesAggro}"
+                      ToolTip="Моб бьёт персонажа — бой сразу переходит на него, и пет тоже: он прочнее, пусть держит всех. Прежний моб подождёт. Без пета не действует" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Бросить моба через, с" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.MobTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
           </StackPanel>
         </Border>
 
@@ -377,8 +391,6 @@
             <WrapPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4" />
               <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" Margin="0,4,18,4" />
-              <CheckBox Style="{StaticResource Switch}" Content="Ресурсы" IsChecked="{Binding Settings.Loot.PickResources}"
-                        ToolTip="Копать руду и траву в радиусе фарма: сначала все ресурсы, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше" />
             </WrapPanel>
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Что собирать" VerticalAlignment="Center" />
@@ -429,6 +441,12 @@
                           ToolTip="Кого звать, когда персонаж на земле. Авто — первого, кто живёт на земле" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
+                <TextBlock Text="Пет в воде" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding WaterPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding WaterPet}"
+                          ToolTip="Кого звать, когда персонаж в воде. Авто — первого, кто живёт в воде" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
                 <TextBlock Text="Пет в воздухе" VerticalAlignment="Center" />
                 <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding AirPets}" DisplayMemberPath="Title"
                           SelectedValuePath="Value" SelectedValue="{Binding AirPet}"
@@ -443,5 +461,6 @@
         </Border>
       </StackPanel>
     </ScrollViewer>
+
   </Grid>
 </Window>
