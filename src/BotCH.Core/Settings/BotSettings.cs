@@ -82,6 +82,12 @@ public sealed class TargetSettings
     /// <summary>Сначала бить моба, который бьёт перса или пета (старое «Find agr mob»).</summary>
     public bool PreferAggressive { get; set; } = true;
 
+    /// <summary>
+    /// Снимать мобов с себя петом: моба, который бьёт перса, бьём сразу (и перс, и пет), даже посреди боя с тем, кто бьёт пета, —
+    /// пет прочнее, пусть держит обоих. Без призванного пета не действует.
+    /// </summary>
+    public bool PetTakesAggro { get; set; } = true;
+
     /// <summary>Нападать только на мобов из списка названий (старое «Check ID»).</summary>
     public bool UseMobList { get; set; }
 

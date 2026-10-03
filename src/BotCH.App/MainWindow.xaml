@@ -271,6 +271,8 @@
           <StackPanel>
             <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Снимать мобов с меня петом" IsChecked="{Binding Settings.Target.PetTakesAggro}"
+                      ToolTip="Моб бьёт персонажа — бой сразу переходит на него, и пет тоже: он прочнее, пусть держит всех. Прежний моб подождёт. Без пета не действует" />
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Радиус фарма от точки старта, м" VerticalAlignment="Center"
                          ToolTip="Новые цели — только в этом радиусе от места, где стоял персонаж при «Старт». Кто бьёт вас или пета — всегда. 0 — без ограничения" />

@@ -19,6 +19,13 @@ public static class TargetSelector
             .FirstOrDefault();
     }
 
+    /// <summary>Живой моб, который бьёт самого перса (ближайший из таких).</summary>
+    public static NpcInfo? HostAggressor(WorldState w)
+        => w.Mobs
+            .Where(m => !m.IsDead && m.TargetWid != 0 && m.TargetWid == w.Host.Wid)
+            .OrderBy(m => m.Distance)
+            .FirstOrDefault();
+
     /// <summary>Можно ли нападать на этого моба по настройкам (жив, моб, название из списка).</summary>
     public static bool IsAllowed(NpcInfo mob, TargetSettings target)
         => mob.Kind == NpcKind.Mob && !mob.IsDead && MobNameFilter.Allows(target, mob.Name);

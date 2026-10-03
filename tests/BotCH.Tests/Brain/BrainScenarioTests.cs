@@ -899,4 +899,63 @@ public class BrainScenarioTests
 
         Assert.Empty(_actions.Calls);
     }
+
+    // ── Снимать мобов с себя петом ──────────────────────────────────────────────
+
+    [Fact]
+    public void MobHittingHostTakesFightFromMobHittingPet()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1);
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.PetWid, hp: 100);
+        _world.TargetWid = a.Wid;
+        Tick();
+        Tick();
+
+        // Пока пет держит А, на перса агрится Б — бой и пет переходят на Б
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.HostWid, hp: 100);
+        Tick();
+        Assert.Equal("select 80000002", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("перевожу бой и пета"));
+
+        _world.TargetWid = 0x80000002;
+        Tick();
+        Assert.Contains("pet-attack 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void WithoutPetMobHittingPetIsNotLeft()
+    {
+        // Пет не призван — правило не действует: текущий бьёт перса, второй тоже, не мечемся
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.HostWid, hp: 100);
+        _world.TargetWid = a.Wid;
+        Tick();
+        _world.AddMob(0x80000002, "Кабан", 3, targetWid: FakeWorld.HostWid, hp: 100);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void PetTakesAggroOffKeepsFightingMobHittingPet()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Pet.Enabled = true;
+        _settings.Target.PetTakesAggro = false;
+        _world.SetPet(1);
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.PetWid, hp: 100);
+        _world.TargetWid = a.Wid;
+        Tick();
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.HostWid, hp: 100);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
 }

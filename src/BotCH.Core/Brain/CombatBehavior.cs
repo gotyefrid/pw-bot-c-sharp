@@ -86,7 +86,9 @@ public sealed class CombatBehavior : IBehavior
         foreach (var expired in _gaveUp.Where(g => g.Value <= c.Now).Select(g => g.Key).ToList())
             _gaveUp.Remove(expired);
 
-        var aggressor = target.PreferAggressive ? TargetSelector.Aggressor(w) : null;
+        // Кого снимать с перса петом — того первым; иначе любой, кто бьёт перса или пета
+        var aggressor = (PetTakesAggro(c) ? TargetSelector.HostAggressor(w) : null)
+                        ?? (target.PreferAggressive ? TargetSelector.Aggressor(w) : null);
         var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && c.InFarmArea(t) ? t : null;
         var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, c.InFarmArea);
         if (mob is null)
@@ -164,6 +166,14 @@ public sealed class CombatBehavior : IBehavior
             return BackToSearch(c);
         }
 
+        // Перса бьёт другой моб, а текущий бьёт не перса: переводим бой (и пета) на него — пет прочнее, пусть держит обоих
+        if (PetTakesAggro(c) && mob.TargetWid != w.Host.Wid && TargetSelector.HostAggressor(w) is { } onMe && onMe.Wid != _mob)
+        {
+            c.Log.Info($"{onMe.Name} бьёт меня — перевожу бой и пета на него, {_mobName} подождёт");
+            State = CombatState.Search;
+            return c.Submit(new SelectTargetAction(onMe));
+        }
+
         // Нас бьёт другой моб, а текущий — нет: сначала тот, кто бьёт
         var aggressor = c.Settings.Target.PreferAggressive ? TargetSelector.Aggressor(w) : null;
         var petWid = w.Pet?.ActiveWid ?? 0;
@@ -178,6 +188,9 @@ public sealed class CombatBehavior : IBehavior
         return Attack(c, mob);
     }
 
+    private static bool PetTakesAggro(BrainContext c)
+        => c.Settings.Target.PetTakesAggro && c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
+
     private bool Attack(BrainContext c, NpcInfo mob)
     {
         var w = c.World;
@@ -188,7 +201,10 @@ public sealed class CombatBehavior : IBehavior
             && w.Npcs.FirstOrDefault(n => n.Wid == pet.ActiveWid)?.TargetWid != mob.Wid)
         {
             _lastPetOrder = c.Now;
-            if (c.Submit(new PetAttackAction(mob.Wid)))
+            // Прошлый приказ ещё ждёт подтверждения, но на другого моба (бой переключился) — заменяем, не ждём 6 с
+            var order = new PetAttackAction(mob.Wid);
+            var stale = c.Runner.Pending.OfType<PetAttackAction>().Any(p => p.TargetWid != mob.Wid);
+            if (stale ? c.Runner.Replace(order, w).Status is SubmitStatus.Sent : c.Submit(order))
                 return true;
         }
 
