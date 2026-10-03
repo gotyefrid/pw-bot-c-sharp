@@ -45,6 +45,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly Logger _logger;
 
     private GameProcess? _game;
+    private ClientLock? _clientLock;
     private WorldMonitor? _monitor;
     private Unfreezer? _unfreezer;
     private SkillNames _skillNames = SkillNames.Empty;
@@ -711,7 +712,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Clients.Clear();
             foreach (var client in clients)
                 Clients.Add(client);
-            SelectedClient = ClientList.KeepSelection(clients, keep);
+            SelectedClient = ClientList.KeepSelection(clients, keep, _appSettings.Connection.LastCharacter, ClientLock.IsTaken);
         }
         finally
         {
@@ -750,6 +751,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             _game = GameProcess.Open(client.Pid);
+            _clientLock = ClientLock.TryTake(client.Pid);
+            if (_clientLock is null)
+                _connectionLog.Warning($"PID {client.Pid} уже подключён в другом окне BotCH — не запускайте двух ботов на один клиент");
             var reader = new WorldReader(_game, _game.MainModuleBase, _profile.Data, id => _skillNames.Get(id));
             _spots.Server = _profile.Id;
             _monitor = new WorldMonitor(reader.Read, SnapshotPeriod);
@@ -780,6 +784,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _unfreezer = null;
         _game?.Dispose();
         _game = null;
+        _clientLock?.Dispose();
+        _clientLock = null;
         IsConnected = false;
         ClearWorld();
     }
@@ -975,6 +981,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         if (nick == _nick)
             return;
+
+        if (_appSettings.Connection.LastCharacter != nick)
+        {
+            _appSettings.Connection.LastCharacter = nick;
+            SaveSettings();
+        }
 
         var isNew = !_characters.Exists(nick);
         _settings = _characters.Load(nick, _appSettings, out var problem);

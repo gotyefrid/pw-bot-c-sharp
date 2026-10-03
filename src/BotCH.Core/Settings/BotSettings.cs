@@ -75,6 +75,9 @@ public sealed class ConnectionSettings
 
     /// <summary>Не давать клиенту «засыпать» без фокуса (запись в данные игры раз в секунду).</summary>
     public bool Unfreeze { get; set; }
+
+    /// <summary>С кем бот работал последним — при запуске выбирается его клиент.</summary>
+    public string LastCharacter { get; set; } = "";
 }
 
 public sealed class TargetSettings

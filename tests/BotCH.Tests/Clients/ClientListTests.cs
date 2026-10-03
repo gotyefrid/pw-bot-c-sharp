@@ -53,4 +53,34 @@ public class ClientListTests
         Assert.Equal(100, ClientList.KeepSelection(list, null)!.Pid);
         Assert.Null(ClientList.KeepSelection([], 200));
     }
+
+    [Fact]
+    public void OnStartLastCharacterThenReadableNickAmongFreeClients()
+    {
+        // 100 — клиент другого сервера (ник не читается этим профилем), 200 — занят другим окном BotCH
+        var list = ClientList.Build(new FakeSource((100, null), (200, "Купчихан"), (300, "ClaudeCot"), (400, "Лучница")), "elementclient");
+        bool Taken(int pid) => pid == 200;
+
+        Assert.Equal(400, ClientList.KeepSelection(list, null, "Лучница", Taken)!.Pid);
+        Assert.Equal(300, ClientList.KeepSelection(list, null, "Купчихан", Taken)!.Pid);
+        Assert.Equal(300, ClientList.KeepSelection(list, null, "", Taken)!.Pid);
+        // Подключённый остаётся, даже если он «занят» — это наша же метка
+        Assert.Equal(200, ClientList.KeepSelection(list, 200, "Лучница", Taken)!.Pid);
+        // Все заняты — первый
+        Assert.Equal(100, ClientList.KeepSelection(list, null, "x", _ => true)!.Pid);
+    }
+
+    [Fact]
+    public void ClientLockMarksClientForOtherWindows()
+    {
+        var pid = 900000 + Environment.TickCount % 1000;
+        Assert.False(ClientLock.IsTaken(pid));
+        using (var mine = ClientLock.TryTake(pid))
+        {
+            Assert.NotNull(mine);
+            Assert.True(ClientLock.IsTaken(pid));
+            Assert.Null(ClientLock.TryTake(pid));
+        }
+        Assert.False(ClientLock.IsTaken(pid));
+    }
 }

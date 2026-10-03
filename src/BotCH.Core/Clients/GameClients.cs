@@ -43,11 +43,22 @@ public static class ClientList
             .ToList();
 
     /// <summary>
-    /// Кого выбрать после обновления списка: того же по PID, если он ещё жив, иначе первого.
-    /// Так обновление списка и переименование окон не подменяют подключённый клиент.
+    /// Кого выбрать после обновления списка: того же по PID, если он ещё жив — обновление списка и переименование окон
+    /// не подменяют подключённый клиент. Иначе (запуск бота, клиент закрылся) — из свободных (не занятых другим окном BotCH):
+    /// клиент последнего персонажа, потом первый, у кого читается ник (ник читается, только если профиль сервера подходит
+    /// к клиенту), потом первый свободный.
     /// </summary>
-    public static GameClient? KeepSelection(IReadOnlyList<GameClient> clients, int? selectedPid)
-        => clients.FirstOrDefault(c => c.Pid == selectedPid) ?? clients.FirstOrDefault();
+    public static GameClient? KeepSelection(IReadOnlyList<GameClient> clients, int? selectedPid, string? lastNick = null, Func<int, bool>? isTaken = null)
+    {
+        if (clients.FirstOrDefault(c => c.Pid == selectedPid) is { } same)
+            return same;
+
+        var free = clients.Where(c => isTaken?.Invoke(c.Pid) != true).ToList();
+        return free.FirstOrDefault(c => !string.IsNullOrEmpty(lastNick) && c.Nick == lastNick)
+            ?? free.FirstOrDefault(c => c.Nick is not null)
+            ?? free.FirstOrDefault()
+            ?? clients.FirstOrDefault();
+    }
 }
 
 /// <summary>Настоящие процессы и память. Ник читается отдельным дескриптором только на чтение.</summary>
