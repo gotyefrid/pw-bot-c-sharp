@@ -141,6 +141,9 @@ public sealed class RouteSettings
 
     /// <summary>Радиус поиска ресурсов вокруг точки, м. Участок ресурса ~110 м, виден с ~80 м — 50 м от точки хватает.</summary>
     public int Radius { get; set; } = 50;
+
+    /// <summary>С какой точки начинать обход при «Старт» (с 0): окно ставит выбранную в списке.</summary>
+    public int StartIndex { get; set; }
 }
 
 /// <summary>

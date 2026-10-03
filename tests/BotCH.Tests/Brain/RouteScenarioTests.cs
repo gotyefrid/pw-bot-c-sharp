@@ -79,8 +79,20 @@ public class RouteScenarioTests
         Assert.Equal(
             ["move (50,0; 0,0; h 0,0) умно", "move (100,0; 0,0; h 0,0) умно", "move (50,0; 0,0; h 0,0) умно"],
             _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("На точке 1/2 «Точка 1» — ищу: все ресурсы"));
-        Assert.Contains(_log, e => e.Message.StartsWith("Точка 2 «Точка 2» — здесь всё; дальше 1/2"));
+        Assert.Contains(_log, e => e.Message.StartsWith("На точке 1/2 — ищу: все ресурсы"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Точка 2 — здесь всё; дальше 1/2"));
+    }
+
+    [Fact]
+    public void StartsFromChosenPoint()
+    {
+        Route(50, 100, 150);
+        _settings.Route.StartIndex = 2;
+
+        Tick();
+
+        Assert.Equal(["move (150,0; 0,0; h 0,0) умно"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Обход: 3 точек, начинаю с 3-й"));
     }
 
     [Fact]
@@ -114,7 +126,7 @@ public class RouteScenarioTests
         Tick();
 
         Assert.Equal(["gather C0000003"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message == "Копаю Железная руда у точки 1/2 «Точка 1», 30,0 м");
+        Assert.Contains(_log, e => e.Message == "Копаю Железная руда у точки 1/2, 30,0 м");
     }
 
     [Fact]

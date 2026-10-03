@@ -39,7 +39,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         (c, p) => Current(c) is { } point && p.HorizontalDistanceTo(point.Position) <= c.Settings.Route.Radius,
         (c, name) => Current(c)?.Wants(name) == true,
         (c, name) => Current(c)?.Lists(name) == true,
-        c => Current(c) is { } point ? $" у точки {_index % c.Settings.Route.Points.Count + 1}/{c.Settings.Route.Points.Count} «{point.Name}»" : "");
+        c => c.Settings.Route.Points.Count > 0 ? $" у точки {_index % c.Settings.Route.Points.Count + 1}/{c.Settings.Route.Points.Count}" : "");
 
     private RoutePoint? Current(BrainContext c)
     {
@@ -61,7 +61,9 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         if (_inAir is null)
         {
             _inAir = w.Host.Flying == true;
-            c.Log.Info($"Обход: {points.Count} точек, {(_inAir.Value ? "в воздухе" : "по земле")}, ресурсы в {route.Radius} м от точки");
+            _index = route.StartIndex >= 0 && route.StartIndex < points.Count ? route.StartIndex : 0;
+            c.Log.Info($"Обход: {points.Count} точек, начинаю с {_index + 1}-й, {(_inAir.Value ? "в воздухе" : "по земле")}, "
+                       + $"ресурсы в {route.Radius} м от точки");
         }
 
         if (_index >= points.Count)
@@ -88,13 +90,13 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         {
             // Долетели совсем (полёт к точке закончился, с высотой): со следующего шага копаем у этой точки
             _arrived = true;
-            c.Log.Info($"На точке {_index + 1}/{points.Count} «{point.Name}» — ищу: {point.Describe()}");
-            Status = $"на точке {_index + 1}/{points.Count} «{point.Name}»";
+            c.Log.Info($"На точке {_index + 1}/{points.Count} — ищу: {point.Describe()}");
+            Status = $"на точке {_index + 1}/{points.Count}";
             return true;
         }
 
         var distance = w.Host.Position.HorizontalDistanceTo(point.Position);
-        var where = $"точке {_index + 1}/{points.Count} «{point.Name}» ({point.Describe()}), {distance:0} м";
+        var where = $"точке {_index + 1}/{points.Count} ({point.Describe()}), {distance:0} м";
         if (pending is not null && pending.Point == point.Position)
         {
             Status = (_inAir == true ? "лечу к " : "иду к ") + where;
@@ -126,11 +128,11 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
     private void Next(BrainContext c, string why)
     {
         var points = c.Settings.Route.Points;
-        var was = points[_index];
+        var was = _index;
         _index = (_index + 1) % points.Count;
         _arrived = false;
         _failures = 0;
-        c.Log.Info($"Точка {points.IndexOf(was) + 1} «{was.Name}» — {why}; дальше {_index + 1}/{points.Count} «{points[_index].Name}»");
+        c.Log.Info($"Точка {was + 1} — {why}; дальше {_index + 1}/{points.Count}");
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)

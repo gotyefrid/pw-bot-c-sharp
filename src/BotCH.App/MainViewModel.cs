@@ -292,6 +292,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
             var runner = new ActionRunner(new DirectCallActions(caller), _logger.For("действия"));
+            // Обход — с точки, выбранной в списке (не выбрана — с первой)
+            _settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
             _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools);
             _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
             _brain.StopRequested += reason => OnUi(Stop);
@@ -670,7 +672,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool HasSelectedRoutePoint => SelectedRoutePoint is not null;
 
-    public string SelectedRouteTitle => SelectedRoutePoint is { } row ? $"Что копать у «{row.Name}»" : "";
+    public string SelectedRouteTitle => SelectedRoutePoint is { } row ? $"Что копать у точки {RouteRows.IndexOf(row) + 1}" : "";
 
     /// <summary>Что копать у выбранной точки: всё подряд / только из списка / всё, кроме списка.</summary>
     public LootListMode SelectedRouteMode
@@ -719,7 +721,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             n++;
         var point = RoutePoint.At($"Точка {n}", w.Host.Position);
         points.Add(point);
-        _log.Info($"Маршрут: «{point.Name}» {point.Position}{(w.Host.Flying == true ? " (в воздухе)" : "")}, точек {points.Count}");
+        _log.Info($"Маршрут: точка {points.Count} {point.Position}{(w.Host.Flying == true ? " (в воздухе)" : "")}");
         LoadRoute();
         SelectedRoutePoint = RouteRows.LastOrDefault();
         SettingsEdited();
@@ -731,7 +733,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         _settings.Route.Points.Remove(row.Point);
-        _log.Info($"Маршрут: «{row.Point.Name}» удалена, точек {_settings.Route.Points.Count}");
+        _log.Info($"Маршрут: точка {RouteRows.IndexOf(row) + 1} удалена, осталось {_settings.Route.Points.Count}");
         LoadRoute();
         SelectedRoutePoint = null;
         SettingsEdited();
@@ -751,6 +753,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         (points[at], points[to]) = (points[to], points[at]);
         LoadRoute();
         SelectedRoutePoint = RouteRows[to];
+        OnPropertyChanged(nameof(SelectedRouteTitle));
         SettingsEdited();
     }
 

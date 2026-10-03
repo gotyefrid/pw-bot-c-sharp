@@ -3,7 +3,7 @@ using BotCH.Core.Settings;
 
 namespace BotCH.App;
 
-/// <summary>Строка маршрута обхода: номер, название, что копать, сколько до точки, отметка «сейчас идём сюда».</summary>
+/// <summary>Строка маршрута обхода: номер, что копать, сколько до точки, отметка «сейчас идём сюда».</summary>
 public sealed class RouteRow(int number, RoutePoint point) : ObservableObject
 {
     private string _distanceText = "";
@@ -12,8 +12,6 @@ public sealed class RouteRow(int number, RoutePoint point) : ObservableObject
     public RoutePoint Point { get; } = point;
 
     public string Number { get; } = $"{number}.";
-
-    public string Name => Point.Name;
 
     /// <summary>Что копать у точки — коротко.</summary>
     public string What => Point.Describe();

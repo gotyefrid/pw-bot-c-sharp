@@ -198,7 +198,7 @@
       <DockPanel>
         <TextBlock DockPanel.Dock="Top" Text="МАРШРУТ ОБХОДА" Style="{StaticResource CardTitle}" />
         <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
-                   Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке." />
+                   Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке. «Старт» — с выбранной точки (не выбрана — с первой)." />
         <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
           <TextBlock Text="Ресурсы в радиусе, м" VerticalAlignment="Center" />
           <TextBox DockPanel.Dock="Right" Width="60" Text="{Binding RouteRadius, UpdateSourceTrigger=PropertyChanged}"
@@ -245,8 +245,7 @@
           <ListView.View>
             <GridView>
               <GridViewColumn Header="№" Width="34" DisplayMemberBinding="{Binding Number}" />
-              <GridViewColumn Header="Точка" Width="90" DisplayMemberBinding="{Binding Name}" />
-              <GridViewColumn Header="Что копать" Width="170" DisplayMemberBinding="{Binding What}" />
+              <GridViewColumn Header="Что копать" Width="250" DisplayMemberBinding="{Binding What}" />
               <GridViewColumn Header="Отсюда" Width="60" DisplayMemberBinding="{Binding DistanceText}" />
             </GridView>
           </ListView.View>
