@@ -18,11 +18,12 @@ public enum CombatState
 /// <summary>
 /// Бой — машина состояний: поиск цели → бой → лут → поиск. Как старый Bot.cs, но по снимкам, без Sleep.
 /// <list type="bullet">
-/// <item>Поиск: моб, бьющий перса/пета (белый список не важен) → текущая цель, если подходит → ближайший разрешённый.</item>
-/// <item>Бой: приказ пету; скилл «как кнопкой» (сам подходит); меч раз в ~5 с; «подойти ближе», если меч выключен;
-/// во время каста ничего нового. Через N с (120) моба бросаем.</item>
-/// <item>Лут: дойти до места смерти (дальше 3 м), до N раз подобрать ближайший разрешённый фильтром предмет
-/// не дальше 10 м от места смерти «как мышкой», ждать до 10 с, пауза 0.7–1.3 с.</item>
+/// <item>Поиск: самый опасный моб (<see cref="Threat"/>: бьёт меня → бьёт меня или пета; белый список не важен) →
+/// текущая цель, если подходит → ближайший разрешённый.</item>
+/// <item>Бой: другой моб опаснее текущего — переходим на него. Приказ пету; «подойти ближе» — сначала подходим, потом бьём;
+/// скилл «как кнопкой»; меч раз в ~5 с. Через N с (120) моба бросаем.</item>
+/// <item>Лут: до N раз подобрать ближайший разрешённый фильтром предмет в радиусе от места смерти «как мышкой»
+/// (клиент сам подводит), пауза 0.7–1.3 с. Кончился — ход отдаём (первым решает копание ресурсов).</item>
 /// </list>
 /// </summary>
 public sealed class CombatBehavior : IBehavior
@@ -86,9 +87,8 @@ public sealed class CombatBehavior : IBehavior
         foreach (var expired in _gaveUp.Where(g => g.Value <= c.Now).Select(g => g.Key).ToList())
             _gaveUp.Remove(expired);
 
-        // Кого снимать с перса петом — того первым; иначе любой, кто бьёт перса или пета
-        var aggressor = (PetTakesAggro(c) ? TargetSelector.HostAggressor(w) : null)
-                        ?? (target.PreferAggressive ? TargetSelector.Aggressor(w) : null);
+        // Порядок: самый опасный (бьёт меня → бьёт меня или пета) → текущая цель → ближайший разрешённый
+        var aggressor = MostDangerous(c, out _);
         var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && c.InFarmArea(t) ? t : null;
         var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, c.InFarmArea);
         if (mob is null)
@@ -166,30 +166,29 @@ public sealed class CombatBehavior : IBehavior
             return BackToSearch(c);
         }
 
-        // Перса бьёт другой моб, а текущий бьёт не перса: переводим бой (и пета) на него — пет прочнее, пусть держит обоих
-        if (PetTakesAggro(c) && mob.TargetWid != w.Host.Wid && TargetSelector.HostAggressor(w) is { } onMe && onMe.Wid != _mob)
+        // Другой моб опаснее текущего — бой (и пет) переходят на него. Бьёт меня, а текущий — пета: пет прочнее, пусть держит обоих
+        if (MostDangerous(c, out var threat) is { } danger && danger.Wid != _mob && threat > ThreatOf(c, mob))
         {
-            c.Log.Info($"{onMe.Name} бьёт меня — перевожу бой и пета на него, {_mobName} подождёт");
+            c.Log.Info(threat == Threat.HitsMe
+                ? $"{danger.Name} бьёт меня — перевожу бой и пета на него, {_mobName} подождёт"
+                : $"{danger.Name} бьёт нас — переключаюсь");
             State = CombatState.Search;
-            return c.Submit(new SelectTargetAction(onMe));
-        }
-
-        // Нас бьёт другой моб, а текущий — нет: сначала тот, кто бьёт
-        var aggressor = c.Settings.Target.PreferAggressive ? TargetSelector.Aggressor(w) : null;
-        var petWid = w.Pet?.ActiveWid ?? 0;
-        if (aggressor is not null && aggressor.Wid != _mob && mob.TargetWid != w.Host.Wid && (petWid == 0 || mob.TargetWid != petWid))
-        {
-            c.Log.Info($"{aggressor.Name} бьёт нас — переключаюсь");
-            State = CombatState.Search;
-            return c.Submit(new SelectTargetAction(aggressor));
+            return c.Submit(new SelectTargetAction(danger));
         }
 
         Status = $"бой: {_mobName}, {mob.Distance:0.0} м, {elapsed.TotalSeconds:0} с";
         return Attack(c, mob);
     }
 
+    // Правила выбора цели из настроек: «сначала тех, кто бьёт» и «снимать с меня петом» (только с призванным петом)
     private static bool PetTakesAggro(BrainContext c)
         => c.Settings.Target.PetTakesAggro && c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
+
+    private static NpcInfo? MostDangerous(BrainContext c, out Threat threat)
+        => TargetSelector.MostDangerous(c.World, c.Settings.Target.PreferAggressive, PetTakesAggro(c), out threat);
+
+    private static Threat ThreatOf(BrainContext c, NpcInfo mob)
+        => TargetSelector.ThreatOf(mob, c.World, c.Settings.Target.PreferAggressive, PetTakesAggro(c));
 
     private bool Attack(BrainContext c, NpcInfo mob)
     {
