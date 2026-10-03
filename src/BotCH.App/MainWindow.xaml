@@ -258,11 +258,11 @@
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
                         ToolTip="Сначала подойти к мобу на это расстояние, потом бить. Пока бежим — не бьём, пока бьём — не бежим" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
-              <ComboBox DockPanel.Dock="Right" Width="90" Margin="0,0,8,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
+              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
                         SelectedValuePath="Path" SelectedValue="{Binding Settings.Combat.ApproachPath}"
                         Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="40" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Бросить моба через, с" VerticalAlignment="Center" />
