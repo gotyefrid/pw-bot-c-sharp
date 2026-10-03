@@ -8,8 +8,9 @@ namespace BotCH.Core.Brain;
 
 /// <summary>
 /// Возврат в центр фарма: перс за радиусом фарма (погнался за мобом), а делать нечего (бой ищет цель и не нашёл, копать нечего)
-/// не меньше <see cref="IdleBefore"/> — бежим в центр и ждём мобов там. Внутри радиуса стоим, где стоим; радиус 0 — не возвращаемся.
-/// Бег фоновый: любое действие боя его перебивает.
+/// не меньше <see cref="IdleBefore"/> — бежим в центр и ждём мобов там. Внутри радиуса — тоже, если нечего делать дольше
+/// <see cref="IdleInside"/> и до центра больше <see cref="NearCenter"/>: при большом радиусе на краю мобы из списка клиенту
+/// не видны, и перс стоял бы там вечно. Радиус 0 — не возвращаемся. Бег фоновый: любое действие боя его перебивает.
 /// </summary>
 public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
 {
@@ -22,6 +23,12 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
     /// шагом позже — без паузы бег в центр успевал начаться (и игра — строить путь) и тут же отменялся подходом к мобу.
     /// </summary>
     public static readonly TimeSpan IdleBefore = TimeSpan.FromSeconds(2);
+
+    /// <summary>Внутри радиуса нечего делать столько — идём в центр (пауза между мобами короче).</summary>
+    public static readonly TimeSpan IdleInside = TimeSpan.FromSeconds(10);
+
+    /// <summary>Ближе к центру — уже на месте, внутри радиуса никуда не идём.</summary>
+    public const float NearCenter = 15f;
     // Шаги мозга — раз в ~0.25 с; пропуск дольше — ход забирал кто-то другой, «нечего делать» начинается заново
     private static readonly TimeSpan TickGap = TimeSpan.FromSeconds(0.6);
 
@@ -48,13 +55,14 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
         }
 
         var distance = w.Host.Position.HorizontalDistanceTo(center);
-        if (c.Settings.Target.FarmRadius <= 0 || c.InFarmArea(w.Host.Position) || c.Now < _nextTry || c.Runner.BodyBusy(w) is not null)
+        var inside = c.InFarmArea(w.Host.Position);
+        if (c.Settings.Target.FarmRadius <= 0 || (inside && distance <= NearCenter) || c.Now < _nextTry || c.Runner.BodyBusy(w) is not null)
             return false;
 
         if (c.Now - _lastIdle > TickGap)
             _idleSince = c.Now;
         _lastIdle = c.Now;
-        if (c.Now - _idleSince < IdleBefore)
+        if (c.Now - _idleSince < (inside ? IdleInside : IdleBefore))
             return false;
         if (distance > MaxDistance)
         {
@@ -65,7 +73,9 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
         var smart = c.Settings.Target.ReturnPath == ApproachPath.Smart;
         var sent = c.Send(new MoveAction(center, tolerance: 2f, smart) { Priority = ActionPriority.Background });
         if (sent == SubmitStatus.Sent)
-            c.Log.Info($"Вне радиуса фарма, целей нет — возвращаюсь в центр, {distance:0} м");
+            c.Log.Info(inside
+                ? $"Целей рядом нет {IdleInside.TotalSeconds:0} с — иду в центр фарма, {distance:0} м"
+                : $"Вне радиуса фарма, целей нет — возвращаюсь в центр, {distance:0} м");
         Status = "возвращаюсь в центр фарма";
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }

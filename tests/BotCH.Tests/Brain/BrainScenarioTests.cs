@@ -1160,6 +1160,25 @@ public class BrainScenarioTests
         Assert.Empty(_actions.Calls);
     }
 
+    [Theory]
+    [InlineData(30, true)]  // на краю большого радиуса мобов из списка не видно — через 10 с идём в центр
+    [InlineData(10, false)] // почти в центре — стоим и ждём
+    public void InsideRadiusLongIdleFarFromCenterGoesToCenter(float fromCenter, bool goes)
+    {
+        FarmAt(fromCenter, radius: 60);
+
+        for (var i = 0; i < 36; i++) // 9 с — ещё ждём: может, моб покажется
+            Tick();
+        Assert.Empty(_actions.Calls);
+
+        for (var i = 0; i < 8; i++)
+            Tick();
+
+        Assert.Equal(goes ? [$"move ({fromCenter:0.0}; 0,0; h 0,0) умно"] : [], _actions.Calls);
+        if (goes)
+            Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с — иду в центр фарма"));
+    }
+
     [Fact]
     public void FightInterruptsReturn()
     {
