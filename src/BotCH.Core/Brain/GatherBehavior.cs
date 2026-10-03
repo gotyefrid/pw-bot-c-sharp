@@ -76,7 +76,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         Status = $"копаю {resource.Name}";
         var sent = c.Send(new GatherAction(resource));
         if (sent == SubmitStatus.Sent)
-            c.Log.Info($"Копаю {resource.Name}, {resource.Distance:0.0} м");
+            c.Log.Info($"Копаю {resource.Name}{_scope.Where(c)}, {resource.Distance:0.0} м");
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 

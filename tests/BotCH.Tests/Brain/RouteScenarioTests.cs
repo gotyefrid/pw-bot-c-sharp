@@ -70,14 +70,17 @@ public class RouteScenarioTests
 
         Tick();
         _world.Position = new Position(50, 0, 0);
-        Tick();
+        Tick(); // долетели — ищем ресурсы у точки
+        Tick(); // нечего — к следующей
         _world.Position = new Position(100, 0, 0);
+        Tick();
         Tick();
 
         Assert.Equal(
             ["move (50,0; 0,0; h 0,0) умно", "move (100,0; 0,0; h 0,0) умно", "move (50,0; 0,0; h 0,0) умно"],
             _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Точка 2 «Точка 2» — обошли; дальше 1/2"));
+        Assert.Contains(_log, e => e.Message.StartsWith("На точке 1/2 «Точка 1» — ищу: все ресурсы"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Точка 2 «Точка 2» — здесь всё; дальше 1/2"));
     }
 
     [Fact]
@@ -93,6 +96,7 @@ public class RouteScenarioTests
         _world.Position = new Position(50, 0, 0);
         _world.Flying = false;
         Tick();
+        Tick();
         Assert.Equal("fly-toggle", _actions.Calls.Last());
     }
 
@@ -107,8 +111,10 @@ public class RouteScenarioTests
         AddResource(0xC0000003, 30, "Железная руда");
 
         Tick();
+        Tick();
 
         Assert.Equal(["gather C0000003"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Копаю Железная руда у точки 1/2 «Точка 1», 30,0 м");
     }
 
     [Fact]
@@ -122,6 +128,7 @@ public class RouteScenarioTests
         AddResource(0xC0000002, 30, "Железная руда");
 
         Tick();
+        Tick();
 
         Assert.Equal(["gather C0000002"], _actions.Calls);
         Assert.True(_settings.Route.Points[1].Wants("Шалфей"));
@@ -134,8 +141,39 @@ public class RouteScenarioTests
         AddResource(0xC0000001, 10, "Шалфей");
 
         Tick();
+        Tick();
 
         Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void NothingIsDugOnTheWayOnlyAtThePoint()
+    {
+        // Ресурс у точки виден издалека и в радиусе — но сначала долетаем, потом копаем
+        Route(100, 300);
+        AddResource(0xC0000001, 90, "Шалфей");
+
+        Tick();
+        Assert.Equal(["move (100,0; 0,0; h 0,0) умно"], _actions.Calls);
+
+        _world.Position = new Position(100, 0, 0);
+        Tick();
+        Tick();
+        Assert.Equal("gather C0000001", _actions.Calls.Last());
+    }
+
+    [Fact]
+    public void NextPointReplacesUnfinishedMoveToPrevious()
+    {
+        // Долетели на 5 м по земле, а полёт к прошлой точке ещё «идёт» (высота) — сразу к новой, не ждём
+        _settings.Route.Points = [RoutePoint.At("1", new Position(50, 40, 0)), RoutePoint.At("2", new Position(200, 40, 0))];
+        _world.Flying = true;
+        Tick();
+        _world.Position = new Position(50, 20, 0);
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (50,0; 0,0; h 40,0)", "fly (200,0; 0,0; h 40,0)"], _actions.Calls);
     }
 
     [Fact]

@@ -12,11 +12,13 @@ namespace BotCH.Core.Brain;
 /// <param name="inArea">Ресурс в нужном месте.</param>
 /// <param name="wanted">Обычный ресурс с таким названием копать.</param>
 /// <param name="listed">«Нересурс» (квестовый, особый) назван явно — копать без условий.</param>
+/// <param name="where">Для лога: где копаем («у точки 2/4 …»); null — ничего не добавлять.</param>
 public sealed class GatherScope(
     Func<BrainContext, bool> enabled,
     Func<BrainContext, Position, bool> inArea,
     Func<BrainContext, string, bool> wanted,
-    Func<BrainContext, string, bool> listed)
+    Func<BrainContext, string, bool> listed,
+    Func<BrainContext, string>? where = null)
 {
     public static readonly GatherScope FarmArea = new(
         c => c.Settings.Loot is { Enabled: true, PickResources: true },
@@ -28,4 +30,5 @@ public sealed class GatherScope(
     public bool InArea(BrainContext c, Position p) => inArea(c, p);
     public bool Wanted(BrainContext c, string name) => wanted(c, name);
     public bool Listed(BrainContext c, string name) => listed(c, name);
+    public string Where(BrainContext c) => where?.Invoke(c) ?? "";
 }
