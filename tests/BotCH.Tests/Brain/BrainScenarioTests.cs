@@ -1091,4 +1091,41 @@ public class BrainScenarioTests
 
         Assert.Equal("apply 299 0", LastCall);
     }
+
+    [Fact]
+    public void ComeCloserReplacesReturn()
+    {
+        // Бежим в центр — моб далеко: свой подход к нему вместо бега в центр
+        FarmAt(50, radius: 60);
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _settings.Combat.ApproachPath = ApproachPath.Direct;
+        Tick();
+        Assert.Equal("move (50,0; 0,0; h 0,0)", LastCall);
+
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
+        Tick();
+        Tick();
+
+        Assert.Equal("move (13,0; 0,0; h 0,0)", LastCall);
+    }
+
+    [Fact]
+    public void ComeCloserMobNearDoesNotWaitForReturn()
+    {
+        // Бежим в центр — моб уже ближе нужного: бьём сразу, не «добегаем» до центра
+        FarmAt(50, radius: 60);
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        Tick();
+        Assert.StartsWith("move", LastCall);
+
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+        Tick();
+        Tick();
+
+        Assert.Equal("apply 299 0", LastCall);
+    }
 }

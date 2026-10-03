@@ -355,7 +355,8 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
     public bool Smart { get; } = smart;
 
     public override string Name => $"идти в {Point}";
-    public override string Key => "движение";
+    // Фоновый бег (возврат в центр) — отдельно: подход к мобу его вытесняет, а не ждёт как «такой же уже идёт»
+    public override string Key => Priority == ActionPriority.Background ? "движение фоном" : "движение";
     public override ActionResource Resource => ActionResource.Body;
 
     // Бег ~5 м/с, с запасом: 5 с + 0.4 с на метр (считается от точки отправки в Check); здесь — только верхний предел

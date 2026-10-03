@@ -234,7 +234,8 @@ public sealed class CombatBehavior : IBehavior
     {
         var w = c.World;
         var distance = c.Settings.Combat.ComeCloserDistance;
-        var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault();
+        // Только свой подход: фоновый бег в центр фарма — не «уже бежим к мобу», его вытеснит подход или удар
+        var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault(m => m.Priority != ActionPriority.Background);
         if (mob.Distance <= distance)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
