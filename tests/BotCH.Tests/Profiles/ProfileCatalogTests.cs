@@ -39,7 +39,7 @@ public class ProfileCatalogTests
     {
         var functions = _catalog.Load("pwclassic136").Data.Functions;
 
-        Assert.Equal(15, functions.Count);
+        Assert.Equal(16, functions.Count);
         Assert.All(functions, f =>
         {
             Assert.NotEqual(0u, f.Value.Rva);
