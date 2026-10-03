@@ -65,6 +65,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan SpotsShowEvery = TimeSpan.FromSeconds(1);
     private readonly SpotBookStore _spotStore;
     private readonly SpotBook _spots;
+    private readonly SpotJournal _spotJournal;
     private DateTime _spotsSaved = DateTime.Now;
     private DateTime _spotsShown;
     private DateTime _spotsSynced = DateTime.Now;
@@ -91,6 +92,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (spotsProblem is not null)
             _log.Warning(spotsProblem);
         ImportLocalSpots(Path.Combine(appDirectory, "resources.json"));
+        _spotJournal = new SpotJournal(Path.Combine(shared, "resource-events.csv"));
+        _spots.Happened += WriteSpotEvent;
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
@@ -613,6 +616,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         _spotsSaved = _spotsSynced = DateTime.Now;
+    }
+
+    private void WriteSpotEvent(SpotEvent e)
+    {
+        try
+        {
+            _spotJournal.Write(e, _profile.Id, _nick);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _log.Debug("Журнал ресурсов: " + ex.Message);
+        }
     }
 
     /// <summary>Точки, накопленные до общего файла в папке бота, — в общий файл; старый файл переименовывается.</summary>

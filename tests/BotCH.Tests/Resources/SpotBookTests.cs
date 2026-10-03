@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BotCH.Core.Resources;
@@ -258,6 +259,73 @@ public class SpotBookTests : IDisposable
         _book.Remove(_book.Spots.Single(s => s.X == 300));
         Assert.Equal(0, _book.Merge(other));
         Assert.Single(_book.Spots);
+    }
+
+    [Fact]
+    public void EventsTellWhenAndWhereResourceCameBack()
+    {
+        var events = new List<SpotEvent>();
+        _book.Happened += events.Add;
+
+        var root = Resource("Высохший древесный корень", 10);
+        Observe();
+        _world.Ground.Clear();
+        for (var i = 0; i < 12; i++)
+            Observe();
+        var dug = events.Last().Time;
+        _world.Wait(600);
+        _world.Ground.Add(root with { Position = new Position(28, 0, 0) });
+        Observe();
+
+        Assert.Equal([SpotEventKind.New, SpotEventKind.Dug, SpotEventKind.Respawned], events.Select(e => e.Kind));
+        var back = events.Last();
+        Assert.Equal(root.Id, back.ResourceId);
+        Assert.Equal(18, back.FromCenter, 1);
+        Assert.Equal(_world.Time - dug, back.SinceDug);
+    }
+
+    [Fact]
+    public void EmptyWhenNearKnownSpotWithoutResourceAndNotSeenDug()
+    {
+        var events = new List<SpotEvent>();
+        var book = new SpotBook([new ResourceSpot { Name = "Шалфей", X = 50, Seen = 2 }]) { Server = "comeback146" };
+        book.Happened += events.Add;
+
+        // Далеко (100 м) — молчим; подошли на 60 м и постояли 3 с — «пусто», один раз
+        _world.Position = new Position(-50, 0, 0);
+        for (var i = 0; i < 20; i++)
+            book.Observe(_world.Wait(0.25).Snapshot());
+        Assert.Empty(events);
+        for (var x = -30; x <= -10; x += 20)
+        {
+            _world.Position = new Position(x, 0, 0);
+            book.Observe(_world.Wait(0.25).Snapshot());
+        }
+        for (var i = 0; i < 40; i++)
+            book.Observe(_world.Wait(0.25).Snapshot());
+        Assert.Equal([SpotEventKind.Empty], events.Select(e => e.Kind));
+
+        // Ресурс появился, хоть копки мы и не видели — «в поле зрения»
+        _world.Ground.Add(new GroundItem(1, 0xC0100B37, 3536, GroundItemKind.Resource, new Position(55, 0, 0), 0, "Шалфей"));
+        book.Observe(_world.Wait(0.25).Snapshot());
+        Assert.Equal(SpotEventKind.InView, events.Last().Kind);
+        Assert.Equal(5, events.Last().FromCenter, 1);
+    }
+
+    [Fact]
+    public void JournalWritesHeaderOnceAndOneLinePerEvent()
+    {
+        var journal = new SpotJournal(_file);
+        var e = new SpotEvent(new DateTime(2026, 10, 3, 13, 55, 16), SpotEventKind.Respawned, "Высохший древесный корень", 0xC0100E80,
+            new Position(-136.7f, 237.3f, 71.5f), new Position(-140.1f, 236.1f, 53.4f), 18.4f, TimeSpan.FromMinutes(10.27), 35.2f);
+        journal.Write(e, "comeback146", "ClaudeCot");
+        journal.Write(e with { Kind = SpotEventKind.Dug, SinceDug = null }, "comeback146", "ClaudeCot");
+
+        var lines = File.ReadAllLines(_file);
+        Assert.Equal(3, lines.Length);
+        Assert.StartsWith("время;сервер;персонаж;событие", lines[0]);
+        Assert.Equal("2026-10-03 13:55:16;comeback146;ClaudeCot;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2", lines[1]);
+        Assert.Contains(";выкопан;", lines[2]);
     }
 
     [Fact]
