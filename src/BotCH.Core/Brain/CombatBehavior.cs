@@ -35,6 +35,10 @@ public sealed class CombatBehavior : IBehavior
     private static readonly TimeSpan LootLimit = TimeSpan.FromSeconds(40);
     // Подход: моб ушёл от точки, к которой бежим, дальше этого — бежим к его новому месту (не чаще RetargetPeriod)
     private const float RetargetDistance = 3f;
+    // Подход: «дошли» — ближе этого к точке; точку берём ещё на 0.5 м ближе к мобу, чтобы и в худшем случае оказаться
+    // ближе нужного (раньше вставали на 0.5 м дальше и делали второй короткий подход)
+    private const float ApproachTolerance = 1.5f;
+    private const float ApproachMargin = ApproachTolerance + 0.5f;
     private static readonly TimeSpan RetargetPeriod = TimeSpan.FromSeconds(1);
     // Лут — только вокруг места смерти: в старом боте было 20 м от перса, и он бегал к чужому/старому луту
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
@@ -245,13 +249,13 @@ public sealed class CombatBehavior : IBehavior
             return true;
         }
 
-        var point = PointNear(w.Host.Position, mob.Position, distance - 1);
+        var point = PointNear(w.Host.Position, mob.Position, Math.Max(0.5f, distance - ApproachMargin));
         var smart = c.Settings.Combat.ApproachPath == ApproachPath.Smart;
         Status = $"бой: {_mobName} — подхожу, {mob.Distance:0.0} м";
         if (running is null)
         {
             // Тело занято (скилл ещё ждёт, каст) — бежать позже; в лог только когда бег правда начался
-            if (c.Send(new MoveAction(point, tolerance: 1.5f, smart)) == SubmitStatus.Sent)
+            if (c.Send(new MoveAction(point, ApproachTolerance, smart)) == SubmitStatus.Sent)
             {
                 c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
                 _lastApproach = c.Now;
@@ -265,7 +269,7 @@ public sealed class CombatBehavior : IBehavior
         {
             c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
             _lastApproach = c.Now;
-            c.Runner.Replace(new MoveAction(point, tolerance: 1.5f, smart), w);
+            c.Runner.Replace(new MoveAction(point, ApproachTolerance, smart), w);
         }
 
         return true;

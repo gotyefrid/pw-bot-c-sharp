@@ -393,7 +393,7 @@ public class BrainScenarioTests
         Tick();
 
         Assert.StartsWith("move", LastCall);
-        Assert.Contains("(13,0;", LastCall); // 20 м до моба → точка в 7 м от него
+        Assert.Contains("(14,0;", LastCall); // 20 м до моба → точка в 6 м от него (8 − запас 2)
     }
 
     [Theory]
@@ -469,7 +469,7 @@ public class BrainScenarioTests
         var mob = _world.AddMob(0x80000001, "Волк", 20);
         _world.TargetWid = mob.Wid;
         Tick();
-        Assert.Contains("(13,0;", LastCall);
+        Assert.Contains("(14,0;", LastCall);
 
         // Моб отбежал на 2 м — к старой точке бежим дальше; ещё на 5 м — сразу к новому месту
         _world.Replace(mob, m => m with { Position = new Position(22, 0, 0), Distance = 22 });
@@ -478,7 +478,7 @@ public class BrainScenarioTests
 
         _world.Replace(mob, m => m with { Position = new Position(27, 0, 0), Distance = 27 });
         Tick(1.5);
-        Assert.Contains("(20,0;", LastCall);
+        Assert.Contains("(21,0;", LastCall);
         Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("move")));
     }
 
@@ -1108,7 +1108,7 @@ public class BrainScenarioTests
         Tick();
         Tick();
 
-        Assert.Equal("move (13,0; 0,0; h 0,0)", LastCall);
+        Assert.Equal("move (14,0; 0,0; h 0,0)", LastCall);
     }
 
     [Fact]
@@ -1141,5 +1141,28 @@ public class BrainScenarioTests
         Tick();
 
         Assert.Equal(["move (50,0; 0,0; h 0,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ApproachStopsWithinDistanceNoSecondRun()
+    {
+        // Перс встал на краю допуска «дошли» (1.5 м до точки, дальше от моба) — всё равно ближе нужного: бьём, не доподходим
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 3;
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        var mob = _world.AddMob(0x80000001, "Скарабей", 20);
+        _world.TargetWid = mob.Wid;
+        Tick();
+        Assert.Equal("move (19,0; 0,0; h 0,0) умно", LastCall); // точка в 1 м от моба (3 − 2)
+
+        _world.Position = new Position(17.5f, 0, 0);
+        _world.Replace(mob, m => m with { Distance = 2.5f });
+        Tick();
+        Tick();
+
+        Assert.Equal("apply 299 0", LastCall);
+        Assert.Single(_actions.Calls, c => c.StartsWith("move"));
     }
 }
