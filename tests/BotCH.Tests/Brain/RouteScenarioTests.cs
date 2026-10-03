@@ -163,17 +163,25 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void NextPointReplacesUnfinishedMoveToPrevious()
+    public void ArrivedOnlyWhenFlightToPointEndsThenDigs()
     {
-        // Долетели на 5 м по земле, а полёт к прошлой точке ещё «идёт» (высота) — сразу к новой, не ждём
+        // Над точкой по горизонтали, но ниже на 20 м — полёт ещё идёт: копание получило бы «занято», а это не «копать нечего».
+        // Долетели (с высотой) — копаем камень у точки, к следующей не уходим
         _settings.Route.Points = [RoutePoint.At("1", new Position(50, 40, 0)), RoutePoint.At("2", new Position(200, 40, 0))];
         _world.Flying = true;
         Tick();
         _world.Position = new Position(50, 20, 0);
+        AddResource(0xC0000001, 80, "Залежи камня");
+        Tick();
+        Tick();
+        Assert.Equal(["fly (50,0; 0,0; h 40,0)"], _actions.Calls);
+
+        _world.Position = new Position(50, 40, 0);
+        Tick();
         Tick();
         Tick();
 
-        Assert.Equal(["fly (50,0; 0,0; h 40,0)", "fly (200,0; 0,0; h 40,0)"], _actions.Calls);
+        Assert.Equal(["fly (50,0; 0,0; h 40,0)", "gather C0000001"], _actions.Calls);
     }
 
     [Fact]

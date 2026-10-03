@@ -67,8 +67,16 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         if (_index >= points.Count)
             _index = 0;
         var point = points[_index];
+        var pending = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault(m => m.Priority == ActionPriority.Background);
         if (_arrived)
         {
+            // Тело занято (подбор, каст, взлёт) — копание получило бы «занято»; это не «копать нечего», ждём
+            if (c.Runner.BodyBusy(w) is { } busy)
+            {
+                Status = $"на точке {_index + 1}/{points.Count}: жду — {busy}";
+                return true;
+            }
+
             // У точки копать больше нечего (иначе ход взяло бы копание); полная сумка и ресурсы не влезают — обходить дальше незачем
             if (w.BagFull && w.GroundItems.Any(i => Blocked(c, i)))
                 return c.RequestStop("сумка полна — добыча ресурсов не помещается");
@@ -76,9 +84,9 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
             Next(c, "здесь всё");
             point = points[_index];
         }
-        else if (w.Host.Position.HorizontalDistanceTo(point.Position) <= ArriveDistance)
+        else if (w.Host.Position.HorizontalDistanceTo(point.Position) <= ArriveDistance && pending?.Point != point.Position)
         {
-            // Долетели: со следующего шага копаем у этой точки
+            // Долетели совсем (полёт к точке закончился, с высотой): со следующего шага копаем у этой точки
             _arrived = true;
             c.Log.Info($"На точке {_index + 1}/{points.Count} «{point.Name}» — ищу: {point.Describe()}");
             Status = $"на точке {_index + 1}/{points.Count} «{point.Name}»";
@@ -87,7 +95,6 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
 
         var distance = w.Host.Position.HorizontalDistanceTo(point.Position);
         var where = $"точке {_index + 1}/{points.Count} «{point.Name}» ({point.Describe()}), {distance:0} м";
-        var pending = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault(m => m.Priority == ActionPriority.Background);
         if (pending is not null && pending.Point == point.Position)
         {
             Status = (_inAir == true ? "лечу к " : "иду к ") + where;
