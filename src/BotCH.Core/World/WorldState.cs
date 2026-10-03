@@ -121,6 +121,7 @@ public sealed record NpcInfo(
     /// <summary>Уровень; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Level { get; init; }
 
+    public const int StateAttacking = 2;
     public const int StateCasting = 3;
     public const int StateDead = 4;
 

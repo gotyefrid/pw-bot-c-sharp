@@ -135,15 +135,17 @@ public class WorldReaderTests
     }
 
     [Theory]
-    [InlineData(NpcInfo.StateCasting, 0xA0126CE5u)] // кастует — цель каста
-    [InlineData(2, 0xFFFFFFFFu)]                     // бьёт рукой — обычное поле, цель каста не смотрим
-    public void CastingMobTargetsWhomItCastsAt(int state, uint expected)
+    [InlineData(NpcInfo.StateCasting, 0xA0126CE5u)]   // кастует — цель каста
+    [InlineData(NpcInfo.StateAttacking, 0x0130ECE0u)] // бьёт рукой — цель удара
+    [InlineData(1, 0xFFFFFFFFu)]                      // стоит — запасные поля не смотрим
+    public void MobWithEmptyTargetFieldTargetsWhomItHits(int state, uint expected)
     {
         var p = new ProfileCatalog().Load("comeback146").Data;
         var mob = ComebackWorldWithMob(p);
         _memory.WriteUInt32(mob + p.Npc.State, (uint)state);
         _memory.WriteUInt32(mob + p.Npc.Target, 0xFFFFFFFF);
         _memory.WriteUInt32(mob + p.Npc.CastTarget, 0xA0126CE5);
+        _memory.WriteUInt32(mob + p.Npc.AttackTarget, 0x0130ECE0);
 
         var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
 

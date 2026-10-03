@@ -161,6 +161,11 @@ public sealed class NpcOffsets
     /// Comeback 1.4.6 — иначе бот не видит, что моб бьёт пета.
     /// </summary>
     public uint CastTarget { get; init; }
+    /// <summary>
+    /// WID того, кого моб бьёт рукой (0 — поля нет). Нужен, если у бьющего <see cref="Target"/> пуст: так у Comeback 1.4.6 моб,
+    /// заагрившийся на перса, пока тот бил другого, — иначе бот не видит, что его бьют.
+    /// </summary>
+    public uint AttackTarget { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }
 }
