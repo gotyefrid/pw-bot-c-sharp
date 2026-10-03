@@ -23,13 +23,14 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     public const float SameIdRadius = 50f;
 
     /// <summary>
-    /// Ближе к точке клиент видит ресурсы наверняка: замер 2026-10-03 — пропадают и появляются на 90–125 м, пачками.
+    /// Ближе к точке клиент видит ресурсы наверняка. Замер 2026-10-03: пропадают и появляются пачками на 90–125 м, но
+    /// в работе мигали и с 79 м («выкопан» и через 0.3–1.5 мин «появился» на том же месте) — берём с большим запасом.
     /// Ресурса нет в списке ближе этого — значит, его нет.
     /// </summary>
-    public const float SureVisible = 90f;
+    public const float SureVisible = 50f;
 
     /// <summary>Ближе к точке без ресурса (и мы его не копали) — «пусто»: выкопал кто-то другой или ещё не появился.</summary>
-    public const float EmptyCheck = 80f;
+    public const float EmptyCheck = SureVisible;
     private static readonly TimeSpan EmptyAfter = TimeSpan.FromSeconds(3);
 
     // Пропал на столько подряд — правда пропал, а не мигнул список (загрузка после телепорта)

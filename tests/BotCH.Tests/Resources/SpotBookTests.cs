@@ -132,13 +132,13 @@ public class SpotBookTests : IDisposable
         var sage = Resource("Шалфей", 10);
         Observe();
 
-        // Уходим шагами по 20 м; шалфей пропал из списка, когда до него стало 95 м — просто не видно
-        for (var x = -20; x >= -80; x -= 20)
+        // Уходим шагами по 20 м; шалфей пропал из списка, когда до него стало 55 м — уже не наверняка видно
+        for (var x = -10; x >= -40; x -= 15)
         {
             _world.Position = new Position(x, 0, 0);
             Observe();
         }
-        _world.Position = new Position(-85, 0, 0);
+        _world.Position = new Position(-45, 0, 0);
         _world.Ground.Remove(sage);
         for (var i = 0; i < 12; i++)
             Observe();
@@ -151,7 +151,7 @@ public class SpotBookTests : IDisposable
     [Fact]
     public void ResourceGoneNearbyIsDug()
     {
-        Resource("Молочай", 40);
+        Resource("Молочай", 30);
         Observe();
         _book.MarkSaved();
 
@@ -291,12 +291,12 @@ public class SpotBookTests : IDisposable
         var book = new SpotBook([new ResourceSpot { Name = "Шалфей", X = 50, Seen = 2 }]) { Server = "comeback146" };
         book.Happened += events.Add;
 
-        // Далеко (100 м) — молчим; подошли на 60 м и постояли 3 с — «пусто», один раз
-        _world.Position = new Position(-50, 0, 0);
+        // Далеко (70 м) — молчим; подошли на 40 м и постояли 3 с — «пусто», один раз
+        _world.Position = new Position(-20, 0, 0);
         for (var i = 0; i < 20; i++)
             book.Observe(_world.Wait(0.25).Snapshot());
         Assert.Empty(events);
-        for (var x = -30; x <= -10; x += 20)
+        for (var x = 0; x <= 10; x += 10)
         {
             _world.Position = new Position(x, 0, 0);
             book.Observe(_world.Wait(0.25).Snapshot());
