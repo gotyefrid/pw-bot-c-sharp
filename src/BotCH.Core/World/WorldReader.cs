@@ -245,7 +245,10 @@ public sealed class WorldReader
                     yields[material] = Math.Max(most, 1);
             }
 
-            mine = new MineInfo(r.UInt32(m.Tool), r.UInt32(m.Quest), yields);
+            mine = new MineInfo(r.UInt32(m.Tool), r.UInt32(m.Quest), yields)
+            {
+                LevelRequired = m.LevelRequired == 0 ? 0 : r.Int32(m.LevelRequired),
+            };
         }
 
         _mines[tid] = mine;

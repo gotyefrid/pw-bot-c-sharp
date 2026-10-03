@@ -165,7 +165,11 @@ public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind 
 }
 
 /// <summary>Ресурс по справочнику игры: чем копать (0 — ничем), нужен ли квест (0 — нет), что даёт: tid → самое большее за копку.</summary>
-public sealed record MineInfo(uint Tool, uint Quest, IReadOnlyDictionary<uint, int> Yields);
+public sealed record MineInfo(uint Tool, uint Quest, IReadOnlyDictionary<uint, int> Yields)
+{
+    /// <summary>С какого уровня персонажа копается (0 — любой или неизвестно); раньше игра отвечает «недостаточно высокий уровень».</summary>
+    public int LevelRequired { get; init; }
+}
 
 public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, PotionInfo? Potion, int? FoodLoyalty)
 {

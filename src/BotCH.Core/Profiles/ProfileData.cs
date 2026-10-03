@@ -220,6 +220,8 @@ public sealed class MineEssenceOffsets
     public uint Amounts { get; init; }
     /// <summary>Нужен взятый квест (его номер), 0 — не нужен.</summary>
     public uint Quest { get; init; }
+    /// <summary>С какого уровня персонажа копается (int). 0 в профиле — поле не найдено, уровень не проверяем.</summary>
+    public uint LevelRequired { get; init; }
 }
 
 public sealed class InventoryOffsets

@@ -109,6 +109,7 @@ public class WorldReaderTests
         _memory.WriteBytes(record + m.NameInRecord, System.Text.Encoding.Unicode.GetBytes(name + "\0"));
         _memory.WriteUInt32(record + m.Tool, tool);
         _memory.WriteUInt32(record + m.Quest, quest);
+        _memory.WriteUInt32(record + m.LevelRequired, 20);
         if (material != 0)
         {
             _memory.WriteUInt32(record + m.Materials + 8, material); // не обязательно в первой ячейке
@@ -142,7 +143,7 @@ public class WorldReaderTests
             [("Высохший древесный корень", false), ("Безымянный труп", true), ("Особый ресурс", true), ("Монета", false)],
             world.GroundItems.Select(i => (i.Name, i.Special)));
         var root = world.GroundItems[0].Mine!;
-        Assert.Equal((3073u, 0u), (root.Tool, root.Quest));
+        Assert.Equal((3073u, 0u, 20), (root.Tool, root.Quest, root.LevelRequired));
         Assert.Equal(4, Assert.Single(root.Yields, y => y.Key == 795).Value);
         Assert.Equal(1093u, world.GroundItems[1].Mine!.Quest);
         Assert.Null(world.GroundItems[3].Mine);

@@ -11,7 +11,7 @@ namespace BotCH.Core.Brain;
 /// Копать ресурсы в радиусе фарма. Стоит перед боем: пока в радиусе есть ресурсы из списка — копаем их подряд, потом мобы.
 /// Бой и лут не перебиваем; напали на перса или пета — бросаем копание, бой убивает нападающего, потом копаем дальше.
 /// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по справочнику игры,
-/// <see cref="GroundItem.Mine"/>) целиком ляжет в начатые стопки. «Нересурсы» (<see cref="GroundItem.Special"/>: квестовые,
+/// <see cref="GroundItem.Mine"/>) целиком ляжет в начатые стопки. Ресурс выше уровня персонажа (по справочнику) не копаем. «Нересурсы» (<see cref="GroundItem.Special"/>: квестовые,
 /// особые) — только если их название явно в списке, и тогда без всяких условий: просто пробуем копать.
 /// </summary>
 public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools) : IBehavior
@@ -83,6 +83,14 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
     {
         var w = c.World;
         var allowed = resources.Where(i => Settings.LootFilter.AllowsGather(c.Settings.Loot, i.Name)).ToList();
+        if (allowed.Count == 0)
+            return [];
+
+        // Не дорос — игра не даст копать; уровень неизвестен (0) — не проверяем
+        var level = w.Host.Level;
+        foreach (var low in allowed.Where(i => level > 0 && i.Mine?.LevelRequired > level))
+            c.Say($"gather-level-{low.Tid}", $"Копать не буду: {low.Name} — нужен {low.Mine!.LevelRequired} уровень, у персонажа {level}", seconds: 1800);
+        allowed = allowed.Where(i => level <= 0 || !(i.Mine?.LevelRequired > level)).ToList();
         if (allowed.Count == 0)
             return [];
 

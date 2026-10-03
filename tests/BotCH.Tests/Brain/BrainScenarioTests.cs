@@ -755,6 +755,24 @@ public class BrainScenarioTests
     }
 
     [Theory]
+    [InlineData(20, false)] // Бузина с 20-го, перс 10-го — игра не даст копать
+    [InlineData(10, true)]
+    public void ResourceAboveHostLevelIsNotDug(int levelRequired, bool digs)
+    {
+        GatherWithPickaxe();
+        var elder = AddOre(0xC0000002, 5, "Бузина");
+        _world.Ground[_world.Ground.IndexOf(elder)] = elder with
+        {
+            Mine = new MineInfo(Pickaxe, 0, new Dictionary<uint, int> { [3102] = 1 }) { LevelRequired = levelRequired },
+        };
+
+        Tick();
+
+        Assert.Equal(digs ? ["gather C0000002"] : [], _actions.Calls.Where(c => c.StartsWith("gather")));
+        Assert.Equal(!digs, _log.Any(e => e.Message.Contains("нужен 20 уровень, у персонажа 10")));
+    }
+
+    [Theory]
     [InlineData(LootListMode.All, true)]
     [InlineData(LootListMode.OnlyListed, true)]
     [InlineData(LootListMode.ExceptListed, false)] // «кроме списка» — эти не трогать
