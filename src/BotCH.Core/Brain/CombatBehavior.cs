@@ -245,11 +245,12 @@ public sealed class CombatBehavior : IBehavior
         }
 
         var point = PointNear(w.Host.Position, mob.Position, distance - 1);
+        var smart = c.Settings.Combat.ApproachPath == ApproachPath.Smart;
         Status = $"бой: {_mobName} — подхожу, {mob.Distance:0.0} м";
         if (running is null)
         {
             // Тело занято (скилл ещё ждёт, каст) — бежать позже; в лог только когда бег правда начался
-            if (c.Send(new MoveAction(point, tolerance: 1.5f)) == SubmitStatus.Sent)
+            if (c.Send(new MoveAction(point, tolerance: 1.5f, smart)) == SubmitStatus.Sent)
             {
                 c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
                 _lastApproach = c.Now;
@@ -263,7 +264,7 @@ public sealed class CombatBehavior : IBehavior
         {
             c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
             _lastApproach = c.Now;
-            c.Runner.Replace(new MoveAction(point, tolerance: 1.5f), w);
+            c.Runner.Replace(new MoveAction(point, tolerance: 1.5f, smart), w);
         }
 
         return true;

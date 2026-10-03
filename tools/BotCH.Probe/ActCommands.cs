@@ -195,7 +195,7 @@ internal static class ActCommands
                 }
 
                 var p = w.Host.Position;
-                return new MoveAction(new Position(p.X + numbers[0], p.Height, p.Y + numbers[1]));
+                return new MoveAction(new Position(p.X + numbers[0], p.Height, p.Y + numbers[1]), smart: true);
 
             case "move-to":
                 var coords = args.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
@@ -210,12 +210,12 @@ internal static class ActCommands
                 var target = new Position(coords[0] * 10 - 4000, w.Host.Position.Height, coords[1] * 10 - 5500);
                 Console.WriteLine($"Сейчас: карта {(w.Host.Position.X + 4000) / 10:0.0} {(w.Host.Position.Y + 5500) / 10:0.0}");
                 problem = $"точка в {w.Host.Position.HorizontalDistanceTo(target):0} м — дальше 1000 м";
-                return w.Host.Position.HorizontalDistanceTo(target) <= 1000 ? new MoveAction(target) : null;
+                return w.Host.Position.HorizontalDistanceTo(target) <= 1000 ? new MoveAction(target, smart: true) : null;
 
             case "move-mob":
                 var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Distance).FirstOrDefault();
                 problem = near is null ? "рядом нет живых мобов" : $"{near.Name} дальше 50 м";
-                return near is { Distance: <= 50 } ? new MoveAction(near.Position) : null;
+                return near is { Distance: <= 50 } ? new MoveAction(near.Position, smart: true) : null;
 
             default:
                 problem = $"неизвестное действие «{name}»\n{Usage}";

@@ -522,6 +522,7 @@ public class ActionRunnerTests
         public string Mode => "тест";
         public bool CanMove => true;
         public bool CanCancel => true;
+        public bool CanMoveSmart => true;
 
         private CallResult Slow()
         {
@@ -543,7 +544,7 @@ public class ActionRunnerTests
         public CallResult PickupObject(HostState host, GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();
-        public CallResult MoveTo(HostState host, Position point) => Slow();
+        public CallResult MoveTo(HostState host, Position point, bool smart) => Slow();
         public CallResult Gather(HostState host, GroundItem resource) => Slow();
         public CallResult FlyTo(HostState host, Position point) => Slow();
     }

@@ -28,6 +28,7 @@ public sealed class ProfileData
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
+    public MoveTypes MoveTypes { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
 
     /// <summary>Функции клиента для прямого вызова, ключи — <see cref="GameFunctions"/>.</summary>
@@ -38,6 +39,17 @@ public sealed class ProfileData
     /// Вызов по такому адресу блокируется, даже если он по ошибке окажется в <see cref="Functions"/>.
     /// </summary>
     public Dictionary<string, uint> ForbiddenFunctions { get; init; } = new();
+}
+
+/// <summary>
+/// Тип точки для SetDestination (аргумент «type» в args функции workMoveSetDestination): по прямой и с автопутём, как клик по карте.
+/// </summary>
+public sealed class MoveTypes
+{
+    /// <summary>По прямой (как клик по земле). У известных клиентов — 0.</summary>
+    public uint Direct { get; init; }
+    /// <summary>С автопутём, в обход препятствий. 0 — на этом сервере не найден (бег только по прямой).</summary>
+    public uint Smart { get; init; }
 }
 
 /// <summary>Файлы клиента (configs.pck и др.).</summary>

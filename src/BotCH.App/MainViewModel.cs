@@ -103,6 +103,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             _appSettings.Connection.ServerId = value.Id;
             SaveSettings();
+            OnPropertyChanged(nameof(CanChoosePath));
             // Тот же клиент, но читать его теперь по другим смещениям — переподключаемся всегда
             RefreshClients(reconnect: true);
         }
@@ -408,6 +409,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     public IReadOnlyList<LootListMode> LootModes { get; } = [LootListMode.All, LootListMode.OnlyListed, LootListMode.ExceptListed];
+
+    public sealed record PathChoice(ApproachPath Path, string Title);
+
+    public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
+
+    /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
+    public bool CanChoosePath => _profile.Capabilities.SmartPath;
 
     /// <summary>Любая правка настройки: сохранить файл и отдать копию работающему боту.</summary>
     public void SettingsEdited()

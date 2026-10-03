@@ -347,11 +347,12 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     }
 }
 
-/// <summary>Идти в точку. Подтверждение — дошли ближе <see cref="Tolerance"/>.</summary>
-public sealed class MoveAction(Position point, float tolerance = 2f) : GameAction
+/// <summary>Идти в точку: по прямой или <paramref name="smart"/> — с автопутём. Подтверждение — дошли ближе <see cref="Tolerance"/>.</summary>
+public sealed class MoveAction(Position point, float tolerance = 2f, bool smart = false) : GameAction
 {
     public Position Point { get; } = point;
     public float Tolerance { get; } = tolerance;
+    public bool Smart { get; } = smart;
 
     public override string Name => $"идти в {Point}";
     public override string Key => "движение";
@@ -361,7 +362,7 @@ public sealed class MoveAction(Position point, float tolerance = 2f) : GameActio
     // (автопуть на 1.4.6 водит и на сотни метров)
     public override TimeSpan Timeout => TimeSpan.FromMinutes(5);
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.MoveTo(now.Host, Point);
+    public override CallResult Send(IGameActions actions, WorldState now) => actions.MoveTo(now.Host, Point, Smart);
 
     public override Verdict Check(WorldState start, WorldState now)
     {

@@ -16,6 +16,9 @@ public interface IGameActions
     /// <summary>Умеет ли «идти в точку». Нет — мозг не ходит сам (подбор «как мышкой» всё равно подводит к предмету).</summary>
     bool CanMove { get; }
 
+    /// <summary>Умеет ли бегать с автопутём (в обход препятствий). Нет — <see cref="MoveTo"/> бежит по прямой.</summary>
+    bool CanMoveSmart { get; }
+
     /// <summary>Умеет ли прерывать каст и копание (<see cref="CancelAction"/>). Нет — пет ждёт, пока персонаж освободится.</summary>
     bool CanCancel { get; }
 
@@ -42,7 +45,9 @@ public interface IGameActions
 
     CallResult UseItem(InventoryItem item);
     CallResult SummonPet(int cage);
-    CallResult MoveTo(HostState host, Position point);
+
+    /// <summary>Бежать в точку: по прямой или <paramref name="smart"/> — с автопутём (если умеет, иначе по прямой).</summary>
+    CallResult MoveTo(HostState host, Position point, bool smart);
 
     // ── Режим «сбор ресурсов» (часть 8, не сделано) ──
 
@@ -60,6 +65,8 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
 
     public bool CanMove => caller.CanMoveTo;
 
+    public bool CanMoveSmart => caller.CanMoveSmart;
+
     public bool CanCancel => caller.Can(GameFunctions.CancelAction);
 
     public CallResult SelectTarget(uint wid) => caller.SelectTarget(wid);
@@ -73,7 +80,8 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public CallResult PickupObject(HostState host, GroundItem item) => caller.PickupObject(host.Address, item.Id);
     public CallResult UseItem(InventoryItem item) => caller.UseItem(item.Slot, item.Tid);
     public CallResult SummonPet(int cage) => caller.SummonPet(cage);
-    public CallResult MoveTo(HostState host, Position point) => caller.MoveTo(host.Address, point.X, point.Height, point.Y);
+    public CallResult MoveTo(HostState host, Position point, bool smart)
+        => caller.MoveTo(host.Address, point.X, point.Height, point.Y, smart);
 
     public CallResult Gather(HostState host, GroundItem resource) => caller.PickupObject(host.Address, resource.Id, gather: true);
 

@@ -8,6 +8,7 @@ public sealed record ServerCapabilities(
     bool DirectCalls,
     bool ApproachLikeMouse,
     bool MoveToPoint,
+    bool SmartPath,
     bool GroundItems,
     bool SkillNamesFromGame)
 {
@@ -19,6 +20,7 @@ public sealed record ServerCapabilities(
             DirectCalls: data.Functions.Count > 0,
             ApproachLikeMouse: Has(GameFunctions.HostApplySkill) && Has(GameFunctions.HostPickupObject),
             MoveToPoint: data.Host.WorkMan != 0 && Has(GameFunctions.WorkCreate) && Has(GameFunctions.WorkMoveSetDestination) && Has(GameFunctions.WorkStart),
+            SmartPath: data.MoveTypes.Smart != 0,
             GroundItems: data.World.GroundItems.Manager != 0,
             // configs.pck → skillstr.txt есть у всех известных клиентов; если у какого-то нет — профиль это переопределит
             SkillNamesFromGame: true);

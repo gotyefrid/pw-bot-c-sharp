@@ -118,6 +118,17 @@ public sealed class CombatSettings
     public bool ComeCloser { get; set; }
 
     public float ComeCloserDistance { get; set; } = 8;
+
+    /// <summary>Как подходить: с автопутём (в обход препятствий, если сервер умеет) или напрямик.</summary>
+    public ApproachPath ApproachPath { get; set; } = ApproachPath.Smart;
+}
+
+public enum ApproachPath
+{
+    /// <summary>Автопуть, как клик по карте: в обход препятствий. Нет у сервера — по прямой.</summary>
+    Smart,
+    /// <summary>По прямой, как клик по земле.</summary>
+    Direct,
 }
 
 public sealed class LootSettings

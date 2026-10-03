@@ -395,6 +395,22 @@ public class BrainScenarioTests
         Assert.Contains("(13,0;", LastCall); // 20 м до моба → точка в 7 м от него
     }
 
+    [Theory]
+    [InlineData(ApproachPath.Smart, true)]
+    [InlineData(ApproachPath.Direct, false)]
+    public void ComeCloserBySelectedPath(ApproachPath path, bool smart)
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ApproachPath = path;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
+
+        Tick();
+
+        Assert.StartsWith("move", LastCall);
+        Assert.Equal(smart, LastCall.EndsWith(" умно"));
+    }
+
     [Fact]
     public void ComeCloserFirstThenSkill()
     {
