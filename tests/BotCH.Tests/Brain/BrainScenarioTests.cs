@@ -878,11 +878,13 @@ public class BrainScenarioTests
         PetNeedsHealSoon();
         _world.SetPet(1, hpRatio: 0.4f);
         _world.Casting = true;
+        _world.CastingSkillId = 299;
 
         Tick();
         Assert.Equal("cancel", LastCall);
 
         _world.Casting = false;
+        _world.CastingSkillId = 0;
         Tick();
         Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
     }
@@ -894,6 +896,7 @@ public class BrainScenarioTests
         _actions.CanCancel = false;
         _world.SetPet(1, hpRatio: 0.4f);
         _world.Casting = true;
+        _world.CastingSkillId = 299;
 
         Tick();
 
@@ -962,15 +965,30 @@ public class BrainScenarioTests
     [Fact]
     public void PetHealDoesNotInterruptItself()
     {
-        // Лечение не подтвердилось за 5 с, а каст ещё идёт — это наш каст, отмену не шлём
+        // Подтверждение пришло или вышло время, а каст лечения ещё идёт — это тот же скилл, отмену не шлём
         PetNeedsHealSoon();
         _world.SetPet(1, hpRatio: 0.4f);
         Tick();
         Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
 
         _world.Casting = true;
+        _world.CastingSkillId = 330;
         Tick(5.5);
         Tick();
+        Tick();
+
+        Assert.DoesNotContain("cancel", _actions.Calls);
+    }
+
+    [Fact]
+    public void UnknownCastIsNotInterrupted()
+    {
+        // Сервер не показывает, какой скилл кастуется — вдруг это лечение: не сбиваем, пет ждёт
+        PetNeedsHealSoon();
+        _world.SetPet(1, hpRatio: 0.4f);
+        _world.Casting = true;
+        _world.CastingSkillId = null;
+
         Tick();
 
         Assert.DoesNotContain("cancel", _actions.Calls);

@@ -79,6 +79,8 @@ public sealed class HostOffsets
     public uint PetFoodCooldown { get; init; }
     /// <summary>Координаты: X, высота, Y — три float подряд.</summary>
     public uint Location { get; init; }
+    /// <summary>Указатель на объект скилла, который кастуется сейчас (0 — не кастует); номер — по <see cref="SkillOffsets.Id"/>.</summary>
+    public uint CastingSkill { get; init; }
     /// <summary>Байт: 0 — идёт полоска копания, иначе нет (0 в профиле — поле не найдено).</summary>
     public uint GatherIdle { get; init; }
     /// <summary>Полоска копания: сколько мс прошло.</summary>

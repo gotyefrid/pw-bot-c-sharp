@@ -165,6 +165,21 @@ public class WorldReaderTests
         Assert.Equal(new GatherProgress(true, 1800, 8000), new WorldReader(_memory, ModuleBase, p).Read().Host.Gather);
     }
 
+    [Fact]
+    public void ComebackReadsCastingSkill()
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        ComebackWorldWithMob(p);
+        const uint host = 0x1002_0000, skill = 0x5000_0000;
+        _memory.Map(skill, 0x40);
+        _memory.WriteUInt32(skill + p.Skill.Id, 330);
+        _memory.WriteUInt32(host + p.Host.CastingSkill, skill);
+
+        Assert.Equal(330, new WorldReader(_memory, ModuleBase, p).Read().Host.CastingSkillId);
+        _memory.WriteUInt32(host + p.Host.CastingSkill, 0);
+        Assert.Equal(0, new WorldReader(_memory, ModuleBase, p).Read().Host.CastingSkillId);
+    }
+
     // Мир Comeback 1.4.6 с одним мобом; возвращает адрес моба
     private uint ComebackWorldWithMob(ProfileData p)
     {

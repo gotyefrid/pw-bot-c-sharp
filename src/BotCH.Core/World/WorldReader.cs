@@ -39,7 +39,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal);
+            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill);
         var n = profile.Npc;
         _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8);
         var g = profile.GroundItem;
@@ -119,6 +119,7 @@ public sealed class WorldReader
             h.CastFlag != 0 && block.Byte(h.CastFlag) != 0,
             h.PetFoodCooldown == 0 ? 0 : Math.Max(0, block.Int32(h.PetFoodCooldown)))
         {
+            CastingSkillId = h.CastingSkill == 0 ? null : ReadCastingSkill(block.UInt32(h.CastingSkill)),
             Gather = h.GatherIdle == 0 || h.GatherElapsed == 0 || h.GatherTotal == 0 ? null
                 : new GatherProgress(block.Byte(h.GatherIdle) == 0, block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
         };
@@ -248,6 +249,10 @@ public sealed class WorldReader
 
         return new PotionInfo(b.Int32(p.RequiredLevel), b.Int32(p.Hp), b.Int32(p.HpSeconds), b.Int32(p.Mp), b.Int32(p.MpSeconds));
     }
+
+    // Номер скилла по указателю на его объект; 0 — не кастует (или объект не прочитался)
+    private int ReadCastingSkill(uint skill)
+        => skill != 0 && _memory.TryReadUInt32(skill + _p.Skill.Id, out var id) ? (int)id : 0;
 
     private List<SkillInfo> ReadSkills(uint array, int count)
     {

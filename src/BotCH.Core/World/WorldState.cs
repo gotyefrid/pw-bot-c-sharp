@@ -82,6 +82,9 @@ public sealed record HostState(
     /// <summary>Сколько мс осталось до конца перезарядки корма пета (0 — можно кормить или поле не найдено).</summary>
     int PetFoodCooldownMs)
 {
+    /// <summary>Какой скилл кастуется: 0 — никакой; null — поле не найдено для этого сервера (знаем только «кастует»).</summary>
+    public int? CastingSkillId { get; init; }
+
     /// <summary>Полоска копания; null — поля не найдены для этого сервера.</summary>
     public GatherProgress? Gather { get; init; }
 

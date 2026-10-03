@@ -24,6 +24,9 @@ internal sealed class FakeWorld
     public uint TargetWid { get; set; }
     public int PetFoodCooldownMs { get; set; }
     public bool Casting { get; set; }
+
+    /// <summary>Какой скилл кастуется (0 — никакой, null — сервер не показывает).</summary>
+    public int? CastingSkillId { get; set; } = 0;
     public List<NpcInfo> Npcs { get; } = [];
     public List<GroundItem> Ground { get; } = [];
     public List<InventoryItem> Bag { get; } = [];
@@ -47,7 +50,7 @@ internal sealed class FakeWorld
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, Casting, PetFoodCooldownMs)
-            { Gather = Gather },
+            { Gather = Gather, CastingSkillId = CastingSkillId },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
 
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int state = 1, int hp = 0)

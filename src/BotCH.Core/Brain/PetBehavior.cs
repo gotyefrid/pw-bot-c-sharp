@@ -11,13 +11,10 @@ namespace BotCH.Core.Brain;
 /// </summary>
 public sealed class PetBehavior : IBehavior
 {
-    // Свой каст (лечение, воскрешение) может идти дольше, чем ждёт подтверждение, — его не прерываем
-    private static readonly TimeSpan OwnCastWindow = TimeSpan.FromSeconds(10);
     // Лечение не пошло — жмём снова быстро. Подтверждение (перезарядка) в игре видно через 1,8–2,1 с, поэтому не 2 с
     private static readonly TimeSpan HealTimeout = TimeSpan.FromSeconds(2.5);
 
     private readonly PetFeeding _feeding = new();
-    private DateTime _ownCastAt = DateTime.MinValue;
 
     public string Name => "пет";
     public string? Status { get; private set; }
@@ -58,11 +55,10 @@ public sealed class PetBehavior : IBehavior
             }
 
             Status = "воскрешаю пета";
-            if (FreeBody(c, "воскрешаю пета"))
+            if (FreeBody(c, c.Skills.RevivePet, "воскрешаю пета"))
                 return true;
             if (c.Send(new RevivePetAction(settings.Cage, c.Skills.RevivePet)) != SubmitStatus.Sent)
                 return false;
-            _ownCastAt = c.Now;
             c.Log.Info("Пет мёртв — воскрешаю");
             return true;
         }
@@ -76,16 +72,13 @@ public sealed class PetBehavior : IBehavior
         if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true })
         {
             Status = "лечу пета";
-            if (FreeBody(c, "лечу пета"))
+            if (FreeBody(c, c.Skills.HealPet, "лечу пета"))
                 return true;
 
             // Тело всё ещё занято (прерывать нечем) — вылечим, как освободится; пока не мешаем остальным
             var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета", HealTimeout));
             if (heal == SubmitStatus.Sent)
-            {
-                _ownCastAt = c.Now;
                 c.Log.Info($"HP пета {inCage.HpPercent} % < {settings.HealPercent} % — лечу");
-            }
             if (heal is SubmitStatus.Sent or SubmitStatus.AlreadyPending)
             {
                 Status = "лечу пета";
@@ -110,14 +103,15 @@ public sealed class PetBehavior : IBehavior
     }
 
     /// <summary>
-    /// Освободить тело ради пета. true — ждём (отправлена отмена каста/копания, она ещё идёт); false — можно слать сразу
-    /// (тело свободно, ждущее действие забыто, или это наше же лечение/воскрешение).
+    /// Освободить тело ради пета скиллом <paramref name="skill"/>. true — ждём: кастуется этот же скилл (не сбиваем сами себя)
+    /// или отправлена отмена чужого каста/копания. false — можно слать сразу (тело свободно, ждущее действие забыто)
+    /// или прервать нечем (тогда пет ждёт, пока персонаж освободится).
     /// </summary>
-    private bool FreeBody(BrainContext c, string why)
+    private static bool FreeBody(BrainContext c, int skill, string why)
     {
         var w = c.World;
         var body = c.Runner.BodyAction;
-        if (body is RevivePetAction || body is SkillAction skill && skill.Skill == c.Skills.HealPet)
+        if (body is RevivePetAction || body is SkillAction pending && pending.Skill == c.Skills.HealPet)
             return false;
 
         if (c.Runner.IsPending(new CancelAction(why).Key))
@@ -134,8 +128,11 @@ public sealed class PetBehavior : IBehavior
         if (!w.Host.IsCasting && !digging)
             return false;
 
-        // Кастуем, а поверх ничего не отправляли — это ещё наше лечение/воскрешение (подтверждение не дождалось конца каста)
-        if (!digging && body is null && c.Now - _ownCastAt < OwnCastWindow)
+        // Кастуется этот же скилл — ждём его конца. Какой скилл, неизвестно (нет поля) — чужой ли он, не знаем: не сбиваем
+        var casting = w.Host.CastingSkillId ?? 0;
+        if (!digging && casting == 0)
+            return false;
+        if (!digging && casting == skill)
             return true;
         if (!c.Runner.Actions.CanCancel)
             return false;
@@ -151,9 +148,5 @@ public sealed class PetBehavior : IBehavior
             c.Log.Info(_feeding.Report(feed.Item.Tid, outcome.Status == ActionStatus.Confirmed, c.Now));
     }
 
-    public void Reset()
-    {
-        Status = null;
-        _ownCastAt = DateTime.MinValue;
-    }
+    public void Reset() => Status = null;
 }
