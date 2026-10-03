@@ -91,6 +91,61 @@ public class WorldReaderTests
         Assert.Throws<WorldNotReadyException>(() => Reader().Read());
     }
 
+    // Ресурс на земле с записью в справочнике: указатель на название ведёт в запись +8
+    private void AddResource(uint slots, int slot, uint address, uint tid, uint kind, uint tool, uint quest, uint material, string name)
+    {
+        var g = Profile.GroundItem;
+        var m = Profile.MineEssence;
+        uint node = address + 0x800, record = address + 0x1000;
+        _memory.Map(node, 0x10);
+        _memory.WriteUInt32(slots + (uint)slot * 4, node);
+        _memory.WriteUInt32(node + Profile.World.ObjectInSlot, address);
+        _memory.Map(address, 0x400);
+        _memory.WriteUInt32(address + g.Tid, tid);
+        _memory.WriteUInt32(address + g.Kind, kind);
+        _memory.WriteUInt32(address + g.NamePointer, record + m.NameInRecord);
+        _memory.Map(record, (int)m.Size);
+        _memory.WriteUInt32(record + m.Id, tid);
+        _memory.WriteBytes(record + m.NameInRecord, System.Text.Encoding.Unicode.GetBytes(name + "\0"));
+        _memory.WriteUInt32(record + m.Tool, tool);
+        _memory.WriteUInt32(record + m.Quest, quest);
+        if (material != 0)
+        {
+            _memory.WriteUInt32(record + m.Materials + 8, material); // не обязательно в первой ячейке
+            _memory.WriteBytes(record + m.Materials + 12, System.BitConverter.GetBytes(1f));
+        }
+        _memory.WriteUInt32(record + m.Amounts, 2);
+        _memory.WriteBytes(record + m.Amounts + 4, System.BitConverter.GetBytes(0.9f));
+        _memory.WriteUInt32(record + m.Amounts + 8, 4);
+        _memory.WriteBytes(record + m.Amounts + 12, System.BitConverter.GetBytes(0.1f));
+    }
+
+    [Fact]
+    public void OnlyPickaxeResourcesWithoutQuestAreReadWithTheirYield()
+    {
+        BuildWorld();
+        const uint manager = 0x3000_0000, slots = 0x3001_0000;
+        _memory.WriteUInt32(0x1003_0000 + Profile.World.GroundItems.Manager, manager);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.SlotArray, slots);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 4);
+        _memory.Map(slots, Profile.World.SlotCount * 4);
+        AddResource(slots, 1, 0x4000_0000, 3074, 2, tool: 3073, quest: 0, material: 795, "Высохший древесный корень");
+        AddResource(slots, 2, 0x4100_0000, 3405, 2, tool: 0, quest: 1093, material: 0, "Безымянный труп");
+        AddResource(slots, 3, 0x4200_0000, 9999, 2, tool: 23652, quest: 0, material: 777, "Особый ресурс");
+        AddResource(slots, 4, 0x4300_0000, 3044, 3, tool: 0, quest: 0, material: 0, "Монета");
+
+        var world = Reader().Read();
+
+        Assert.Equal(["Высохший древесный корень", "Монета"], world.GroundItems.Select(i => i.Name));
+        var root = world.GroundItems[0].Mine!;
+        Assert.Equal((3073u, 0u), (root.Tool, root.Quest));
+        Assert.Equal(4, Assert.Single(root.Yields, y => y.Key == 795).Value);
+        Assert.Null(world.GroundItems[1].Mine);
+        Assert.Equal(2, world.GroundItemsHidden);
+        Assert.Equal(4, world.GroundItemCountInGame);
+    }
+
     [Fact]
     public void ChainedSlotsAreAllRead()
     {

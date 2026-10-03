@@ -81,7 +81,7 @@ internal static class WorldCommands
         var distanceMismatch = world.Npcs.Where(n => Math.Abs(n.Position.DistanceTo(h.Position) - n.Distance) > 2).ToList();
         Check(distanceMismatch.Count == 0, $"дистанция моба совпадает с расчётом по координатам (±2 м){Bad(distanceMismatch.Select(n => $"{n.Name} {n.Distance:0.0}≠{n.Position.DistanceTo(h.Position):0.0}"))}");
 
-        Check(world.GroundItemCountInGame < 0 || world.GroundItems.Count == world.GroundItemCountInGame, $"предметов на земле прочитано {world.GroundItems.Count}, в игре {world.GroundItemCountInGame}");
+        Check(world.GroundItemCountInGame < 0 || world.GroundItems.Count + world.GroundItemsHidden == world.GroundItemCountInGame, $"предметов на земле прочитано {world.GroundItems.Count} (+ скрыто ресурсов {world.GroundItemsHidden}), в игре {world.GroundItemCountInGame}");
         var badItems = world.GroundItems.Where(i => i.Kind is not (GroundItemKind.Item or GroundItemKind.Resource or GroundItemKind.Money) || !i.Position.IsFinite).ToList();
         Check(badItems.Count == 0, $"у предметов на земле вид 1/2/3 и нормальные координаты{Bad(badItems.Select(i => $"{i.Name}={(int)i.Kind}"))}");
 
@@ -189,7 +189,7 @@ internal static class WorldCommands
             s.AppendLine($"       мобы по названиям: {string.Join(", ", names)}");
         }
 
-        s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame})");
+        s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame}, скрыто квестовых и особых ресурсов {w.GroundItemsHidden})");
         foreach (var i in w.GroundItems.OrderBy(i => i.Distance).Take(full ? 10 : 3))
             s.AppendLine($"       {i.Distance,6:0.0} м  {ItemKind(i.Kind),-7} {i.Name} (id 0x{i.Id:X8}, tid {i.Tid})");
 

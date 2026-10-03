@@ -66,9 +66,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly SpotBookStore _spotStore;
     private readonly SpotBook _spots;
     private readonly SpotJournal _spotJournal;
-    // Что даёт ресурс (по нашим копкам): при полной сумке копаем то, что ляжет в начатые стопки
-    private readonly ResourceYieldsStore _yieldsStore;
-    private readonly ResourceYields _yields = new();
     private DateTime _spotsSaved = DateTime.Now;
     private DateTime _spotsShown;
     private DateTime _spotsSynced = DateTime.Now;
@@ -97,11 +94,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ImportLocalSpots(Path.Combine(appDirectory, "resources.json"));
         _spotJournal = new SpotJournal(Path.Combine(shared, "resource-events.csv"));
         _spots.Happened += WriteSpotEvent;
-        _yieldsStore = new ResourceYieldsStore(Path.Combine(shared, "resource-yields.json"));
-        _yields.Merge(_yieldsStore.Load(out var yieldsProblem));
-        if (yieldsProblem is not null)
-            _log.Warning(yieldsProblem);
-        _spots.Happened += LearnYield;
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
@@ -294,9 +286,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
             var runner = new ActionRunner(new DirectCallActions(caller), _logger.For("действия"));
-            var server = _profile.Id;
-            _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools,
-                (resource, w) => _yields.FitsInStacks(server, resource, w.Inventory));
+            _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools);
             _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
             _brain.StopRequested += reason => OnUi(Stop);
             var brain = _brain;
@@ -640,34 +630,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    // Наша копка: что прибавилось в сумке — запоминаем (файл сразу: копки редкие, а знание нужно и другим копиям бота)
-    private void LearnYield(SpotEvent e)
-    {
-        if (e.Kind != SpotEventKind.Dug || e.Who != "мы" || !_yields.Learn(_profile.Id, e.Name, e.Gained))
-            return;
-
-        _log.Debug($"{e.Name} даёт {e.Loot} — запомнил");
-        SaveYields();
-    }
-
-    private void SaveYields()
-    {
-        if (!_yields.Changed)
-            return;
-
-        try
-        {
-            _yields.Merge(_yieldsStore.Load(out _));
-            _yieldsStore.Save(_yields);
-            _yields.MarkSaved();
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            // Файл занят другой копией — попробуем при следующей синхронизации
-            _log.Debug("Не удалось сохранить, что даёт ресурс: " + e.Message);
-        }
-    }
-
     /// <summary>Точки, накопленные до общего файла в папке бота, — в общий файл; старый файл переименовывается.</summary>
     private void ImportLocalSpots(string local)
     {
@@ -704,8 +666,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (now - _spotsSynced >= SpotsSyncEvery)
         {
             _spots.Merge(_spotStore.Load(out _));
-            _yields.Merge(_yieldsStore.Load(out _));
-            SaveYields();
             _spotsSynced = now;
         }
         if (!force && now - _spotsShown < SpotsShowEvery)

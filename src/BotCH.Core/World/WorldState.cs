@@ -45,6 +45,9 @@ public sealed record WorldState(
     public int NpcCountInGame { get; init; } = -1;
     public int GroundItemCountInGame { get; init; } = -1;
 
+    /// <summary>Ресурсы на земле, которые бот не считает ресурсами (квестовые, особым инструментом) — в списке их нет.</summary>
+    public int GroundItemsHidden { get; init; }
+
     public NpcInfo? Target => Host.TargetWid == 0 ? null : Npcs.FirstOrDefault(n => n.Wid == Host.TargetWid);
 
     public IEnumerable<NpcInfo> Mobs => Npcs.Where(n => n.Kind == NpcKind.Mob);
@@ -59,11 +62,20 @@ public sealed record WorldState(
 
     /// <summary>
     /// Влезет ли предмет с земли: монеты — всегда (идут в кошелёк); сумка не полна — да;
-    /// полна — только если такой же предмет уже лежит неполной стопкой.
+    /// полна — только если такой же предмет уже лежит неполной стопкой. Ресурс при полной сумке — если всё, что он может дать
+    /// (по справочнику игры), ляжет в начатые стопки целиком, даже самая большая копка.
     /// </summary>
     public bool FitsInBag(GroundItem item)
-        => item.Kind == GroundItemKind.Money || !BagFull
-           || Inventory.Any(i => i.Tid == item.Tid && i.MaxCount > 0 && i.Count < i.MaxCount);
+    {
+        if (item.Kind == GroundItemKind.Money || !BagFull)
+            return true;
+        if (item.Kind != GroundItemKind.Resource)
+            return RoomInStacks(item.Tid) > 0;
+        return item.Mine is { Yields.Count: > 0 } mine && mine.Yields.All(y => RoomInStacks(y.Key) >= y.Value);
+    }
+
+    private int RoomInStacks(uint tid)
+        => Inventory.Where(i => i.Tid == tid && i.MaxCount > 0).Sum(i => Math.Max(0, i.MaxCount - i.Count));
 }
 
 public sealed record HostState(
@@ -140,7 +152,14 @@ public enum GroundItemKind
     Money = 3,
 }
 
-public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind Kind, Position Position, float Distance, string Name);
+public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind Kind, Position Position, float Distance, string Name)
+{
+    /// <summary>Для ресурса — его запись в справочнике игры; null — не ресурс или запись не найдена для сервера.</summary>
+    public MineInfo? Mine { get; init; }
+}
+
+/// <summary>Ресурс по справочнику игры: чем копать (0 — ничем), нужен ли квест (0 — нет), что даёт: tid → самое большее за копку.</summary>
+public sealed record MineInfo(uint Tool, uint Quest, IReadOnlyDictionary<uint, int> Yields);
 
 public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, PotionInfo? Potion, int? FoodLoyalty)
 {

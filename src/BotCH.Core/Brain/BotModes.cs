@@ -39,12 +39,12 @@ public static class BotModes
     };
 
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
-        IReadOnlyCollection<uint>? gatherTools = null, Func<string, WorldState, bool>? gatherFitsInStacks = null)
+        IReadOnlyCollection<uint>? gatherTools = null)
         => mode switch
         {
             BotMode.GatherResources => new NotReadyMode("сбор ресурсов", "часть 8", log),
             BotMode.Clicker => new NotReadyMode("кликер", "часть 10", log),
-            _ => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools, gatherFitsInStacks: gatherFitsInStacks),
+            _ => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools),
         };
 }
 

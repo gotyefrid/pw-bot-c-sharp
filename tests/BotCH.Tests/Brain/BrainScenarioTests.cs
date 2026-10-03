@@ -5,7 +5,6 @@ using BotCH.Core.Actions;
 using BotCH.Core.Brain;
 using BotCH.Core.Logging;
 using BotCH.Core.Profiles;
-using BotCH.Core.Resources;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 using BotCH.Tests.Fakes;
@@ -23,7 +22,6 @@ public class BrainScenarioTests
     private readonly List<LogEntry> _log = [];
     private readonly BotSettings _settings = new();
     private BotBrain? _brain;
-    private readonly ResourceYields _yields = new();
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -32,8 +30,7 @@ public class BrainScenarioTests
 
     private BotBrain Brain => _brain ??= new BotBrain(
         new ActionRunner(_actions, NullLogger.Instance), Skills, _settings,
-        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe],
-        (resource, w) => _yields.FitsInStacks("test", resource, w.Inventory));
+        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe]);
 
     private const uint Pickaxe = 3073;
 
@@ -739,34 +736,22 @@ public class BrainScenarioTests
         Assert.Equal(["gather C0000001"], _actions.Calls);
     }
 
-    [Fact]
-    public void FullBagDigsOnlyResourcesWhoseYieldFitsInStacks()
+    [Theory]
+    [InlineData(10, true)]  // в стопке корней место на самую большую копку (4)
+    [InlineData(97, false)] // места на 2, а копка может дать 4
+    public void FullBagDigsOnlyWhenWholeYieldFitsInStacks(int rootsInStack, bool digs)
     {
         GatherWithPickaxe();
         _world.BagSlots = 2;
-        var roots = new InventoryItem(0, 795, 8, 10, null, null) { MaxCount = 99 };
-        _world.Bag.Add(roots);
-        _yields.Learn("test", "Высохший древесный корень", new Dictionary<uint, int> { [795] = 4 });
-        AddOre(0xC0000001, 5); // что даёт руда — не знаем
-        AddOre(0xC0000002, 15, "Высохший древесный корень");
+        _world.Bag.Add(new InventoryItem(0, 795, 8, rootsInStack, null, null) { MaxCount = 99 });
+        var root = AddOre(0xC0000002, 15, "Высохший древесный корень");
+        _world.Ground[_world.Ground.IndexOf(root)] = root with { Mine = new MineInfo(Pickaxe, 0, new Dictionary<uint, int> { [795] = 4 }) };
+        AddOre(0xC0000001, 5); // что даёт — неизвестно: при полной сумке не копаем
 
         Tick();
-        Assert.Equal(["gather C0000002"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.Contains("ляжет в начатую стопку"));
-    }
 
-    [Fact]
-    public void FullBagNoRoomInStacksNoGather()
-    {
-        GatherWithPickaxe();
-        _world.BagSlots = 2;
-        _world.Bag.Add(new InventoryItem(0, 795, 8, 97, null, null) { MaxCount = 99 }); // места на 2, копка даёт до 4
-        _yields.Learn("test", "Высохший древесный корень", new Dictionary<uint, int> { [795] = 4 });
-        AddOre(0xC0000002, 15, "Высохший древесный корень");
-
-        Tick();
-        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("gather"));
-        Assert.Contains(_log, e => e.Message.Contains("сумка полна"));
+        Assert.Equal(digs ? ["gather C0000002"] : [], _actions.Calls.Where(c => c.StartsWith("gather")));
+        Assert.Contains(_log, e => e.Message.Contains(digs ? "ляжет в начатую стопку" : "сумка полна"));
     }
 
     [Fact]

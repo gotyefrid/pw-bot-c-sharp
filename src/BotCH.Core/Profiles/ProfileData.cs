@@ -21,6 +21,7 @@ public sealed class ProfileData
     public WorldOffsets World { get; init; } = new();
     public NpcOffsets Npc { get; init; } = new();
     public GroundItemOffsets GroundItem { get; init; } = new();
+    public MineEssenceOffsets MineEssence { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
     public PotionOffsets Potion { get; init; } = new();
     public PetFoodOffsets PetFood { get; init; } = new();
@@ -193,6 +194,28 @@ public sealed class GroundItemOffsets
     public uint Distance { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }
+}
+
+/// <summary>
+/// Запись ресурса в справочнике игры (MINE_ESSENCE из elements.data): указатель на название у предмета на земле
+/// ведёт внутрь неё, запись = [название] − <see cref="NameInRecord"/>. Size = 0 — не найдено для сервера.
+/// </summary>
+public sealed class MineEssenceOffsets
+{
+    public uint NameInRecord { get; init; }
+    /// <summary>Сколько байт записи читать.</summary>
+    public uint Size { get; init; }
+    /// <summary>tid ресурса — для проверки, что попали в нужную запись.</summary>
+    public uint Id { get; init; }
+    /// <summary>Чем копать (tid инструмента), 0 — без инструмента.</summary>
+    public uint Tool { get; init; }
+    /// <summary>Что даёт: ячейки {tid, вероятность float}.</summary>
+    public uint Materials { get; init; }
+    public int MaterialSlots { get; init; }
+    /// <summary>Сколько за копку: {число, вероятность float} × 2.</summary>
+    public uint Amounts { get; init; }
+    /// <summary>Нужен взятый квест (его номер), 0 — не нужен.</summary>
+    public uint Quest { get; init; }
 }
 
 public sealed class InventoryOffsets

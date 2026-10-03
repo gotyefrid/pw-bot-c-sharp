@@ -29,6 +29,8 @@ public sealed class WorldReader
     private readonly int _hostSize;
     private readonly int _npcSize;
     private readonly int _itemSize;
+    private readonly Dictionary<uint, MineInfo?> _mines = [];
+    private int _hiddenItems;
 
     public WorldReader(IMemory memory, uint moduleBase, ProfileData profile, Func<int, string?>? skillName = null)
     {
@@ -56,6 +58,7 @@ public sealed class WorldReader
         var world = _memory.ReadUInt32(game + _p.World.World);
         var w = _p.World;
         var npcs = ReadList(world, w.Npcs, _npcSize, ReadNpc, out var npcCount);
+        _hiddenItems = 0;
         var items = ReadList(world, w.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
         var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
         var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
@@ -65,6 +68,7 @@ public sealed class WorldReader
         {
             NpcCountInGame = npcCount,
             GroundItemCountInGame = itemCount,
+            GroundItemsHidden = _hiddenItems,
             InventorySlots = slots,
         };
     }
@@ -195,14 +199,60 @@ public sealed class WorldReader
     private GroundItem? ReadGroundItem(MemoryBlock b)
     {
         var g = _p.GroundItem;
-        return new GroundItem(
+        var name = b.UInt32(g.NamePointer);
+        var item = new GroundItem(
             b.Address,
             b.UInt32(g.Id),
             b.UInt32(g.Tid),
             (GroundItemKind)b.Int32(g.Kind),
             ReadPosition(b, g.Location),
             b.Float(g.Distance),
-            ReadName(b.UInt32(g.NamePointer)));
+            ReadName(name));
+        if (item.Kind != GroundItemKind.Resource)
+            return item;
+
+        item = item with { Mine = ReadMine(item.Tid, name) };
+        if (IsGatherable(item.Mine))
+            return item;
+
+        _hiddenItems++;
+        return null;
+    }
+
+    // Ресурс для бота — то, что копается нашим инструментом (киркой) без квеста. Квестовые трупы, ящики, печати и то,
+    // что копают особыми предметами, в мир не попадают: ни в список, ни в точки ресурсов. Справочник не прочитался — оставляем
+    private bool IsGatherable(MineInfo? mine)
+        => mine is null || _p.GatherTools.Count == 0 || (mine.Quest == 0 && _p.GatherTools.Contains(mine.Tool));
+
+    // Записи справочника не меняются, пока клиент запущен, — по tid читаем один раз
+    private MineInfo? ReadMine(uint tid, uint namePointer)
+    {
+        var m = _p.MineEssence;
+        if (m.Size == 0 || namePointer < m.NameInRecord)
+            return null;
+        if (_mines.TryGetValue(tid, out var known))
+            return known;
+        if (!MemoryBlock.TryRead(_memory, namePointer - m.NameInRecord, (int)m.Size, out var r))
+            return null;
+
+        MineInfo? mine = null;
+        if (r.UInt32(m.Id) == tid)
+        {
+            // Сколько за копку: два варианта {число, вероятность}; берём самый большой из возможных
+            var most = Math.Max(r.Float(m.Amounts + 4) > 0 ? r.Int32(m.Amounts) : 0, r.Float(m.Amounts + 12) > 0 ? r.Int32(m.Amounts + 8) : 0);
+            var yields = new Dictionary<uint, int>();
+            for (var i = 0u; i < m.MaterialSlots; i++)
+            {
+                var material = r.UInt32(m.Materials + i * 8);
+                if (material != 0 && r.Float(m.Materials + i * 8 + 4) > 0)
+                    yields[material] = Math.Max(most, 1);
+            }
+
+            mine = new MineInfo(r.UInt32(m.Tool), r.UInt32(m.Quest), yields);
+        }
+
+        _mines[tid] = mine;
+        return mine;
     }
 
     private List<InventoryItem> ReadInventory(uint inventory, out int slots)

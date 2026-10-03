@@ -10,11 +10,9 @@ namespace BotCH.Core.Brain;
 /// <summary>
 /// Копать ресурсы в радиусе фарма. Стоит перед боем: пока в радиусе есть ресурсы из списка — копаем их подряд, потом мобы.
 /// Бой и лут не перебиваем; напали на перса или пета — бросаем копание, бой убивает нападающего, потом копаем дальше.
-/// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по прошлым копкам)
-/// ляжет в начатые стопки: <paramref name="fitsInStacks"/> (название ресурса, мир) — знает, что даёт ресурс.
+/// Без инструмента (кирки) в сумке к ресурсам не подходим.
 /// </summary>
-public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, Func<string, WorldState, bool>? fitsInStacks = null)
-    : IBehavior
+public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools) : IBehavior
 {
     // Не вышло (нет инструмента, не дошли, сбили N раз подряд) — ресурс бросаем на время
     private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(3);
@@ -72,7 +70,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         var resource = w.GroundItems
             .Where(i => i.Kind == GroundItemKind.Resource && !_skipped.ContainsKey(i.Id) && c.InFarmArea(i.Position))
             .Where(i => Settings.LootFilter.AllowsGather(loot, i.Name))
-            .Where(i => !w.BagFull || fitsInStacks?.Invoke(i.Name, w) == true)
+            .Where(w.FitsInBag)
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
         if (resource is null)
