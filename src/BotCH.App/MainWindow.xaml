@@ -296,7 +296,7 @@
               <TextBox DockPanel.Dock="Right" Width="170" Margin="0,0,64,0" Text="{Binding FarmPointName}" ToolTip="Название точки — можно поменять" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">
-              <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр, когда целей нет" IsChecked="{Binding Settings.Target.ReturnToCenter}"
+              <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр" IsChecked="{Binding Settings.Target.ReturnToCenter}"
                         VerticalAlignment="Center"
                         ToolTip="В радиусе нет мобов и ресурсов, а персонаж отошёл от центра (погнался за мобом) — бежит в центр и ждёт там" />
               <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
