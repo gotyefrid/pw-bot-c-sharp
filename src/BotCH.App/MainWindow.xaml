@@ -452,6 +452,9 @@
                           SelectedValuePath="Value" SelectedValue="{Binding AirPet}"
                           ToolTip="Кого звать, когда персонаж летит (наземного сервер в воздухе не призовёт). Авто — первого, кто летает" />
               </DockPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="Пет только на время боя" IsChecked="{Binding Settings.Pet.OnlyForFight}"
+                        Visibility="{Binding CanRecallPet, Converter={StaticResource Visible}}"
+                        ToolTip="Напали — призвать, боя нет 3 с — отозвать (сначала вылечив). Отозванного не нужно кормить. Удобно при обходе ресурсов; копание и каст отзыв не прерывает" />
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Лечить пета, когда HP ниже, %" VerticalAlignment="Center" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.HealPercent, UpdateSourceTrigger=PropertyChanged}" />

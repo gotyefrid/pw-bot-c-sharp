@@ -610,6 +610,8 @@ public class ActionRunnerTests
         public CallResult PickupObject(HostState host, GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();
+        public bool CanRecallPet => true;
+        public CallResult RecallPet() => Slow();
         public CallResult MoveTo(HostState host, Position point, bool smart) => Slow();
         public CallResult Gather(HostState host, GroundItem resource) => Slow();
         public CallResult ToggleFly(HostState host) => Slow();

@@ -238,6 +238,60 @@ public class RouteScenarioTests
         Assert.Equal(["summon 2"], _actions.Calls);
     }
 
+    private static PetInCage Bee() => new(2, 1, 0) { Name = "Пчела", Habitat = PetHabitat.Ground | PetHabitat.Air };
+
+    private void PetOnlyForFight()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.OnlyForFight = true;
+        Route(0, 300);
+    }
+
+    [Fact]
+    public void PetOnlyForFightIsNotSummonedWithoutFight()
+    {
+        PetOnlyForFight();
+        _world.SetPets(null, Bee());
+
+        for (var i = 0; i < 8; i++)
+            Tick();
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("summon"));
+    }
+
+    [Fact]
+    public void AttackedSummonsPetThenRecallsItWhenCalmEvenInFlight()
+    {
+        PetOnlyForFight();
+        _world.SetPets(null, Bee());
+        var boar = _world.AddMob(0x80000002, "Кабан", 5, targetWid: FakeWorld.HostWid);
+
+        Tick();
+        Assert.Equal(["summon 2"], _actions.Calls);
+
+        // Пет пришёл, кабан убит и исчез; обход полетел дальше — через 3 с без боя пет уходит (перелёт не помеха)
+        _world.SetPets(2, Bee());
+        _world.Npcs.Remove(boar);
+        for (var i = 0; i < 80 && !_actions.Calls.Contains("recall"); i++)
+            Tick();
+
+        Assert.Contains("recall", _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Боя нет 3 с — отзываю пета");
+    }
+
+    [Fact]
+    public void PetIsNotRecalledWhileDigging()
+    {
+        PetOnlyForFight();
+        _world.SetPets(2, Bee());
+        _world.Gather = new GatherProgress(true, 1000, 8000);
+
+        for (var i = 0; i < 20; i++)
+            Tick();
+
+        Assert.DoesNotContain("recall", _actions.Calls);
+    }
+
     [Theory]
     [InlineData(false, "маршрут пуст")]
     [InlineData(true, "нет кирки в сумке")]

@@ -450,6 +450,22 @@ public sealed class SummonPetAction(int cage) : GameAction
         => now.Pet is { IsSummoned: true } pet && pet.ActiveCage == Cage ? Verdict.Confirmed() : Verdict.Pending;
 }
 
+/// <summary>Отозвать пета в клетку. Подтверждение — пет больше не призван.</summary>
+public sealed class RecallPetAction : GameAction
+{
+    public override string Name => "отозвать пета";
+    public override string Key => "пет";
+    public override ActionResource Resource => ActionResource.Body;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(5);
+
+    public override string? Precondition(WorldState now) => now.Pet is { IsSummoned: true } ? null : "пет не призван";
+
+    public override CallResult Send(IGameActions actions, WorldState now) => actions.RecallPet();
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Pet is not { IsSummoned: true } ? Verdict.Confirmed() : Verdict.Pending;
+}
+
 /// <summary>Воскресить пета скиллом (пакетом, без цели; каст ~12 с). Подтверждение — пет в клетке жив.</summary>
 public sealed class RevivePetAction(int cage, int skill) : GameAction
 {

@@ -328,6 +328,12 @@ public sealed class PetSettings
     /// <summary>Кого звать в воде — название питомца; пусто — первого, кто живёт в воде.</summary>
     public string WaterPet { get; set; } = "";
 
+    /// <summary>
+    /// Пет только на время боя: напали (или бот начал бой) — призвать, боя нет несколько секунд — отозвать. Отозванного не
+    /// кормим. Для обхода ресурсов: пет не ест между боями.
+    /// </summary>
+    public bool OnlyForFight { get; set; }
+
     /// <summary>Лечить пета, когда его HP ниже этого процента.</summary>
     public int HealPercent { get; set; } = 70;
 }

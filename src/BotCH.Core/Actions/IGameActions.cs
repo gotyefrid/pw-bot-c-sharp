@@ -46,6 +46,12 @@ public interface IGameActions
     CallResult UseItem(InventoryItem item);
     CallResult SummonPet(int cage);
 
+    /// <summary>Умеет ли отзывать пета (<see cref="RecallPet"/>). Нет — пет остаётся призванным.</summary>
+    bool CanRecallPet { get; }
+
+    /// <summary>Отозвать призванного пета в клетку.</summary>
+    CallResult RecallPet();
+
     /// <summary>Бежать в точку: по прямой или <paramref name="smart"/> — с автопутём (если умеет, иначе по прямой).</summary>
     CallResult MoveTo(HostState host, Position point, bool smart);
 
@@ -81,6 +87,8 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public CallResult PickupObject(HostState host, GroundItem item) => caller.PickupObject(host.Address, item.Id);
     public CallResult UseItem(InventoryItem item) => caller.UseItem(item.Slot, item.Tid);
     public CallResult SummonPet(int cage) => caller.SummonPet(cage);
+    public bool CanRecallPet => caller.Can(GameFunctions.RecallPet);
+    public CallResult RecallPet() => caller.RecallPet();
     public CallResult MoveTo(HostState host, Position point, bool smart)
         => caller.MoveTo(host.Address, point.X, point.Height, point.Y, smart);
 

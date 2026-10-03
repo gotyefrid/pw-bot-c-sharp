@@ -31,10 +31,10 @@ public sealed class BotBrain : IBotRunner
         _mode = mode;
         _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = Effective(settings) };
         Survival = new SurvivalBehavior();
-        Pet = new PetBehavior();
         if (mode == BotMode.GatherResources)
         {
             Combat = new CombatBehavior(defendOnly: true);
+            Pet = new PetBehavior(Combat);
             Route = new RouteBehavior(gatherTools ?? []);
             Gather = new GatherBehavior(Combat, gatherTools ?? [], Route.Scope);
             _behaviors = [Survival, Pet, Gather, Combat, Route];
@@ -42,6 +42,7 @@ public sealed class BotBrain : IBotRunner
         }
 
         Combat = new CombatBehavior();
+        Pet = new PetBehavior(Combat);
         Gather = new GatherBehavior(Combat, gatherTools ?? []);
         Return = new ReturnBehavior(Combat);
         _behaviors = [Survival, Pet, Gather, Combat, Return];

@@ -138,6 +138,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _appSettings.Connection.ServerId = value.Id;
             SaveSettings();
             OnPropertyChanged(nameof(CanChoosePath));
+            OnPropertyChanged(nameof(CanRecallPet));
             // Тот же клиент, но читать его теперь по другим смещениям — переподключаемся всегда
             RefreshClients(reconnect: true);
         }
@@ -897,6 +898,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public sealed record PathChoice(ApproachPath Path, string Title);
 
     public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
+
+    /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
+    public bool CanRecallPet => _profile.Data.Functions.ContainsKey(GameFunctions.RecallPet);
 
     /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
     public bool CanChoosePath => _profile.Capabilities.SmartPath;

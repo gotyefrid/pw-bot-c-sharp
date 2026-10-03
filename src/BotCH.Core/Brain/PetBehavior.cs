@@ -7,11 +7,17 @@ namespace BotCH.Core.Brain;
 /// <summary>
 /// Пет для среды, где персонаж (<see cref="PetPicker"/>: в воздухе — летающий, на земле — наземный): не призван — призвать
 /// (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить.
-/// Выключен в настройках или петов нет (не друид) — поведение молча пропускается.
+/// Выключен в настройках или петов нет (не друид) — поведение молча пропускается. «Только на время боя»
+/// (<see cref="Settings.PetSettings.OnlyForFight"/>): без боя не призываем и не кормим, а через <see cref="CalmBeforeRecall"/>
+/// после боя (вылечив) отзываем. Идёт ли бой — от <see cref="CombatBehavior"/>, как и у копания.
 /// Лечение и воскрешение — срочные (<see cref="ActionPriority.Urgent"/>): что их пропускает вперёд, решает исполнитель.
 /// </summary>
-public sealed class PetBehavior : IBehavior
+public sealed class PetBehavior(CombatBehavior combat) : IBehavior
 {
+    // Боя нет столько — отзываем (не сразу: моб мог отойти на шаг, лут ещё собирается)
+    private static readonly TimeSpan CalmBeforeRecall = TimeSpan.FromSeconds(3);
+    private DateTime? _calmSince;
+
     // Лечение не пошло — жмём снова быстро. Подтверждение (перезарядка) в игре видно через 1,8–2,1 с, поэтому не 2 с
     private static readonly TimeSpan HealTimeout = TimeSpan.FromSeconds(2.5);
 
@@ -31,6 +37,31 @@ public sealed class PetBehavior : IBehavior
         var pet = c.World.Pet;
         if (!settings.Enabled || pet is null)
             return false;
+
+        if (settings.OnlyForFight && c.Runner.Actions.CanRecallPet)
+        {
+            // Бой — кто-то бьёт перса или пета, или бой/лут уже идёт
+            if (TargetSelector.Aggressor(c.World) is not null || combat.State != CombatState.Search)
+                _calmSince = null;
+            else
+            {
+                _calmSince ??= c.Now;
+                if (!pet.IsSummoned)
+                {
+                    Status = null;
+                    return false;
+                }
+                if (c.Now - _calmSince >= CalmBeforeRecall && !NeedsHeal(c, pet) && FreeForRecall(c))
+                {
+                    Status = "отзываю пета";
+                    if (c.Send(new RecallPetAction()) == SubmitStatus.Sent)
+                        c.Log.Info($"Боя нет {CalmBeforeRecall.TotalSeconds:0} с — отзываю пета");
+                    return false;
+                }
+            }
+        }
+        else if (settings.OnlyForFight)
+            c.Say("pet-no-recall", "«Пет только на время боя»: на этом сервере отзыв пета не найден — пет остаётся призванным", LogLevel.Warning, 3600);
 
         var where = PetPicker.Where(c.World.Host);
         var inCage = PetPicker.Pick(pet, settings, where, out var problem);
@@ -115,11 +146,27 @@ public sealed class PetBehavior : IBehavior
         return c.Submit(feed);
     }
 
+    // Копание и каст не прерываем (отзыв важнее копания и сбил бы его); фоновый перелёт (обход, возврат в центр) — можно:
+    // отзыв его заменит, а бег/полёт потом отправится снова
+    private static bool FreeForRecall(BrainContext c)
+        => c.Runner.BodyAction is MoveAction { Priority: ActionPriority.Background }
+            ? !c.World.Host.IsCasting && c.World.Host.Gather is not { Active: true }
+            : c.Runner.BodyBusy(c.World) is null;
+
+    // Призванного пета нужно вылечить, и лечение есть (готово или скоро): отзываем потом
+    private static bool NeedsHeal(BrainContext c, World.PetState pet)
+        => pet.ActiveCage is int cage && pet.InCage(cage) is { } active && active.HpPercent < c.Settings.Pet.HealPercent
+           && c.World.Skill(c.Skills.HealPet) is { CooldownLeftMs: <= HealWaitMs };
+
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
         if (outcome.Action is UseItemAction { Use: ItemUse.PetFood } feed && outcome.Status != ActionStatus.Failed)
             c.Log.Info(_feeding.Report(feed.Item.Tid, outcome.Status == ActionStatus.Confirmed, c.Now));
     }
 
-    public void Reset() => Status = null;
+    public void Reset()
+    {
+        Status = null;
+        _calmSince = null;
+    }
 }

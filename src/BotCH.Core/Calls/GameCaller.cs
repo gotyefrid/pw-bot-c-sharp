@@ -88,6 +88,9 @@ public sealed class GameCaller
             : Call(GameFunctions.SummonPet, 0, null, ["index"], ("index", (uint)(cage - 1)));
     }
 
+    /// <summary>Отозвать призванного пета в клетку (c2s 0x65; не «отпустить» 0x66 — тот в запрещённых).</summary>
+    public CallResult RecallPet() => Call(GameFunctions.RecallPet, 0, null, []);
+
     /// <summary>Скилл пакетом: цель targetWid, 0 — без цели (воскрешение пета).</summary>
     public CallResult CastSkill(int skillId, uint targetWid)
         => Call(GameFunctions.CastSkill, 0, BitConverter.GetBytes(targetWid), ["skill", "pvpMask", "count", DataArg],

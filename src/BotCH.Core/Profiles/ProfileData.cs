@@ -334,6 +334,7 @@ public static class GameFunctions
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";
+    public const string RecallPet = "recallPet";
     public const string PetCtrl = "petCtrl";
     public const string HostApplySkill = "hostApplySkill";
     public const string HostPickupObject = "hostPickupObject";
