@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Threading;
 using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Controls;
@@ -107,8 +108,15 @@ public partial class MainWindow : Window
     {
         _model.Dispose();
         base.OnClosed(e);
-        // «Закрыть окно» из панели задач уничтожает окно в обход обычного закрытия — WPF тогда сам не выходит,
-        // процесс остаётся висеть без окна. Выходим явно
         Application.Current?.Shutdown();
+
+        // «Закрыть окно» из панели задач: окно уничтожается, а сигнал диспетчеру «обработай очередь» теряется — выход
+        // (ShutdownCallback) так и стоит в очереди, процесс висит без окна. Всё нужное уже сделано (бот отключён, точки
+        // сохранены) — не вышли за 3 с, выходим сами
+        new Thread(() =>
+        {
+            Thread.Sleep(TimeSpan.FromSeconds(3));
+            Environment.Exit(0);
+        }) { IsBackground = true, Name = "BotCH: выход" }.Start();
     }
 }
