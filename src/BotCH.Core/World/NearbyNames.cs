@@ -29,6 +29,10 @@ public static class NearbyNames
     public static IReadOnlyList<NameCount> GroundItems(WorldState world)
         => Group(world.GroundItems.Where(i => i.Name.Length > 0).Select(i => (i.Name, i.Distance)));
 
+    /// <summary>Ресурсы на земле по названиям (и «нересурсы»: их копают, если назвать явно) — для списка обхода.</summary>
+    public static IReadOnlyList<NameCount> Resources(WorldState world)
+        => Group(world.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && i.Name.Length > 0).Select(i => (i.Name, i.Distance)));
+
     private static IReadOnlyList<NameCount> Group(IEnumerable<(string Name, float Distance)> things)
         => things
             .GroupBy(t => t.Name.Trim())

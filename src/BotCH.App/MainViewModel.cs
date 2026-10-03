@@ -101,7 +101,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         LoadNameLists();
         LoadFarmCenters();
+        LoadRoute();
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
+        RouteNames.CollectionChanged += (_, _) => RouteNamesEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
 
         RefreshCommand = new RelayCommand(RefreshClients);
@@ -113,6 +115,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
         AddSpotCommand = new RelayCommand(AddSpot, () => _lastWorld is not null && NewSpotName.Trim().Length > 0);
         RemoveSpotCommand = new RelayCommand(RemoveSpot, () => SelectedSpot is not null);
+        AddRoutePointCommand = new RelayCommand(AddRoutePoint, () => _lastWorld is not null);
+        RemoveRoutePointCommand = new RelayCommand(RemoveRoutePoint, () => SelectedRoutePoint is not null);
+        RoutePointUpCommand = new RelayCommand(() => MoveRoutePoint(-1), () => SelectedRoutePoint is { } r && RouteRows.IndexOf(r) > 0);
+        RoutePointDownCommand = new RelayCommand(() => MoveRoutePoint(1),
+            () => SelectedRoutePoint is { } r && RouteRows.IndexOf(r) is var i && i >= 0 && i < RouteRows.Count - 1);
 
         _log.Info("BotCH запущен");
         RefreshClients();
@@ -704,8 +711,132 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 SpotNames.Add(name);
         }
 
+        var current = (_brain as BotBrain)?.Route?.Index;
+        foreach (var row in RouteRows)
+            row.Update(here.HorizontalDistanceTo(row.Point.Position), IsRunning && current == RouteRows.IndexOf(row));
+
         var near = _spots.Spots.Count(s => s.Position.HorizontalDistanceTo(here) <= SpotBook.SureVisible);
         SpotsInfo = $"Точек всего {_spots.Spots.Count}, в {SpotBook.SureVisible:0} м отсюда — {near}. Бот запоминает ресурсы, которые видит, даже без «Старт».";
+    }
+
+    // ── Маршрут обхода (режим «Собирать ресурсы») ─────────────────────────────
+
+    /// <summary>Точки обхода по порядку: после последней бот идёт к первой.</summary>
+    public ObservableCollection<RouteRow> RouteRows { get; } = new();
+
+    /// <summary>Что копать при обходе; пусто — все обычные ресурсы.</summary>
+    public ObservableCollection<string> RouteNames { get; } = new();
+
+    public ICommand AddRoutePointCommand { get; }
+    public ICommand RemoveRoutePointCommand { get; }
+    public ICommand RoutePointUpCommand { get; }
+    public ICommand RoutePointDownCommand { get; }
+
+    private RouteRow? _selectedRoutePoint;
+
+    public RouteRow? SelectedRoutePoint { get => _selectedRoutePoint; set => SetProperty(ref _selectedRoutePoint, value); }
+
+    /// <summary>Радиус поиска ресурсов вокруг точки, м.</summary>
+    public int RouteRadius
+    {
+        get => _settings.Route.Radius;
+        set
+        {
+            var radius = Math.Min(200, Math.Max(5, value));
+            if (radius == _settings.Route.Radius)
+                return;
+            _settings.Route.Radius = radius;
+            OnPropertyChanged();
+            SettingsEdited();
+        }
+    }
+
+    /// <summary>Варианты: ресурсы рядом (и «нересурсы» — их можно копать, если назвать), потом известные по блокноту.</summary>
+    public Func<IReadOnlyList<PickOption>> RouteOptions
+        => () => PickOptions(
+            _lastWorld is null ? [] : NearbyNames.Resources(_lastWorld),
+            _spots.Spots.Select(s => s.Name).Distinct(StringComparer.OrdinalIgnoreCase).Select(n => new NameCount(n, 0, 0)));
+
+    private void AddRoutePoint()
+    {
+        if (_lastWorld is not { } w)
+            return;
+
+        var points = _settings.Route.Points;
+        var n = 1;
+        while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
+            n++;
+        var point = FarmPoint.At($"Точка {n}", w.Host.Position);
+        points.Add(point);
+        _log.Info($"Маршрут: «{point.Name}» {point.Position}{(w.Host.Flying == true ? " (в воздухе)" : "")}, точек {points.Count}");
+        LoadRoute();
+        SelectedRoutePoint = RouteRows.LastOrDefault();
+        SettingsEdited();
+    }
+
+    private void RemoveRoutePoint()
+    {
+        if (SelectedRoutePoint is not { } row)
+            return;
+
+        _settings.Route.Points.Remove(row.Point);
+        _log.Info($"Маршрут: «{row.Point.Name}» удалена, точек {_settings.Route.Points.Count}");
+        LoadRoute();
+        SettingsEdited();
+    }
+
+    private void MoveRoutePoint(int step)
+    {
+        if (SelectedRoutePoint is not { } row)
+            return;
+
+        var points = _settings.Route.Points;
+        var at = points.IndexOf(row.Point);
+        var to = at + step;
+        if (at < 0 || to < 0 || to >= points.Count)
+            return;
+
+        (points[at], points[to]) = (points[to], points[at]);
+        LoadRoute();
+        SelectedRoutePoint = RouteRows[to];
+        SettingsEdited();
+    }
+
+    /// <summary>Маршрут в окне ← настройки персонажа.</summary>
+    private void LoadRoute()
+    {
+        RouteRows.Clear();
+        var points = _settings.Route.Points;
+        for (var i = 0; i < points.Count; i++)
+            RouteRows.Add(new RouteRow(i + 1, points[i]));
+        if (_lastWorld is { } w)
+        {
+            foreach (var row in RouteRows)
+                row.Update(w.Host.Position.HorizontalDistanceTo(row.Point.Position), false);
+        }
+
+        _syncingLists = true;
+        try
+        {
+            RouteNames.Clear();
+            foreach (var name in _settings.Route.Resources)
+                RouteNames.Add(name);
+        }
+        finally
+        {
+            _syncingLists = false;
+        }
+
+        OnPropertyChanged(nameof(RouteRadius));
+    }
+
+    private void RouteNamesEdited()
+    {
+        if (_syncingLists)
+            return;
+
+        _settings.Route.Resources = MobNameFilter.Clean(RouteNames);
+        SettingsEdited();
     }
 
     public sealed record PathChoice(ApproachPath Path, string Title);
@@ -1055,6 +1186,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Settings));
         LoadNameLists();
         LoadFarmCenters();
+        LoadRoute();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
         AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа
