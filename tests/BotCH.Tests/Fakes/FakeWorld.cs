@@ -104,6 +104,10 @@ internal sealed class FakeWorld
     }
 
     /// <summary>Пет в клетке; summoned — призван (появляется в списке мобов с типом 9).</summary>
+    /// <summary>Несколько петов с названиями и средой; active — призванная клетка.</summary>
+    public void SetPets(int? active, params PetInCage[] cages)
+        => Pet = new PetState(active, active is null ? 0 : PetWid, cages);
+
     public void SetPet(int cage, float hpRatio = 1, int hunger = 0, bool summoned = true)
     {
         Pet = new PetState(summoned ? cage : null, summoned ? PetWid : 0, [new PetInCage(cage, hpRatio, hunger)]);

@@ -5,7 +5,8 @@ using BotCH.Core.Logging;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Пет из выбранной клетки: не призван — призвать (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить.
+/// Пет для среды, где персонаж (<see cref="PetPicker"/>: в воздухе — летающий, на земле — наземный): не призван — призвать
+/// (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить.
 /// Выключен в настройках или петов нет (не друид) — поведение молча пропускается.
 /// Лечение и воскрешение — срочные (<see cref="ActionPriority.Urgent"/>): что их пропускает вперёд, решает исполнитель.
 /// </summary>
@@ -31,10 +32,14 @@ public sealed class PetBehavior : IBehavior
         if (!settings.Enabled || pet is null)
             return false;
 
-        var inCage = pet.InCage(settings.Cage);
+        var inAir = c.World.Host.Flying == true;
+        var inCage = PetPicker.Pick(pet, settings, inAir, out var problem);
+        // Призван другой, но он живёт там, где мы сейчас (позвали руками), — он и есть наш пет
+        if (pet.ActiveCage is int active && pet.InCage(active) is { } summoned && summoned.Lives(PetPicker.Habitat(inAir)))
+            inCage = summoned;
         if (inCage is null)
         {
-            c.Say("pet-empty-cage", $"В клетке {settings.Cage} нет пета — пета пропускаю", seconds: 300);
+            c.Say($"pet-none-{inAir}", $"{char.ToUpper(problem![0])}{problem.Substring(1)} — пета пропускаю", seconds: 300);
             return false;
         }
 
@@ -49,7 +54,9 @@ public sealed class PetBehavior : IBehavior
             if (inCage.IsAlive)
             {
                 Status = "призываю пета";
-                return c.Submit(new SummonPetAction(settings.Cage));
+                if (inCage.Name is { } name)
+                    c.Say($"pet-summon-{inCage.Cage}", $"Зову {name} (клетка {inCage.Cage}, {(inAir ? "в воздухе" : "на земле")})", seconds: 60);
+                return c.Submit(new SummonPetAction(inCage.Cage));
             }
 
             if (c.World.Skill(c.Skills.RevivePet) is not { IsReady: true })
@@ -59,15 +66,15 @@ public sealed class PetBehavior : IBehavior
             }
 
             Status = "воскрешаю пета";
-            if (c.Send(new RevivePetAction(settings.Cage, c.Skills.RevivePet)) != SubmitStatus.Sent)
+            if (c.Send(new RevivePetAction(inCage.Cage, c.Skills.RevivePet)) != SubmitStatus.Sent)
                 return false;
             c.Log.Info("Пет мёртв — воскрешаю");
             return true;
         }
 
-        if (pet.ActiveCage != settings.Cage)
+        if (pet.ActiveCage != inCage.Cage)
         {
-            c.Say("pet-other-cage", $"Призван пет из клетки {pet.ActiveCage}, а в настройках {settings.Cage} — не трогаю", seconds: 300);
+            c.Say("pet-other-cage", $"Призван пет из клетки {pet.ActiveCage}, а нужен из клетки {inCage.Cage} — не трогаю", seconds: 300);
             return false;
         }
 

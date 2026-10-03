@@ -133,6 +133,14 @@ public sealed class PetOffsets
     public uint HpRatio { get; init; }
     /// <summary>Сытость.</summary>
     public uint Hunger { get; init; }
+    /// <summary>tid питомца (номер записи в справочнике) — для проверки, что указатель привёл в его запись.</summary>
+    public uint Tid { get; init; }
+    /// <summary>Указатель на запись питомца в справочнике игры (PET_ESSENCE); 0 — не найден.</summary>
+    public uint Essence { get; init; }
+    /// <summary>Название в записи (UTF-16).</summary>
+    public uint EssenceName { get; init; }
+    /// <summary>Где живёт (int, inhabit_type), см. <see cref="World.PetHabitats.FromGame"/>.</summary>
+    public uint EssenceInhabit { get; init; }
 }
 
 public sealed class WorldOffsets

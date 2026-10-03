@@ -129,6 +129,64 @@ public class BrainScenarioTests
         Assert.Equal(["cast 329 0", "summon 1"], _actions.Calls);
     }
 
+    private static readonly PetInCage Scorpion = new(1, 1, 0) { Name = "Молодой узорчатый скорпион", Habitat = PetHabitat.Ground };
+    private static readonly PetInCage Bee = new(2, 1, 0) { Name = "Молодая лиственная пчела", Habitat = PetHabitat.Air };
+    private static readonly PetInCage Phoenix = new(3, 1, 0) { Name = "Крошка пылающий феникс", Habitat = PetHabitat.Ground | PetHabitat.Water | PetHabitat.Air };
+
+    [Theory]
+    [InlineData(false, "summon 1")] // на земле — скорпион
+    [InlineData(true, "summon 2")]  // в воздухе — пчела (скорпиона сервер не призовёт)
+    public void SummonsPetThatLivesWhereHostIs(bool flying, string call)
+    {
+        _settings.Pet.Enabled = true;
+        _world.Flying = flying;
+        _world.SetPets(null, Scorpion, Bee, Phoenix);
+
+        Tick();
+
+        Assert.Equal([call], _actions.Calls);
+    }
+
+    [Fact]
+    public void ChosenPetByNameWinsOverFirstSuitable()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.AirPet = "Крошка пылающий феникс";
+        _world.Flying = true;
+        _world.SetPets(null, Scorpion, Bee, Phoenix);
+
+        Tick();
+
+        Assert.Equal(["summon 3"], _actions.Calls);
+    }
+
+    [Fact]
+    public void NoPetForAirMeansNoSummonAndSaysWhy()
+    {
+        _settings.Pet.Enabled = true;
+        _world.Flying = true;
+        _world.SetPets(null, Scorpion);
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Нет питомца, которого можно призвать в воздухе — пета пропускаю");
+    }
+
+    [Fact]
+    public void UnknownHabitatFallsBackToCageNumber()
+    {
+        // 1.3.6: где живут питомцы — неизвестно, зовём из клетки настроек, как раньше
+        _settings.Pet.Enabled = true;
+        _settings.Pet.Cage = 2;
+        _world.Flying = true;
+        _world.SetPets(null, new PetInCage(1, 1, 0), new PetInCage(2, 1, 0));
+
+        Tick();
+
+        Assert.Equal(["summon 2"], _actions.Calls);
+    }
+
     [Fact]
     public void HungryPetFedThenPauseWhileStillHungry()
     {

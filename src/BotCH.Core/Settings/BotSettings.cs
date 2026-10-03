@@ -50,6 +50,8 @@ public sealed class BotSettings
         // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
+        Pet.GroundPet = Pet.GroundPet?.Trim() ?? "";
+        Pet.AirPet = Pet.AirPet?.Trim() ?? "";
         Route.Points = RoutePoint.Clean(Route.Points);
         Route.Radius = Clamp(Route.Radius, 5, 500);
         return this;
@@ -302,8 +304,14 @@ public sealed class PetSettings
     /// <summary>Пользоваться петом. Выключено или пета нет (не друид) — всё про пета пропускается.</summary>
     public bool Enabled { get; set; } = true;
 
-    /// <summary>Клетка 1..10.</summary>
+    /// <summary>Клетка 1..N — если сервер не говорит, где питомец живёт (иначе — <see cref="GroundPet"/>/<see cref="AirPet"/>).</summary>
     public int Cage { get; set; } = 1;
+
+    /// <summary>Кого звать на земле — название питомца; пусто — первого, кто живёт на земле.</summary>
+    public string GroundPet { get; set; } = "";
+
+    /// <summary>Кого звать в воздухе (персонаж летит) — название питомца; пусто — первого, кто летает.</summary>
+    public string AirPet { get; set; } = "";
 
     /// <summary>Лечить пета, когда его HP ниже этого процента.</summary>
     public int HealPercent { get; set; } = 70;

@@ -199,6 +199,12 @@ public sealed record PetState(int? ActiveCage, uint ActiveWid, IReadOnlyList<Pet
 /// <summary>Пет в клетке (1..10).</summary>
 public sealed record PetInCage(int Cage, float HpRatio, int Hunger)
 {
+    /// <summary>Название из справочника игры; null — не прочитано (поля не найдены для этого сервера).</summary>
+    public string? Name { get; init; }
+
+    /// <summary>Где может жить (призываться); null — не знаем для этого сервера.</summary>
+    public PetHabitat? Habitat { get; init; }
+
     public int HpPercent => (int)Math.Round(HpRatio * 100);
 
     // По доле, а не по процентам: 0.3 % HP округлится до 0, но пет жив
@@ -206,4 +212,36 @@ public sealed record PetInCage(int Cage, float HpRatio, int Hunger)
 
     /// <summary>Как в старом боте: сытость больше 0 — пора кормить.</summary>
     public bool IsHungry => Hunger > 0;
+
+    public bool Lives(PetHabitat where) => Habitat is { } h && (h & where) != 0;
+}
+
+/// <summary>Где питомец может быть призван: на земле, в воде, в воздухе (бывает несколько сразу).</summary>
+[Flags]
+public enum PetHabitat
+{
+    Ground = 1,
+    Water = 2,
+    Air = 4,
+}
+
+public static class PetHabitats
+{
+    /// <summary>Поле справочника (inhabit_type клиента): 0 земля, 1 вода, 2 воздух, 3 земля+вода, 4 земля+воздух, 5 вода+воздух, 6 везде.</summary>
+    public static PetHabitat? FromGame(int inhabit) => inhabit switch
+    {
+        0 => PetHabitat.Ground,
+        1 => PetHabitat.Water,
+        2 => PetHabitat.Air,
+        3 => PetHabitat.Ground | PetHabitat.Water,
+        4 => PetHabitat.Ground | PetHabitat.Air,
+        5 => PetHabitat.Water | PetHabitat.Air,
+        6 => PetHabitat.Ground | PetHabitat.Water | PetHabitat.Air,
+        _ => null,
+    };
+
+    public static string Text(PetHabitat? habitat)
+        => habitat is not { } h ? "?"
+            : string.Join(", ", new[] { (PetHabitat.Ground, "земля"), (PetHabitat.Water, "вода"), (PetHabitat.Air, "воздух") }
+                .Where(x => (h & x.Item1) != 0).Select(x => x.Item2));
 }

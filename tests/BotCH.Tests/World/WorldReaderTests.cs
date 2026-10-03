@@ -15,8 +15,9 @@ public class WorldReaderTests
     private readonly MemoryImage _memory = new();
 
     // Минимальный мир: база → game → перс с ником; мир с пустыми списками
-    private uint BuildWorld(uint petManager = 0)
+    private uint BuildWorld(uint petManager = 0, ProfileData? profile = null)
     {
+        var Profile = profile ?? WorldReaderTests.Profile;
         const uint basePtr = 0x1000_0000, game = 0x1001_0000, host = 0x1002_0000, world = 0x1003_0000, name = 0x1004_0000;
         _memory.WriteUInt32(ModuleBase + Profile.Base.BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + Profile.Base.Game, game);
@@ -31,7 +32,7 @@ public class WorldReaderTests
         return host;
     }
 
-    private WorldReader Reader() => new(_memory, ModuleBase, Profile);
+    private WorldReader Reader(ProfileData? profile = null) => new(_memory, ModuleBase, profile ?? Profile);
 
     [Fact]
     public void NoPetIsNormal()
@@ -71,6 +72,37 @@ public class WorldReaderTests
         Assert.NotNull(state);
         Assert.False(state!.IsSummoned);
         Assert.False(state.InCage(3)!.IsAlive);
+    }
+
+    [Fact]
+    public void PetNameAndHabitatFromGameRecord()
+    {
+        // 1.4.6: [пет + essence] → запись справочника (id = tid пета), название +8, где живёт +0x1E8
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        const uint manager = 0x2000_0000, bee = 0x2001_0000, scorpion = 0x2002_0000, beeRecord = 0x2100_0000, scorpionRecord = 0x2101_0000;
+        BuildWorld(petManager: manager, profile: p);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + p.PetManager.ActiveCage, unchecked((uint)-1));
+        foreach (var (cage, pet, record, tid, name, inhabit) in new[]
+                 {
+                     (1, scorpion, scorpionRecord, 10492u, "Молодой узорчатый скорпион", 0u),
+                     (2, bee, beeRecord, 10521u, "Молодая лиственная пчела", 2u),
+                 })
+        {
+            _memory.WriteUInt32(manager + p.PetManager.Cages + (uint)(cage - 1) * 4, pet);
+            _memory.Map(pet, 0x400);
+            _memory.WriteUInt32(pet + p.Pet.Tid, tid);
+            _memory.WriteUInt32(pet + p.Pet.Essence, record);
+            _memory.Map(record, 0x400);
+            _memory.WriteUInt32(record, tid);
+            _memory.WriteBytes(record + p.Pet.EssenceName, System.Text.Encoding.Unicode.GetBytes(name + "\0"));
+            _memory.WriteUInt32(record + p.Pet.EssenceInhabit, inhabit);
+        }
+
+        var pets = Reader(p).Read().Pet!;
+
+        Assert.Equal(("Молодой узорчатый скорпион", PetHabitat.Ground), (pets.InCage(1)!.Name, pets.InCage(1)!.Habitat));
+        Assert.Equal(("Молодая лиственная пчела", PetHabitat.Air), (pets.InCage(2)!.Name, pets.InCage(2)!.Habitat));
     }
 
     [Fact]

@@ -30,6 +30,7 @@ public sealed class WorldReader
     private readonly int _npcSize;
     private readonly int _itemSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
+    private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
 
     // Персонаж в воздухе (MOVEENV_AIR клиента; 0 — земля, 1 — вода)
     private const int MoveEnvAir = 2;
@@ -338,8 +339,10 @@ public sealed class WorldReader
         for (var cage = 1; cage <= m.CageCount; cage++)
         {
             var address = b.UInt32(m.Cages + (uint)(cage - 1) * 4);
-            if (MemoryBlock.TryRead(_memory, address, BlockSize(pet.HpRatio, pet.Hunger), out var petBlock))
-                cages.Add(new PetInCage(cage, petBlock.Float(pet.HpRatio), petBlock.Int32(pet.Hunger)));
+            if (!MemoryBlock.TryRead(_memory, address, BlockSize(pet.HpRatio, pet.Hunger, pet.Tid, pet.Essence), out var petBlock))
+                continue;
+            var (name, habitat) = pet.Essence == 0 ? (null, null) : ReadPetEssence(petBlock.UInt32(pet.Tid), petBlock.UInt32(pet.Essence));
+            cages.Add(new PetInCage(cage, petBlock.Float(pet.HpRatio), petBlock.Int32(pet.Hunger)) { Name = name, Habitat = habitat });
         }
 
         if (cages.Count == 0)
@@ -347,6 +350,20 @@ public sealed class WorldReader
 
         var active = b.Int32(m.ActiveCage);
         return new PetState(active >= 0 && active < m.CageCount ? active + 1 : null, b.UInt32(m.ActivePetWid), cages);
+    }
+
+    // Запись питомца в справочнике не меняется, пока клиент запущен, — по tid читаем один раз
+    private (string? Name, PetHabitat? Habitat) ReadPetEssence(uint tid, uint record)
+    {
+        if (_petEssences.TryGetValue(tid, out var known))
+            return known;
+
+        var p = _p.Pet;
+        (string?, PetHabitat?) result = (null, null);
+        if (record != 0 && _memory.TryReadUInt32(record, out var id) && id == tid && _memory.TryReadUInt32(record + p.EssenceInhabit, out var inhabit))
+            result = (ReadName(record + p.EssenceName), PetHabitats.FromGame(unchecked((int)inhabit)));
+        _petEssences[tid] = result;
+        return result;
     }
 
     private string ReadName(uint pointer)
