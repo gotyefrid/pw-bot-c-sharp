@@ -803,6 +803,87 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SettingsEdited();
     }
 
+    // ── Пет по среде ─────────────────────────────────────────────────────────
+
+    /// <summary>Пункт списка «кого звать»: значение — название питомца, пусто — «авто».</summary>
+    public sealed record PetChoice(string Value, string Title);
+
+    /// <summary>Кого звать на земле: «авто» и питомцы, которые живут на земле.</summary>
+    public ObservableCollection<PetChoice> GroundPets { get; } = new();
+
+    /// <summary>Кого звать в воздухе: «авто» и питомцы, которые летают.</summary>
+    public ObservableCollection<PetChoice> AirPets { get; } = new();
+
+    private bool _knowsPetHabitats;
+    private bool _syncingPets;
+
+    /// <summary>Сервер говорит, где питомцы живут: выбор питомцами; иначе — номер клетки, как раньше.</summary>
+    public bool KnowsPetHabitats { get => _knowsPetHabitats; private set => SetProperty(ref _knowsPetHabitats, value); }
+
+    public string GroundPet
+    {
+        get => _settings.Pet.GroundPet;
+        set => SetPet(value, () => _settings.Pet.GroundPet, v => _settings.Pet.GroundPet = v);
+    }
+
+    public string AirPet
+    {
+        get => _settings.Pet.AirPet;
+        set => SetPet(value, () => _settings.Pet.AirPet, v => _settings.Pet.AirPet = v);
+    }
+
+    // Пересборка списка сбрасывает выбор — это не выбор пользователя
+    private void SetPet(string? value, Func<string> get, Action<string> set)
+    {
+        if (_syncingPets || value is null || value == get())
+            return;
+        set(value);
+        SettingsEdited();
+    }
+
+    /// <summary>Списки питомцев ← клетки (пересобираются, только когда что-то поменялось: питомцы, названия, «авто»).</summary>
+    private void UpdatePetChoices(WorldState w)
+    {
+        var cages = w.Pet?.Cages ?? [];
+        KnowsPetHabitats = cages.Any(p => p.Habitat is not null);
+        if (!KnowsPetHabitats)
+            return;
+
+        Sync(GroundPets, Choices(cages, PetHabitat.Ground, _settings.Pet.GroundPet), nameof(GroundPet));
+        Sync(AirPets, Choices(cages, PetHabitat.Air, _settings.Pet.AirPet), nameof(AirPet));
+    }
+
+    private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, PetHabitat where, string chosen)
+    {
+        var fit = cages.Where(p => p.Lives(where) && p.Name is not null).OrderBy(p => p.Cage).ToList();
+        var auto = fit.FirstOrDefault() is { } first ? $"авто — {first.Name} (клетка {first.Cage})" : "авто — подходящего нет";
+        var list = new List<PetChoice> { new("", auto) };
+        list.AddRange(fit.Select(p => new PetChoice(p.Name!, $"{p.Name} (клетка {p.Cage})")));
+        if (chosen.Length > 0 && !list.Any(c => string.Equals(c.Value, chosen, StringComparison.OrdinalIgnoreCase)))
+            list.Add(new PetChoice(chosen, $"{chosen} — нет в клетках"));
+        return list;
+    }
+
+    private void Sync(ObservableCollection<PetChoice> target, List<PetChoice> choices, string property)
+    {
+        if (choices.SequenceEqual(target))
+            return;
+
+        _syncingPets = true;
+        try
+        {
+            target.Clear();
+            foreach (var choice in choices)
+                target.Add(choice);
+        }
+        finally
+        {
+            _syncingPets = false;
+        }
+
+        OnPropertyChanged(property);
+    }
+
     public sealed record PathChoice(ApproachPath Path, string Title);
 
     public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
@@ -840,6 +921,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
 
         OnPropertyChanged(nameof(Settings));
+        OnPropertyChanged(nameof(GroundPet));
+        OnPropertyChanged(nameof(AirPet));
     }
 
     public void Dispose()
@@ -989,6 +1072,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _lastWorld = w;
         HasPets = w.Pet is not null;
+        UpdatePetChoices(w);
         foreach (var kind in NearbyNames.Mobs(w))
         {
             // Уровни вида копятся за сессию: «Волк (ур. 10–12)», даже если сейчас рядом только один
@@ -1148,6 +1232,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _brain?.UpdateSettings(_settings);
         OnPropertyChanged(nameof(Settings));
+        OnPropertyChanged(nameof(GroundPet));
+        OnPropertyChanged(nameof(AirPet));
         LoadNameLists();
         LoadFarmCenters();
         LoadRoute();

@@ -418,9 +418,21 @@
             <TextBlock Text="У персонажа нет петов — эти настройки не используются" Style="{StaticResource Muted}" Margin="0,2,0,4"
                        Visibility="{Binding HasPets, Converter={StaticResource Hidden}}" />
             <StackPanel IsEnabled="{Binding Settings.Pet.Enabled}">
-              <DockPanel Style="{StaticResource SettingRow}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Hidden}}">
                 <TextBlock Text="Клетка" VerticalAlignment="Center" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.Cage, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
+                <TextBlock Text="Пет на земле" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding GroundPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding GroundPet}"
+                          ToolTip="Кого звать, когда персонаж на земле. Авто — первого, кто живёт на земле" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
+                <TextBlock Text="Пет в воздухе" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding AirPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding AirPet}"
+                          ToolTip="Кого звать, когда персонаж летит (наземного сервер в воздухе не призовёт). Авто — первого, кто летает" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Лечить пета, когда HP ниже, %" VerticalAlignment="Center" />
