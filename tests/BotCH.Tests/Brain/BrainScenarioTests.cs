@@ -1165,4 +1165,24 @@ public class BrainScenarioTests
         Assert.Equal("apply 299 0", LastCall);
         Assert.Single(_actions.Calls, c => c.StartsWith("move"));
     }
+
+    [Theory]
+    [InlineData(1500, false)] // лечение вот-вот — атаку не начинаем
+    [InlineData(10000, true)] // ждать долго — бьём
+    public void PetStillLowWaitsForHealInsteadOfAttack(int healCooldownMs, bool attacks)
+    {
+        PetNeedsHealSoon();
+        _world.SetPet(1, hpRatio: 0.4f);
+        _world.Skills.RemoveAll(s => s.Id == 330);
+        _world.AddSkill(330, healCooldownMs);
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 3).Wid;
+
+        Tick();
+        Tick();
+
+        Assert.Equal(attacks, _actions.Calls.Contains("apply 299 0"));
+    }
 }

@@ -14,6 +14,10 @@ public sealed class PetBehavior : IBehavior
     // Лечение не пошло — жмём снова быстро. Подтверждение (перезарядка) в игре видно через 1,8–2,1 с, поэтому не 2 с
     private static readonly TimeSpan HealTimeout = TimeSpan.FromSeconds(2.5);
 
+    // Пету всё ещё нужно лечение, а оно перезаряжается: если ждать недолго — новую атаку не начинаем (лечение её тут же
+    // сбило бы, каст и мана впустую), ждём лечение. Дольше — бьём как обычно
+    private const int HealWaitMs = 3000;
+
     private readonly PetFeeding _feeding = new();
 
     public string Name => "пет";
@@ -65,6 +69,12 @@ public sealed class PetBehavior : IBehavior
         {
             c.Say("pet-other-cage", $"Призван пет из клетки {pet.ActiveCage}, а в настройках {settings.Cage} — не трогаю", seconds: 300);
             return false;
+        }
+
+        if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: false, CooldownLeftMs: <= HealWaitMs })
+        {
+            Status = "жду перезарядку лечения пета";
+            return true;
         }
 
         if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true })
