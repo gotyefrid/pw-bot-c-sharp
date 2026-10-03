@@ -220,7 +220,7 @@ internal static class ActCommands
 
             case "fly-to":
                 var shift = args.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
-                    .Where(f => f is not null).Select(f => f!.Value).ToList();
+                    .Where(f => f is not null).Select(f => f!.Value).Take(3).ToList(); // дальше — PID
                 if (shift.Count < 3 || shift.Any(f => Math.Abs(f) > 100))
                 {
                     problem = "нужно: act fly-to <dx> <dy> <dh>, каждое не больше 100 м";
