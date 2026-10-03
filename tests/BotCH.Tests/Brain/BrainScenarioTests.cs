@@ -845,7 +845,6 @@ public class BrainScenarioTests
         Tick();
 
         Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
-        Assert.Contains(_log, e => e.Message.Contains("Пет важнее"));
     }
 
     [Fact]
@@ -869,7 +868,6 @@ public class BrainScenarioTests
         _world.Gather = new GatherProgress(false, 1500, 8000);
         Tick();
         Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
-        Assert.Contains(_log, e => e.Message.Contains("Прерываю копание"));
     }
 
     [Fact]

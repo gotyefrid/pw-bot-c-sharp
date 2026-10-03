@@ -56,8 +56,14 @@ public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = 
 /// <summary>
 /// Единственный исполнитель действий. Вызовы в игре идут строго по одному (lock), действие «в процессе» не
 /// отправляется повторно, подтверждение — по снимкам (<see cref="Update"/>), время — по меткам снимков.
-/// Тело персонажа (<see cref="ActionResource.Body"/>) занимает одно действие за раз, и не занимается, пока персонаж кастует
-/// (новое действие сбило бы каст): иначе — «занято».
+/// Тело персонажа (<see cref="ActionResource.Body"/>) занимает одно действие за раз; пока персонаж кастует или копает — тоже занято.
+/// Кто кого перебивает, решается здесь, по <see cref="GameAction.Priority"/>:
+/// <list type="bullet">
+/// <item>ждущее действие ниже по важности забывается (итог «отменено»): игра сама заменит его работу новой;</item>
+/// <item>копание в игре прерывается отменой (как Esc) ради обычного и срочного, чужой каст — только ради срочного
+/// и только если известно, какой скилл кастуется (свой же каст не сбиваем);</item>
+/// <item>иначе — «занято».</item>
+/// </list>
 /// </summary>
 public sealed class ActionRunner(IGameActions actions, ILogger log)
 {
@@ -85,10 +91,11 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         }
     }
 
-    /// <summary>Чем занято тело: ждущее действие или каст; null — свободно.</summary>
+    /// <summary>Чем занято тело: ждущее действие, каст или копание; null — свободно.</summary>
     public string? BodyBusy(WorldState now)
         => BodyAction is { } action ? action.Name
             : now.Host.IsCasting ? "персонаж кастует"
+            : now.Host.Gather is { Active: true } ? "персонаж копает"
             : null;
 
     public IReadOnlyList<GameAction> Pending
@@ -116,35 +123,89 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
 
     public SubmitResult Submit(GameAction action, WorldState now)
     {
-        ActionOutcome outcome;
+        var reports = new List<ActionOutcome>();
+        SubmitResult result;
         lock (_lock)
+            result = SubmitLocked(action, now, reports);
+
+        foreach (var outcome in reports)
+            Report(outcome);
+        return result;
+    }
+
+    private SubmitResult SubmitLocked(GameAction action, WorldState now, List<ActionOutcome> reports)
+    {
+        if (_pending.Any(p => p.Action.Key == action.Key))
+            return new SubmitResult(SubmitStatus.AlreadyPending);
+
+        if (action.Resource == ActionResource.Body && FreeBody(action, now, reports) is { } busy)
+            return new SubmitResult(SubmitStatus.Busy, Busy: busy);
+
+        ActionOutcome outcome;
+        if (action.Precondition(now) is { } reason)
         {
-            if (_pending.Any(p => p.Action.Key == action.Key))
-                return new SubmitResult(SubmitStatus.AlreadyPending);
-
-            if (action.Resource == ActionResource.Body && BodyBusy(now) is { } busy)
-                return new SubmitResult(SubmitStatus.Busy, Busy: busy);
-
-            if (action.Precondition(now) is { } reason)
+            outcome = new ActionOutcome(action, ActionStatus.Failed, reason, TimeSpan.Zero);
+        }
+        else
+        {
+            var call = action.Send(Actions, now);
+            if (call.Ok)
             {
-                outcome = new ActionOutcome(action, ActionStatus.Failed, reason, TimeSpan.Zero);
+                _pending.Add((action, now));
+                log.Debug($"→ {action.Name}");
+                return new SubmitResult(SubmitStatus.Sent);
             }
-            else
-            {
-                var call = action.Send(Actions, now);
-                if (call.Ok)
-                {
-                    _pending.Add((action, now));
-                    log.Debug($"→ {action.Name}");
-                    return new SubmitResult(SubmitStatus.Sent);
-                }
 
-                outcome = new ActionOutcome(action, ActionStatus.Failed, call.Details, TimeSpan.Zero);
-            }
+            outcome = new ActionOutcome(action, ActionStatus.Failed, call.Details, TimeSpan.Zero);
         }
 
-        Report(outcome);
+        reports.Add(outcome);
         return new SubmitResult(SubmitStatus.Failed, outcome);
+    }
+
+    /// <summary>
+    /// Освободить тело для <paramref name="action"/> по важности. null — свободно, можно слать; иначе чем занято
+    /// (в том числе «прерываю …» — отмена каста или копания ушла, тело освободится через миг).
+    /// </summary>
+    private string? FreeBody(GameAction action, WorldState now, List<ActionOutcome> reports)
+    {
+        var index = _pending.FindIndex(p => p.Action.Resource == ActionResource.Body);
+        if (index >= 0)
+        {
+            var (holder, start) = _pending[index];
+            if (holder.Priority >= action.Priority)
+                return holder.Name;
+
+            _pending.RemoveAt(index);
+            reports.Add(new ActionOutcome(holder, ActionStatus.Cancelled, $"важнее: {action.Name}", now.Time - start.Time));
+        }
+
+        var digging = now.Host.Gather is { Active: true };
+        if (!now.Host.IsCasting && !digging)
+            return null;
+
+        var cancel = new CancelAction(digging ? "копание" : "каст");
+        if (_pending.Any(p => p.Action.Key == cancel.Key))
+            return $"прерываю {cancel.What}";
+
+        // Свой же каст не сбиваем; чужой — только срочным и только зная, что кастуется (вдруг это и есть наше лечение)
+        var casting = now.Host.CastingSkillId ?? 0;
+        if (!digging && action.CastsSkill != 0 && casting == action.CastsSkill)
+            return "кастуется этот же скилл";
+        var canBreak = digging ? action.Priority > ActionPriority.Background : action.Priority == ActionPriority.Urgent && casting != 0;
+        if (!canBreak || !Actions.CanCancel)
+            return digging ? "персонаж копает" : "персонаж кастует";
+
+        var call = cancel.Send(Actions, now);
+        if (!call.Ok)
+        {
+            reports.Add(new ActionOutcome(cancel, ActionStatus.Failed, call.Details, TimeSpan.Zero));
+            return digging ? "персонаж копает" : "персонаж кастует";
+        }
+
+        _pending.Add((cancel, now));
+        log.Info($"Прерываю {cancel.What} ради «{action.Name}»");
+        return $"прерываю {cancel.What}";
     }
 
     /// <summary>Проверяет ждущие действия по новому снимку. Возвращает завершившиеся.</summary>
@@ -180,28 +241,6 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         foreach (var outcome in done)
             Report(outcome);
         return done;
-    }
-
-    /// <summary>Перестать ждать действие (бот сам передумал): итог «отменено». false — такого не ждали.</summary>
-    public bool Cancel(string key, string why, WorldState now)
-    {
-        ActionOutcome? outcome = null;
-        lock (_lock)
-        {
-            var index = _pending.FindIndex(p => p.Action.Key == key);
-            if (index >= 0)
-            {
-                var (action, start) = _pending[index];
-                _pending.RemoveAt(index);
-                outcome = new ActionOutcome(action, ActionStatus.Cancelled, why, now.Time - start.Time);
-            }
-        }
-
-        if (outcome is null)
-            return false;
-
-        Report(outcome);
-        return true;
     }
 
     /// <summary>Забыть всё ожидающее (бот остановлен, сменился клиент).</summary>

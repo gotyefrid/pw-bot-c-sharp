@@ -168,6 +168,79 @@ public class ActionRunnerTests
         Assert.Equal(["move (10,0; 0,0; h 0,0)"], _actions.Calls);
     }
 
+    // ── Важность: кто кого перебивает ──────────────────────────────────────────
+
+    private SkillAction UrgentHeal() => new(330, FakeWorld.PetWid, approach: true, "лечение пета") { Priority = ActionPriority.Urgent };
+
+    [Fact]
+    public void UrgentDropsNormalPendingAndGoesAtOnce()
+    {
+        _world.AddSkill(330);
+        var move = new MoveAction(new Position(30, 0, 0));
+        _runner.Submit(move, _world.Snapshot());
+
+        var heal = _runner.Submit(UrgentHeal(), _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.Sent, heal.Status);
+        Assert.Equal([$"move {move.Point}", $"apply 330 {FakeWorld.PetWid:X}"], _actions.Calls);
+        Assert.IsType<SkillAction>(_runner.BodyAction);
+    }
+
+    [Fact]
+    public void NormalWaitsForUrgent()
+    {
+        _world.AddSkill(330);
+        _runner.Submit(UrgentHeal(), _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(new MoveAction(new Position(30, 0, 0)), _world.Snapshot()).Status);
+    }
+
+    [Fact]
+    public void UrgentBreaksOtherKnownCastButNotItsOwn()
+    {
+        _world.AddSkill(330);
+        _world.Casting = true;
+
+        _world.CastingSkillId = 330;
+        Assert.Equal("кастуется этот же скилл", _runner.Submit(UrgentHeal(), _world.Snapshot()).Busy);
+        Assert.Empty(_actions.Calls);
+
+        _world.CastingSkillId = 299;
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(UrgentHeal(), _world.Snapshot()).Status);
+        Assert.Equal(["cancel"], _actions.Calls);
+    }
+
+    [Fact]
+    public void UnknownCastIsNeverBroken()
+    {
+        _world.AddSkill(330);
+        _world.Casting = true;
+        _world.CastingSkillId = null;
+
+        Assert.Equal("персонаж кастует", _runner.Submit(UrgentHeal(), _world.Snapshot()).Busy);
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void NormalBreaksDiggingButNotCast()
+    {
+        // Копание — фон: бой его прерывает; чужой каст обычное действие не трогает
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, default, 2, "Железная руда");
+        _world.Ground.Add(ore);
+        _runner.Submit(new GatherAction(ore), _world.Snapshot());
+        _world.Gather = new GatherProgress(true, 1000, 5000);
+
+        Assert.Equal("прерываю копание", _runner.Submit(new NormalAttackAction(), _world.Snapshot()).Busy);
+        Assert.Equal(["gather C0100E4B", "cancel"], _actions.Calls);
+        Assert.Null(_runner.Pending.OfType<GatherAction>().FirstOrDefault());
+
+        _world.Gather = new GatherProgress(false, 1200, 5000);
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(new MoveAction(new Position(5, 0, 0)), _world.Snapshot()).Status);
+        Assert.Equal(2, _actions.Calls.Count);
+    }
+
     [Fact]
     public void BodyActionWaitsWhileCasting()
     {

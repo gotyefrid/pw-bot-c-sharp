@@ -34,6 +34,17 @@ public enum ActionResource
     Body,
 }
 
+/// <summary>Насколько действие важно, когда тело занято: более важное прерывает менее важное (решает <see cref="ActionRunner"/>).</summary>
+public enum ActionPriority
+{
+    /// <summary>Фон: копание ресурсов — уступает всему.</summary>
+    Background,
+    /// <summary>Обычное: бой, бег, лут.</summary>
+    Normal,
+    /// <summary>Срочное: лечение и воскрешение пета — прерывает всё, даже чужой каст (как Esc).</summary>
+    Urgent,
+}
+
 /// <summary>
 /// Действие бота: как отправить и как по снимкам понять, что оно сработало.
 /// Пока не подтверждено (или не вышел срок), такое же действие (<see cref="Key"/>) повторно не отправляется.
@@ -48,6 +59,12 @@ public abstract class GameAction
 
     /// <summary>Что занимает, пока ждёт подтверждения: тело — одновременно только одно такое действие.</summary>
     public virtual ActionResource Resource => ActionResource.None;
+
+    /// <summary>Важность за тело. По умолчанию обычное; задаётся при создании (<c>{ Priority = ActionPriority.Urgent }</c>).</summary>
+    public virtual ActionPriority Priority { get; init; } = ActionPriority.Normal;
+
+    /// <summary>Какой скилл кастует это действие (0 — не скилл): пока кастуется он же, действие не сбивает само себя.</summary>
+    public virtual int CastsSkill => 0;
 
     /// <summary>Сколько ждать подтверждения.</summary>
     public abstract TimeSpan Timeout { get; }
@@ -91,9 +108,11 @@ public sealed class UnselectAction : GameAction
 /// Прервать каст или копание — как Esc (нужно срочно лечить пета). Тело не занимает: оно его освобождает.
 /// Подтверждение — персонаж больше не кастует и не копает.
 /// </summary>
-public sealed class CancelAction(string why) : GameAction
+public sealed class CancelAction(string what) : GameAction
 {
-    public override string Name => $"прервать: {why}";
+    /// <summary>Что прерываем: «каст», «копание».</summary>
+    public string What { get; } = what;
+    public override string Name => $"прервать {What}";
     public override string Key => "прервать";
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override CallResult Send(IGameActions actions, WorldState now) => actions.CancelAction();
@@ -157,6 +176,7 @@ public sealed class SkillAction : GameAction
     public override string Name => TargetWid == 0 ? Title : $"{Title} → 0x{TargetWid:X8}";
     public override string Key => $"скилл {Skill}";
     public override ActionResource Resource => ActionResource.Body;
+    public override int CastsSkill => Skill;
     // Как кнопкой: не дождались за 5 с — бот просто нажмёт ещё раз (клиент продолжит подход), долго ждать незачем
     public override TimeSpan Timeout => _timeout ?? TimeSpan.FromSeconds(_approach ? 5 : 8);
 
@@ -270,6 +290,7 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     public override string Name => $"собрать {Item.Name} ({Item.Distance:0.0} м)";
     public override string Key => $"сбор 0x{Item.Id:X8}";
     public override ActionResource Resource => ActionResource.Body;
+    public override ActionPriority Priority { get; init; } = ActionPriority.Background;
     // Подойти + копать несколько секунд
     public override TimeSpan Timeout => TimeSpan.FromSeconds(30);
 
@@ -383,6 +404,8 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
     public override string Name => $"воскресить пета (клетка {Cage})";
     public override string Key => "пет";
     public override ActionResource Resource => ActionResource.Body;
+    public override ActionPriority Priority { get; init; } = ActionPriority.Urgent;
+    public override int CastsSkill => skill;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(20);
 
     public override string? Precondition(WorldState now)

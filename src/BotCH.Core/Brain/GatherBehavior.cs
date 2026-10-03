@@ -34,15 +34,11 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         var w = c.World;
         var pending = c.Runner.Pending.OfType<GatherAction>().FirstOrDefault();
 
-        // Напали — копание бросаем, дальше решает бой
+        // Напали — ход бою; копание фоновое, его прервёт первое же действие боя (решает исполнитель)
         if (TargetSelector.Aggressor(w) is { } aggressor)
         {
             if (pending is not null)
-            {
-                c.Log.Info($"{aggressor.Name} напал — бросаю копать {pending.Item.Name}");
-                c.Runner.Cancel(pending.Key, "напали — сначала бой", w);
-            }
-
+                c.Say($"gather-attacked-{pending.Item.Id:X8}", $"{aggressor.Name} напал — бросаю копать {pending.Item.Name}", seconds: 600);
             return false;
         }
 

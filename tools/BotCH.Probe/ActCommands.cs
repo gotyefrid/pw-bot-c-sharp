@@ -177,7 +177,7 @@ internal static class ActCommands
                 var g = w.Host.Gather;
                 Console.WriteLine("До: " + (g is { Active: true } ? $"копает, {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с"
                     : w.Host.IsCasting ? "кастует" : "не копает и не кастует — прерывать нечего"));
-                return new CancelAction("проверка");
+                return new CancelAction("каст или копание");
 
             case "gather":
                 var resource = w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).OrderBy(i => i.Distance).FirstOrDefault();
