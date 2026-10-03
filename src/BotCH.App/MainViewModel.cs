@@ -689,17 +689,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Радиус поиска ресурсов вокруг точки, м.</summary>
+    /// <summary>
+    /// Радиус поиска ресурсов вокруг точки, м. Поле не переписывается на ходу (иначе «1» по дороге к «100» сразу становилось 5):
+    /// границы 5–500 применяет копия настроек для бота.
+    /// </summary>
     public int RouteRadius
     {
         get => _settings.Route.Radius;
         set
         {
-            var radius = Math.Min(200, Math.Max(5, value));
-            if (radius == _settings.Route.Radius)
+            if (value == _settings.Route.Radius)
                 return;
-            _settings.Route.Radius = radius;
-            OnPropertyChanged();
+            _settings.Route.Radius = value;
             SettingsEdited();
         }
     }

@@ -51,7 +51,7 @@ public sealed class BotSettings
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
         Route.Points = RoutePoint.Clean(Route.Points);
-        Route.Radius = Clamp(Route.Radius, 5, 200);
+        Route.Radius = Clamp(Route.Radius, 5, 500);
         return this;
     }
 
