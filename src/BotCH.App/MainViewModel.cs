@@ -15,6 +15,7 @@ using BotCH.Core.GameFiles;
 using BotCH.Core.Logging;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
+using BotCH.Core.Resources;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 
@@ -56,6 +57,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private IBotRunner? _brain;
     private Action<WorldState>? _brainTick;
 
+    // Точки ресурсов (resources.json) — общие на все серверы и персонажей, копятся в любом режиме
+    private static readonly TimeSpan SpotsSaveEvery = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan SpotsShowEvery = TimeSpan.FromSeconds(1);
+    private readonly SpotBookStore _spotStore;
+    private readonly SpotBook _spots;
+    private DateTime _spotsSaved = DateTime.Now;
+    private DateTime _spotsShown;
+
     public MainViewModel(string appDirectory)
     {
         var ring = new RingBufferSink(MaxLogLines);
@@ -72,6 +81,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (problem is not null)
             _log.Warning(problem);
 
+        _spotStore = new SpotBookStore(Path.Combine(appDirectory, "resources.json"));
+        _spots = new SpotBook(_spotStore.Load(out var spotsProblem), logger.For("ресурсы"));
+        if (spotsProblem is not null)
+            _log.Warning(spotsProblem);
+
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
 
@@ -87,6 +101,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ClearLogCommand = new RelayCommand(Log.Clear);
         AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _lastWorld is not null);
         RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
+        AddSpotCommand = new RelayCommand(AddSpot, () => _lastWorld is not null && NewSpotName.Trim().Length > 0);
+        RemoveSpotCommand = new RelayCommand(RemoveSpot, () => SelectedSpot is not null);
 
         _log.Info("BotCH запущен");
         RefreshClients();
@@ -525,6 +541,116 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ? $"{w.Host.Position.HorizontalDistanceTo(p.Position):0} м отсюда"
             : "";
 
+    // ── Точки ресурсов ──────────────────────────────────────────────────────
+
+    /// <summary>Все точки, ближние сверху.</summary>
+    public ObservableCollection<SpotRow> SpotRows { get; } = new();
+
+    /// <summary>Названия для «Добавить здесь»: из блокнота и что видно рядом.</summary>
+    public ObservableCollection<string> SpotNames { get; } = new();
+
+    public ICommand AddSpotCommand { get; }
+    public ICommand RemoveSpotCommand { get; }
+
+    private SpotRow? _selectedSpot;
+
+    public SpotRow? SelectedSpot { get => _selectedSpot; set => SetProperty(ref _selectedSpot, value); }
+
+    private string _newSpotName = "";
+
+    public string NewSpotName { get => _newSpotName; set => SetProperty(ref _newSpotName, value ?? ""); }
+
+    private string _spotsInfo = "";
+
+    public string SpotsInfo { get => _spotsInfo; private set => SetProperty(ref _spotsInfo, value); }
+
+    private void AddSpot()
+    {
+        if (_lastWorld is not { } w || NewSpotName.Trim().Length == 0)
+            return;
+
+        var spot = _spots.Add(NewSpotName, w.Host.Position);
+        SaveSpots();
+        ShowSpots(w, force: true);
+        SelectedSpot = SpotRows.FirstOrDefault(r => r.Spot == spot);
+    }
+
+    private void RemoveSpot()
+    {
+        if (SelectedSpot is not { } row)
+            return;
+
+        _spots.Remove(row.Spot);
+        SaveSpots();
+        SpotRows.Remove(row);
+        SelectedSpot = null;
+        if (_lastWorld is { } w)
+            ShowSpots(w, force: true);
+    }
+
+    private void SaveSpots()
+    {
+        if (!_spots.Changed)
+            return;
+
+        try
+        {
+            _spotStore.Save(_spots.Spots);
+            _spots.MarkSaved();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _log.Warning("Не удалось сохранить точки ресурсов: " + e.Message);
+        }
+
+        _spotsSaved = DateTime.Now;
+    }
+
+    /// <summary>Список в окне ← блокнот (раз в секунду: расстояния и состояние), сохранение — раз в 10 с, если менялось.</summary>
+    private void ShowSpots(WorldState w, bool force = false)
+    {
+        var now = DateTime.Now;
+        if (now - _spotsSaved >= SpotsSaveEvery)
+            SaveSpots();
+        if (!force && now - _spotsShown < SpotsShowEvery)
+            return;
+        _spotsShown = now;
+
+        var here = w.Host.Position;
+        var rows = SpotRows.ToDictionary(r => r.Spot);
+        foreach (var spot in _spots.Spots)
+        {
+            if (!rows.TryGetValue(spot, out var row))
+                SpotRows.Add(row = new SpotRow(spot));
+            row.Update(here.HorizontalDistanceTo(spot.Position), _spots.IsPresent(spot), w.Time);
+        }
+
+        // Ближние сверху; Move, а не пересборка — выделение не сбрасывается
+        var order = SpotRows.OrderBy(r => r.Distance).ToList();
+        for (var i = 0; i < order.Count; i++)
+        {
+            var at = SpotRows.IndexOf(order[i]);
+            if (at != i)
+                SpotRows.Move(at, i);
+        }
+
+        var names = _spots.Spots.Select(s => s.Name)
+            .Concat(w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).Select(i => i.Name.Trim()))
+            .Where(n => n.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(n => n)
+            .ToList();
+        if (!names.SequenceEqual(SpotNames))
+        {
+            SpotNames.Clear();
+            foreach (var name in names)
+                SpotNames.Add(name);
+        }
+
+        var near = _spots.Spots.Count(s => s.Position.HorizontalDistanceTo(here) <= SpotBook.SureVisible);
+        SpotsInfo = $"Точек всего {_spots.Spots.Count}, в {SpotBook.SureVisible:0} м отсюда — {near}. Бот запоминает ресурсы, которые видит, даже без «Старт».";
+    }
+
     public sealed record PathChoice(ApproachPath Path, string Title);
 
     public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
@@ -567,6 +693,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Disconnect();
+        SaveSpots();
     }
 
     // ── Внутреннее ──────────────────────────────────────────────────────────
@@ -739,6 +866,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         UpdateAttackSkills(w);
         UpdateFarmPointInfo();
+        _spots.Observe(w);
+        ShowSpots(w);
         SnapshotInfo = $"мобов рядом {w.Mobs.Count(m => !m.IsDead)} · лута {w.GroundItems.Count}";
     }
 
@@ -762,6 +891,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void ClearWorld()
     {
         _lastWorld = null;
+        _spots.Forget();
         HostName = "—";
         HostDetails = "";
         HpPercent = 0;

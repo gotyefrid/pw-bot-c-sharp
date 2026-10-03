@@ -192,15 +192,31 @@
       </DockPanel>
     </Border>
 
-    <!-- Ресы: режим «Собирать ресурсы» (часть 8) — пока заготовка -->
-    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" VerticalAlignment="Top"
+    <!-- Ресы: точки ресурсов (часть 8, этап 1 — блокнот); обход по точкам — следующие этапы -->
+    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}"
             Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=3}">
-      <StackPanel>
-        <TextBlock Text="СБОР РЕСУРСОВ" Style="{StaticResource CardTitle}" />
-        <TextBlock TextWrapping="Wrap" Text="Здесь будут маршрут (точки, ходьба или полёт) и список ресурсов по названию — травы, руда." />
-        <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,8,0,0"
-                   Text="Режим ещё не сделан: при «Старт» бот ничего не делает в игре." />
-      </StackPanel>
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Top" Text="ТОЧКИ РЕСУРСОВ" Style="{StaticResource CardTitle}" />
+        <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8" Text="{Binding SpotsInfo}" />
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+          <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
+                  Command="{Binding RemoveSpotCommand}" ToolTip="Удалить выбранную в списке точку" />
+          <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Добавить здесь" Margin="6,0,0,0"
+                  Command="{Binding AddSpotCommand}"
+                  ToolTip="Запомнить место, где стоит персонаж, как точку этого ресурса (сейчас его может и не быть — выкопан)" />
+          <ComboBox IsEditable="True" ItemsSource="{Binding SpotNames}" Text="{Binding NewSpotName, UpdateSourceTrigger=PropertyChanged}"
+                    ToolTip="Название ресурса для «Добавить здесь»" />
+        </DockPanel>
+        <ListView ItemsSource="{Binding SpotRows}" SelectedItem="{Binding SelectedSpot}" BorderThickness="0" Background="Transparent">
+          <ListView.View>
+            <GridView>
+              <GridViewColumn Header="Ресурс" Width="200" DisplayMemberBinding="{Binding Name}" />
+              <GridViewColumn Header="Отсюда" Width="70" DisplayMemberBinding="{Binding DistanceText}" />
+              <GridViewColumn Header="Состояние" Width="150" DisplayMemberBinding="{Binding State}" />
+            </GridView>
+          </ListView.View>
+        </ListView>
+      </DockPanel>
     </Border>
 
     <!-- Кликер (часть 10) — пока заготовка -->
