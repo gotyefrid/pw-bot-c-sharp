@@ -365,11 +365,23 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
 
     public override CallResult Send(IGameActions actions, WorldState now) => actions.MoveTo(now.Host, Point, Smart);
 
+    // Перс встал, не дойдя (упёрся, бег сбился) — не ждём конца времени на дорогу
+    private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(2.5);
+    private Position? _lastPosition;
+    private DateTime _movedAt;
+
     public override Verdict Check(WorldState start, WorldState now)
     {
         var left = now.Host.Position.DistanceTo(Point);
         if (left <= Tolerance)
             return Verdict.Confirmed($"дошли, {left:0.0} м до точки");
+
+        if (_lastPosition is null)
+            (_lastPosition, _movedAt) = (start.Host.Position, start.Time);
+        if (now.Host.Position.HorizontalDistanceTo(_lastPosition.Value) > 0.1f)
+            (_lastPosition, _movedAt) = (now.Host.Position, now.Time);
+        else if (now.Time - _movedAt >= StandPatience)
+            return Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0.0} с, не дойдя {left:0.0} м");
 
         var limit = TimeSpan.FromSeconds(5 + 0.4 * start.Host.Position.DistanceTo(Point));
         return now.Time - start.Time > limit ? Verdict.Rejected($"не дошли за {limit.TotalSeconds:0} с, осталось {left:0.0} м") : Verdict.Pending;

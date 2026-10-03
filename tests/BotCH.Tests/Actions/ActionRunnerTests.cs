@@ -437,10 +437,31 @@ public class ActionRunnerTests
         _world.Position = new Position(19, 0, 0);
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(4).Snapshot())).Status);
 
+        _world.Position = new Position(0, 0, 0); // нас отбросило: бежим, но медленно — не успеваем за время на дорогу
         _runner.Submit(new MoveAction(point), _world.Snapshot());
-        _world.Position = new Position(0, 0, 0); // застряли (или нас отбросило)
-        Assert.Empty(_runner.Update(_world.Wait(5).Snapshot()));
+        for (var x = 1; x <= 10; x++)
+        {
+            _world.Position = new Position(x * 0.5f, 0, 0);
+            Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        }
         Assert.Equal(ActionStatus.Rejected, Single(_runner.Update(_world.Wait(10).Snapshot())).Status);
+    }
+
+    [Fact]
+    public void MoveRejectedSoonWhenStandingShortOfPoint()
+    {
+        // Бег на 25 м (времени на дорогу 15 с), а перс встал в 7 м от точки — отказ через 2.5 с стояния, не через 15
+        var point = new Position(25, 0, 0);
+        _runner.Submit(new MoveAction(point), _world.Snapshot());
+        _world.Position = new Position(10, 0, 0);
+        Assert.Empty(_runner.Update(_world.Wait(2).Snapshot()));
+        _world.Position = new Position(18, 0, 0);
+        Assert.Empty(_runner.Update(_world.Wait(2).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(2).Snapshot()));
+
+        var outcome = Single(_runner.Update(_world.Wait(1).Snapshot()));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.StartsWith("стоим", outcome.Details);
     }
 
     [Fact]
