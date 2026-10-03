@@ -30,6 +30,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
     private int? _lastVisited;
     // Вернуться к точке по-настоящему (с её высотой): после ухода вверх над ней «дошли по горизонтали» — неправда
     private bool _returning;
+    // У точки всё выкопано — возвращаемся на неё, чтобы к следующей лететь от точки, а не от последнего ресурса
+    private bool _leaving;
 
     public string Name => "обход";
     public string? Status { get; private set; }
@@ -88,17 +90,38 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
             if (w.BagFull && w.GroundItems.Any(i => Blocked(c, i)))
                 return c.RequestStop("сумка полна — добыча ресурсов не помещается");
 
-            Next(c, "здесь всё");
-            point = points[_index];
+            // Путь между точками — от точки к точке: отошли копать (в полёте — и по высоте) — сначала назад на точку
+            var away = _inAir == true ? w.Host.Position.DistanceTo(point.Position) : w.Host.Position.HorizontalDistanceTo(point.Position);
+            if (away > ArriveDistance)
+            {
+                _arrived = false;
+                _returning = true;
+                _leaving = true;
+                c.Log.Info($"Точка {_index + 1} — здесь всё; возвращаюсь на неё, от неё — к следующей");
+            }
+            else
+            {
+                Next(c, "здесь всё");
+                point = points[_index];
+            }
         }
         else if (!_returning && w.Host.Position.HorizontalDistanceTo(point.Position) <= ArriveDistance && pending?.Point != point.Position)
         {
-            // Долетели совсем (полёт к точке закончился, с высотой): со следующего шага копаем у этой точки
-            _arrived = true;
-            _lastVisited = _index;
-            c.Log.Info($"На точке {_index + 1}/{points.Count} — ищу: {point.Describe()}");
-            Status = $"на точке {_index + 1}/{points.Count}";
-            return true;
+            if (_leaving)
+            {
+                // Вернулись на отработанную точку — сразу к следующей, без нового поиска
+                Next(c, "вернулся на неё");
+                point = points[_index];
+            }
+            else
+            {
+                // Долетели совсем (полёт к точке закончился, с высотой): со следующего шага копаем у этой точки
+                _arrived = true;
+                _lastVisited = _index;
+                c.Log.Info($"На точке {_index + 1}/{points.Count} — ищу: {point.Describe()}");
+                Status = $"на точке {_index + 1}/{points.Count}";
+                return true;
+            }
         }
 
         var distance = w.Host.Position.HorizontalDistanceTo(point.Position);
@@ -141,6 +164,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         _arrived = false;
         _failures = 0;
         _returning = true;
+        _leaving = false;
     }
 
     // Нужный обычный ресурс у точки, который не ляжет в сумку
@@ -154,6 +178,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         var was = _index;
         _index = (_index + 1) % points.Count;
         _arrived = false;
+        _leaving = false;
         _failures = 0;
         c.Log.Info($"Точка {was + 1} — {why}; дальше {_index + 1}/{points.Count}");
     }
@@ -186,6 +211,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         _failures = 0;
         _lastVisited = null;
         _returning = false;
+        _leaving = false;
         Status = null;
     }
 }

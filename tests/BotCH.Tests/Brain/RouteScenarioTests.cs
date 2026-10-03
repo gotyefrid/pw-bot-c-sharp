@@ -311,6 +311,36 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void AfterDiggingBotReturnsToPointAndFliesToNextFromIt()
+    {
+        // Точки в воздухе на 30 м; выкопали руду у земли в 30 м от точки — к следующей не от руды, а сначала назад на точку
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+        var ore = AddResource(0xC0000001, 30, "Железная руда");
+        Tick();
+        Tick();
+        Assert.Equal(["gather C0000001"], _actions.Calls);
+
+        _world.Position = new Position(30, 0, 0);
+        _world.Gather = new GatherProgress(true, 1000, 5000);
+        Tick();
+        _world.Gather = new GatherProgress(false, 5000, 5000);
+        _world.Ground.Remove(ore);
+        Tick();
+        Tick();
+        Assert.Equal("fly (0,0; 0,0; h 30,0)", _actions.Calls.Last());
+        Assert.Contains(_log, e => e.Message == "Точка 1 — здесь всё; возвращаюсь на неё, от неё — к следующей");
+
+        _world.Position = new Position(0, 30, 0);
+        Tick();
+        Tick();
+
+        Assert.Equal("fly (300,0; 0,0; h 30,0)", _actions.Calls.Last());
+        Assert.Equal(1, _actions.Calls.Count(c => c.StartsWith("gather")));
+    }
+
+    [Fact]
     public void DangerMarginIsAtLeastOneMetre()
     {
         var settings = new BotSettings();
