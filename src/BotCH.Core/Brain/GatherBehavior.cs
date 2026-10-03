@@ -14,6 +14,7 @@ namespace BotCH.Core.Brain;
 /// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по справочнику игры,
 /// <see cref="GroundItem.Mine"/>) целиком ляжет в начатые стопки. Ресурс выше уровня персонажа (по справочнику) не копаем. «Нересурсы» (<see cref="GroundItem.Special"/>: квестовые,
 /// особые) — только если их название явно в списке, и тогда без всяких условий: просто пробуем копать.
+/// Ресурс в зоне опасного моба (<see cref="GatherScope.Guard"/>, у обхода) не копаем — проверяем каждый раз заново: моб мог уйти.
 /// </summary>
 public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, GatherScope? scope = null) : IBehavior
 {
@@ -66,7 +67,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         var special = near.Where(i => i.Special && _scope.Listed(c, i.Name));
         var resource = special.Concat(Regular(c, near.Where(i => !i.Special)))
             .OrderBy(i => i.Distance)
-            .FirstOrDefault();
+            .FirstOrDefault(i => Safe(c, i));
         if (resource is null)
             return false;
 
@@ -78,6 +79,18 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         if (sent == SubmitStatus.Sent)
             c.Log.Info($"Копаю {resource.Name}{_scope.Where(c)}, {resource.Distance:0.0} м");
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+    }
+
+    // Не в зоне опасного моба; в зоне — говорим (раз в 5 мин на ресурс) и не летим к нему
+    private bool Safe(BrainContext c, GroundItem item)
+    {
+        if (_scope.Guard(c, item.Position) is not { } guard)
+            return true;
+
+        c.Say($"gather-danger-{item.Id:X8}",
+            $"Не копаю {item.Name}: рядом опасный {guard.Name} (ур. {guard.Level}, агро {guard.AggroRadius} м) — " +
+            $"{guard.Position.HorizontalDistanceTo(item.Position):0} м от ресурса", seconds: 300);
+        return false;
     }
 
     // Обычные ресурсы: нужна кирка в сумке, список лута разрешает, при полной сумке — добыча ляжет в начатые стопки

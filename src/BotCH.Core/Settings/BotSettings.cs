@@ -66,6 +66,9 @@ public sealed class BotSettings
         Pet.WaterPet = Pet.WaterPet?.Trim() ?? "";
         Route.Points = RoutePoint.Clean(Route.Points);
         Route.Radius = Clamp(Route.Radius, 5, 500);
+        Route.DangerLevel = Clamp(Route.DangerLevel, 0, 150);
+        Route.DangerMobs = MobNameFilter.Clean(Route.DangerMobs);
+        Route.DangerMargin = Clamp(Route.DangerMargin, 1, 50);
         return this;
     }
 
@@ -158,6 +161,15 @@ public sealed class RouteSettings
 
     /// <summary>С какой точки начинать обход при «Старт» (с 0): окно ставит выбранную в списке.</summary>
     public int StartIndex { get; set; }
+
+    /// <summary>Опасны агрессивные мобы от этого уровня (0 — по уровню не считаем). См. <see cref="Brain.DangerZones"/>.</summary>
+    public int DangerLevel { get; set; }
+
+    /// <summary>Агрессивные мобы с этими названиями опасны при любом уровне (боссы).</summary>
+    public List<string> DangerMobs { get; set; } = [];
+
+    /// <summary>Запас к радиусу агра опасного моба, м (не меньше 1).</summary>
+    public int DangerMargin { get; set; } = 1;
 }
 
 /// <summary>

@@ -201,6 +201,26 @@
         <TextBlock DockPanel.Dock="Top" Text="МАРШРУТ ОБХОДА" Style="{StaticResource CardTitle}" />
         <TextBlock DockPanel.Dock="Top" TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
                    Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке. «Старт» — с выбранной точки (не выбрана — с первой)." />
+        <StackPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+          <TextBlock Text="ОПАСНЫЕ МОБЫ" Style="{StaticResource CardTitle}" />
+          <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
+                     Text="К ресурсу в зоне агра опасного моба бот не летит: копает другие, на следующем круге проверит снова. Опасны только агрессивные — от уровня или из списка (боссы). Пассивные не опасны." />
+          <DockPanel Margin="0,0,0,4">
+            <TextBlock Text="Агрессивные от уровня" VerticalAlignment="Center" />
+            <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding DangerLevel, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Агрессивный моб этого уровня и выше — опасен. 0 — по уровню не считать, только список" />
+            <Grid />
+          </DockPanel>
+          <DockPanel Margin="0,0,0,4">
+            <TextBlock Text="Запас к радиусу агра, м" VerticalAlignment="Center" />
+            <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding DangerMargin, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Зона моба — его радиус агра (из игры) плюс запас, вокруг и по высоте. Не меньше 1 м" />
+            <Grid />
+          </DockPanel>
+          <app:TagPicker Margin="0,4,0,0" Selected="{Binding DangerNames}" Options="{Binding MobOptions}"
+                         Placeholder="Боссы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
+                         ToolTip="Эти агрессивные мобы опасны при любом уровне: боссы, которых не убить, хотя уровень как у персонажа" />
+        </StackPanel>
         <DockPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
           <TextBlock Text="Ресурсы в радиусе, м" VerticalAlignment="Center" />
           <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding RouteRadius, UpdateSourceTrigger=PropertyChanged}"

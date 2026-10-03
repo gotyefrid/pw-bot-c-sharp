@@ -146,6 +146,94 @@ public class RouteScenarioTests
         Assert.True(_settings.Route.Points[1].Wants("Шалфей"));
     }
 
+    private NpcInfo AddAggressive(uint wid, string name, float x, int level, int aggro = 8, float height = 0)
+    {
+        var mob = new NpcInfo(wid, wid, NpcKind.Mob, 1, 0, new Position(x, height, 0), x, name, 0)
+            { Level = level, Aggressive = true, AggroRadius = aggro };
+        _world.Npcs.Add(mob);
+        return mob;
+    }
+
+    [Fact]
+    public void ResourceInDangerousMobZoneIsSkipped()
+    {
+        // Ближний шалфей у агрессивного моба 30 уровня (агро 8 + запас 1 = 9 м) — копаем дальнюю руду
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        AddResource(0xC0000001, 10, "Шалфей");
+        AddResource(0xC0000002, 30, "Железная руда");
+        AddAggressive(0x80000001, "Тигр", 18, level: 30);
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["gather C0000002"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Не копаю Шалфей: рядом опасный Тигр (ур. 30, агро 8 м) — 8 м от ресурса");
+    }
+
+    [Fact]
+    public void WeakAggressiveMobAndPassiveBossAreNotDangerous()
+    {
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _settings.Route.DangerMobs = ["Король пауков"];
+        AddResource(0xC0000001, 10, "Шалфей");
+        AddResource(0xC0000002, 30, "Железная руда");
+        AddAggressive(0x80000001, "Волк", 12, level: 20);                       // слабее порога
+        _world.Npcs.Add(new NpcInfo(0x80000002, 0x80000002, NpcKind.Mob, 1, 0, new Position(28, 0, 0), 28, "Король пауков", 0)
+            { Level = 40, Aggressive = false, AggroRadius = 8 });                // из списка, но пассивный
+
+        Tick();
+        Tick();
+        _world.Ground.RemoveAt(0);
+        Tick();
+
+        Assert.Equal(["gather C0000001", "gather C0000002"], _actions.Calls.Where(a => a.StartsWith("gather")));
+    }
+
+    [Fact]
+    public void ListedBossIsDangerousAtAnyLevelAndOnlyWithinItsZone()
+    {
+        // Порог по уровню выключен; босс из списка — 10 уровня. Руда в 9,5 м от него — вне зоны (8 + 1), шалфей в 6 м — в зоне
+        Route(0, 300);
+        _settings.Route.DangerMobs = ["Король пауков"];
+        AddResource(0xC0000001, 14, "Шалфей");
+        AddResource(0xC0000002, 29.5f, "Железная руда");
+        AddAggressive(0x80000001, "Король пауков", 20, level: 10);
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["gather C0000002"], _actions.Calls);
+    }
+
+    [Fact]
+    public void MobHighAboveResourceDoesNotGuardIt()
+    {
+        // Зона — цилиндр: по высоте агро + запас (9 м) вверх и вниз. Моб на скале в 20 м над ресурсом его не сторожит
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        AddResource(0xC0000001, 10, "Шалфей");
+        AddAggressive(0x80000001, "Орёл", 12, level: 30, height: 20);
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void DangerMarginIsAtLeastOneMetre()
+    {
+        var settings = new BotSettings();
+        settings.Route.DangerMargin = 0;
+
+        settings.Normalize();
+
+        Assert.Equal(1, settings.Route.DangerMargin);
+        Assert.Equal(1, new BotSettings().Route.DangerMargin);
+    }
+
     [Fact]
     public void EmptyListDigsAnyRegularResource()
     {

@@ -39,7 +39,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         (c, p) => Current(c) is { } point && p.HorizontalDistanceTo(point.Position) <= c.Settings.Route.Radius,
         (c, name) => Current(c)?.Wants(name) == true,
         (c, name) => Current(c)?.Lists(name) == true,
-        c => c.Settings.Route.Points.Count > 0 ? $" у точки {_index % c.Settings.Route.Points.Count + 1}/{c.Settings.Route.Points.Count}" : "");
+        c => c.Settings.Route.Points.Count > 0 ? $" у точки {_index % c.Settings.Route.Points.Count + 1}/{c.Settings.Route.Points.Count}" : "",
+        (c, p) => DangerZones.Guard(c.World, p, c.Settings.Route));
 
     private RoutePoint? Current(BrainContext c)
     {

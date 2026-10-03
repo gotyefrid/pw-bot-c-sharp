@@ -105,6 +105,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
         RouteNames.CollectionChanged += (_, _) => RouteNamesEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
+        DangerNames.CollectionChanged += (_, _) => NameListsEdited();
 
         RefreshCommand = new RelayCommand(RefreshClients);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning);
@@ -385,6 +386,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Предметы для белого/чёрного списка лута.</summary>
     public ObservableCollection<string> LootNames { get; } = new();
 
+    /// <summary>Опасные мобы обхода по названию (боссы) — выбираются из мобов вокруг.</summary>
+    public ObservableCollection<string> DangerNames { get; } = new();
+
     // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
     private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
@@ -417,6 +421,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             LootNames.Clear();
             foreach (var name in _settings.Loot.ItemNames)
                 LootNames.Add(name);
+            DangerNames.Clear();
+            foreach (var name in _settings.Route.DangerMobs)
+                DangerNames.Add(name);
         }
         finally
         {
@@ -432,6 +439,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _settings.Target.MobNames = MobNameFilter.Clean(MobNames);
         _settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
+        _settings.Route.DangerMobs = MobNameFilter.Clean(DangerNames);
         SettingsEdited();
     }
 
@@ -706,6 +714,32 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>Опасны агрессивные мобы от этого уровня (0 — только список). Границы — у копии настроек для бота, как у радиуса.</summary>
+    public int DangerLevel
+    {
+        get => _settings.Route.DangerLevel;
+        set
+        {
+            if (value == _settings.Route.DangerLevel)
+                return;
+            _settings.Route.DangerLevel = value;
+            SettingsEdited();
+        }
+    }
+
+    /// <summary>Запас к радиусу агра, м (не меньше 1 — у копии настроек для бота).</summary>
+    public int DangerMargin
+    {
+        get => _settings.Route.DangerMargin;
+        set
+        {
+            if (value == _settings.Route.DangerMargin)
+                return;
+            _settings.Route.DangerMargin = value;
+            SettingsEdited();
+        }
+    }
+
     /// <summary>Варианты: ресурсы рядом (и «нересурсы» — их можно копать, если назвать), потом известные по блокноту.</summary>
     public Func<IReadOnlyList<PickOption>> RouteOptions
         => () => PickOptions(
@@ -776,6 +810,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SelectedRoutePoint = RouteRows.FirstOrDefault(r => r.Point == selected);
         LoadPointNames();
         OnPropertyChanged(nameof(RouteRadius));
+        OnPropertyChanged(nameof(DangerLevel));
+        OnPropertyChanged(nameof(DangerMargin));
     }
 
     /// <summary>Список «что копать» в окне ← выбранная точка.</summary>
