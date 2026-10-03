@@ -298,7 +298,7 @@
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр" IsChecked="{Binding Settings.Target.ReturnToCenter}"
                         VerticalAlignment="Center"
-                        ToolTip="В радиусе нет мобов и ресурсов, а персонаж отошёл от центра (погнался за мобом) — бежит в центр и ждёт там" />
+                        ToolTip="Персонаж оказался за радиусом фарма (погнался за мобом), а целей нет 2 с — бежит в центр и ждёт там. Внутри радиуса стоит на месте" />
               <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
                         SelectedValuePath="Path" SelectedValue="{Binding Settings.Target.ReturnPath}"
                         Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"

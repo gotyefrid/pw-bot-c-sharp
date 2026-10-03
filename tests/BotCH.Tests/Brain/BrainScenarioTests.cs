@@ -1019,6 +1019,27 @@ public class BrainScenarioTests
         _settings.Target.FarmCenter = "Поляна";
     }
 
+    // Возврат — только когда делать нечего 2 с подряд
+    private void IdleUntilReturn()
+    {
+        Tick();
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));
+        for (var i = 0; i < 8; i++)
+            Tick();
+    }
+
+    [Fact]
+    public void NoReturnRightAfterKillWhenNextMobIsPickedNextTick()
+    {
+        // Бой отдал ход (после лута), шагом позже нашёл моба — бег в центр не начинаем
+        FarmAt(50, radius: 48);
+        Tick();
+        _world.AddMob(0x80000001, "Волк", 40);
+        Tick();
+
+        Assert.Equal(["select 80000001"], _actions.Calls);
+    }
+
     [Fact]
     public void RadiusCountsFromSavedPointNotFromStart()
     {
@@ -1038,10 +1059,10 @@ public class BrainScenarioTests
     {
         FarmAt(50);
 
-        Tick();
+        IdleUntilReturn();
 
         Assert.Equal(["move (50,0; 0,0; h 0,0) умно"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Целей нет — возвращаюсь в центр фарма"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Вне радиуса фарма, целей нет — возвращаюсь в центр"));
     }
 
     [Fact]
@@ -1056,22 +1077,35 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void NearCenterOrReturnOffStaysPut()
+    public void InsideRadiusOrReturnOffStaysPut()
     {
-        // Центр — точка старта, перс отошёл на 3 м: уже в центре
+        // Центр — точка старта, перс отошёл на 30 м, но радиус 60: внутри — стоим
         _settings.Target.KillMobs = true;
         Tick();
-        _world.Position = new Position(3, 0, 0);
-        Tick();
+        _world.Position = new Position(30, 0, 0);
+        for (var i = 0; i < 12; i++)
+            Tick();
         Assert.Empty(_actions.Calls);
+
+        // Радиус 0 — без ограничения, возвращаться некуда
+        _settings.Target.FarmRadius = 0;
+        _brain = null;
+        _world.Position = new Position(0, 0, 0);
+        Tick();
+        _world.Position = new Position(400, 0, 0);
+        for (var i = 0; i < 12; i++)
+            Tick();
+        Assert.Empty(_actions.Calls);
+        _settings.Target.FarmRadius = 60;
 
         // Ушёл далеко, но возврат выключен
         _settings.Target.ReturnToCenter = false;
         _brain = null;
         _world.Position = new Position(0, 0, 0);
         Tick();
-        _world.Position = new Position(40, 0, 0);
-        Tick();
+        _world.Position = new Position(100, 0, 0);
+        for (var i = 0; i < 12; i++)
+            Tick();
         Assert.Empty(_actions.Calls);
     }
 
@@ -1079,10 +1113,10 @@ public class BrainScenarioTests
     public void FightInterruptsReturn()
     {
         // Бежим в центр (фон) — появился моб: удар скиллом важнее бега
-        FarmAt(50, radius: 60);
+        FarmAt(50, radius: 48);
         _settings.Combat.UseSkill = true;
         _world.AddSkill(299);
-        Tick();
+        IdleUntilReturn();
         Assert.StartsWith("move", LastCall);
 
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
@@ -1096,12 +1130,12 @@ public class BrainScenarioTests
     public void ComeCloserReplacesReturn()
     {
         // Бежим в центр — моб далеко: свой подход к нему вместо бега в центр
-        FarmAt(50, radius: 60);
+        FarmAt(50, radius: 48);
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
         _settings.Combat.ApproachPath = ApproachPath.Direct;
         _settings.Target.ReturnPath = ApproachPath.Direct;
-        Tick();
+        IdleUntilReturn();
         Assert.Equal("move (50,0; 0,0; h 0,0)", LastCall);
 
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
@@ -1115,12 +1149,12 @@ public class BrainScenarioTests
     public void ComeCloserMobNearDoesNotWaitForReturn()
     {
         // Бежим в центр — моб уже ближе нужного: бьём сразу, не «добегаем» до центра
-        FarmAt(50, radius: 60);
+        FarmAt(50, radius: 48);
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
         _settings.Combat.UseSkill = true;
         _world.AddSkill(299);
-        Tick();
+        IdleUntilReturn();
         Assert.StartsWith("move", LastCall);
 
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
@@ -1138,7 +1172,7 @@ public class BrainScenarioTests
         _settings.Combat.ApproachPath = ApproachPath.Smart;
         _settings.Target.ReturnPath = ApproachPath.Direct;
 
-        Tick();
+        IdleUntilReturn();
 
         Assert.Equal(["move (50,0; 0,0; h 0,0)"], _actions.Calls);
     }
