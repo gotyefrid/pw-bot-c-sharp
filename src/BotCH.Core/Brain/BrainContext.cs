@@ -49,6 +49,16 @@ public sealed class BrainContext
 
     public DateTime Now => World.Time;
 
+    /// <summary>Поведение просит остановить бота (маршрут пуст, нет кирки…); мозг остановит после этого шага.</summary>
+    public string? StopReason { get; internal set; }
+
+    /// <summary>Остановить бота с причиной в логе. true — ход занят (дальше в этом шаге ничего не делаем).</summary>
+    public bool RequestStop(string reason)
+    {
+        StopReason ??= reason;
+        return true;
+    }
+
     /// <summary>
     /// Отправить действие. true — отправлено или такое уже ждёт подтверждения (ход занят ожиданием).
     /// Тело занято другим действием — false: ход не занят, пусть решают другие поведения.

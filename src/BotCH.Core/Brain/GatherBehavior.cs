@@ -8,14 +8,17 @@ using BotCH.Core.World;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Копать ресурсы в радиусе фарма. Стоит перед боем: пока в радиусе есть ресурсы из списка — копаем их подряд, потом мобы.
+/// Копать ресурсы: что и где — <see cref="GatherScope"/> (фарм — в радиусе фарма по списку лута, обход — у точки по своему
+/// списку). Стоит перед боем: пока рядом есть ресурсы из списка — копаем их подряд, потом мобы.
 /// Бой и лут не перебиваем; напали на перса или пета — бросаем копание, бой убивает нападающего, потом копаем дальше.
 /// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по справочнику игры,
 /// <see cref="GroundItem.Mine"/>) целиком ляжет в начатые стопки. Ресурс выше уровня персонажа (по справочнику) не копаем. «Нересурсы» (<see cref="GroundItem.Special"/>: квестовые,
 /// особые) — только если их название явно в списке, и тогда без всяких условий: просто пробуем копать.
 /// </summary>
-public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools) : IBehavior
+public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, GatherScope? scope = null) : IBehavior
 {
+    private readonly GatherScope _scope = scope ?? GatherScope.FarmArea;
+
     // Не вышло (нет инструмента, не дошли, сбили N раз подряд) — ресурс бросаем на время
     private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(3);
     private const int KnockdownsToSkip = 3;
@@ -29,8 +32,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
     public bool Tick(BrainContext c)
     {
         Status = null;
-        var loot = c.Settings.Loot;
-        if (!loot.Enabled || !loot.PickResources)
+        if (!_scope.Enabled(c))
             return false;
 
         var w = c.World;
@@ -58,10 +60,10 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
             _skipped.Remove(expired);
 
         var near = w.GroundItems
-            .Where(i => i.Kind == GroundItemKind.Resource && !_skipped.ContainsKey(i.Id) && c.InFarmArea(i.Position))
+            .Where(i => i.Kind == GroundItemKind.Resource && !_skipped.ContainsKey(i.Id) && _scope.InArea(c, i.Position))
             .ToList();
         // Нересурс (квестовый, особый) — только если явно в списке, и тогда без условий: ни инструмент, ни сумку, ни квест не проверяем
-        var special = near.Where(i => i.Special && Settings.LootFilter.ListsForGather(loot, i.Name));
+        var special = near.Where(i => i.Special && _scope.Listed(c, i.Name));
         var resource = special.Concat(Regular(c, near.Where(i => !i.Special)))
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
@@ -82,7 +84,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
     private IEnumerable<GroundItem> Regular(BrainContext c, IEnumerable<GroundItem> resources)
     {
         var w = c.World;
-        var allowed = resources.Where(i => Settings.LootFilter.AllowsGather(c.Settings.Loot, i.Name)).ToList();
+        var allowed = resources.Where(i => _scope.Wanted(c, i.Name)).ToList();
         if (allowed.Count == 0)
             return [];
 

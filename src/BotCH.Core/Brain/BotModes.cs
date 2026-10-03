@@ -42,7 +42,7 @@ public static class BotModes
         IReadOnlyCollection<uint>? gatherTools = null)
         => mode switch
         {
-            BotMode.GatherResources => new NotReadyMode("сбор ресурсов", "часть 8", log),
+            BotMode.GatherResources => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools, mode: BotMode.GatherResources),
             BotMode.Clicker => new NotReadyMode("кликер", "часть 10", log),
             _ => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools),
         };

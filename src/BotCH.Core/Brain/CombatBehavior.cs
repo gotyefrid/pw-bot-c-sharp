@@ -26,7 +26,8 @@ public enum CombatState
 /// (клиент сам подводит), пауза 0.7–1.3 с. Кончился — ход отдаём (первым решает копание ресурсов).</item>
 /// </list>
 /// </summary>
-public sealed class CombatBehavior : IBehavior
+/// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета.</param>
+public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 {
     private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan PetOrderPeriod = TimeSpan.FromSeconds(5);
@@ -68,7 +69,7 @@ public sealed class CombatBehavior : IBehavior
 
     public bool Tick(BrainContext c)
     {
-        if (!c.Settings.Target.KillMobs)
+        if (!defendOnly && !c.Settings.Target.KillMobs)
         {
             Status = "бой выключен";
             return false;
@@ -93,6 +94,20 @@ public sealed class CombatBehavior : IBehavior
 
         // Порядок: самый опасный (бьёт меня → бьёт меня или пета) → текущая цель → ближайший разрешённый
         var aggressor = MostDangerous(c, out _);
+        if (defendOnly)
+        {
+            if (aggressor is null)
+                return false;
+            if (w.Host.TargetWid == aggressor.Wid)
+            {
+                StartFight(c, aggressor, "напал");
+                return Fight(c);
+            }
+
+            Status = $"выбираю цель {aggressor.Name}";
+            return c.Submit(new SelectTargetAction(aggressor));
+        }
+
         var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && c.InFarmArea(t) ? t : null;
         var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, c.InFarmArea);
         if (mob is null)

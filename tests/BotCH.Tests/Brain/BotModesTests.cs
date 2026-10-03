@@ -20,10 +20,10 @@ public class BotModesTests
     public void FarmModeIsTheBrain()
     {
         Assert.IsType<BotBrain>(Create(BotMode.FarmMobs));
+        Assert.NotNull(Assert.IsType<BotBrain>(Create(BotMode.GatherResources)).Route);
     }
 
     [Theory]
-    [InlineData(BotMode.GatherResources, "сбор ресурсов")]
     [InlineData(BotMode.Clicker, "кликер")]
     public void NotReadyModesDoNothingInGame(BotMode mode, string name)
     {

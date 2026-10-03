@@ -23,23 +23,41 @@ public sealed class BotBrain : IBotRunner
     private string _status = "ожидание";
     private string? _centerText;
 
+    /// <param name="mode">Фарм мобов или обход ресурсов (<see cref="BotMode.GatherResources"/>): у обхода бой — только защита,
+    /// копание — у точек маршрута, вместо возврата в центр — переход к следующей точке.</param>
     public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
-        IReadOnlyCollection<uint>? gatherTools = null)
+        IReadOnlyCollection<uint>? gatherTools = null, BotMode mode = BotMode.FarmMobs)
     {
         _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
+        _mode = mode;
         Survival = new SurvivalBehavior();
         Pet = new PetBehavior();
+        if (mode == BotMode.GatherResources)
+        {
+            Combat = new CombatBehavior(defendOnly: true);
+            Route = new RouteBehavior(gatherTools ?? []);
+            Gather = new GatherBehavior(Combat, gatherTools ?? [], Route.Scope);
+            _behaviors = [Survival, Pet, Gather, Combat, Route];
+            return;
+        }
+
         Combat = new CombatBehavior();
         Gather = new GatherBehavior(Combat, gatherTools ?? []);
         Return = new ReturnBehavior(Combat);
         _behaviors = [Survival, Pet, Gather, Combat, Return];
     }
 
+    private readonly BotMode _mode;
+
     public SurvivalBehavior Survival { get; }
     public PetBehavior Pet { get; }
     public CombatBehavior Combat { get; }
     public GatherBehavior Gather { get; }
-    public ReturnBehavior Return { get; }
+    /// <summary>Возврат в центр фарма; null — в режиме обхода.</summary>
+    public ReturnBehavior? Return { get; }
+
+    /// <summary>Обход маршрута; null — в режиме фарма мобов.</summary>
+    public RouteBehavior? Route { get; }
 
     /// <summary>Что делает бот — для окна.</summary>
     public string Status => _status;
@@ -69,7 +87,7 @@ public sealed class BotBrain : IBotRunner
 
             _context.World = world;
             _context.StartPosition ??= world.Host.Position;
-            var center = CenterText();
+            var center = _mode == BotMode.FarmMobs ? CenterText() : _centerText;
             if (center != _centerText)
             {
                 _centerText = center;
@@ -101,12 +119,18 @@ public sealed class BotBrain : IBotRunner
                 }
 
                 SetStatus((acted ?? Combat).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
+                if (_context.StopReason is { } reason)
+                {
+                    _context.StopReason = null;
+                    stop = reason;
+                    SetStatus(reason + " — стоп");
+                }
             }
         }
 
         if (stop is not null)
         {
-            _context.Log.Warning("Персонаж погиб — бот остановлен");
+            _context.Log.Warning($"{char.ToUpper(stop[0])}{stop.Substring(1)} — бот остановлен");
             StopRequested?.Invoke(stop);
         }
     }
@@ -117,6 +141,7 @@ public sealed class BotBrain : IBotRunner
         {
             _context.Runner.Clear();
             _context.StartPosition = null;
+            _context.StopReason = null;
             _centerText = null;
             foreach (var behavior in _behaviors)
                 behavior.Reset();

@@ -21,6 +21,7 @@ public sealed class BotSettings
     public LootSettings Loot { get; set; } = new();
     public PotionSettings Potions { get; set; } = new();
     public PetSettings Pet { get; set; } = new();
+    public RouteSettings Route { get; set; } = new();
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
 
@@ -33,6 +34,7 @@ public sealed class BotSettings
         Loot ??= new();
         Potions ??= new();
         Pet ??= new();
+        Route ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
@@ -48,6 +50,9 @@ public sealed class BotSettings
         // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
+        Route.Points = FarmPoint.Clean(Route.Points);
+        Route.Resources = MobNameFilter.Clean(Route.Resources);
+        Route.Radius = Clamp(Route.Radius, 5, 200);
         return this;
     }
 
@@ -59,7 +64,7 @@ public enum BotMode
 {
     /// <summary>Бить мобов (основной режим).</summary>
     FarmMobs,
-    /// <summary>Собирать ресурсы — часть 8, пока заготовка.</summary>
+    /// <summary>Собирать ресурсы: обход точек маршрута (<see cref="RouteSettings"/>).</summary>
     GatherResources,
     /// <summary>Кликер — часть 10, пока заготовка.</summary>
     Clicker,
@@ -125,6 +130,23 @@ public sealed class TargetSettings
     [JsonIgnore]
     public FarmPoint? SelectedFarmPoint
         => FarmCenter.Length == 0 ? null : FarmPoints.FirstOrDefault(p => string.Equals(p.Name, FarmCenter, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>
+/// Обход ресурсов: точки по порядку (после последней — первая), у каждой копаем ресурсы из списка в радиусе.
+/// </summary>
+public sealed class RouteSettings
+{
+    /// <summary>Точки обхода по порядку. Записаны в полёте — бот летит на их высоте.</summary>
+    public List<FarmPoint> Points { get; set; } = [];
+
+    /// <summary>Радиус поиска ресурсов вокруг точки, м. Участок ресурса ~110 м, виден с ~80 м — 50 м от точки хватает.</summary>
+    public int Radius { get; set; } = 50;
+
+    /// <summary>Что копать. Пусто — все обычные ресурсы; «нересурсы» (квестовые, особые) — только если названы.</summary>
+    public List<string> Resources { get; set; } = [];
+
+    public bool Wants(string? name) => Resources.Count == 0 || MobNameFilter.Contains(Resources, name);
 }
 
 /// <summary>Сохранённая точка фарма: название и где (координаты как в снимке).</summary>

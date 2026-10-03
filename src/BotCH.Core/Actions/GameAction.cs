@@ -382,6 +382,8 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
         var left = now.Host.Position.DistanceTo(Point);
         if (left <= Tolerance)
             return Verdict.Confirmed($"дошли, {left:0.0} м до точки");
+        if (Fly && now.Host.Flying == false)
+            return Verdict.Rejected($"оказались на земле, не долетев {left:0.0} м");
 
         if (_lastPosition is null)
             (_lastPosition, _movedAt) = (start.Host.Position, start.Time);
