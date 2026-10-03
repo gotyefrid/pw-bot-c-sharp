@@ -151,9 +151,19 @@ public sealed record NpcInfo(
     /// </summary>
     public bool Returning { get; init; }
 
+    /// <summary>Идёт и стал ближе к персонажу, чем на прошлом снимке.</summary>
+    public bool Approaching { get; init; }
+
+    /// <summary>
+    /// Действует сейчас: бьёт, кастует или идёт к персонажу. Моб, который просто стоит с нашей целью, — не напал: так бывает,
+    /// когда цель застряла (1.3.6 не сбрасывает её после отагра) или он нас не достаёт.
+    /// </summary>
+    public bool Engaging => State is StateAttacking or StateCasting || Approaching;
+
     public const int StateAttacking = 2;
     public const int StateCasting = 3;
     public const int StateDead = 4;
+    public const int StateMoving = 5;
 
     public bool IsDead => State == StateDead;
 }

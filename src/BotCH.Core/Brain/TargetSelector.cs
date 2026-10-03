@@ -25,8 +25,8 @@ public static class TargetSelector
     /// <param name="petTakesAggro">«Снимать мобов с меня петом» (и пет призван).</param>
     public static Threat ThreatOf(NpcInfo mob, WorldState w, bool hitsUsFirst, bool petTakesAggro)
     {
-        // Возвращается — неуязвим и уже не наш (цель может ещё показывать нас)
-        if (mob.IsDead || mob.TargetWid == 0 || mob.Returning)
+        // Возвращается — неуязвим и уже не наш (цель может ещё показывать нас); стоит с нашей целью и не бьёт — не напал
+        if (mob.IsDead || mob.TargetWid == 0 || mob.Returning || !mob.Engaging)
             return Threat.None;
         if (petTakesAggro && mob.TargetWid == w.Host.Wid)
             return Threat.HitsMe;
@@ -48,12 +48,15 @@ public static class TargetSelector
         return best.Mob;
     }
 
-    /// <summary>Живой моб, который бьёт перса или пета (ближайший из таких). Белый список для него не важен.</summary>
+    /// <summary>
+    /// Живой моб, который напал на перса или пета: цель — мы, и он бьёт, кастует или идёт к нам (<see cref="NpcInfo.Engaging"/>).
+    /// Ближайший из таких. Белый список для него не важен.
+    /// </summary>
     public static NpcInfo? Aggressor(WorldState w)
     {
         var petWid = w.Pet?.ActiveWid ?? 0;
         return w.Mobs
-            .Where(m => !m.IsDead && !m.Returning && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid))
+            .Where(m => !m.IsDead && !m.Returning && m.Engaging && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid))
             .OrderBy(m => m.Distance)
             .FirstOrDefault();
     }

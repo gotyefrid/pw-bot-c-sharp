@@ -52,6 +52,9 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
             return false;
         }
 
+        // Начинаем уходить, только если моб действует (бьёт, кастует, идёт к нам): стоящий с нашей целью — застрявшая цель
+        if (_from is null && !threat.Engaging)
+            return false;
         if (_from is null || _from.Wid != threat.Wid && !_fighting)
         {
             (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null);

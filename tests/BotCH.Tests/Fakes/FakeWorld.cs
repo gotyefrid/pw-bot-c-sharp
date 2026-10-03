@@ -59,9 +59,11 @@ internal sealed class FakeWorld
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
 
-    public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int state = 1, int hp = 0)
+    /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
+    public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int? state = null, int hp = 0)
     {
-        var mob = new NpcInfo(wid, wid, NpcKind.Mob, state, targetWid, new Position(distance, 0, 0), distance, name, hp);
+        var mob = new NpcInfo(wid, wid, NpcKind.Mob, state ?? (targetWid != 0 ? NpcInfo.StateAttacking : 1), targetWid,
+            new Position(distance, 0, 0), distance, name, hp);
         Npcs.Add(mob);
         return mob;
     }

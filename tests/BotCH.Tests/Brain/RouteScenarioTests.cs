@@ -326,20 +326,38 @@ public class RouteScenarioTests
     [Fact]
     public void StuckTargetWithoutHitsCountsAsShakenOff()
     {
-        // Цель застряла на нас (клиент не узнал об отагре), моб 30 с не бьёт — отстал; бой его тоже не трогает, пока не ударит
+        // Ударил, мы ушли вверх; цель застряла на нас (клиент не узнал об отагре), моб 30 с не бьёт — отстал
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = 1 });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
         Tick();
+        _world.Replace(tiger, m => m with { State = 1 });
         _world.Position = new Position(0, 10, 0);
         for (var i = 0; i < 8; i++)
             Tick(5);
 
         Assert.Contains(_log, e => e.Message.StartsWith("Тигр отстал (не бьёт 30 с)"));
+    }
+
+    [Fact]
+    public void StandingDangerousMobWithOurTargetDoesNotScareBot()
+    {
+        // Опасный стоит с нашей целью (застряла после старого отагра) — не напал: уходить незачем, копаем
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        AddResource(0xC0000001, 30, "Железная руда");
+        var tiger = AddAggressive(0x80000001, "Тигр", 60, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = 1 });
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
     }
 
     [Fact]
