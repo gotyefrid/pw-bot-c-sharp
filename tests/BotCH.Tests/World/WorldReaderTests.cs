@@ -106,6 +106,53 @@ public class WorldReaderTests
     }
 
     [Fact]
+    public void ClassicFindsPetRecordThroughGameData()
+    {
+        // 1.3.6: указателя на запись у пета нет — ищем по tid в хэш-таблице справочника, как клиент
+        var p = Profile;
+        var d = p.ElementData;
+        const uint manager = 0x2000_0000, wolf = 0x2001_0000, data = 0x2200_0000, buckets = 0x2201_0000, node1 = 0x2202_0000,
+            node2 = 0x2202_0100, bases = 0x2203_0000, sizes = 0x2203_1000, table = 0x2300_0000;
+        const uint tid = 10386, type = 95, index = 45, size = 0x1E0, bucketCount = 7;
+        BuildWorld(petManager: manager);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + p.PetManager.ActiveCage, unchecked((uint)-1));
+        _memory.WriteUInt32(manager + p.PetManager.Cages, wolf);
+        _memory.Map(wolf, 0x100);
+        _memory.WriteUInt32(wolf + p.Pet.Tid, tid);
+
+        _memory.WriteUInt32(0x1000_0000 + d.Manager, data);
+        _memory.Map(data, 0x1000);
+        _memory.WriteUInt32(data + d.EssenceMap + d.MapBuckets, buckets);
+        _memory.WriteUInt32(data + d.EssenceMap + d.MapBucketCount, bucketCount);
+        _memory.Map(buckets, (int)bucketCount * 4);
+        // В ячейке сначала чужой узел, потом наш
+        _memory.WriteUInt32(buckets + tid % bucketCount * 4, node1);
+        _memory.Map(node1, 0x20);
+        _memory.WriteUInt32(node1 + d.NodeKey, tid + bucketCount);
+        _memory.WriteUInt32(node1, node2);
+        _memory.Map(node2, 0x20);
+        _memory.WriteUInt32(node2 + d.NodeKey, tid);
+        _memory.WriteUInt32(node2 + d.NodeType, type);
+        _memory.WriteUInt32(node2 + d.NodeIndex, index);
+        _memory.WriteUInt32(data + d.TypeBases, bases);
+        _memory.WriteUInt32(data + d.TypeSizes, sizes);
+        _memory.Map(bases, 0x200);
+        _memory.Map(sizes, 0x200);
+        _memory.WriteUInt32(bases + type * 4, table);
+        _memory.WriteUInt32(sizes + type * 4, size);
+        var record = table + index * size;
+        _memory.Map(record, (int)size);
+        _memory.WriteUInt32(record, tid);
+        _memory.WriteBytes(record + p.Pet.EssenceName, System.Text.Encoding.Unicode.GetBytes("Молодой свирепый волк\0"));
+        _memory.WriteUInt32(record + p.Pet.EssenceInhabit, 0);
+
+        var pet = Reader().Read().Pet!.InCage(1)!;
+
+        Assert.Equal(("Молодой свирепый волк", PetHabitat.Ground), (pet.Name, pet.Habitat));
+    }
+
+    [Fact]
     public void CharacterSelectScreenIsNotReady()
     {
         // game есть, персонажа нет
