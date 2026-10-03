@@ -54,7 +54,7 @@ public class RouteScenarioTests
     private void Tick(double seconds = 0.25) => Brain.Tick(_world.Wait(seconds).Snapshot());
 
     private void Route(params float[] xs)
-        => _settings.Route.Points = xs.Select((x, i) => FarmPoint.At($"Точка {i + 1}", new Position(x, 0, 0))).ToList();
+        => _settings.Route.Points = xs.Select((x, i) => RoutePoint.At($"Точка {i + 1}", new Position(x, 0, 0))).ToList();
 
     private GroundItem AddResource(uint id, float x, string name)
     {
@@ -83,7 +83,7 @@ public class RouteScenarioTests
     [Fact]
     public void StartedInAirFliesAtPointHeightAndTakesOffAgainIfLanded()
     {
-        _settings.Route.Points = [FarmPoint.At("Над рудой", new Position(50, 30, 0)), FarmPoint.At("Дальше", new Position(100, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("Над рудой", new Position(50, 30, 0)), RoutePoint.At("Дальше", new Position(100, 30, 0))];
         _world.Flying = true;
 
         Tick();
@@ -100,7 +100,8 @@ public class RouteScenarioTests
     public void DigsOnlyListedResourcesNearCurrentPoint()
     {
         Route(0, 300);
-        _settings.Route.Resources = ["Железная руда"];
+        _settings.Route.Points[0].ListMode = LootListMode.OnlyListed;
+        _settings.Route.Points[0].Resources = ["Железная руда"];
         AddResource(0xC0000001, 10, "Шалфей");          // не в списке
         AddResource(0xC0000002, 80, "Железная руда");   // дальше радиуса (50 м) от точки
         AddResource(0xC0000003, 30, "Железная руда");
@@ -108,6 +109,22 @@ public class RouteScenarioTests
         Tick();
 
         Assert.Equal(["gather C0000003"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ExceptListedSkipsDangerousResourceAtThisPointOnly()
+    {
+        // У точки 1 «Шалфей» часто у агро моба — «всё, кроме шалфея»; у точки 2 его копаем
+        Route(0, 300);
+        _settings.Route.Points[0].ListMode = LootListMode.ExceptListed;
+        _settings.Route.Points[0].Resources = ["Шалфей"];
+        AddResource(0xC0000001, 10, "Шалфей");
+        AddResource(0xC0000002, 30, "Железная руда");
+
+        Tick();
+
+        Assert.Equal(["gather C0000002"], _actions.Calls);
+        Assert.True(_settings.Route.Points[1].Wants("Шалфей"));
     }
 
     [Fact]

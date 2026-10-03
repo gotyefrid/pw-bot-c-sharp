@@ -31,14 +31,14 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
     /// <summary>Номер текущей точки (с 0).</summary>
     public int Index => _index;
 
-    /// <summary>Что и где копать при обходе: ресурсы из списка обхода в радиусе от текущей точки.</summary>
+    /// <summary>Что и где копать при обходе: в радиусе от текущей точки то, что задано у этой точки.</summary>
     public GatherScope Scope => new(
         c => c.Settings.Route.Points.Count > 0,
         (c, p) => Current(c) is { } point && p.HorizontalDistanceTo(point.Position) <= c.Settings.Route.Radius,
-        (c, name) => c.Settings.Route.Wants(name),
-        (c, name) => MobNameFilter.Contains(c.Settings.Route.Resources, name));
+        (c, name) => Current(c)?.Wants(name) == true,
+        (c, name) => Current(c)?.Lists(name) == true);
 
-    private FarmPoint? Current(BrainContext c)
+    private RoutePoint? Current(BrainContext c)
     {
         var points = c.Settings.Route.Points;
         return points.Count == 0 ? null : points[_index % points.Count];
@@ -58,8 +58,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         if (_inAir is null)
         {
             _inAir = w.Host.Flying == true;
-            c.Log.Info($"Обход: {points.Count} точек, {(_inAir.Value ? "в воздухе" : "по земле")}, ресурсы в {route.Radius} м от точки — "
-                       + (route.Resources.Count == 0 ? "все" : string.Join(", ", route.Resources)));
+            c.Log.Info($"Обход: {points.Count} точек, {(_inAir.Value ? "в воздухе" : "по земле")}, ресурсы в {route.Radius} м от точки");
         }
 
         if (_index >= points.Count)
@@ -76,7 +75,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         }
 
         var distance = w.Host.Position.HorizontalDistanceTo(point.Position);
-        var where = $"точке {_index + 1}/{points.Count} «{point.Name}», {distance:0} м";
+        var where = $"точке {_index + 1}/{points.Count} «{point.Name}» ({point.Describe()}), {distance:0} м";
         if (c.Runner.Pending.OfType<MoveAction>().Any(m => m.Priority == ActionPriority.Background))
         {
             Status = (_inAir == true ? "лечу к " : "иду к ") + where;

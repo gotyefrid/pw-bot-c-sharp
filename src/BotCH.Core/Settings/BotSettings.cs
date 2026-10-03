@@ -50,8 +50,7 @@ public sealed class BotSettings
         // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
-        Route.Points = FarmPoint.Clean(Route.Points);
-        Route.Resources = MobNameFilter.Clean(Route.Resources);
+        Route.Points = RoutePoint.Clean(Route.Points);
         Route.Radius = Clamp(Route.Radius, 5, 200);
         return this;
     }
@@ -133,20 +132,71 @@ public sealed class TargetSettings
 }
 
 /// <summary>
-/// Обход ресурсов: точки по порядку (после последней — первая), у каждой копаем ресурсы из списка в радиусе.
+/// Обход ресурсов: точки по порядку (после последней — первая), у каждой копаем ресурсы в радиусе — что именно, у каждой точки своё.
 /// </summary>
 public sealed class RouteSettings
 {
     /// <summary>Точки обхода по порядку. Записаны в полёте — бот летит на их высоте.</summary>
-    public List<FarmPoint> Points { get; set; } = [];
+    public List<RoutePoint> Points { get; set; } = [];
 
     /// <summary>Радиус поиска ресурсов вокруг точки, м. Участок ресурса ~110 м, виден с ~80 м — 50 м от точки хватает.</summary>
     public int Radius { get; set; } = 50;
+}
 
-    /// <summary>Что копать. Пусто — все обычные ресурсы; «нересурсы» (квестовые, особые) — только если названы.</summary>
+/// <summary>
+/// Точка маршрута и что копать у неё: всё подряд, только из списка или всё, кроме списка. Например, у точки, где второй
+/// ресурс часто появляется у агрессивного моба, — «только» лёгкий или «кроме» опасного.
+/// </summary>
+public sealed class RoutePoint
+{
+    public string Name { get; set; } = "";
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Height { get; set; }
+
+    public LootListMode ListMode { get; set; } = LootListMode.All;
+
+    /// <summary>Названия ресурсов для <see cref="ListMode"/>.</summary>
     public List<string> Resources { get; set; } = [];
 
-    public bool Wants(string? name) => Resources.Count == 0 || MobNameFilter.Contains(Resources, name);
+    [JsonIgnore]
+    public Position Position => new(X, Height, Y);
+
+    public static RoutePoint At(string name, Position p) => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height };
+
+    /// <summary>Обычный ресурс копать здесь.</summary>
+    public bool Wants(string? name) => ListMode switch
+    {
+        LootListMode.OnlyListed => MobNameFilter.Contains(Resources, name),
+        LootListMode.ExceptListed => !MobNameFilter.Contains(Resources, name),
+        _ => true,
+    };
+
+    /// <summary>«Нересурс» (квестовый, особый) назван явно — копать без условий; «кроме списка» значит «не трогать».</summary>
+    public bool Lists(string? name) => ListMode != LootListMode.ExceptListed && MobNameFilter.Contains(Resources, name);
+
+    /// <summary>Для лога и окна: «все ресурсы», «только: …», «кроме: …».</summary>
+    public string Describe() => ListMode switch
+    {
+        _ when Resources.Count == 0 && ListMode == LootListMode.OnlyListed => "ничего (список пуст)",
+        LootListMode.OnlyListed => "только: " + string.Join(", ", Resources),
+        LootListMode.ExceptListed when Resources.Count > 0 => "кроме: " + string.Join(", ", Resources),
+        _ => "все ресурсы",
+    };
+
+    /// <summary>Без пустых названий и повторов (без учёта регистра).</summary>
+    public static List<RoutePoint> Clean(IEnumerable<RoutePoint?>? points)
+        => (points ?? [])
+            .Where(p => p is not null && !string.IsNullOrWhiteSpace(p.Name))
+            .Select(p =>
+            {
+                p!.Name = p.Name.Trim();
+                p.Resources = MobNameFilter.Clean(p.Resources);
+                return p;
+            })
+            .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
 }
 
 /// <summary>Сохранённая точка фарма: название и где (координаты как в снимке).</summary>

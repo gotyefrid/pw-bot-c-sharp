@@ -3,17 +3,23 @@ using BotCH.Core.Settings;
 
 namespace BotCH.App;
 
-/// <summary>Строка маршрута обхода: номер, название, сколько до точки, отметка «сейчас идём сюда».</summary>
-public sealed class RouteRow(int number, FarmPoint point) : ObservableObject
+/// <summary>Строка маршрута обхода: номер, название, что копать, сколько до точки, отметка «сейчас идём сюда».</summary>
+public sealed class RouteRow(int number, RoutePoint point) : ObservableObject
 {
     private string _distanceText = "";
     private bool _current;
 
-    public FarmPoint Point { get; } = point;
+    public RoutePoint Point { get; } = point;
 
     public string Number { get; } = $"{number}.";
 
     public string Name => Point.Name;
+
+    /// <summary>Что копать у точки — коротко.</summary>
+    public string What => Point.Describe();
+
+    /// <summary>Поменяли «что копать» у точки.</summary>
+    public void Refresh() => OnPropertyChanged(nameof(What));
 
     public string DistanceText { get => _distanceText; private set => SetProperty(ref _distanceText, value); }
 

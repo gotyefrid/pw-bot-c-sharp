@@ -113,8 +113,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ClearLogCommand = new RelayCommand(Log.Clear);
         AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _lastWorld is not null);
         RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
-        AddSpotCommand = new RelayCommand(AddSpot, () => _lastWorld is not null && NewSpotName.Trim().Length > 0);
-        RemoveSpotCommand = new RelayCommand(RemoveSpot, () => SelectedSpot is not null);
         AddRoutePointCommand = new RelayCommand(AddRoutePoint, () => _lastWorld is not null);
         RemoveRoutePointCommand = new RelayCommand(RemoveRoutePoint, () => SelectedRoutePoint is not null);
         RoutePointUpCommand = new RelayCommand(() => MoveRoutePoint(-1), () => SelectedRoutePoint is { } r && RouteRows.IndexOf(r) > 0);
@@ -558,52 +556,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             ? $"{w.Host.Position.HorizontalDistanceTo(p.Position):0} м отсюда"
             : "";
 
-    // ── Точки ресурсов ──────────────────────────────────────────────────────
-
-    /// <summary>Все точки, ближние сверху.</summary>
-    public ObservableCollection<SpotRow> SpotRows { get; } = new();
-
-    /// <summary>Названия для «Добавить здесь»: из блокнота и что видно рядом.</summary>
-    public ObservableCollection<string> SpotNames { get; } = new();
-
-    public ICommand AddSpotCommand { get; }
-    public ICommand RemoveSpotCommand { get; }
-
-    private SpotRow? _selectedSpot;
-
-    public SpotRow? SelectedSpot { get => _selectedSpot; set => SetProperty(ref _selectedSpot, value); }
-
-    private string _newSpotName = "";
-
-    public string NewSpotName { get => _newSpotName; set => SetProperty(ref _newSpotName, value ?? ""); }
-
-    private string _spotsInfo = "";
-
-    public string SpotsInfo { get => _spotsInfo; private set => SetProperty(ref _spotsInfo, value); }
-
-    private void AddSpot()
-    {
-        if (_lastWorld is not { } w || NewSpotName.Trim().Length == 0)
-            return;
-
-        var spot = _spots.Add(NewSpotName, w.Host.Position);
-        SaveSpots();
-        ShowSpots(w, force: true);
-        SelectedSpot = SpotRows.FirstOrDefault(r => r.Spot == spot);
-    }
-
-    private void RemoveSpot()
-    {
-        if (SelectedSpot is not { } row)
-            return;
-
-        _spots.Remove(row.Spot);
-        SaveSpots();
-        SpotRows.Remove(row);
-        SelectedSpot = null;
-        if (_lastWorld is { } w)
-            ShowSpots(w, force: true);
-    }
+    // ── Точки ресурсов (блокнот — в фоне, в окне не показывается) ───────────
 
     /// <summary>Сохранить: сначала слить с файлом — в него пишут и другие копии бота.</summary>
     private void SaveSpots(bool force = false)
@@ -681,42 +634,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _spotsShown = now;
 
         var here = w.Host.Position;
-        var rows = SpotRows.ToDictionary(r => r.Spot);
-        foreach (var spot in _spots.Spots)
-        {
-            if (!rows.TryGetValue(spot, out var row))
-                SpotRows.Add(row = new SpotRow(spot));
-            row.Update(here.HorizontalDistanceTo(spot.Position), _spots.IsPresent(spot), spot.GoneOn(_spots.Server), w.Time);
-        }
-
-        // Ближние сверху; Move, а не пересборка — выделение не сбрасывается
-        var order = SpotRows.OrderBy(r => r.Distance).ToList();
-        for (var i = 0; i < order.Count; i++)
-        {
-            var at = SpotRows.IndexOf(order[i]);
-            if (at != i)
-                SpotRows.Move(at, i);
-        }
-
-        var names = _spots.Spots.Select(s => s.Name)
-            .Concat(w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && !i.Special).Select(i => i.Name.Trim()))
-            .Where(n => n.Length > 0)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .OrderBy(n => n)
-            .ToList();
-        if (!names.SequenceEqual(SpotNames))
-        {
-            SpotNames.Clear();
-            foreach (var name in names)
-                SpotNames.Add(name);
-        }
-
         var current = (_brain as BotBrain)?.Route?.Index;
         foreach (var row in RouteRows)
             row.Update(here.HorizontalDistanceTo(row.Point.Position), IsRunning && current == RouteRows.IndexOf(row));
-
-        var near = _spots.Spots.Count(s => s.Position.HorizontalDistanceTo(here) <= SpotBook.SureVisible);
-        SpotsInfo = $"Точек всего {_spots.Spots.Count}, в {SpotBook.SureVisible:0} м отсюда — {near}. Бот запоминает ресурсы, которые видит, даже без «Старт».";
     }
 
     // ── Маршрут обхода (режим «Собирать ресурсы») ─────────────────────────────
@@ -724,7 +644,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Точки обхода по порядку: после последней бот идёт к первой.</summary>
     public ObservableCollection<RouteRow> RouteRows { get; } = new();
 
-    /// <summary>Что копать при обходе; пусто — все обычные ресурсы.</summary>
+    /// <summary>Список «что копать» выбранной точки (для её режима: только эти / всё, кроме этих).</summary>
     public ObservableCollection<string> RouteNames { get; } = new();
 
     public ICommand AddRoutePointCommand { get; }
@@ -734,7 +654,38 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private RouteRow? _selectedRoutePoint;
 
-    public RouteRow? SelectedRoutePoint { get => _selectedRoutePoint; set => SetProperty(ref _selectedRoutePoint, value); }
+    public RouteRow? SelectedRoutePoint
+    {
+        get => _selectedRoutePoint;
+        set
+        {
+            if (!SetProperty(ref _selectedRoutePoint, value))
+                return;
+            LoadPointNames();
+            OnPropertyChanged(nameof(HasSelectedRoutePoint));
+            OnPropertyChanged(nameof(SelectedRouteMode));
+            OnPropertyChanged(nameof(SelectedRouteTitle));
+        }
+    }
+
+    public bool HasSelectedRoutePoint => SelectedRoutePoint is not null;
+
+    public string SelectedRouteTitle => SelectedRoutePoint is { } row ? $"Что копать у «{row.Name}»" : "";
+
+    /// <summary>Что копать у выбранной точки: всё подряд / только из списка / всё, кроме списка.</summary>
+    public LootListMode SelectedRouteMode
+    {
+        get => SelectedRoutePoint?.Point.ListMode ?? LootListMode.All;
+        set
+        {
+            if (SelectedRoutePoint is not { } row || row.Point.ListMode == value)
+                return;
+            row.Point.ListMode = value;
+            row.Refresh();
+            OnPropertyChanged();
+            SettingsEdited();
+        }
+    }
 
     /// <summary>Радиус поиска ресурсов вокруг точки, м.</summary>
     public int RouteRadius
@@ -766,7 +717,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var n = 1;
         while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
             n++;
-        var point = FarmPoint.At($"Точка {n}", w.Host.Position);
+        var point = RoutePoint.At($"Точка {n}", w.Host.Position);
         points.Add(point);
         _log.Info($"Маршрут: «{point.Name}» {point.Position}{(w.Host.Flying == true ? " (в воздухе)" : "")}, точек {points.Count}");
         LoadRoute();
@@ -782,6 +733,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _settings.Route.Points.Remove(row.Point);
         _log.Info($"Маршрут: «{row.Point.Name}» удалена, точек {_settings.Route.Points.Count}");
         LoadRoute();
+        SelectedRoutePoint = null;
         SettingsEdited();
     }
 
@@ -802,9 +754,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         SettingsEdited();
     }
 
-    /// <summary>Маршрут в окне ← настройки персонажа.</summary>
+    /// <summary>Маршрут в окне ← настройки персонажа (выбор сбрасывается, если точки больше нет).</summary>
     private void LoadRoute()
     {
+        var selected = SelectedRoutePoint?.Point;
         RouteRows.Clear();
         var points = _settings.Route.Points;
         for (var i = 0; i < points.Count; i++)
@@ -815,27 +768,34 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 row.Update(w.Host.Position.HorizontalDistanceTo(row.Point.Position), false);
         }
 
+        SelectedRoutePoint = RouteRows.FirstOrDefault(r => r.Point == selected);
+        LoadPointNames();
+        OnPropertyChanged(nameof(RouteRadius));
+    }
+
+    /// <summary>Список «что копать» в окне ← выбранная точка.</summary>
+    private void LoadPointNames()
+    {
         _syncingLists = true;
         try
         {
             RouteNames.Clear();
-            foreach (var name in _settings.Route.Resources)
+            foreach (var name in SelectedRoutePoint?.Point.Resources ?? [])
                 RouteNames.Add(name);
         }
         finally
         {
             _syncingLists = false;
         }
-
-        OnPropertyChanged(nameof(RouteRadius));
     }
 
     private void RouteNamesEdited()
     {
-        if (_syncingLists)
+        if (_syncingLists || SelectedRoutePoint is not { } row)
             return;
 
-        _settings.Route.Resources = MobNameFilter.Clean(RouteNames);
+        row.Point.Resources = MobNameFilter.Clean(RouteNames);
+        row.Refresh();
         SettingsEdited();
     }
 
