@@ -87,6 +87,21 @@ public sealed class UnselectAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => now.Host.TargetWid == 0 ? Verdict.Confirmed() : Verdict.Pending;
 }
 
+/// <summary>
+/// Прервать каст или копание — как Esc (нужно срочно лечить пета). Тело не занимает: оно его освобождает.
+/// Подтверждение — персонаж больше не кастует и не копает.
+/// </summary>
+public sealed class CancelAction(string why) : GameAction
+{
+    public override string Name => $"прервать: {why}";
+    public override string Key => "прервать";
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(IGameActions actions, WorldState now) => actions.CancelAction();
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => !now.Host.IsCasting && now.Host.Gather is not { Active: true } ? Verdict.Confirmed() : Verdict.Pending;
+}
+
 /// <summary>Обычная атака текущей цели. Подтверждение: моб переключился на перса, у него убыло HP или он умер.</summary>
 public sealed class NormalAttackAction : GameAction
 {

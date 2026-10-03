@@ -90,6 +90,9 @@ public sealed class GameCaller
         => Call(GameFunctions.CastSkill, 0, BitConverter.GetBytes(targetWid), ["skill", "pvpMask", "count", DataArg],
             ("skill", (uint)skillId), ("pvpMask", 0), ("count", targetWid != 0 ? 1u : 0u));
 
+    /// <summary>Отменить текущее действие персонажа (каст, копание) — как Esc.</summary>
+    public CallResult CancelAction() => Call(GameFunctions.CancelAction, 0, null, []);
+
     /// <summary>Приказ пету атаковать цель (данные — 1 байт pvpMask = 0).</summary>
     public CallResult PetAttack(uint targetWid)
         => Call(GameFunctions.PetCtrl, 0, [0], ["target", "command", DataArg, "size"],

@@ -238,6 +238,11 @@
     "castSkill": { "rva": "0x32B160", "convention": "thiscall", "this": "session",
                    "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
 
+    // Отменить действие (каст, копание) — как Esc: команда 0x2A, пакет 2 байта. Метод объекта связи без аргументов
+    // (this = [[база]+0x20], ret), с тем же ограничителем частоты, что у castSkill (чаще — молча не шлёт). Вызывают 12 мест клиента
+    "cancelAction": { "rva": "0x12FC90", "convention": "thiscall", "this": "session",
+                      "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 2A 00 00 00" },
+
     // c2s_SendCmdPetCtrl(int target, int cmd, void* data, int size), команда 0x67, пакет 10 + size — как в 1.3.6, но метод объекта
     // связи (this = [[база]+0x20], ret 0x10) с ограничителем частоты. Рядом 0x1E3BA0… — готовые приказы с постоянными данными
     "petCtrl": { "rva": "0x1E3820", "convention": "thiscall", "this": "session",

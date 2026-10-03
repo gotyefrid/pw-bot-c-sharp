@@ -27,6 +27,9 @@ public interface IGameActions
 
     CallResult PetAttack(uint targetWid);
 
+    /// <summary>Отменить текущее действие (каст, копание) — как Esc.</summary>
+    CallResult CancelAction();
+
     /// <summary>Подобрать пакетом (только в радиусе ~10 м).</summary>
     CallResult Pickup(GroundItem item);
 
@@ -59,6 +62,7 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public CallResult CastSkill(int skillId, uint targetWid) => caller.CastSkill(skillId, targetWid);
     public CallResult ApplySkill(HostState host, int skillId, uint targetWid) => caller.ApplySkill(host.Address, skillId, targetWid);
     public CallResult PetAttack(uint targetWid) => caller.PetAttack(targetWid);
+    public CallResult CancelAction() => caller.CancelAction();
     public CallResult Pickup(GroundItem item) => caller.Pickup(item.Id, item.Tid);
     public CallResult PickupObject(HostState host, GroundItem item) => caller.PickupObject(host.Address, item.Id);
     public CallResult UseItem(InventoryItem item) => caller.UseItem(item.Slot, item.Tid);

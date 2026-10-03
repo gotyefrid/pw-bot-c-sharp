@@ -129,6 +129,7 @@ internal sealed class FakeActions : IGameActions
     public CallResult CastSkill(int skillId, uint targetWid) => Record($"cast {skillId} {targetWid:X}");
     public CallResult ApplySkill(HostState host, int skillId, uint targetWid) => Record($"apply {skillId} {targetWid:X}");
     public CallResult PetAttack(uint targetWid) => Record($"pet-attack {targetWid:X}");
+    public CallResult CancelAction() => Record("cancel");
     public CallResult Pickup(GroundItem item) => Record($"pickup {item.Id:X}");
     public CallResult PickupObject(HostState host, GroundItem item) => Record($"pickup-approach {item.Id:X}");
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");

@@ -34,6 +34,7 @@ internal static class ActCommands
           act pet-attack        приказать пету атаковать цель
           act pickup            подобрать ближайший предмет в 10 м пакетом
           act pickup-approach   подобрать ближайший предмет «как мышкой»
+          act cancel            прервать каст или копание (как Esc)
           act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
           act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
@@ -170,6 +171,13 @@ internal static class ActCommands
             case "pickup-approach":
                 problem = "на земле нет предметов";
                 return nearestItem is null ? null : new PickupAction(nearestItem, approach: true);
+
+            case "cancel":
+                // Что было до: без этого ✓ ничего не доказывает (нечего прерывать — тоже ✓)
+                var g = w.Host.Gather;
+                Console.WriteLine("До: " + (g is { Active: true } ? $"копает, {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с"
+                    : w.Host.IsCasting ? "кастует" : "не копает и не кастует — прерывать нечего"));
+                return new CancelAction("проверка");
 
             case "gather":
                 var resource = w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).OrderBy(i => i.Distance).FirstOrDefault();
