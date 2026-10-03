@@ -49,7 +49,7 @@ public sealed class BotBrain : IBotRunner
 
     private readonly BotMode _mode;
 
-    // Копия (окно может менять свои дальше); у обхода — свои бой, лут, банки и пет
+    // Копия (окно может менять свои дальше); у обхода — напавших бьём всегда
     private BotSettings Effective(BotSettings settings) => _mode == BotMode.GatherResources ? settings.ForGathering() : settings.Clone();
 
     public SurvivalBehavior Survival { get; }

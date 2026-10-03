@@ -224,12 +224,10 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void GatheringUsesItsOwnPetAndPotionsNotFarmOnes()
+    public void GatheringSummonsPetForWhereHostIs()
     {
-        // В фарме мобов пет выключен — у обхода свой, включён: зовёт летающего (стартовали в воздухе)
-        _settings.Normalize();
-        _settings.Route.Pet.Enabled = true;
-        _settings.Route.Pet.AirPet = "Пчела";
+        // Пет общий с фармом мобов; стартовали в воздухе — зовём летающего
+        _settings.Pet.Enabled = true;
         Route(0, 300);
         _world.Flying = true;
         _world.SetPets(null, new PetInCage(1, 1, 0) { Name = "Скорпион", Habitat = PetHabitat.Ground },
@@ -237,24 +235,7 @@ public class RouteScenarioTests
 
         Tick();
 
-        Assert.False(_settings.Pet.Enabled);
         Assert.Equal(["summon 2"], _actions.Calls);
-    }
-
-    [Fact]
-    public void GatheringSettingsStartAsCopyOfFarmThenLiveSeparately()
-    {
-        var settings = new BotSettings();
-        settings.Combat.AttackSkillId = 299;
-        settings.Pet.HealPercent = 55;
-
-        settings.Normalize();
-        Assert.Equal((299, 55), (settings.Route.Combat.AttackSkillId, settings.Route.Pet.HealPercent));
-
-        settings.Route.Combat.AttackSkillId = 300;
-        var again = SettingsJson.Parse(SettingsJson.Serialize(settings));
-        Assert.Equal((299, 300), (again.Combat.AttackSkillId, again.Route.Combat.AttackSkillId));
-        Assert.Equal(300, again.ForGathering().Combat.AttackSkillId);
     }
 
     [Theory]
