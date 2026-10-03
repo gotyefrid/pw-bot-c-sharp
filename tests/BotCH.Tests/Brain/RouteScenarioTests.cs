@@ -225,7 +225,7 @@ public class RouteScenarioTests
     [Fact]
     public void DangerousAttackerMakesBotRecallPetTakeOffAndClimbInsteadOfFighting()
     {
-        // На земле у точки 1 напал опасный тигр (бьёт пета): отозвать пета, взлететь, подниматься рывками по 20 м — не бить
+        // На земле у точки 1 напал опасный тигр (бьёт пета): отозвать пета, взлететь, подниматься шагами по 10 м — не бить
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = false;
@@ -246,7 +246,7 @@ public class RouteScenarioTests
         Tick();
         Tick();
 
-        Assert.Equal("fly (0,0; 0,0; h 20,0)", _actions.Calls.Last());
+        Assert.Equal("fly (0,0; 0,0; h 10,0)", _actions.Calls.Last());
         Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack") || a.StartsWith("apply"));
         Assert.Contains(_log, e => e.Message == "Напал опасный Тигр (ур. 30) — улетаю вверх");
     }
@@ -254,7 +254,7 @@ public class RouteScenarioTests
     [Fact]
     public void AfterDangerousMobGivesUpBotReturnsToLastVisitedPoint()
     {
-        // Ушли от тигра вверх у точки 1, он отстал — снова к точке 1 (на её высоту) и ищем ресурсы там заново
+        // Ушли от тигра вверх у точки 1, он отстал (бросил цель) — снова к точке 1 (на её высоту) и ищем ресурсы там заново
         _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
@@ -272,7 +272,74 @@ public class RouteScenarioTests
         Tick();
 
         Assert.Equal(["fly (0,0; 0,0; h 30,0)"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message == "Тигр отстал на высоте +40 м — возвращаюсь на точку");
+        Assert.Contains(_log, e => e.Message == "Тигр отстал (бросил цель) на высоте +40 м — возвращаюсь на точку");
+    }
+
+    [Fact]
+    public void ReturningDangerousMobEndsEscapeAtOnce()
+    {
+        // Отагр виден сразу: моб «возвращается», хотя цель ещё показывает перса
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 5, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        Tick();
+        _world.Position = new Position(0, 40, 0);
+        _world.Replace(tiger, m => m with { Returning = true, State = 5 });
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (0,0; 0,0; h 30,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Тигр отстал (возвращается) на высоте +10 м — возвращаюсь на точку");
+    }
+
+    [Fact]
+    public void ClimbsOnlyWhileHitThenHovers()
+    {
+        // Поднялись на шаг, моб больше не бьёт (стоит внизу, цель — мы) — выше не лезем, висим
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        Tick();
+        _world.Position = new Position(0, 10, 0);
+        _world.Replace(tiger, m => m with { State = 1 });
+        Tick(4);
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick(5);
+
+        Assert.Empty(_actions.Calls);
+        Assert.StartsWith("вишу на +10 м", Brain.Escape!.Status);
+    }
+
+    [Fact]
+    public void StuckTargetWithoutHitsCountsAsShakenOff()
+    {
+        // Цель застряла на нас (клиент не узнал об отагре), моб 30 с не бьёт — отстал; бой его тоже не трогает, пока не ударит
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = 1 });
+        Tick();
+        _world.Position = new Position(0, 10, 0);
+        for (var i = 0; i < 8; i++)
+            Tick(5);
+
+        Assert.Contains(_log, e => e.Message.StartsWith("Тигр отстал (не бьёт 30 с)"));
     }
 
     [Fact]

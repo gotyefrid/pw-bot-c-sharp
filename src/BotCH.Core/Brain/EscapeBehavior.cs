@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
@@ -8,24 +9,31 @@ namespace BotCH.Core.Brain;
 
 /// <summary>
 /// Обход ресурсов: напал опасный моб (<see cref="DangerZones"/>) — не драться, а уйти вверх: отозвать пета, взлететь (если на
-/// земле) и подниматься рывками над своим местом, пока моб не отстанет — наземный не достанет, воздушный бросит погоню по
-/// времени. Отстал — обход возвращается на последнюю посещённую точку (моб, скорее всего, отошёл — ресурс мог освободиться).
-/// Не вышло (полёта нет, моб бьёт дольше <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — дерёмся, как с любым
+/// земле) и подниматься шагами по <see cref="ClimbStep"/> над своим местом, пока моб бьёт; перестал бить — висим. Отагр видим
+/// сразу: моб «возвращается» (<see cref="NpcInfo.Returning"/>) или сбросил цель — тогда обход возвращается на последнюю
+/// посещённую точку (моб, скорее всего, отошёл — ресурс мог освободиться). Цель у моба может застрять на нас (клиент не получил
+/// отагр) — не бьёт <see cref="StaleAfter"/> — считаем отставшим и не трогаем его, пока снова не ударит.
+/// Не вышло (полёта нет, моб всё бьёт через <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — дерёмся, как с любым
 /// напавшим, пока этот моб не отстанет. Стоит сразу после выживания: банки пьём и при подъёме.
 /// </summary>
 public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) : IBehavior
 {
-    private const float ClimbStep = 20f;
+    private const float ClimbStep = 10f;
     private const float MaxClimb = 200f;
     private static readonly TimeSpan GiveUpAfter = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan StaleAfter = TimeSpan.FromSeconds(30);
+    // Ударил недавно — значит, всё ещё бьёт (между ударами моб «стоит» или «идёт»)
+    private static readonly TimeSpan HitMemory = TimeSpan.FromSeconds(3);
 
     private NpcInfo? _from;
     private DateTime _since;
+    private DateTime _lastHit;
     private float _startHeight;
-    private float _climbed;
     private bool _recallTried;
     private bool _fighting;
     private MoveAction? _climb;
+    // Отстали, а цель застряла на нас: не трогаем, пока снова не ударит
+    private readonly HashSet<uint> _shaken = [];
 
     public string Name => "уход";
     public string? Status { get; private set; }
@@ -38,22 +46,15 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         if (threat is null)
         {
             if (_from is { } was)
-            {
-                c.Log.Info(_fighting
-                    ? $"{was.Name} отстал — возвращаюсь на точку"
-                    : $"{was.Name} отстал на высоте +{w.Host.Position.Height - _startHeight:0} м — возвращаюсь на точку");
-                // Недолетевший подъём держал бы тело — обход не смог бы лететь к точке
-                if (_climb is not null)
-                    c.Runner.Forget(_climb);
-                route.BackToLastVisited(c);
-            }
-            Forget();
+                Shaken(c, was, w.Npcs.FirstOrDefault(n => n.Wid == was.Wid) is { } now
+                    ? now.Returning ? "возвращается" : "бросил цель"
+                    : "пропал из виду");
             return false;
         }
 
-        if (_from is null)
+        if (_from is null || _from.Wid != threat.Wid && !_fighting)
         {
-            (_from, _since, _startHeight, _climbed, _recallTried, _fighting, _climb) = (threat, c.Now, w.Host.Position.Height, 0, false, false, null);
+            (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null);
             combat.Reset();
             c.Log.Warning($"Напал опасный {threat.Name} (ур. {threat.Level}) — улетаю вверх");
         }
@@ -61,10 +62,20 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         if (_fighting)
             return false;
 
-        _climbed = w.Host.Position.Height - _startHeight;
-        if (w.Host.Flying is null || c.Now - _since > GiveUpAfter || _climbed >= MaxClimb)
+        if (Hits(threat))
+            _lastHit = c.Now;
+        var climbed = w.Host.Position.Height - _startHeight;
+        if (w.Host.Flying is null)
+            return GiveUp(c, "не знаем, летит ли персонаж");
+        if (climbed >= MaxClimb)
+            return GiveUp(c, $"поднялись на {climbed:0} м");
+        if (c.Now - _since > GiveUpAfter && c.Now - _lastHit < HitMemory)
+            return GiveUp(c, $"бьёт {GiveUpAfter.TotalSeconds:0} с");
+        if (c.Now - _lastHit > StaleAfter)
         {
-            GiveUp(c, w.Host.Flying is null ? "не знаем, летит ли персонаж" : _climbed >= MaxClimb ? $"поднялись на {_climbed:0} м" : $"бьёт {GiveUpAfter.TotalSeconds:0} с");
+            // Цель застряла на нас (клиент не узнал об отагре), а моб давно не бьёт — отстал
+            _shaken.Add(threat.Wid);
+            Shaken(c, threat, $"не бьёт {StaleAfter.TotalSeconds:0} с");
             return false;
         }
 
@@ -84,32 +95,60 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
             return c.Submit(new FlyAction(up: true) { Priority = ActionPriority.Urgent });
         }
 
-        Status = $"ухожу вверх от {threat.Name}, +{_climbed:0} м";
         if (_climb is not null && c.Runner.Pending.Contains(_climb))
+        {
+            Status = $"ухожу вверх от {threat.Name}, +{climbed:0} м";
             return true;
+        }
+
+        // Бьёт (или только что бил) — выше; не бьёт — висим, ждём отагра
+        if (c.Now - _lastHit >= HitMemory)
+        {
+            Status = $"вишу на +{climbed:0} м — жду, пока {threat.Name} отстанет";
+            return true;
+        }
 
         var p = w.Host.Position;
         _climb = new MoveAction(new Position(p.X, p.Height + ClimbStep, p.Y), 2f, fly: true) { Priority = ActionPriority.Urgent };
+        Status = $"ухожу вверх от {threat.Name}, +{climbed:0} м";
         var sent = c.Runner.Replace(_climb, w).Status;
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 
-    // Опасный моб бьёт перса или пета (пока уходим — тот же, даже если переключился)
-    private static NpcInfo? Threat(BrainContext c)
+    private static bool Hits(NpcInfo mob) => mob.State is NpcInfo.StateAttacking or NpcInfo.StateCasting;
+
+    // Опасный моб бьёт перса или пета: не возвращается (тот уже не наш), не «отставший» с застрявшей целью — пока снова не ударит
+    private NpcInfo? Threat(BrainContext c)
     {
         var w = c.World;
         var petWid = w.Pet?.ActiveWid ?? 0;
+        foreach (var back in w.Mobs.Where(m => _shaken.Contains(m.Wid) && (Hits(m) || m.TargetWid != w.Host.Wid && m.TargetWid != petWid)).ToList())
+            _shaken.Remove(back.Wid);
         return w.Mobs
-            .Where(m => !m.IsDead && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid)
+            .Where(m => !m.IsDead && !m.Returning && !_shaken.Contains(m.Wid) && m.TargetWid != 0
+                        && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid)
                         && DangerZones.IsDangerous(m, c.Settings.Route))
             .OrderBy(m => m.Distance)
             .FirstOrDefault();
     }
 
-    private void GiveUp(BrainContext c, string why)
+    // Отстал — недолетевший подъём забываем (держал бы тело) и снова к последней посещённой точке
+    private void Shaken(BrainContext c, NpcInfo mob, string how)
+    {
+        c.Log.Info(_fighting
+            ? $"{mob.Name} отстал ({how}) — возвращаюсь на точку"
+            : $"{mob.Name} отстал ({how}) на высоте +{c.World.Host.Position.Height - _startHeight:0} м — возвращаюсь на точку");
+        if (_climb is not null)
+            c.Runner.Forget(_climb);
+        route.BackToLastVisited(c);
+        Forget();
+    }
+
+    private bool GiveUp(BrainContext c, string why)
     {
         _fighting = true;
         c.Log.Warning($"Не ушёл от {_from!.Name} ({why}) — дерусь");
+        return false;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
@@ -131,6 +170,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
     public void Reset()
     {
         Forget();
+        _shaken.Clear();
         Status = null;
     }
 }
