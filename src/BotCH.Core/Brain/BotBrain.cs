@@ -24,13 +24,13 @@ public sealed class BotBrain : IBotRunner
     private string? _centerText;
 
     public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
-        IReadOnlyCollection<uint>? gatherTools = null)
+        IReadOnlyCollection<uint>? gatherTools = null, Func<string, WorldState, bool>? gatherFitsInStacks = null)
     {
         _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
         Survival = new SurvivalBehavior();
         Pet = new PetBehavior();
         Combat = new CombatBehavior();
-        Gather = new GatherBehavior(Combat, gatherTools ?? []);
+        Gather = new GatherBehavior(Combat, gatherTools ?? [], gatherFitsInStacks);
         Return = new ReturnBehavior(Combat);
         _behaviors = [Survival, Pet, Gather, Combat, Return];
     }

@@ -10,9 +10,11 @@ namespace BotCH.Core.Brain;
 /// <summary>
 /// Копать ресурсы в радиусе фарма. Стоит перед боем: пока в радиусе есть ресурсы из списка — копаем их подряд, потом мобы.
 /// Бой и лут не перебиваем; напали на перса или пета — бросаем копание, бой убивает нападающего, потом копаем дальше.
-/// Без инструмента (кирки) в сумке к ресурсам не подходим.
+/// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по прошлым копкам)
+/// ляжет в начатые стопки: <paramref name="fitsInStacks"/> (название ресурса, мир) — знает, что даёт ресурс.
 /// </summary>
-public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools) : IBehavior
+public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, Func<string, WorldState, bool>? fitsInStacks = null)
+    : IBehavior
 {
     // Не вышло (нет инструмента, не дошли, сбили N раз подряд) — ресурс бросаем на время
     private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(3);
@@ -64,22 +66,24 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
             return false;
         }
 
-        if (w.BagFull)
-        {
-            c.Say("gather-bag-full", "Копать не буду: сумка полна", LogLevel.Warning, 300);
-            return false;
-        }
-
         foreach (var expired in _skipped.Where(s => s.Value <= c.Now).Select(s => s.Key).ToList())
             _skipped.Remove(expired);
 
         var resource = w.GroundItems
             .Where(i => i.Kind == GroundItemKind.Resource && !_skipped.ContainsKey(i.Id) && c.InFarmArea(i.Position))
             .Where(i => Settings.LootFilter.AllowsGather(loot, i.Name))
+            .Where(i => !w.BagFull || fitsInStacks?.Invoke(i.Name, w) == true)
             .OrderBy(i => i.Distance)
             .FirstOrDefault();
         if (resource is null)
+        {
+            if (w.BagFull)
+                c.Say("gather-bag-full", "Копать не буду: сумка полна, а добыча ресурсов рядом не ляжет в начатые стопки", LogLevel.Warning, 300);
             return false;
+        }
+
+        if (w.BagFull)
+            c.Say($"gather-into-stack-{resource.Id:X8}", $"Сумка полна, но добыча {resource.Name} ляжет в начатую стопку — копаю", seconds: 600);
 
         Status = $"копаю {resource.Name}";
         var sent = c.Send(new GatherAction(resource));

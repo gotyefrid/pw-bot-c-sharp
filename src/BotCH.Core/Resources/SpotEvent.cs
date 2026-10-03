@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using BotCH.Core.World;
 
 namespace BotCH.Core.Resources;
@@ -34,8 +36,11 @@ public sealed record SpotEvent(
     /// <summary>Кто выкопал («выкопан»): «мы» — шла наша полоска копания у этого ресурса; «другой»; пусто — сервер полоску не показывает.</summary>
     public string Who { get; init; } = "";
 
-    /// <summary>Что прибавилось в сумке после нашей копки: «tid×сколько», через запятую.</summary>
-    public string Loot { get; init; } = "";
+    /// <summary>Что прибавилось в сумке после нашей копки: tid → сколько.</summary>
+    public IReadOnlyDictionary<uint, int> Gained { get; init; } = new Dictionary<uint, int>();
+
+    /// <summary>То же для журнала: «tid×сколько», через запятую.</summary>
+    public string Loot => string.Join(", ", Gained.Select(g => $"{g.Key}×{g.Value}"));
 
     /// <summary>Сколько шла наша полоска копания, с.</summary>
     public double? DigSeconds { get; init; }

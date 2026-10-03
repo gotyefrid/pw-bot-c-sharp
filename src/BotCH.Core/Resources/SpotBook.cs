@@ -128,11 +128,12 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
             _missingSince.Remove(spot);
             spot.GoneAt = since;
             Changed = true;
-            var (who, loot, digSeconds) = WhoDug(w, spot, since);
+            var (who, gained, digSeconds) = WhoDug(w, spot, since);
+            var loot = string.Join(", ", gained.Select(g => $"{g.Key}×{g.Value}"));
             _log.Info(who == "мы"
                 ? $"{spot.Name}: выкопали мы (копка {digSeconds:0.0} с), в сумку {(loot.Length > 0 ? loot : "ничего не прибавилось")}"
                 : $"{spot.Name} пропал, {host.HorizontalDistanceTo(spot.Position):0} м — " + (who == "другой" ? "выкопал кто-то другой" : "кто — не видно"));
-            Tell(SpotEventKind.Dug, since, spot, spot.Position, IdHere(spot), host, who: who, loot: loot, digSeconds: digSeconds);
+            Tell(SpotEventKind.Dug, since, spot, spot.Position, IdHere(spot), host, who: who, gained: gained, digSeconds: digSeconds);
         }
 
         foreach (var spot in seen)
@@ -159,19 +160,19 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     }
 
     // Кто выкопал: мы — шла наша полоска у этого ресурса и кончилась незадолго до пропажи; что прибавилось в сумке
-    private (string Who, string Loot, double? DigSeconds) WhoDug(WorldState w, ResourceSpot spot, DateTime gone)
+    private (string Who, Dictionary<uint, int> Gained, double? DigSeconds) WhoDug(WorldState w, ResourceSpot spot, DateTime gone)
     {
         if (w.Host.Gather is null)
-            return ("", "", null);
+            return ("", [], null);
         if (_dig is not { } dig || dig.ItemId != IdHere(spot) || gone - dig.LastActive > DigLinger || gone < dig.Start)
-            return ("другой", "", null);
+            return ("другой", [], null);
 
         _dig = null;
         var gained = Bag(w)
             .Select(b => (Tid: b.Key, Gain: b.Value - (dig.BagBefore.TryGetValue(b.Key, out var was) ? was : 0)))
             .Where(b => b.Gain > 0)
-            .Select(b => $"{b.Tid}×{b.Gain}");
-        return ("мы", string.Join(", ", gained), (dig.LastActive - dig.Start).TotalSeconds);
+            .ToDictionary(b => b.Tid, b => b.Gain);
+        return ("мы", gained, (dig.LastActive - dig.Start).TotalSeconds);
     }
 
     private static Dictionary<uint, int> Bag(WorldState w)
@@ -206,9 +207,9 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
     private uint IdHere(ResourceSpot spot) => Server.Length > 0 && spot.Ids.TryGetValue(Server, out var id) ? id : 0;
 
     private void Tell(SpotEventKind kind, DateTime time, ResourceSpot spot, Position at, uint id, Position host, float fromCenter = 0,
-        TimeSpan? sinceDug = null, string who = "", string loot = "", double? digSeconds = null)
+        TimeSpan? sinceDug = null, string who = "", Dictionary<uint, int>? gained = null, double? digSeconds = null)
         => Happened?.Invoke(new SpotEvent(time, kind, spot.Name, id, at, spot.Position, fromCenter, sinceDug, host.HorizontalDistanceTo(at))
-            { Who = who, Loot = loot, DigSeconds = digSeconds });
+            { Who = who, Gained = gained ?? [], DigSeconds = digSeconds });
 
     /// <summary>Персонаж не в мире (загрузка, выход): что было видно, забываем, не считая выкопанным.</summary>
     public void Forget()

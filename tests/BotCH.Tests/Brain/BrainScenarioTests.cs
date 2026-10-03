@@ -5,6 +5,7 @@ using BotCH.Core.Actions;
 using BotCH.Core.Brain;
 using BotCH.Core.Logging;
 using BotCH.Core.Profiles;
+using BotCH.Core.Resources;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 using BotCH.Tests.Fakes;
@@ -22,6 +23,7 @@ public class BrainScenarioTests
     private readonly List<LogEntry> _log = [];
     private readonly BotSettings _settings = new();
     private BotBrain? _brain;
+    private readonly ResourceYields _yields = new();
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -30,7 +32,8 @@ public class BrainScenarioTests
 
     private BotBrain Brain => _brain ??= new BotBrain(
         new ActionRunner(_actions, NullLogger.Instance), Skills, _settings,
-        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe]);
+        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe],
+        (resource, w) => _yields.FitsInStacks("test", resource, w.Inventory));
 
     private const uint Pickaxe = 3073;
 
@@ -734,6 +737,36 @@ public class BrainScenarioTests
         Tick();
 
         Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void FullBagDigsOnlyResourcesWhoseYieldFitsInStacks()
+    {
+        GatherWithPickaxe();
+        _world.BagSlots = 2;
+        var roots = new InventoryItem(0, 795, 8, 10, null, null) { MaxCount = 99 };
+        _world.Bag.Add(roots);
+        _yields.Learn("test", "Высохший древесный корень", new Dictionary<uint, int> { [795] = 4 });
+        AddOre(0xC0000001, 5); // что даёт руда — не знаем
+        AddOre(0xC0000002, 15, "Высохший древесный корень");
+
+        Tick();
+        Assert.Equal(["gather C0000002"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.Contains("ляжет в начатую стопку"));
+    }
+
+    [Fact]
+    public void FullBagNoRoomInStacksNoGather()
+    {
+        GatherWithPickaxe();
+        _world.BagSlots = 2;
+        _world.Bag.Add(new InventoryItem(0, 795, 8, 97, null, null) { MaxCount = 99 }); // места на 2, копка даёт до 4
+        _yields.Learn("test", "Высохший древесный корень", new Dictionary<uint, int> { [795] = 4 });
+        AddOre(0xC0000002, 15, "Высохший древесный корень");
+
+        Tick();
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("gather"));
+        Assert.Contains(_log, e => e.Message.Contains("сумка полна"));
     }
 
     [Fact]
