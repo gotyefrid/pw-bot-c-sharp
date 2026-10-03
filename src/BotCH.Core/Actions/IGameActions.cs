@@ -49,12 +49,13 @@ public interface IGameActions
     /// <summary>Бежать в точку: по прямой или <paramref name="smart"/> — с автопутём (если умеет, иначе по прямой).</summary>
     CallResult MoveTo(HostState host, Position point, bool smart);
 
-    // ── Режим «сбор ресурсов» (часть 8, не сделано) ──
-
     /// <summary>Собрать ресурс (трава, руда) как кликом мыши: PickupObject с gather — клиент подходит и копает сам.</summary>
     CallResult Gather(HostState host, GroundItem resource);
 
-    /// <summary>Лететь в точку. Не исследовано (SetDestination тип 1 «3D»?).</summary>
+    /// <summary>Кнопка «Полёт»: на земле — взлететь, в воздухе — сесть.</summary>
+    CallResult ToggleFly(HostState host);
+
+    /// <summary>Лететь в точку вместе с её высотой (только в воздухе).</summary>
     CallResult FlyTo(HostState host, Position point);
 }
 
@@ -85,6 +86,7 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
 
     public CallResult Gather(HostState host, GroundItem resource) => caller.PickupObject(host.Address, resource.Id, gather: true);
 
-    public CallResult FlyTo(HostState host, Position point)
-        => CallResult.Refused("полёт ещё не исследован (часть 8)");
+    public CallResult ToggleFly(HostState host) => caller.ToggleFly(host.Address);
+
+    public CallResult FlyTo(HostState host, Position point) => caller.FlyTo(host.Address, point.X, point.Height, point.Y);
 }

@@ -51,6 +51,8 @@ public sealed class MoveTypes
     public uint Direct { get; init; }
     /// <summary>С автопутём, в обход препятствий. 0 — на этом сервере не найден (бег только по прямой).</summary>
     public uint Smart { get; init; }
+    /// <summary>Точка в пространстве (с высотой) — для полёта. 0 — не найдена (в полёте летим только по прямой на своей высоте).</summary>
+    public uint Fly { get; init; }
 }
 
 /// <summary>Файлы клиента (configs.pck и др.).</summary>
@@ -109,6 +111,8 @@ public sealed class HostOffsets
     public uint SkillsCount { get; init; }
     /// <summary>[перс + PetManager] — менеджер петов.</summary>
     public uint PetManager { get; init; }
+    /// <summary>Где персонаж (int): 0 — на земле, 1 — в воде, 2 — в воздухе (как MOVEENV_* в клиенте). 0 в профиле — не найдено.</summary>
+    public uint MoveEnv { get; init; }
 }
 
 public sealed class PetManagerOffsets
@@ -323,6 +327,7 @@ public static class GameFunctions
     public const string PetCtrl = "petCtrl";
     public const string HostApplySkill = "hostApplySkill";
     public const string HostPickupObject = "hostPickupObject";
+    public const string HostFly = "hostFly";
     public const string WorkCreate = "workCreate";
     public const string WorkMoveSetDestination = "workMoveSetDestination";
     public const string WorkStart = "workStart";

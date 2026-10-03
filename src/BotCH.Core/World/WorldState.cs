@@ -97,6 +97,9 @@ public sealed record HostState(
     /// <summary>Полоска копания; null — поля не найдены для этого сервера.</summary>
     public GatherProgress? Gather { get; init; }
 
+    /// <summary>Персонаж в воздухе (на полётнике); null — поле не найдено для этого сервера.</summary>
+    public bool? Flying { get; init; }
+
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
     public bool IsDead => Hp <= 0;
 }

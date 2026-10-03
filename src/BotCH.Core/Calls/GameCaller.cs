@@ -113,12 +113,28 @@ public sealed class GameCaller
     /// <summary>Есть ли у сервера автопуть (бег в обход препятствий).</summary>
     public bool CanMoveSmart => CanMoveTo && _profile.MoveTypes.Smart != 0;
 
+    /// <summary>Есть ли «лететь в точку с высотой» (тип точки в пространстве).</summary>
+    public bool CanFlyTo => CanMoveTo && _profile.MoveTypes.Fly != 0;
+
+    /// <summary>
+    /// Кнопка «Полёт» (CECHostPlayer::CmdFly, this = перс): на земле — взлететь, в воздухе — сесть. Клиент сам проверяет,
+    /// что полётник надет и сейчас можно; сидит — сначала встаёт (и тогда не взлетает).
+    /// </summary>
+    public CallResult ToggleFly(uint host) => Call(GameFunctions.HostFly, host, null, ["force"], ("force", 0));
+
+    /// <summary>Лететь в точку вместе с её высотой (тип точки <see cref="MoveTypes.Fly"/>). Только в воздухе.</summary>
+    public CallResult FlyTo(uint host, float x, float height, float y)
+        => CanFlyTo ? MoveTo(host, x, height, y, _profile.MoveTypes.Fly) : CallResult.Refused("полёт в точку с высотой не найден для этого сервера");
+
     /// <summary>
     /// Идти в точку: по прямой, как кликом по земле, или <paramref name="smart"/> — с автопутём, как кликом по карте (если он есть
     /// у сервера, иначе по прямой). Аргументы SetDestination и StartWork — из профиля, по умолчанию как в 1.3.6; тип точки — из
     /// <see cref="MoveTypes"/> (2 — направление, бежит бесконечно, не использовать).
     /// </summary>
     public CallResult MoveTo(uint host, float x, float height, float y, bool smart = false)
+        => MoveTo(host, x, height, y, smart && CanMoveSmart ? _profile.MoveTypes.Smart : _profile.MoveTypes.Direct);
+
+    private CallResult MoveTo(uint host, float x, float height, float y, uint type)
     {
         var names = new[] { GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart };
         var addresses = new uint[names.Length];
@@ -133,7 +149,6 @@ public sealed class GameCaller
             return CallResult.Refused("нет менеджера работ персонажа");
 
         // 1.3.6: SetDestination(type, &point), StartWork(1, work, 1, 0); у других клиентов — как в args профиля
-        var type = smart && CanMoveSmart ? _profile.MoveTypes.Smart : _profile.MoveTypes.Direct;
         if (MoveArgs(GameFunctions.WorkMoveSetDestination, [TypeArg, DataArg], DataArg, out var destinationArgs, (TypeArg, type)) is { } badDestination)
             return badDestination;
         if (MoveArgs(GameFunctions.WorkStart, ["1", WorkArg, "1", "0"], WorkArg, out var startArgs) is { } badStart)

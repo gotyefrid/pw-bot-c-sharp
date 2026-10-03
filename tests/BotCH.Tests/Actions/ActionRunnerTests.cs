@@ -168,6 +168,51 @@ public class ActionRunnerTests
         Assert.Equal(["move (10,0; 0,0; h 0,0)"], _actions.Calls);
     }
 
+    // ── Полёт ──────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void TakeOffConfirmedWhenInAir()
+    {
+        Assert.True(_runner.Submit(new FlyAction(up: true), _world.Snapshot()).Sent);
+        Assert.Empty(_runner.Update(_world.Wait(0.3).Snapshot()));
+        _world.Flying = true;
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.3).Snapshot())).Status);
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+    }
+
+    [Theory]
+    [InlineData(true, true)]    // уже в воздухе — «взлететь» нажало бы «сесть»
+    [InlineData(false, false)]  // уже на земле
+    [InlineData(null, true)]    // не знаем, где перс, — не жмём переключатель вслепую
+    public void FlyToggleNotPressedWhenAlreadyThere(bool? flying, bool up)
+    {
+        _world.Flying = flying;
+
+        Assert.False(_runner.Submit(new FlyAction(up), _world.Snapshot()).Sent);
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void FlyToPointOnlyInAirAndConfirmedAtHeight()
+    {
+        var point = new Position(0, 20, 0);
+        Assert.False(_runner.Submit(new MoveAction(point, fly: true), _world.Snapshot()).Sent);
+
+        _world.Flying = true;
+        Assert.True(_runner.Submit(new MoveAction(point, fly: true), _world.Snapshot()).Sent);
+        // Поднимаемся на месте — это движение, а не «стоим»
+        for (var h = 3; h <= 15; h += 3)
+        {
+            _world.Position = new Position(0, h, 0);
+            Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        }
+
+        _world.Position = point;
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(1).Snapshot())).Status);
+        Assert.Equal([$"fly {point}"], _actions.Calls);
+    }
+
     // ── Важность: кто кого перебивает ──────────────────────────────────────────
 
     private SkillAction UrgentHeal() => new(330, FakeWorld.PetWid, approach: true, "лечение пета") { Priority = ActionPriority.Urgent };
@@ -567,6 +612,7 @@ public class ActionRunnerTests
         public CallResult SummonPet(int cage) => Slow();
         public CallResult MoveTo(HostState host, Position point, bool smart) => Slow();
         public CallResult Gather(HostState host, GroundItem resource) => Slow();
+        public CallResult ToggleFly(HostState host) => Slow();
         public CallResult FlyTo(HostState host, Position point) => Slow();
     }
 }

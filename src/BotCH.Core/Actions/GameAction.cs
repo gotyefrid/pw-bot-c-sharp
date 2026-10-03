@@ -348,13 +348,16 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 }
 
 /// <summary>Идти в точку: по прямой или <paramref name="smart"/> — с автопутём. Подтверждение — дошли ближе <see cref="Tolerance"/>.</summary>
-public sealed class MoveAction(Position point, float tolerance = 2f, bool smart = false) : GameAction
+public sealed class MoveAction(Position point, float tolerance = 2f, bool smart = false, bool fly = false) : GameAction
 {
     public Position Point { get; } = point;
     public float Tolerance { get; } = tolerance;
     public bool Smart { get; } = smart;
 
-    public override string Name => $"идти в {Point}";
+    /// <summary>Лететь в точку вместе с её высотой (только в воздухе).</summary>
+    public bool Fly { get; } = fly;
+
+    public override string Name => Fly ? $"лететь в {Point}" : $"идти в {Point}";
     // Фоновый бег (возврат в центр) — отдельно: подход к мобу его вытесняет, а не ждёт как «такой же уже идёт»
     public override string Key => Priority == ActionPriority.Background ? "движение фоном" : "движение";
     public override ActionResource Resource => ActionResource.Body;
@@ -363,7 +366,11 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
     // (автопуть на 1.4.6 водит и на сотни метров)
     public override TimeSpan Timeout => TimeSpan.FromMinutes(5);
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.MoveTo(now.Host, Point, Smart);
+    public override string? Precondition(WorldState now)
+        => Fly && now.Host.Flying != true ? "лететь в точку можно только в воздухе" : null;
+
+    public override CallResult Send(IGameActions actions, WorldState now)
+        => Fly ? actions.FlyTo(now.Host, Point) : actions.MoveTo(now.Host, Point, Smart);
 
     // Перс встал, не дойдя (упёрся, бег сбился) — не ждём конца времени на дорогу
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(2.5);
@@ -378,7 +385,8 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
 
         if (_lastPosition is null)
             (_lastPosition, _movedAt) = (start.Host.Position, start.Time);
-        if (now.Host.Position.HorizontalDistanceTo(_lastPosition.Value) > 0.1f)
+        // С высотой: в полёте можно подниматься на месте
+        if (now.Host.Position.DistanceTo(_lastPosition.Value) > 0.1f)
             (_lastPosition, _movedAt) = (now.Host.Position, now.Time);
         else if (now.Time - _movedAt >= StandPatience)
             return Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0.0} с, не дойдя {left:0.0} м");
@@ -386,6 +394,35 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
         var limit = TimeSpan.FromSeconds(5 + 0.4 * start.Host.Position.DistanceTo(Point));
         return now.Time - start.Time > limit ? Verdict.Rejected($"не дошли за {limit.TotalSeconds:0} с, осталось {left:0.0} м") : Verdict.Pending;
     }
+}
+
+/// <summary>
+/// Взлететь или сесть кнопкой «Полёт» (она переключает). Отправляем, только если персонаж не там, где нужно — иначе
+/// нажатие сделало бы обратное. Подтверждение — персонаж в воздухе (или на земле).
+/// </summary>
+public sealed class FlyAction(bool up) : GameAction
+{
+    public bool Up { get; } = up;
+    public override string Name => Up ? "взлететь" : "сесть";
+    public override string Key => "полёт";
+    public override ActionResource Resource => ActionResource.Body;
+
+    // Взлёт ~1 с; посадка — спуск до земли, с высоты дольше
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(Up ? 5 : 30);
+
+    public override string? Precondition(WorldState now)
+        => now.Host.Flying switch
+        {
+            null => "не знаем, летит ли персонаж (поле не найдено для этого сервера)",
+            true when Up => "уже в воздухе",
+            false when !Up => "уже на земле",
+            _ => null,
+        };
+
+    public override CallResult Send(IGameActions actions, WorldState now) => actions.ToggleFly(now.Host);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Host.Flying == Up ? Verdict.Confirmed() : Verdict.Pending;
 }
 
 /// <summary>Призвать пета. Подтверждение — пет из этой клетки призван.</summary>

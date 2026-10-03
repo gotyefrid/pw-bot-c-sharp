@@ -31,6 +31,9 @@ public sealed class WorldReader
     private readonly int _itemSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
 
+    // Персонаж в воздухе (MOVEENV_AIR клиента; 0 — земля, 1 — вода)
+    private const int MoveEnvAir = 2;
+
     public WorldReader(IMemory memory, uint moduleBase, ProfileData profile, Func<int, string?>? skillName = null)
     {
         _memory = memory;
@@ -40,7 +43,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill);
+            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8);
         var g = profile.GroundItem;
@@ -123,6 +126,7 @@ public sealed class WorldReader
             CastingSkillId = h.CastingSkill == 0 ? null : ReadCastingSkill(block.UInt32(h.CastingSkill)),
             Gather = h.GatherIdle == 0 || h.GatherElapsed == 0 || h.GatherTotal == 0 ? null
                 : new GatherProgress(block.Byte(h.GatherIdle) == 0, block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
+            Flying = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvAir,
         };
     }
 

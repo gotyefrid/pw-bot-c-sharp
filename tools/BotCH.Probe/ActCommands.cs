@@ -39,6 +39,8 @@ internal static class ActCommands
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
           act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
           act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
+          act fly               взлететь (на земле) или сесть (в воздухе) — как кнопкой «Полёт»
+          act fly-to <dx> <dy> <dh>  в воздухе: лететь на dx, dy метров в сторону и dh вверх (минус — вниз), не дальше 100 м
         """;
 
     public static int Act(IServerProfile profile, string[] args)
@@ -211,6 +213,23 @@ internal static class ActCommands
                 Console.WriteLine($"Сейчас: карта {(w.Host.Position.X + 4000) / 10:0.0} {(w.Host.Position.Y + 5500) / 10:0.0}");
                 problem = $"точка в {w.Host.Position.HorizontalDistanceTo(target):0} м — дальше 1000 м";
                 return w.Host.Position.HorizontalDistanceTo(target) <= 1000 ? new MoveAction(target, smart: true) : null;
+
+            case "fly":
+                Console.WriteLine($"Сейчас: {(w.Host.Flying switch { true => "в воздухе", false => "на земле", _ => "неизвестно где" })}, высота {w.Host.Position.Height:0.0}");
+                return new FlyAction(up: w.Host.Flying != true);
+
+            case "fly-to":
+                var shift = args.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
+                    .Where(f => f is not null).Select(f => f!.Value).ToList();
+                if (shift.Count < 3 || shift.Any(f => Math.Abs(f) > 100))
+                {
+                    problem = "нужно: act fly-to <dx> <dy> <dh>, каждое не больше 100 м";
+                    return null;
+                }
+
+                var from = w.Host.Position;
+                Console.WriteLine($"Сейчас высота {from.Height:0.0}, лечу на {from.Height + shift[2]:0.0}");
+                return new MoveAction(new Position(from.X + shift[0], from.Height + shift[2], from.Y + shift[1]), fly: true);
 
             case "move-mob":
                 var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Distance).FirstOrDefault();
