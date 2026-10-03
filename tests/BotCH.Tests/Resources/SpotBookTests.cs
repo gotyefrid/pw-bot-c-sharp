@@ -313,6 +313,42 @@ public class SpotBookTests : IDisposable
     }
 
     [Fact]
+    public void DugByUsWhenOurGatherBarWasOnThisResourceAndBagGained()
+    {
+        var events = new List<SpotEvent>();
+        _book.Happened += events.Add;
+        _world.Gather = new GatherProgress(false, 0, 0);
+        _world.AddPotion(1, 3074, 2);
+
+        var root = Resource("Высохший древесный корень", 3);
+        var sage = Resource("Шалфей", 30);
+        Observe();
+
+        // Копаем корень 5 с; корень пропал, в сумке +1 (tid 3074)
+        for (var ms = 0; ms <= 5000; ms += 250)
+        {
+            _world.Gather = new GatherProgress(true, ms, 5000);
+            Observe();
+        }
+        _world.Gather = new GatherProgress(false, 0, 0);
+        _world.Ground.Remove(root);
+        _world.Bag[0] = _world.Bag[0] with { Count = 3 };
+        for (var i = 0; i < 12; i++)
+            Observe();
+
+        // А шалфей пропал без нашей копки
+        _world.Ground.Remove(sage);
+        for (var i = 0; i < 12; i++)
+            Observe();
+
+        var dug = events.Where(e => e.Kind == SpotEventKind.Dug).ToList();
+        Assert.Equal(2, dug.Count);
+        Assert.Equal(("Высохший древесный корень", "мы", "3074×1"), (dug[0].Name, dug[0].Who, dug[0].Loot));
+        Assert.Equal(5, dug[0].DigSeconds!.Value, 1);
+        Assert.Equal(("Шалфей", "другой"), (dug[1].Name, dug[1].Who));
+    }
+
+    [Fact]
     public void JournalWritesHeaderOnceAndOneLinePerEvent()
     {
         var journal = new SpotJournal(_file);
@@ -324,7 +360,7 @@ public class SpotBookTests : IDisposable
         var lines = File.ReadAllLines(_file);
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("время;сервер;персонаж;событие", lines[0]);
-        Assert.Equal("2026-10-03 13:55:16;comeback146;ClaudeCot;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2", lines[1]);
+        Assert.Equal("2026-10-03 13:55:16;comeback146;ClaudeCot;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2;;;", lines[1]);
         Assert.Contains(";выкопан;", lines[2]);
     }
 

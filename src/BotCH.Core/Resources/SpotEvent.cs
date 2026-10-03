@@ -29,4 +29,14 @@ public enum SpotEventKind
 /// <param name="HostDistance">Сколько от персонажа до ресурса.</param>
 public sealed record SpotEvent(
     DateTime Time, SpotEventKind Kind, string Name, uint ResourceId, Position At, Position Center,
-    float FromCenter, TimeSpan? SinceDug, float HostDistance);
+    float FromCenter, TimeSpan? SinceDug, float HostDistance)
+{
+    /// <summary>Кто выкопал («выкопан»): «мы» — шла наша полоска копания у этого ресурса; «другой»; пусто — сервер полоску не показывает.</summary>
+    public string Who { get; init; } = "";
+
+    /// <summary>Что прибавилось в сумке после нашей копки: «tid×сколько», через запятую.</summary>
+    public string Loot { get; init; } = "";
+
+    /// <summary>Сколько шла наша полоска копания, с.</summary>
+    public double? DigSeconds { get; init; }
+}
