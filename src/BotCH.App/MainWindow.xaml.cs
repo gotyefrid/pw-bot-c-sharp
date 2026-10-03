@@ -107,5 +107,8 @@ public partial class MainWindow : Window
     {
         _model.Dispose();
         base.OnClosed(e);
+        // «Закрыть окно» из панели задач уничтожает окно в обход обычного закрытия — WPF тогда сам не выходит,
+        // процесс остаётся висеть без окна. Выходим явно
+        Application.Current?.Shutdown();
     }
 }
