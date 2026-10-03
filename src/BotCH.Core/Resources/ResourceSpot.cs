@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BotCH.Core.World;
 using Newtonsoft.Json;
 
@@ -29,10 +30,11 @@ public sealed class ResourceSpot
     public DateTime? GoneAt { get; set; }
 
     /// <summary>
-    /// Номер ресурса в игре (0 — не знаем). Выкопанный корень появился снова через 10 мин с тем же номером, но в 18 м
-    /// от прежнего места (2026-10-03, 1.4.6) — по номеру точка узнаётся надёжнее, чем по расстоянию.
+    /// Номер ресурса в игре по серверам (id профиля → номер). Выкопанный корень появился снова через 10 мин с тем же
+    /// номером, но в 18 м от прежнего места (2026-10-03, 1.4.6) — по номеру точка узнаётся надёжнее, чем по расстоянию.
+    /// У каждого сервера номера свои: тот же корень на 1.3.6 — 0xC0100AE4, на 1.4.6 — 0xC0100E80.
     /// </summary>
-    public uint ResourceId { get; set; }
+    public Dictionary<string, uint> Ids { get; set; } = [];
 
     /// <summary>Добавлена кнопкой «Добавить здесь», а не по увиденному ресурсу.</summary>
     public bool Manual { get; set; }

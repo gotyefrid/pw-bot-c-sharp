@@ -751,6 +751,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             _game = GameProcess.Open(client.Pid);
             var reader = new WorldReader(_game, _game.MainModuleBase, _profile.Data, id => _skillNames.Get(id));
+            _spots.Server = _profile.Id;
             _monitor = new WorldMonitor(reader.Read, SnapshotPeriod);
             _monitor.Updated += state => OnUi(() => Show(state));
             _monitor.Failed += message => OnUi(() => ShowFailure(message));

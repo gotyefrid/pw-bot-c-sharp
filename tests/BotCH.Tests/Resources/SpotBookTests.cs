@@ -11,7 +11,7 @@ namespace BotCH.Tests.Resources;
 public class SpotBookTests : IDisposable
 {
     private readonly FakeWorld _world = new();
-    private readonly SpotBook _book = new([]);
+    private readonly SpotBook _book = new([]) { Server = "comeback146" };
     private readonly string _file = Path.Combine(Path.GetTempPath(), "botch-spots-" + Guid.NewGuid().ToString("N") + ".json");
     private uint _nextId = 0xC0100E80;
 
@@ -72,7 +72,7 @@ public class SpotBookTests : IDisposable
         Observe();
 
         var spot = Assert.Single(_book.Spots);
-        Assert.Equal(root.Id, spot.ResourceId);
+        Assert.Equal(root.Id, spot.Ids["comeback146"]);
         Assert.Equal(2, spot.Seen);
         Assert.Null(spot.GoneAt);
 
@@ -85,6 +85,31 @@ public class SpotBookTests : IDisposable
             _world.Position = new Position(x, 0, 0);
             Observe();
         }
+        Assert.Equal(2, _book.Spots.Count);
+    }
+
+    [Fact]
+    public void ResourceIdsAreKeptPerServer()
+    {
+        var root = Resource("Высохший древесный корень", 10);
+        Observe();
+
+        // Тот же корень на другом сервере — другой номер; номер прежнего сервера не теряется
+        _book.Server = "pwclassic136";
+        _book.Forget();
+        _world.Ground.Clear();
+        _world.Ground.Add(root with { Id = 0xC0100AE4, Position = new Position(15, 0, 0) });
+        Observe();
+
+        var spot = Assert.Single(_book.Spots);
+        Assert.Equal(root.Id, spot.Ids["comeback146"]);
+        Assert.Equal(0xC0100AE4u, spot.Ids["pwclassic136"]);
+
+        // Номер с 1.4.6 на 1.3.6 ничего не значит: тот же номер в 40 м — не эта точка
+        _book.Forget();
+        _world.Ground.Clear();
+        _world.Ground.Add(root with { Position = new Position(-30, 0, 0) });
+        Observe();
         Assert.Equal(2, _book.Spots.Count);
     }
 

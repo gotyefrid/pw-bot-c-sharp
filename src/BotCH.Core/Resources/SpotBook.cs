@@ -43,6 +43,9 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
 
     public IReadOnlyList<ResourceSpot> Spots => _spots;
 
+    /// <summary>Сервер подключённого клиента (id профиля): номера ресурсов у каждого сервера свои.</summary>
+    public string Server { get; set; } = "";
+
     /// <summary>Есть изменения, которые ещё не сохранены в файл.</summary>
     public bool Changed { get; private set; }
 
@@ -68,8 +71,8 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
             var name = item.Name.Trim();
             var spot = ById(name, item.Id, item.Position, seen) ?? Nearest(name, item.Position, MergeRadius, exclude: seen) ?? AddSeen(item);
             seen.Add(spot);
-            if (spot.ResourceId != item.Id)
-                (spot.ResourceId, Changed) = (item.Id, true);
+            if (Server.Length > 0 && item.Id != 0 && (!spot.Ids.TryGetValue(Server, out var id) || id != item.Id))
+                (spot.Ids[Server], Changed) = (item.Id, true);
             if (!_present.Contains(spot))
                 Appeared(spot, item.Position);
             spot.LastSeen = now;
@@ -154,7 +157,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
             .FirstOrDefault();
 
     private ResourceSpot? ById(string name, uint id, Position position, ISet<ResourceSpot> exclude)
-        => id == 0 ? null : _spots.FirstOrDefault(s => s.ResourceId == id && !exclude.Contains(s)
+        => id == 0 || Server.Length == 0 ? null : _spots.FirstOrDefault(s => s.Ids.TryGetValue(Server, out var known) && known == id && !exclude.Contains(s)
             && s.Name.Equals(name, StringComparison.OrdinalIgnoreCase) && s.Position.HorizontalDistanceTo(position) <= SameIdRadius);
 
     private ResourceSpot AddSeen(GroundItem item)
@@ -178,6 +181,7 @@ public sealed class SpotBook(IEnumerable<ResourceSpot> spots, ILogger? log = nul
         else
         {
             var c = spot.Position;
+            _log.Debug($"{spot.Name} появился снова в {c.HorizontalDistanceTo(at):0.0} м от центра точки");
             var k = 1f / (Math.Min(spot.Seen, CenterWeight - 1) + 1);
             spot.Position = new Position(c.X + (at.X - c.X) * k, c.Height + (at.Height - c.Height) * k, c.Y + (at.Y - c.Y) * k);
             spot.Spread = Math.Max(spot.Spread, spot.Position.HorizontalDistanceTo(at));
