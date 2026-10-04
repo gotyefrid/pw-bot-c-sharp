@@ -43,13 +43,13 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
     public bool Tick(BrainContext c)
     {
         Status = null;
-        if (!c.Settings.Target.ReturnToCenter || c.FarmCenter is not { } center || !c.Runner.Actions.Capabilities.Has(Capability.Move))
+        if (!c.Settings.Target.ReturnToCenter || c.FarmCenter is not { } center || !c.Runner.Capabilities.Has(Capability.Move))
             return false;
         if (combat.State != CombatState.Search)
             return false;
 
         var w = c.World;
-        if (c.Runner.Pending.OfType<MoveAction>().Any(m => m.Priority == ActionPriority.Background))
+        if (c.Mine.OfType<MoveAction>().Any())
         {
             Status = "возвращаюсь в центр фарма";
             return true;
@@ -88,7 +88,7 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
         // Не дошли — не долбим заново каждый шаг
-        if (outcome.Action is MoveAction { Priority: ActionPriority.Background } && outcome.Status is ActionStatus.Rejected or ActionStatus.Timeout or ActionStatus.Failed)
+        if (outcome.Action is MoveAction && outcome.Status is ActionStatus.Rejected or ActionStatus.Timeout or ActionStatus.Failed)
             _nextTry = c.Now + RetryAfter;
     }
 

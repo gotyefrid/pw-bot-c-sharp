@@ -80,7 +80,7 @@ internal static class CooldownFinder
         }
 
         var runner = new ActionRunner(calls.Actions, NullLogger.Instance);
-        var submit = runner.Submit(new UseItemAction(food, use), world);
+        var submit = runner.Submit(new ActionOwner("probe"), new UseItemAction(food, use), world);
         if (!submit.Sent)
         {
             Console.WriteLine($"❌ не отправлено: {submit.Outcome?.Details}");

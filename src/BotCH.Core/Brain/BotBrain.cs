@@ -104,7 +104,8 @@ public sealed class BotBrain : IBotRunner
                 _context.Log.Info(center + distance);
             }
 
-            Deliver(_context.Runner.Update(world));
+            _context.Executor.Update(world);
+            Deliver();
 
             if (world.Host.IsDead)
             {
@@ -116,6 +117,7 @@ public sealed class BotBrain : IBotRunner
                 IBehavior? acted = null;
                 foreach (var behavior in _behaviors)
                 {
+                    _context.Owner = behavior;
                     if (behavior.Tick(_context))
                     {
                         acted = behavior;
@@ -123,7 +125,8 @@ public sealed class BotBrain : IBotRunner
                     }
                 }
 
-                Deliver(_context.TakeNotSent());
+                _context.Owner = null;
+                Deliver();
                 SetStatus((acted ?? Combat).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
                 if (_context.StopReason is { } reason)
                 {
@@ -145,8 +148,8 @@ public sealed class BotBrain : IBotRunner
     {
         lock (_lock)
         {
-            _context.Runner.Clear();
-            _context.TakeNotSent();
+            _context.Executor.Clear();
+            _context.TakeOutcomes();
             _context.StartPosition = null;
             _context.StopReason = null;
             _centerText = null;
@@ -156,14 +159,19 @@ public sealed class BotBrain : IBotRunner
         }
     }
 
-    // Итоги действий — всем поведениям (каждое берёт своё): и завершившиеся по снимку, и «не отправлено»
-    private void Deliver(IReadOnlyList<ActionOutcome> outcomes)
+    // Итоги действий — только хозяину: и завершившиеся по снимку, и «не отправлено», и «отменено» (вытеснило более важное)
+    private void Deliver()
     {
-        foreach (var outcome in outcomes)
+        foreach (var outcome in _context.TakeOutcomes())
         {
-            foreach (var behavior in _behaviors)
-                behavior.OnOutcome(_context, outcome);
+            if (outcome.Action.Owner is not IBehavior owner)
+                continue;
+
+            _context.Owner = owner;
+            owner.OnOutcome(_context, outcome);
         }
+
+        _context.Owner = null;
     }
 
     // «Центр фарма …» — в лог при старте и когда сменили точку или радиус

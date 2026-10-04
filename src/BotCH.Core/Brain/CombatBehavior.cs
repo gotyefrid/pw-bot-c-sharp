@@ -229,14 +229,14 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
             _lastPetOrder = c.Now;
             // Прошлый приказ ещё ждёт подтверждения, но на другого моба (бой переключился) — заменяем, не ждём 6 с
             var order = new PetAttackAction(mob.Wid);
-            var stale = c.Runner.Pending.OfType<PetAttackAction>().Any(p => p.TargetWid != mob.Wid);
-            if (stale ? c.Runner.Replace(order, w).Status is SubmitStatus.Sent : c.Submit(order))
+            var stale = c.Mine.OfType<PetAttackAction>().Any(p => p.TargetWid != mob.Wid);
+            if (stale ? c.Replace(order) is SubmitStatus.Sent : c.Submit(order))
                 return true;
         }
 
         // Строго по очереди: сначала подходим, потом бьём. Бег, скилл и удар занимают тело — пока одно ждёт или персонаж кастует,
         // другое исполнитель не отправит («занято»), так что здесь только порядок
-        if (combat.ComeCloser && c.Runner.Actions.Capabilities.Has(Capability.Move) && ComeCloser(c, mob))
+        if (combat.ComeCloser && c.Runner.Capabilities.Has(Capability.Move) && ComeCloser(c, mob))
             return true;
 
         if (combat.UseSkill && w.Skill(combat.AttackSkillId) is { IsReady: true }
@@ -262,7 +262,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var w = c.World;
         var distance = c.Settings.Combat.ComeCloserDistance;
         // Только свой подход: фоновый бег в центр фарма — не «уже бежим к мобу», его вытеснит подход или удар
-        var running = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault(m => m.Priority != ActionPriority.Background);
+        var running = c.Mine.OfType<MoveAction>().FirstOrDefault();
         if (mob.Distance <= distance)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
@@ -292,7 +292,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         {
             c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
             _lastApproach = c.Now;
-            c.Runner.Replace(Approach(w, point, smart), w);
+            c.Replace(Approach(w, point, smart));
         }
 
         return true;

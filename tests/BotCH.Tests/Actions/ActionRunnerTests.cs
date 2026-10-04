@@ -19,6 +19,7 @@ public class ActionRunnerTests
     private readonly FakeWorld _world = new();
     private readonly FakeActions _actions = new();
     private readonly ActionRunner _runner;
+    private static readonly ActionOwner Bot = new("бот");
 
     public ActionRunnerTests() => _runner = new ActionRunner(_actions, NullLogger.Instance);
 
@@ -31,7 +32,7 @@ public class ActionRunnerTests
         var mob = _world.AddMob(0x80104298, "Волк", 20);
         _world.TargetWid = mob.Wid;
 
-        Assert.True(_runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot()).Sent);
         Assert.Empty(_runner.Update(_world.Wait(0.3).Snapshot()));
         _world.SetCooldown(299, 2500);
         var outcome = Single(_runner.Update(_world.Wait(0.3).Snapshot()));
@@ -47,11 +48,11 @@ public class ActionRunnerTests
         _world.AddSkill(299);
         _world.TargetWid = _world.AddMob(0x80104298, "Волк", 30).Wid;
 
-        _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot());
         for (var i = 0; i < 3; i++)
         {
             _runner.Update(_world.Wait(0.3).Snapshot());
-            Assert.Equal(SubmitStatus.AlreadyPending, _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot()).Status);
+            Assert.Equal(SubmitStatus.AlreadyPending, _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot()).Status);
         }
 
         Assert.Single(_actions.Calls);
@@ -62,7 +63,7 @@ public class ActionRunnerTests
     {
         _world.AddSkill(299);
 
-        _runner.Submit(new SkillAction(299, 0x80104298, approach: false), _world.Snapshot());
+        _runner.Submit(Bot, new SkillAction(299, 0x80104298, approach: false), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(7).Snapshot()));
         var outcome = Single(_runner.Update(_world.Wait(1.5).Snapshot()));
 
@@ -76,7 +77,7 @@ public class ActionRunnerTests
         _world.AddSkill(299);
         _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
 
-        _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot());
         _world.TargetWid = _world.AddMob(2, "Медведь", 25).Wid;
 
         Assert.Equal(ActionStatus.Rejected, Single(_runner.Update(_world.Wait(0.3).Snapshot())).Status);
@@ -90,7 +91,7 @@ public class ActionRunnerTests
         var mob = _world.AddMob(1, "Волк", 20);
         _world.TargetWid = mob.Wid;
 
-        _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot());
         _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
         _world.TargetWid = 0;
 
@@ -106,7 +107,7 @@ public class ActionRunnerTests
         var stone = new GroundItem(1, 0xC0100AD9, 3079, GroundItemKind.Resource, default, 2, "Залежи камня");
         _world.Ground.Add(stone);
         _world.Gather = new GatherProgress(false, 8000, 8000);
-        _runner.Submit(new GatherAction(stone), _world.Snapshot());
+        _runner.Submit(Bot, new GatherAction(stone), _world.Snapshot());
 
         _world.Gather = new GatherProgress(true, 200, 8000);
         Assert.Empty(_runner.Update(_world.Wait(0.2).Snapshot()));
@@ -123,7 +124,7 @@ public class ActionRunnerTests
         // Полоска дошла до конца, ресурс ещё виден пару кадров — это не срыв
         var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, default, 2, "Железная руда");
         _world.Ground.Add(ore);
-        _runner.Submit(new GatherAction(ore), _world.Snapshot());
+        _runner.Submit(Bot, new GatherAction(ore), _world.Snapshot());
         _world.Gather = new GatherProgress(true, 2500, 5000);
         Assert.Empty(_runner.Update(_world.Wait(2.5).Snapshot()));
 
@@ -141,7 +142,7 @@ public class ActionRunnerTests
         var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, default, 2, "Железная руда");
         _world.Ground.Add(ore);
         _world.Gather = new GatherProgress(false, 0, 0);
-        _runner.Submit(new GatherAction(ore), _world.Snapshot());
+        _runner.Submit(Bot, new GatherAction(ore), _world.Snapshot());
 
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         _world.Position = new Position(1, 0, 0); // ещё бежим
@@ -161,8 +162,8 @@ public class ActionRunnerTests
         _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
         var move = new MoveAction(new Position(10, 0, 0));
 
-        Assert.True(_runner.Submit(move, _world.Snapshot()).Sent);
-        var skill = _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+        Assert.True(_runner.Submit(Bot, move, _world.Snapshot()).Sent);
+        var skill = _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot());
 
         Assert.Equal(SubmitStatus.Busy, skill.Status);
         Assert.Equal(move.Name, skill.Busy);
@@ -174,7 +175,7 @@ public class ActionRunnerTests
     [Fact]
     public void TakeOffConfirmedWhenInAir()
     {
-        Assert.True(_runner.Submit(new FlyAction(up: true), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new FlyAction(up: true), _world.Snapshot()).Sent);
         Assert.Empty(_runner.Update(_world.Wait(0.3).Snapshot()));
         _world.Flying = true;
 
@@ -190,7 +191,7 @@ public class ActionRunnerTests
     {
         _world.Flying = flying;
 
-        Assert.False(_runner.Submit(new FlyAction(up), _world.Snapshot()).Sent);
+        Assert.False(_runner.Submit(Bot, new FlyAction(up), _world.Snapshot()).Sent);
         Assert.Empty(_actions.Calls);
     }
 
@@ -198,10 +199,10 @@ public class ActionRunnerTests
     public void FlyToPointOnlyInAirAndConfirmedAtHeight()
     {
         var point = new Position(0, 20, 0);
-        Assert.False(_runner.Submit(new MoveAction(point, fly: true), _world.Snapshot()).Sent);
+        Assert.False(_runner.Submit(Bot, new MoveAction(point, fly: true), _world.Snapshot()).Sent);
 
         _world.Flying = true;
-        Assert.True(_runner.Submit(new MoveAction(point, fly: true), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new MoveAction(point, fly: true), _world.Snapshot()).Sent);
         // Поднимаемся на месте — это движение, а не «стоим»
         for (var h = 3; h <= 15; h += 3)
         {
@@ -223,9 +224,9 @@ public class ActionRunnerTests
     {
         _world.AddSkill(330);
         var move = new MoveAction(new Position(30, 0, 0));
-        _runner.Submit(move, _world.Snapshot());
+        _runner.Submit(Bot, move, _world.Snapshot());
 
-        var heal = _runner.Submit(UrgentHeal(), _world.Snapshot());
+        var heal = _runner.Submit(Bot, UrgentHeal(), _world.Snapshot());
 
         Assert.Equal(SubmitStatus.Sent, heal.Status);
         Assert.Equal([$"move {move.Point}", $"apply 330 {FakeWorld.PetWid:X}"], _actions.Calls);
@@ -236,9 +237,9 @@ public class ActionRunnerTests
     public void NormalWaitsForUrgent()
     {
         _world.AddSkill(330);
-        _runner.Submit(UrgentHeal(), _world.Snapshot());
+        _runner.Submit(Bot, UrgentHeal(), _world.Snapshot());
 
-        Assert.Equal(SubmitStatus.Busy, _runner.Submit(new MoveAction(new Position(30, 0, 0)), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(Bot, new MoveAction(new Position(30, 0, 0)), _world.Snapshot()).Status);
     }
 
     [Fact]
@@ -248,11 +249,11 @@ public class ActionRunnerTests
         _world.Casting = true;
 
         _world.CastingSkillId = 330;
-        Assert.Equal("кастуется этот же скилл", _runner.Submit(UrgentHeal(), _world.Snapshot()).Busy);
+        Assert.Equal("кастуется этот же скилл", _runner.Submit(Bot, UrgentHeal(), _world.Snapshot()).Busy);
         Assert.Empty(_actions.Calls);
 
         _world.CastingSkillId = 299;
-        Assert.Equal(SubmitStatus.Busy, _runner.Submit(UrgentHeal(), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(Bot, UrgentHeal(), _world.Snapshot()).Status);
         Assert.Equal(["cancel"], _actions.Calls);
     }
 
@@ -263,7 +264,7 @@ public class ActionRunnerTests
         _world.Casting = true;
         _world.CastingSkillId = null;
 
-        Assert.Equal("персонаж кастует", _runner.Submit(UrgentHeal(), _world.Snapshot()).Busy);
+        Assert.Equal("персонаж кастует", _runner.Submit(Bot, UrgentHeal(), _world.Snapshot()).Busy);
         Assert.Empty(_actions.Calls);
     }
 
@@ -273,17 +274,17 @@ public class ActionRunnerTests
         // Копание — фон: бой его прерывает; чужой каст обычное действие не трогает
         var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, default, 2, "Железная руда");
         _world.Ground.Add(ore);
-        _runner.Submit(new GatherAction(ore), _world.Snapshot());
+        _runner.Submit(Bot, new GatherAction(ore), _world.Snapshot());
         _world.Gather = new GatherProgress(true, 1000, 5000);
 
-        Assert.Equal("прерываю копание", _runner.Submit(new NormalAttackAction(), _world.Snapshot()).Busy);
+        Assert.Equal("прерываю копание", _runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot()).Busy);
         Assert.Equal(["gather C0100E4B", "cancel"], _actions.Calls);
         Assert.Null(_runner.Pending.OfType<GatherAction>().FirstOrDefault());
 
         _world.Gather = new GatherProgress(false, 1200, 5000);
         _world.Casting = true;
         _world.CastingSkillId = 299;
-        Assert.Equal(SubmitStatus.Busy, _runner.Submit(new MoveAction(new Position(5, 0, 0)), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(Bot, new MoveAction(new Position(5, 0, 0)), _world.Snapshot()).Status);
         Assert.Equal(2, _actions.Calls.Count);
     }
 
@@ -296,11 +297,11 @@ public class ActionRunnerTests
         var potion = _world.AddPotion(2, 8618, 25, hp: 80);
         _world.Casting = true;
 
-        var skill = _runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot());
+        var skill = _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot());
 
         Assert.Equal(SubmitStatus.Busy, skill.Status);
         Assert.Equal("персонаж кастует", skill.Busy);
-        Assert.True(_runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new UseItemAction(potion, ItemUse.Potion), _world.Snapshot()).Sent);
     }
 
     [Fact]
@@ -310,10 +311,10 @@ public class ActionRunnerTests
         var potion = _world.AddPotion(2, 8618, 25, hp: 80);
         _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
         _world.SetPet(1);
-        _runner.Submit(new MoveAction(new Position(10, 0, 0)), _world.Snapshot());
+        _runner.Submit(Bot, new MoveAction(new Position(10, 0, 0)), _world.Snapshot());
 
-        Assert.True(_runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot()).Sent);
-        Assert.True(_runner.Submit(new PetAttackAction(1), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new UseItemAction(potion, ItemUse.Potion), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new PetAttackAction(1), _world.Snapshot()).Sent);
     }
 
     [Fact]
@@ -321,13 +322,13 @@ public class ActionRunnerTests
     {
         _world.AddSkill(299);
         _world.TargetWid = _world.AddMob(1, "Волк", 20).Wid;
-        _runner.Submit(new MoveAction(new Position(10, 0, 0)), _world.Snapshot());
+        _runner.Submit(Bot, new MoveAction(new Position(10, 0, 0)), _world.Snapshot());
 
         _world.Position = new Position(10, 0, 0);
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.3).Snapshot())).Status);
 
         Assert.Null(_runner.BodyAction);
-        Assert.True(_runner.Submit(new SkillAction(299, 0, approach: true), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot()).Sent);
     }
 
     [Fact]
@@ -335,7 +336,7 @@ public class ActionRunnerTests
     {
         _world.AddSkill(299, cooldownLeftMs: 1500);
 
-        var result = _runner.Submit(new SkillAction(299, 0, approach: false), _world.Snapshot());
+        var result = _runner.Submit(Bot, new SkillAction(299, 0, approach: false), _world.Snapshot());
 
         Assert.Equal(SubmitStatus.Failed, result.Status);
         Assert.Contains("перезарядка", result.Outcome!.Details);
@@ -347,7 +348,7 @@ public class ActionRunnerTests
     {
         var potion = _world.AddPotion(2, 8618, 25, hp: 80);
 
-        _runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
+        _runner.Submit(Bot, new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
         _world.Consume(2);
         var outcome = Single(_runner.Update(_world.Wait(0.3).Snapshot()));
 
@@ -360,7 +361,7 @@ public class ActionRunnerTests
     {
         var potion = _world.AddPotion(2, 8618, 25, hp: 80);
 
-        _runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
+        _runner.Submit(Bot, new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
         _runner.Update(_world.Wait(1).Snapshot());
         var outcome = Single(_runner.Update(_world.Wait(2.5).Snapshot()));
 
@@ -372,7 +373,7 @@ public class ActionRunnerTests
     {
         var potion = _world.AddPotion(3, 8617, 1, hp: 30);
 
-        _runner.Submit(new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
+        _runner.Submit(Bot, new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
         _world.Bag.Clear();
 
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.3).Snapshot())).Status);
@@ -384,7 +385,7 @@ public class ActionRunnerTests
         var coin = new GroundItem(1, 0xC0126480, 3044, GroundItemKind.Money, default, 6, "Монета");
         _world.Ground.Add(coin);
 
-        _runner.Submit(new PickupAction(coin, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new PickupAction(coin, approach: true), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         _world.Ground.Clear();
 
@@ -398,7 +399,7 @@ public class ActionRunnerTests
         var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(2, 0, 0), 2, "Мех животных");
         _world.Ground.Add(fur);
 
-        _runner.Submit(new PickupAction(fur, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new PickupAction(fur, approach: true), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
@@ -414,7 +415,7 @@ public class ActionRunnerTests
         var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(8, 0, 0), 8, "Мех животных");
         _world.Ground.Add(fur);
 
-        _runner.Submit(new PickupAction(fur, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new PickupAction(fur, approach: true), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(4).Snapshot())); // ещё идём — 8 м
         _world.Position = new Position(6, 0, 0);
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot())); // подошли
@@ -428,7 +429,7 @@ public class ActionRunnerTests
     {
         var ore = new GroundItem(1, 0xC0100AD9, 3089, GroundItemKind.Resource, default, 5, "Шахта крупного угля");
 
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(new PickupAction(ore, approach: true), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(ore, approach: true), _world.Snapshot()).Status);
         Assert.Empty(_actions.Calls);
     }
 
@@ -437,7 +438,7 @@ public class ActionRunnerTests
     {
         var far = new GroundItem(1, 0xC0000001, 3044, GroundItemKind.Money, default, 15, "Монета");
 
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(new PickupAction(far, approach: false), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(far, approach: false), _world.Snapshot()).Status);
     }
 
     [Fact]
@@ -445,7 +446,7 @@ public class ActionRunnerTests
     {
         var mob = _world.AddMob(0x80104298, "Волк", 10);
 
-        _runner.Submit(new SelectTargetAction(mob), _world.Snapshot());
+        _runner.Submit(Bot, new SelectTargetAction(mob), _world.Snapshot());
         _world.TargetWid = mob.Wid;
 
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.2).Snapshot())).Status);
@@ -457,7 +458,7 @@ public class ActionRunnerTests
         var mob = _world.AddMob(0x80104298, "Волк", 10, hp: 500);
         _world.TargetWid = mob.Wid;
 
-        _runner.Submit(new NormalAttackAction(), _world.Snapshot());
+        _runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot());
         _world.Replace(mob, m => m with { TargetWid = FakeWorld.HostWid });
 
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(1).Snapshot())).Status);
@@ -469,7 +470,7 @@ public class ActionRunnerTests
         var mob = _world.AddMob(0x80104298, "Волк", 10, targetWid: FakeWorld.PetWid, hp: 500);
         _world.TargetWid = mob.Wid;
 
-        _runner.Submit(new NormalAttackAction(), _world.Snapshot());
+        _runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot());
         _world.Replace(mob, m => m with { Hp = 470 });
 
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(1).Snapshot())).Status);
@@ -479,12 +480,12 @@ public class ActionRunnerTests
     public void MoveConfirmedNearPointAndRejectedWhenStuck()
     {
         var point = new Position(20, 0, 0);
-        _runner.Submit(new MoveAction(point), _world.Snapshot());
+        _runner.Submit(Bot, new MoveAction(point), _world.Snapshot());
         _world.Position = new Position(19, 0, 0);
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(4).Snapshot())).Status);
 
         _world.Position = new Position(0, 0, 0); // нас отбросило: бежим, но медленно — не успеваем за время на дорогу
-        _runner.Submit(new MoveAction(point), _world.Snapshot());
+        _runner.Submit(Bot, new MoveAction(point), _world.Snapshot());
         for (var x = 1; x <= 10; x++)
         {
             _world.Position = new Position(x * 0.5f, 0, 0);
@@ -498,7 +499,7 @@ public class ActionRunnerTests
     {
         // Бег на 25 м (времени на дорогу 15 с), а перс встал в 7 м от точки — отказ через 2.5 с стояния, не через 15
         var point = new Position(25, 0, 0);
-        _runner.Submit(new MoveAction(point), _world.Snapshot());
+        _runner.Submit(Bot, new MoveAction(point), _world.Snapshot());
         _world.Position = new Position(10, 0, 0);
         Assert.Empty(_runner.Update(_world.Wait(2).Snapshot()));
         _world.Position = new Position(18, 0, 0);
@@ -516,14 +517,14 @@ public class ActionRunnerTests
         _world.SetPet(1, hpRatio: 0, summoned: false);
         _world.AddSkill(329);
 
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(new SummonPetAction(1), _world.Snapshot()).Status); // мёртв
+        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new SummonPetAction(1), _world.Snapshot()).Status); // мёртв
 
-        Assert.True(_runner.Submit(new RevivePetAction(1, 329), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new RevivePetAction(1, 329), _world.Snapshot()).Sent);
         Assert.Empty(_runner.Update(_world.Wait(5).Snapshot()));
         _world.SetPet(1, hpRatio: 0.1f, summoned: false);
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(7).Snapshot())).Status);
 
-        Assert.True(_runner.Submit(new SummonPetAction(1), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new SummonPetAction(1), _world.Snapshot()).Sent);
         _world.SetPet(1, hpRatio: 0.1f, summoned: true);
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(3.5).Snapshot())).Status);
 
@@ -534,8 +535,8 @@ public class ActionRunnerTests
     public void NoPetMeansPetActionsAreNotSent()
     {
         // Не друид: Pet = null — никаких вызовов, просто «не отправлено»
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(new SummonPetAction(1), _world.Snapshot()).Status);
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(new PetAttackAction(1), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new SummonPetAction(1), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PetAttackAction(1), _world.Snapshot()).Status);
         Assert.Empty(_actions.Calls);
     }
 
@@ -546,7 +547,7 @@ public class ActionRunnerTests
         var outcomes = new List<ActionOutcome>();
         _runner.Completed += outcomes.Add;
 
-        var result = _runner.Submit(new SelectTargetAction(_world.AddMob(1, "Волк", 5)), _world.Snapshot());
+        var result = _runner.Submit(Bot, new SelectTargetAction(_world.AddMob(1, "Волк", 5)), _world.Snapshot());
 
         Assert.Equal(SubmitStatus.Failed, result.Status);
         Assert.Contains("не те байты", Assert.Single(outcomes).Details);
@@ -557,11 +558,98 @@ public class ActionRunnerTests
     public void ClearForgetsPending()
     {
         _world.AddSkill(299);
-        _runner.Submit(new SkillAction(299, 0, approach: false), _world.Snapshot());
+        _runner.Submit(Bot, new SkillAction(299, 0, approach: false), _world.Snapshot());
 
         _runner.Clear();
 
-        Assert.True(_runner.Submit(new SkillAction(299, 0, approach: false), _world.Snapshot()).Sent);
+        Assert.True(_runner.Submit(Bot, new SkillAction(299, 0, approach: false), _world.Snapshot()).Sent);
+    }
+
+    private static readonly ActionOwner Other = new("другое поведение");
+
+    [Fact]
+    public void OwnPendingInSlotWaitsOtherOwnersEqualIsBusy()
+    {
+        var wolf = _world.AddMob(0x80104298, "Волк", 20);
+        var bear = _world.AddMob(0x80104299, "Медведь", 25);
+
+        Assert.True(_runner.Submit(Bot, new SelectTargetAction(wolf), _world.Snapshot()).Sent);
+        Assert.Equal(SubmitStatus.AlreadyPending, _runner.Submit(Bot, new SelectTargetAction(bear), _world.Snapshot()).Status);
+        var other = _runner.Submit(Other, new SelectTargetAction(bear), _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.Busy, other.Status);
+        Assert.Contains("Волк", other.Busy);
+        Assert.Single(_actions.Calls);
+    }
+
+    [Fact]
+    public void BackgroundMoveGivesWayToOtherOwnersMoveAndHearsWhy()
+    {
+        // Возврат в центр (фон) бежит — подход к мобу вытесняет его через слот, «отменено» уходит хозяину возврата
+        var outcomes = new List<ActionOutcome>();
+        _runner.Completed += outcomes.Add;
+        var back = new MoveAction(new Position(50, 0, 0)) { Priority = ActionPriority.Background };
+        Assert.True(_runner.Submit(Bot, back, _world.Snapshot()).Sent);
+
+        Assert.True(_runner.Submit(Other, new MoveAction(new Position(10, 0, 0)), _world.Snapshot()).Sent);
+
+        var cancelled = Assert.Single(outcomes);
+        Assert.Same(back, cancelled.Action);
+        Assert.Equal(ActionStatus.Cancelled, cancelled.Status);
+        Assert.Same(Bot, cancelled.Action.Owner);
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(Bot, back, _world.Snapshot()).Status); // обратно не вытеснит
+    }
+
+    [Fact]
+    public void ReplaceTouchesOnlyOwnPending()
+    {
+        var mine = new MoveAction(new Position(10, 0, 0));
+        _runner.Submit(Bot, mine, _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.Busy, _runner.Replace(Other, new MoveAction(new Position(20, 0, 0)), _world.Snapshot()).Status);
+        Assert.Equal([mine], _runner.Pending);
+
+        Assert.True(_runner.Replace(Bot, new MoveAction(new Position(30, 0, 0)), _world.Snapshot()).Sent);
+        Assert.Equal(2, _actions.Calls.Count);
+    }
+
+    [Fact]
+    public void UrgentRecallDisplacesOtherOwnersSummon()
+    {
+        // Призван пет из клетки 1, поведение пета зовёт второго — уход от опасного отзывает: призыв не держит слот
+        _world.SetPets(1, new PetInCage(1, 1, 0), new PetInCage(2, 1, 0));
+        var outcomes = new List<ActionOutcome>();
+        _runner.Completed += outcomes.Add;
+        Assert.True(_runner.Submit(Other, new SummonPetAction(2), _world.Snapshot()).Sent);
+
+        Assert.True(_runner.Submit(Bot, new RecallPetAction { Priority = ActionPriority.Urgent }, _world.Snapshot()).Sent);
+
+        Assert.Equal(ActionStatus.Cancelled, Assert.Single(outcomes).Status);
+        Assert.Equal(["summon 2", "recall"], _actions.Calls);
+    }
+
+    [Fact]
+    public void SameThingFromOtherOwnerIsNotPressedTwice()
+    {
+        // Маршрут взлетает — уход от опасного тоже хочет взлететь: второе нажатие «Полёт» посреди взлёта его бы отменило
+        Assert.True(_runner.Submit(Other, new FlyAction(up: true), _world.Snapshot()).Sent);
+
+        var urgent = _runner.Submit(Bot, new FlyAction(up: true) { Priority = ActionPriority.Urgent }, _world.Snapshot());
+
+        Assert.Equal(SubmitStatus.AlreadyPending, urgent.Status);
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+    }
+
+    [Fact]
+    public void CastIsBrokenOnBehalfOfWhoNeedsIt()
+    {
+        _world.AddSkill(330);
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+
+        Assert.Equal(SubmitStatus.Busy, _runner.Submit(Bot, UrgentHeal(), _world.Snapshot()).Status);
+
+        Assert.Same(Bot, Assert.Single(_runner.Pending.OfType<CancelAction>()).Owner);
     }
 
     [Fact]
@@ -575,7 +663,7 @@ public class ActionRunnerTests
 
         Parallel.ForEach(mobs, mob =>
         {
-            runner.Submit(new SelectTargetAction(mob), snapshot);
+            runner.Submit(Bot, new SelectTargetAction(mob), snapshot);
             runner.Clear();
         });
 

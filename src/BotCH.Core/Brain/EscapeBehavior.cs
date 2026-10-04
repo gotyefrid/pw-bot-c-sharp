@@ -86,7 +86,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         }
 
         // Пет не должен остаться драться один
-        if (w.Pet is { IsSummoned: true } && c.Runner.Actions.Capabilities.Has(Capability.RecallPet) && !_recallTried)
+        if (w.Pet is { IsSummoned: true } && c.Runner.Capabilities.Has(Capability.RecallPet) && !_recallTried)
         {
             Status = "отзываю пета";
             var recall = c.Send(new RecallPetAction { Priority = ActionPriority.Urgent });
@@ -100,13 +100,14 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
             Status = $"взлетаю — напал {threat.Name}";
             var fly = new FlyAction(up: true) { Priority = ActionPriority.Urgent };
             var takeoff = c.Send(fly);
-            // Свой — и ушедший, и не отправленный (его отказ тоже придёт в OnOutcome); «уже ждёт» — это прежний
+            // Свой — и ушедший, и не отправленный (его отказ тоже придёт в OnOutcome); «уже ждёт» — это прежний свой или взлёт
+            // маршрута (второй раз «Полёт» не жмём: он бы взлёт отменил)
             if (takeoff is SubmitStatus.Sent or SubmitStatus.Failed)
                 _fly = fly;
             return takeoff is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
         }
 
-        if (_climb is not null && c.Runner.Pending.Contains(_climb))
+        if (_climb is not null && c.Mine.Contains(_climb))
         {
             Status = $"ухожу вверх от {threat.Name}, +{climbed:0} м";
             return true;
@@ -122,7 +123,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         var p = w.Host.Position;
         _climb = new MoveAction(new Position(p.X, p.Height + ClimbStep, p.Y), 2f, fly: true) { Priority = ActionPriority.Urgent };
         Status = $"ухожу вверх от {threat.Name}, +{climbed:0} м";
-        var sent = c.Runner.Replace(_climb, w).Status;
+        var sent = c.Replace(_climb);
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 
@@ -150,7 +151,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
             ? $"{mob.Name} отстал ({how}) — возвращаюсь на точку"
             : $"{mob.Name} отстал ({how}) на высоте +{c.World.Host.Position.Height - _startHeight:0} м — возвращаюсь на точку");
         if (_climb is not null)
-            c.Runner.Forget(_climb);
+            c.Forget(_climb);
         route.BackToLastVisited(c);
         Forget();
     }

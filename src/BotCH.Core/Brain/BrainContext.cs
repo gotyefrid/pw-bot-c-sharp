@@ -13,36 +13,45 @@ public sealed class BrainContext
 {
     private readonly Dictionary<string, DateTime> _lastSaid = [];
 
-    // Отказы при отправке («не отправлено») — исполнитель отдаёт их сразу, посреди хода поведения. Раздать поведениям
-    // можно только после их хода (BotBrain), иначе OnOutcome сработает посреди чужого (или своего же) Tick
-    private readonly List<ActionOutcome> _notSent = [];
+    // Итоги действий: исполнитель отдаёт их по ходу — на снимке, а «не отправлено» и «отменено» — прямо при отправке,
+    // посреди хода поведения. Раздать хозяевам можно только между ходами (BotBrain), иначе OnOutcome сработает посреди
+    // чужого (или своего же) Tick
+    private readonly List<ActionOutcome> _outcomes = [];
 
     internal BrainContext(ActionRunner runner, ClassSkills skills, ILogger log, Random random)
     {
-        Runner = runner;
+        Executor = runner;
         Skills = skills;
         Log = log;
         Random = random;
-        // Ловим на исполнителе, а не в Submit: отправляют и в обход (Runner.Replace) — отказ не должен теряться нигде
-        runner.Completed += outcome =>
-        {
-            if (outcome.Status == ActionStatus.Failed)
-                _notSent.Add(outcome);
-        };
+        runner.Completed += _outcomes.Add;
     }
 
-    /// <summary>Отказы при отправке за этот ход — мозг раздаёт их поведениям после их хода. Очередь очищается.</summary>
-    internal IReadOnlyList<ActionOutcome> TakeNotSent()
+    /// <summary>Итоги действий с прошлого раза — мозг раздаёт их хозяевам. Очередь очищается.</summary>
+    internal IReadOnlyList<ActionOutcome> TakeOutcomes()
     {
-        if (_notSent.Count == 0)
+        if (_outcomes.Count == 0)
             return [];
 
-        var taken = _notSent.ToArray();
-        _notSent.Clear();
+        var taken = _outcomes.ToArray();
+        _outcomes.Clear();
         return taken;
     }
 
-    public ActionRunner Runner { get; }
+    /// <summary>Исполнитель: проверка по снимку и сброс — у мозга, отправка — через <see cref="Send"/> (с хозяином).</summary>
+    internal ActionRunner Executor { get; }
+
+    /// <summary>Что ждёт подтверждения и чем занято тело — только посмотреть; отправлять через <see cref="Send"/>.</summary>
+    public IPendingActions Runner => Executor;
+
+    /// <summary>Чьё поведение сейчас ходит или получает итог — хозяин отправляемых действий. Ставит мозг.</summary>
+    internal IActionOwner? Owner { get; set; }
+
+    private IActionOwner Me => Owner ?? throw new InvalidOperationException("Действие отправлено вне хода поведения — у него не будет хозяина");
+
+    /// <summary>Свои ждущие действия (этого поведения).</summary>
+    public IReadOnlyList<GameAction> Mine => Executor.PendingOf(Me);
+
     public ClassSkills Skills { get; }
     public ILogger Log { get; }
     public Random Random { get; }
@@ -86,12 +95,22 @@ public sealed class BrainContext
     /// </summary>
     public bool Submit(GameAction action) => Send(action) is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
 
-    /// <summary>Отправить и узнать, что вышло: Sent — ушло сейчас (можно писать в лог «лечу», сдвигать таймеры).</summary>
-    public SubmitStatus Send(GameAction action)
+    /// <summary>
+    /// Отправить и узнать, что вышло: Sent — ушло сейчас (можно писать в лог «лечу», сдвигать таймеры). Хозяин — поведение,
+    /// которое сейчас ходит: итог придёт ему в <see cref="IBehavior.OnOutcome"/>.
+    /// </summary>
+    public SubmitStatus Send(GameAction action) => Said(action, Executor.Submit(Me, action, World));
+
+    /// <summary>Отправить вместо своего такого же ждущего (новая точка, пока бежим к старой); чужое — уступит, только если это важнее.</summary>
+    public SubmitStatus Replace(GameAction action) => Said(action, Executor.Replace(Me, action, World));
+
+    /// <summary>Больше не ждать своего действия: стало не нужно (моб отстал, пока поднимались).</summary>
+    public void Forget(GameAction action) => Executor.Forget(action);
+
+    private SubmitStatus Said(GameAction action, SubmitResult result)
     {
-        var result = Runner.Submit(action, World);
         if (result.Status == SubmitStatus.Busy)
-            Log.Debug($"{action.Name}: тело занято — {result.Busy}");
+            Log.Debug($"{action.Name}: занято — {result.Busy}");
         return result.Status;
     }
 
@@ -109,15 +128,16 @@ public sealed class BrainContext
     }
 }
 
-/// <summary>Одно поведение мозга (банки, пет, бой). Маленький класс с одной задачей.</summary>
-public interface IBehavior
+/// <summary>Одно поведение мозга (банки, пет, бой). Маленький класс с одной задачей. Хозяин своих действий.</summary>
+public interface IBehavior : IActionOwner
 {
-    string Name { get; }
-
     /// <summary>Сделать шаг. true — ход занят (отправлено действие или идёт важное ожидание), дальше по приоритету не идём.</summary>
     bool Tick(BrainContext context);
 
-    /// <summary>Итог отправленного действия (приходит всем поведениям).</summary>
+    /// <summary>
+    /// Итог своего действия: подтверждено, отказ, не дождались, не отправлено или отменено (вытеснило более важное чужое).
+    /// Приходит между ходами, не посреди <see cref="Tick"/>.
+    /// </summary>
     void OnOutcome(BrainContext context, ActionOutcome outcome);
 
     /// <summary>Забыть состояние (стоп/старт).</summary>

@@ -39,7 +39,7 @@ public sealed class PetBehavior(CombatBehavior combat) : IBehavior
         if (!settings.Enabled || pet is null)
             return false;
 
-        if (settings.OnlyForFight && c.Runner.Actions.Capabilities.Has(Capability.RecallPet))
+        if (settings.OnlyForFight && c.Runner.Capabilities.Has(Capability.RecallPet))
         {
             // Бой — кто-то бьёт перса или пета, или бой/лут уже идёт
             if (TargetSelector.Aggressor(c.World) is not null || combat.State != CombatState.Search)

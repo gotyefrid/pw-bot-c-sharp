@@ -99,6 +99,16 @@ public abstract class GameAction
     /// <summary>Одинаковый ключ — «то же самое действие».</summary>
     public ActionKey Key => new(Slot, SlotId);
 
+    /// <summary>Кто отправил — ему придёт итог. Ставит исполнитель при отправке.</summary>
+    public IActionOwner? Owner { get; internal set; }
+
+    /// <summary>
+    /// В игре уже идёт то же самое: в слоте ждёт <paramref name="pending"/> (пусть и чужое), и повторная отправка навредила
+    /// бы — кнопка «Полёт» переключает, второе нажатие посреди взлёта его отменит. Тогда новое не вытесняет ждущее и не
+    /// отправляется: «уже ждёт».
+    /// </summary>
+    public virtual bool SameInGame(GameAction pending) => false;
+
     /// <summary>Что занимает, пока ждёт подтверждения: тело — одновременно только одно такое действие.</summary>
     public virtual ActionResource Resource => ActionResource.None;
 
@@ -406,8 +416,6 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
 
     public override string Name => Fly ? $"лететь в {Point}" : $"идти в {Point}";
     public override ActionSlot Slot => ActionSlot.Movement;
-    // Фоновый бег (возврат в центр) — отдельно: подход к мобу его вытесняет, а не ждёт как «такой же уже идёт»
-    public override uint SlotId => Priority == ActionPriority.Background ? 1u : 0u;
     public override ActionResource Resource => ActionResource.Body;
 
     // Бег ~5 м/с, с запасом: 5 с + 0.4 с на метр (считается от точки отправки в Check); здесь — только верхний предел
@@ -455,6 +463,7 @@ public sealed class FlyAction(bool up) : GameAction
     public bool Up { get; } = up;
     public override string Name => Up ? "взлететь" : "сесть";
     public override ActionSlot Slot => ActionSlot.Flight;
+    public override bool SameInGame(GameAction pending) => pending is FlyAction fly && fly.Up == Up;
     public override ActionResource Resource => ActionResource.Body;
 
     // Взлёт ~1 с; посадка — спуск до земли, с высоты дольше
@@ -503,6 +512,7 @@ public sealed class RecallPetAction : GameAction
 {
     public override string Name => "отозвать пета";
     public override ActionSlot Slot => ActionSlot.Pet;
+    public override bool SameInGame(GameAction pending) => pending is RecallPetAction;
     public override ActionResource Resource => ActionResource.Body;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(5);
 

@@ -37,7 +37,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
             return false;
 
         var w = c.World;
-        var pending = c.Runner.Pending.OfType<GatherAction>().FirstOrDefault();
+        var pending = c.Mine.OfType<GatherAction>().FirstOrDefault();
 
         // Напали — ход бою; копание фоновое, его прервёт первое же действие боя (решает исполнитель)
         if (TargetSelector.Aggressor(w) is { } aggressor)

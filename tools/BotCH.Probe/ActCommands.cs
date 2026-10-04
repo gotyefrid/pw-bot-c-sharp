@@ -80,7 +80,7 @@ internal static class ActCommands
         }
 
         Console.WriteLine($"Действие: {action.Name}");
-        var submit = runner.Submit(action, world);
+        var submit = runner.Submit(new ActionOwner("probe"), action, world);
         if (!submit.Sent)
         {
             Console.WriteLine($"❌ не отправлено: {submit.Outcome?.Details}");

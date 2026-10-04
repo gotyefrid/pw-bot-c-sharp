@@ -55,25 +55,29 @@ public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = 
 }
 
 /// <summary>
-/// Единственный исполнитель действий. Вызовы в игре идут строго по одному (lock), действие «в процессе» не
-/// отправляется повторно, подтверждение — по снимкам (<see cref="Update"/>), время — по меткам снимков.
-/// Тело персонажа (<see cref="ActionResource.Body"/>) занимает одно действие за раз; пока персонаж кастует или копает — тоже занято.
-/// Кто кого перебивает, решается здесь, по <see cref="GameAction.Priority"/>:
+/// Единственный исполнитель действий. Вызовы в игре идут строго по одному (lock), подтверждение — по снимкам
+/// (<see cref="Update"/>), время — по меткам снимков. У каждого действия есть хозяин (<see cref="IActionOwner"/>) — кто его
+/// отправил; итог (и «не отправлено», и «отменено») уходит в <see cref="Completed"/> вместе с ним.
+/// Кто кого перебивает, решается здесь, по <see cref="GameAction.Priority"/>, два правила подряд:
 /// <list type="bullet">
-/// <item>ждущее действие ниже по важности забывается (итог «отменено»): игра сама заменит его работу новой;</item>
-/// <item>копание в игре прерывается отменой (как Esc) ради обычного и срочного, чужой каст — только ради срочного
-/// и только если известно, какой скилл кастуется (свой же каст не сбиваем);</item>
-/// <item>иначе — «занято».</item>
+/// <item>слот (<see cref="GameAction.Key"/>): в нём ждёт своё же действие или в игре уже идёт то же самое
+/// (<see cref="GameAction.SameInGame"/>) — «уже ждёт», чужое — см. ниже;</item>
+/// <item>тело (<see cref="ActionResource.Body"/>) занимает одно действие за раз; пока персонаж кастует или копает — тоже занято.</item>
 /// </list>
+/// Чужое ждущее (в слоте или в теле) ниже по важности забывается — итог «отменено» его хозяину: игра сама заменит его работу
+/// новой; такое же или важнее — «занято». Копание в игре прерывается отменой (как Esc) ради обычного и срочного, чужой
+/// каст — только ради срочного и только если известно, какой скилл кастуется (свой же каст не сбиваем).
 /// </summary>
-public sealed class ActionRunner(IGameActions actions, ILogger log)
+public sealed class ActionRunner(IGameActions actions, ILogger log) : IPendingActions
 {
     private readonly object _lock = new();
     private readonly List<(GameAction Action, WorldState Start)> _pending = [];
 
     public IGameActions Actions { get; } = actions;
 
-    /// <summary>Результат каждого действия (и неотправленного тоже).</summary>
+    public Capabilities Capabilities => Actions.Capabilities;
+
+    /// <summary>Результат каждого действия (и неотправленного, и отменённого); хозяин — в <see cref="GameAction.Owner"/>.</summary>
     public event Action<ActionOutcome>? Completed;
 
     public bool IsPending(ActionKey key)
@@ -82,14 +86,18 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
             return _pending.Any(p => p.Action.Key == key);
     }
 
-    /// <summary>Ждёт ли что-нибудь в слоте (любой скилл, любое действие с петом).</summary>
     public bool IsPending(ActionSlot slot)
     {
         lock (_lock)
             return _pending.Any(p => p.Action.Slot == slot);
     }
 
-    /// <summary>Действие, которое сейчас занимает тело; null — свободно.</summary>
+    public IReadOnlyList<GameAction> PendingOf(IActionOwner owner)
+    {
+        lock (_lock)
+            return _pending.Select(p => p.Action).Where(a => a.Owner == owner).ToList();
+    }
+
     public GameAction? BodyAction
     {
         get
@@ -99,7 +107,6 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         }
     }
 
-    /// <summary>Чем занято тело: ждущее действие, каст или копание; null — свободно.</summary>
     public string? BodyBusy(WorldState now)
         => BodyAction is { } action ? action.Name
             : now.Host.IsCasting ? "персонаж кастует"
@@ -116,23 +123,25 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
     }
 
     /// <summary>
-    /// Отправить вместо такого же ожидающего (тот же <see cref="GameAction.Key"/>) — например, новая точка, пока бежим к старой.
-    /// Прежнее просто забывается: игра сама заменяет текущую работу новой.
+    /// Отправить вместо своего такого же ожидающего (тот же <see cref="GameAction.Key"/>) — например, новая точка, пока бежим
+    /// к старой. Прежнее просто забывается: игра сама заменяет текущую работу новой. Чужое ждущее в слоте — как при
+    /// <see cref="Submit"/>: уступит, только если новое важнее.
     /// </summary>
-    public SubmitResult Replace(GameAction action, WorldState now)
+    public SubmitResult Replace(IActionOwner owner, GameAction action, WorldState now)
     {
         lock (_lock)
         {
-            if (_pending.RemoveAll(p => p.Action.Key == action.Key) > 0)
+            if (_pending.RemoveAll(p => p.Action.Key == action.Key && p.Action.Owner == owner) > 0)
                 log.Debug($"↺ {action.Name}");
-            return Submit(action, now);
+            return Submit(owner, action, now);
         }
     }
 
-    public SubmitResult Submit(GameAction action, WorldState now)
+    public SubmitResult Submit(IActionOwner owner, GameAction action, WorldState now)
     {
         var reports = new List<ActionOutcome>();
         SubmitResult result;
+        action.Owner = owner;
         lock (_lock)
             result = SubmitLocked(action, now, reports);
 
@@ -143,8 +152,15 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
 
     private SubmitResult SubmitLocked(GameAction action, WorldState now, List<ActionOutcome> reports)
     {
-        if (_pending.Any(p => p.Action.Key == action.Key))
-            return new SubmitResult(SubmitStatus.AlreadyPending);
+        var inSlot = _pending.FindIndex(p => p.Action.Key == action.Key);
+        if (inSlot >= 0)
+        {
+            var holder = _pending[inSlot].Action;
+            if (holder.Owner == action.Owner || action.SameInGame(holder))
+                return new SubmitResult(SubmitStatus.AlreadyPending);
+            if (Displace(inSlot, action, now, reports) is { } slotBusy)
+                return new SubmitResult(SubmitStatus.Busy, Busy: slotBusy);
+        }
 
         if (action.Resource == ActionResource.Body && FreeBody(action, now, reports) is { } busy)
             return new SubmitResult(SubmitStatus.Busy, Busy: busy);
@@ -178,21 +194,15 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
     private string? FreeBody(GameAction action, WorldState now, List<ActionOutcome> reports)
     {
         var index = _pending.FindIndex(p => p.Action.Resource == ActionResource.Body);
-        if (index >= 0)
-        {
-            var (holder, start) = _pending[index];
-            if (holder.Priority >= action.Priority)
-                return holder.Name;
-
-            _pending.RemoveAt(index);
-            reports.Add(new ActionOutcome(holder, ActionStatus.Cancelled, $"важнее: {action.Name}", now.Time - start.Time));
-        }
+        if (index >= 0 && Displace(index, action, now, reports) is { } holder)
+            return holder;
 
         var digging = now.Host.Gather is { Active: true };
         if (!now.Host.IsCasting && !digging)
             return null;
 
-        var cancel = new CancelAction(digging ? "копание" : "каст");
+        // Хозяин отмены — тот, ради чьего действия прерываем
+        var cancel = new CancelAction(digging ? "копание" : "каст") { Owner = action.Owner };
         if (_pending.Any(p => p.Action.Slot == ActionSlot.Cancel))
             return $"прерываю {cancel.What}";
 
@@ -214,6 +224,21 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         _pending.Add((cancel, now));
         log.Info($"Прерываю {cancel.What} ради «{action.Name}»");
         return $"прерываю {cancel.What}";
+    }
+
+    /// <summary>
+    /// Ждущее (в слоте или в теле) такое же по важности или важнее нового — его имя: «занято». Иначе оно забывается — итог
+    /// «отменено» его хозяину — и null.
+    /// </summary>
+    private string? Displace(int index, GameAction action, WorldState now, List<ActionOutcome> reports)
+    {
+        var (holder, start) = _pending[index];
+        if (holder.Priority >= action.Priority)
+            return holder.Name;
+
+        _pending.RemoveAt(index);
+        reports.Add(new ActionOutcome(holder, ActionStatus.Cancelled, $"важнее: {action.Name}", now.Time - start.Time));
+        return null;
     }
 
     /// <summary>Проверяет ждущие действия по новому снимку. Возвращает завершившиеся.</summary>

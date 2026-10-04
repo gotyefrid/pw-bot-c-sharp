@@ -77,7 +77,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         if (_index >= points.Count)
             _index = 0;
         var point = points[_index];
-        var pending = c.Runner.Pending.OfType<MoveAction>().FirstOrDefault(m => m.Priority == ActionPriority.Background);
+        var pending = c.Mine.OfType<MoveAction>().FirstOrDefault();
         if (_arrived)
         {
             // Тело занято (подбор, каст, взлёт) — копание получило бы «занято»; это не «копать нечего», ждём
@@ -143,7 +143,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             ? new MoveAction(point.Position, MoveTolerance, fly: true) { Priority = ActionPriority.Background }
             : new MoveAction(point.Position, MoveTolerance, smart: true) { Priority = ActionPriority.Background };
         // Ещё долетаем до прошлой точки — сразу к новой
-        var sent = pending is null ? c.Send(move) : c.Runner.Replace(move, w).Status;
+        var sent = pending is null ? c.Send(move) : c.Replace(move);
         if (sent == SubmitStatus.Sent)
         {
             _returning = false;
@@ -186,7 +186,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
-        if (outcome.Action is not MoveAction { Priority: ActionPriority.Background } move)
+        if (outcome.Action is not MoveAction move)
             return;
         if (outcome.Status == ActionStatus.Confirmed)
         {
