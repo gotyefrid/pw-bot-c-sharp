@@ -113,6 +113,19 @@ public class SettingsTests
         Assert.Equal(allowed, LootFilter.Allows(loot, kind, name));
     }
 
+    [Theory]
+    [InlineData(LootListMode.OnlyListed)]
+    [InlineData(LootListMode.ExceptListed)]
+    public void MoneyIgnoresItemList(LootListMode mode)
+    {
+        // Монеты решает только галка: «только мех» их не отсекает, «кроме монет» в списке — тоже
+        var loot = new LootSettings { ListMode = mode, ItemNames = ["Мягкий мех", "Монета"] };
+
+        Assert.True(LootFilter.Allows(loot, GroundItemKind.Money, "Монета"));
+        loot.PickMoney = false;
+        Assert.False(LootFilter.Allows(loot, GroundItemKind.Money, "Монета"));
+    }
+
     [Fact]
     public void LootKindSwitches()
     {

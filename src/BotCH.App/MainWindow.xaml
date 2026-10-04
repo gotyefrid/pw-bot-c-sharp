@@ -431,7 +431,8 @@
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Loot.Radius, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
             <WrapPanel>
-              <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4" />
+              <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4"
+                        ToolTip="Монеты — только этой галкой, список ниже их не касается" />
               <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" Margin="0,4,18,4" />
             </WrapPanel>
             <DockPanel Style="{StaticResource SettingRow}">

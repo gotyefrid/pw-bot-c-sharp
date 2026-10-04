@@ -1142,7 +1142,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 ? kind with { MinLevel = Math.Min(seen.MinLevel, kind.MinLevel), MaxLevel = Math.Max(seen.MaxLevel, kind.MaxLevel) }
                 : kind;
         }
-        foreach (var item in w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource && i.Name.Length > 0))
+        foreach (var item in w.GroundItems.Where(NearbyNames.IsLootItem))
             _seenItems.Add(item.Name.Trim());
         var h = w.Host;
         if (h.Name.Length > 0)

@@ -296,7 +296,7 @@ public sealed class LootSettings
     /// </summary>
     public bool PickResources { get; set; }
 
-    /// <summary>Как использовать <see cref="ItemNames"/>: не использовать / только они / все, кроме них.</summary>
+    /// <summary>Как использовать <see cref="ItemNames"/>: не использовать / только они / все, кроме них. Монет не касается — у них <see cref="PickMoney"/>.</summary>
     public LootListMode ListMode { get; set; } = LootListMode.All;
 
     /// <summary>Названия лута с мобов (как в игре: «Мягкий мех»). Ресурсов не касается — у них свой <see cref="ResourceNames"/>.</summary>
@@ -363,8 +363,9 @@ public static class LootFilter
         // Ресурс копается, а не подбирается — подбором никогда (см. AllowsGather)
         if (kind == GroundItemKind.Resource)
             return false;
-        if (kind == GroundItemKind.Money && !loot.PickMoney)
-            return false;
+        // Монеты — только галкой «Монеты»: список лута — про предметы (в «только из списка» монеты не пропадают)
+        if (kind == GroundItemKind.Money)
+            return loot.PickMoney;
         if (kind == GroundItemKind.Item && !loot.PickItems)
             return false;
 

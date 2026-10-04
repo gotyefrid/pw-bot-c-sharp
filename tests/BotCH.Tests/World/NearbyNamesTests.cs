@@ -37,8 +37,8 @@ public class NearbyNamesTests
 
         var names = NearbyNames.GroundItems(_world.Snapshot());
 
-        // Ресурсы — в своём списке (копание), в списке лута их нет
-        Assert.Equal(["Монета", "Мягкий мех"], names.Select(n => n.ToString()));
+        // Ресурсы — в своём списке (копание), монеты — своей галкой: в списке лута только предметы
+        Assert.Equal(["Мягкий мех"], names.Select(n => n.ToString()));
         Assert.Equal(["Шахта крупного угля"], NearbyNames.Resources(_world.Snapshot()).Select(n => n.ToString()));
     }
 
