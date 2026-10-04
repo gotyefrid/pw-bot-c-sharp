@@ -34,8 +34,6 @@ public sealed class ProfileCatalog
             .OrderBy(n => n)
             .ToList();
 
-    public IReadOnlyList<IServerProfile> LoadAll() => Ids.Select(Load).ToList();
-
     public IServerProfile Load(string id)
     {
         var json = ReadOverride(id) ?? ReadEmbedded(id)

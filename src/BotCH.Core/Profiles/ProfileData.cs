@@ -236,10 +236,6 @@ public sealed class GroundItemOffsets
 }
 
 /// <summary>
-/// Запись ресурса в справочнике игры (MINE_ESSENCE из elements.data): указатель на название у предмета на земле
-/// ведёт внутрь неё, запись = [название] − <see cref="NameInRecord"/>. Size = 0 — не найдено для сервера.
-/// </summary>
-/// <summary>
 /// Справочник игры (elementdataman, данные из elements.data): найти запись-описание по id так же, как клиент
 /// (get_data_ptr, пространство ID_SPACE_ESSENCE). Нужен, когда у объекта нет указателя на свою запись. 0 в <see cref="Manager"/> —
 /// не используется.
@@ -263,6 +259,10 @@ public sealed class ElementDataOffsets
     public uint TypeSizes { get; init; }
 }
 
+/// <summary>
+/// Запись ресурса в справочнике игры (MINE_ESSENCE из elements.data): указатель на название у предмета на земле
+/// ведёт внутрь неё, запись = [название] − <see cref="NameInRecord"/>. Size = 0 — не найдено для сервера.
+/// </summary>
 public sealed class MineEssenceOffsets
 {
     public uint NameInRecord { get; init; }
