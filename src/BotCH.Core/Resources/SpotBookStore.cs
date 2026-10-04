@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
+using BotCH.Core.Settings;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
@@ -10,12 +8,10 @@ namespace BotCH.Core.Resources;
 
 /// <summary>
 /// Файл точек ресурсов рядом с exe (<c>resources.json</c>) — один на все серверы и персонажей.
-/// Сохранение атомарное, как у настроек: временный файл и подмена.
+/// Сохранение атомарное, как у настроек (<see cref="JsonFile"/>).
 /// </summary>
 public sealed class SpotBookStore(string path)
 {
-    private static readonly Encoding Utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-
     private static readonly JsonSerializerSettings Options = new()
     {
         ContractResolver = new CamelCasePropertyNamesContractResolver(),
@@ -29,46 +25,17 @@ public sealed class SpotBookStore(string path)
     /// <summary>Точки из файла. Файла нет — пусто. Испорчен — копия <c>.bad</c>, пусто, причина в <paramref name="problem"/>.</summary>
     public IReadOnlyList<ResourceSpot> Load(out string? problem)
     {
-        problem = null;
-        if (!File.Exists(Path))
-            return [];
-
-        try
-        {
-            var file = JsonConvert.DeserializeObject<SpotFile>(File.ReadAllText(Path, Utf8), Options);
-            return file?.Spots.Where(s => s is not null && !string.IsNullOrWhiteSpace(s.Name)).ToList() ?? [];
-        }
-        catch (Exception e) when (e is JsonException or IOException)
-        {
-            var bad = Path + ".bad";
-            try
-            {
-                File.Copy(Path, bad, overwrite: true);
-            }
-            catch (IOException)
-            {
-                bad = "(не удалось сохранить копию)";
-            }
-
-            problem = $"Файл точек ресурсов испорчен, начинаю с пустого. Копия: {bad}. Ошибка: {e.Message}";
-            return [];
-        }
+        var spots = JsonFile.Load(Path, Parse, () => [], out var details);
+        problem = details is null ? null : $"Файл точек ресурсов испорчен, начинаю с пустого. {details}";
+        return spots;
     }
 
     public void Save(IEnumerable<ResourceSpot> spots)
-    {
-        var directory = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(Path));
-        if (!string.IsNullOrEmpty(directory))
-            Directory.CreateDirectory(directory);
+        => JsonFile.Save(Path, JsonConvert.SerializeObject(new SpotFile { Spots = spots.ToList() }, Options));
 
-        var temp = Path + ".tmp";
-        File.WriteAllText(temp, JsonConvert.SerializeObject(new SpotFile { Spots = spots.ToList() }, Options), Utf8);
-
-        if (File.Exists(Path))
-            File.Replace(temp, Path, destinationBackupFileName: null);
-        else
-            File.Move(temp, Path);
-    }
+    private static IReadOnlyList<ResourceSpot> Parse(string json)
+        => JsonConvert.DeserializeObject<SpotFile>(json, Options)?.Spots
+               .Where(s => s is not null && !string.IsNullOrWhiteSpace(s.Name)).ToList() ?? [];
 
     private sealed class SpotFile
     {
