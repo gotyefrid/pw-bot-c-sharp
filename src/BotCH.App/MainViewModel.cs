@@ -31,15 +31,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private const int MaxLogLines = 500;
 
     private readonly ProfileCatalog _catalog = ProfileCatalog.Default();
-    private readonly SettingsStore _store;
-    private readonly CharacterSettings _characters;
 
-    // Общие настройки (settings.json): подключение + шаблон для новых персонажей
-    private readonly BotSettings _appSettings;
-
-    // Настройки текущего персонажа (characters\Ник.json); пока персонаж неизвестен — это _appSettings
-    private BotSettings _settings;
-    private string? _nick;
+    // Общие настройки (settings.json: подключение + шаблон) и текущего персонажа (characters\Ник.json)
+    private readonly SettingsService _config;
     private readonly ILogger _log;
     private readonly ILogger _connectionLog;
     private readonly Logger _logger;
@@ -63,19 +57,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _log = logger.For("окно");
         _connectionLog = logger.For("подключение");
 
-        _store = new SettingsStore(Path.Combine(appDirectory, "settings.json"));
-        _appSettings = _store.Load(out var problem);
-        _settings = _appSettings;
-        _characters = new CharacterSettings(Path.Combine(appDirectory, "characters"));
-        if (problem is not null)
-            _log.Warning(problem);
+        _config = new SettingsService(appDirectory, _log);
 
         var shared = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BotCH");
         _spots = new SpotService(shared, logger.For("ресурсы"));
         _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
-        _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
+        _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
 
         LoadNameLists();
         LoadFarmCenters();
@@ -115,7 +104,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             if (value is null || !SetProperty(ref _profile, value))
                 return;
 
-            _appSettings.Connection.ServerId = value.Id;
+            _config.App.Connection.ServerId = value.Id;
             SaveSettings();
             OnPropertyChanged(nameof(CanChoosePath));
             OnPropertyChanged(nameof(CanRecallPet));
@@ -143,13 +132,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool RenameWindows
     {
-        get => _appSettings.Connection.RenameWindows;
+        get => _config.App.Connection.RenameWindows;
         set
         {
-            if (_appSettings.Connection.RenameWindows == value)
+            if (_config.App.Connection.RenameWindows == value)
                 return;
 
-            _appSettings.Connection.RenameWindows = value;
+            _config.App.Connection.RenameWindows = value;
             OnPropertyChanged();
             SaveSettings();
             if (value)
@@ -159,13 +148,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool Unfreeze
     {
-        get => _appSettings.Connection.Unfreeze;
+        get => _config.App.Connection.Unfreeze;
         set
         {
-            if (_appSettings.Connection.Unfreeze == value)
+            if (_config.App.Connection.Unfreeze == value)
                 return;
 
-            _appSettings.Connection.Unfreeze = value;
+            _config.App.Connection.Unfreeze = value;
             OnPropertyChanged();
             SaveSettings();
             ApplyUnfreeze();
@@ -278,14 +267,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         // Обход — с точки, выбранной в списке (не выбрана — с первой)
-        _settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
-        var result = _connection.StartBot(_settings.Mode, _settings, transport);
+        Settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
+        var result = _connection.StartBot(Settings.Mode, Settings, transport);
         switch (result.Status)
         {
             case StartStatus.Started:
                 IsRunning = true;
                 BotState = "Запуск…";
-                _log.Info($"Старт: {BotModes.Title(_settings.Mode)}{(transport == CallTransport.Thread ? " (вызовы отдельным потоком)" : "")}");
+                _log.Info($"Старт: {BotModes.Title(Settings.Mode)}{(transport == CallTransport.Thread ? " (вызовы отдельным потоком)" : "")}");
                 break;
 
             // Основной способ не вышел — сам на поток не переходим (на нём падал 1.4.6): спрашиваем. Выбор не запоминаем
@@ -346,7 +335,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Настройки окна. Поля привязаны напрямую; после правки окно зовёт <see cref="SettingsEdited"/>.</summary>
-    public BotSettings Settings => _settings;
+    public BotSettings Settings => _config.Current;
 
     public sealed record SkillChoice(int Id, string Title);
 
@@ -392,16 +381,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         try
         {
             MobNames.Clear();
-            foreach (var name in _settings.Target.MobNames)
+            foreach (var name in Settings.Target.MobNames)
                 MobNames.Add(name);
             LootNames.Clear();
-            foreach (var name in _settings.Loot.ItemNames)
+            foreach (var name in Settings.Loot.ItemNames)
                 LootNames.Add(name);
             FarmResourceNames.Clear();
-            foreach (var name in _settings.Loot.ResourceNames)
+            foreach (var name in Settings.Loot.ResourceNames)
                 FarmResourceNames.Add(name);
             DangerNames.Clear();
-            foreach (var name in _settings.Route.DangerMobs)
+            foreach (var name in Settings.Route.DangerMobs)
                 DangerNames.Add(name);
         }
         finally
@@ -416,10 +405,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_syncingLists)
             return;
 
-        _settings.Target.MobNames = MobNameFilter.Clean(MobNames);
-        _settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
-        _settings.Loot.ResourceNames = MobNameFilter.Clean(FarmResourceNames);
-        _settings.Route.DangerMobs = MobNameFilter.Clean(DangerNames);
+        Settings.Target.MobNames = MobNameFilter.Clean(MobNames);
+        Settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
+        Settings.Loot.ResourceNames = MobNameFilter.Clean(FarmResourceNames);
+        Settings.Route.DangerMobs = MobNameFilter.Clean(DangerNames);
         SettingsEdited();
     }
 
@@ -440,33 +429,33 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public string SelectedFarmCenter
     {
-        get => _settings.Target.SelectedFarmPoint?.Name ?? StartCenter;
+        get => Settings.Target.SelectedFarmPoint?.Name ?? StartCenter;
         set
         {
             // Пересборка списка сбрасывает выбор — это не выбор пользователя
             if (_syncingCenters || value is null)
                 return;
 
-            _settings.Target.FarmCenter = value == StartCenter ? "" : value;
+            Settings.Target.FarmCenter = value == StartCenter ? "" : value;
             FarmCenterChanged();
         }
     }
 
     /// <summary>Выбрана сохранённая точка (а не точка старта).</summary>
-    public bool HasFarmPoint => _settings.Target.SelectedFarmPoint is not null;
+    public bool HasFarmPoint => Settings.Target.SelectedFarmPoint is not null;
 
     /// <summary>Название выбранной точки; правка — переименование.</summary>
     public string FarmPointName
     {
-        get => _settings.Target.SelectedFarmPoint?.Name ?? "";
+        get => Settings.Target.SelectedFarmPoint?.Name ?? "";
         set
         {
-            var point = _settings.Target.SelectedFarmPoint;
+            var point = Settings.Target.SelectedFarmPoint;
             var name = value?.Trim() ?? "";
             if (point is null || name.Length == 0 || name == point.Name)
                 return;
             if (name.Equals(StartCenter, StringComparison.OrdinalIgnoreCase)
-                || _settings.Target.FarmPoints.Any(p => p != point && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
+                || Settings.Target.FarmPoints.Any(p => p != point && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
             {
                 _log.Warning($"Точка «{name}» уже есть — название не меняю");
                 OnPropertyChanged();
@@ -474,7 +463,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             }
 
             point.Name = name;
-            _settings.Target.FarmCenter = name;
+            Settings.Target.FarmCenter = name;
             LoadFarmCenters();
             SettingsEdited();
         }
@@ -491,13 +480,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_lastWorld is not { } w)
             return;
 
-        var points = _settings.Target.FarmPoints;
+        var points = Settings.Target.FarmPoints;
         var n = 1;
         while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
             n++;
         var point = FarmPoint.At($"Точка {n}", w.Host.Position);
         points.Add(point);
-        _settings.Target.FarmCenter = point.Name;
+        Settings.Target.FarmCenter = point.Name;
         _log.Info($"Точка фарма «{point.Name}» сохранена: {point.Position}");
         LoadFarmCenters();
         SettingsEdited();
@@ -505,11 +494,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void RemoveFarmPoint()
     {
-        if (_settings.Target.SelectedFarmPoint is not { } point)
+        if (Settings.Target.SelectedFarmPoint is not { } point)
             return;
 
-        _settings.Target.FarmPoints.Remove(point);
-        _settings.Target.FarmCenter = "";
+        Settings.Target.FarmPoints.Remove(point);
+        Settings.Target.FarmCenter = "";
         _log.Info($"Точка фарма «{point.Name}» удалена — центр: точка старта");
         LoadFarmCenters();
         SettingsEdited();
@@ -523,7 +512,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             FarmCenters.Clear();
             FarmCenters.Add(StartCenter);
-            foreach (var point in _settings.Target.FarmPoints)
+            foreach (var point in Settings.Target.FarmPoints)
                 FarmCenters.Add(point.Name);
         }
         finally
@@ -543,7 +532,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     private void UpdateFarmPointInfo()
-        => FarmPointInfo = _settings.Target.SelectedFarmPoint is { } p && _lastWorld is { } w
+        => FarmPointInfo = Settings.Target.SelectedFarmPoint is { } p && _lastWorld is { } w
             ? $"{w.Host.Position.HorizontalDistanceTo(p.Position):0} м отсюда"
             : "";
 
@@ -617,12 +606,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     public int RouteRadius
     {
-        get => _settings.Route.Radius;
+        get => Settings.Route.Radius;
         set
         {
-            if (value == _settings.Route.Radius)
+            if (value == Settings.Route.Radius)
                 return;
-            _settings.Route.Radius = value;
+            Settings.Route.Radius = value;
             SettingsEdited();
         }
     }
@@ -630,12 +619,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Опасны агрессивные мобы от этого уровня (0 — только список). Границы — у копии настроек для бота, как у радиуса.</summary>
     public int DangerLevel
     {
-        get => _settings.Route.DangerLevel;
+        get => Settings.Route.DangerLevel;
         set
         {
-            if (value == _settings.Route.DangerLevel)
+            if (value == Settings.Route.DangerLevel)
                 return;
-            _settings.Route.DangerLevel = value;
+            Settings.Route.DangerLevel = value;
             SettingsEdited();
         }
     }
@@ -643,12 +632,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Запас к радиусу агра, м (не меньше 1 — у копии настроек для бота).</summary>
     public int DangerMargin
     {
-        get => _settings.Route.DangerMargin;
+        get => Settings.Route.DangerMargin;
         set
         {
-            if (value == _settings.Route.DangerMargin)
+            if (value == Settings.Route.DangerMargin)
                 return;
-            _settings.Route.DangerMargin = value;
+            Settings.Route.DangerMargin = value;
             SettingsEdited();
         }
     }
@@ -667,7 +656,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (_lastWorld is not { } w)
             return;
 
-        var points = _settings.Route.Points;
+        var points = Settings.Route.Points;
         var n = 1;
         while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
             n++;
@@ -684,8 +673,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (SelectedRoutePoint is not { } row)
             return;
 
-        _settings.Route.Points.Remove(row.Point);
-        _log.Info($"Маршрут: точка {RouteRows.IndexOf(row) + 1} удалена, осталось {_settings.Route.Points.Count}");
+        Settings.Route.Points.Remove(row.Point);
+        _log.Info($"Маршрут: точка {RouteRows.IndexOf(row) + 1} удалена, осталось {Settings.Route.Points.Count}");
         LoadRoute();
         SelectedRoutePoint = null;
         SettingsEdited();
@@ -696,7 +685,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (SelectedRoutePoint is not { } row)
             return;
 
-        var points = _settings.Route.Points;
+        var points = Settings.Route.Points;
         var at = points.IndexOf(row.Point);
         var to = at + step;
         if (at < 0 || to < 0 || to >= points.Count)
@@ -714,7 +703,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         var selected = SelectedRoutePoint?.Point;
         RouteRows.Clear();
-        var points = _settings.Route.Points;
+        var points = Settings.Route.Points;
         for (var i = 0; i < points.Count; i++)
             RouteRows.Add(new RouteRow(i + 1, points[i]));
         if (_lastWorld is { } w)
@@ -778,20 +767,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public string GroundPet
     {
-        get => _settings.Pet.GroundPet;
-        set => SetPet(value, () => _settings.Pet.GroundPet, v => _settings.Pet.GroundPet = v);
+        get => Settings.Pet.GroundPet;
+        set => SetPet(value, () => Settings.Pet.GroundPet, v => Settings.Pet.GroundPet = v);
     }
 
     public string AirPet
     {
-        get => _settings.Pet.AirPet;
-        set => SetPet(value, () => _settings.Pet.AirPet, v => _settings.Pet.AirPet = v);
+        get => Settings.Pet.AirPet;
+        set => SetPet(value, () => Settings.Pet.AirPet, v => Settings.Pet.AirPet = v);
     }
 
     public string WaterPet
     {
-        get => _settings.Pet.WaterPet;
-        set => SetPet(value, () => _settings.Pet.WaterPet, v => _settings.Pet.WaterPet = v);
+        get => Settings.Pet.WaterPet;
+        set => SetPet(value, () => Settings.Pet.WaterPet, v => Settings.Pet.WaterPet = v);
     }
 
     // Пересборка списка сбрасывает выбор — это не выбор пользователя
@@ -811,9 +800,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (!KnowsPetHabitats)
             return;
 
-        Sync(GroundPets, Choices(cages, PetHabitat.Ground, _settings.Pet.GroundPet), nameof(GroundPet));
-        Sync(AirPets, Choices(cages, PetHabitat.Air, _settings.Pet.AirPet), nameof(AirPet));
-        Sync(WaterPets, Choices(cages, PetHabitat.Water, _settings.Pet.WaterPet), nameof(WaterPet));
+        Sync(GroundPets, Choices(cages, PetHabitat.Ground, Settings.Pet.GroundPet), nameof(GroundPet));
+        Sync(AirPets, Choices(cages, PetHabitat.Air, Settings.Pet.AirPet), nameof(AirPet));
+        Sync(WaterPets, Choices(cages, PetHabitat.Water, Settings.Pet.WaterPet), nameof(WaterPet));
     }
 
     private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, PetHabitat where, string chosen)
@@ -861,7 +850,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void SettingsEdited()
     {
         SaveCharacter();
-        _connection?.Bot?.UpdateSettings(_settings);
+        _connection?.Bot?.UpdateSettings(Settings);
     }
 
     private void UpdateAttackSkills(WorldState w)
@@ -880,9 +869,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         // Выбранного нет среди изученных — атакующий скилл класса по умолчанию, иначе первый
         var ids = choices.Select(c => c.Id).ToList();
-        if (ids.Count > 0 && !ids.Contains(_settings.Combat.AttackSkillId))
+        if (ids.Count > 0 && !ids.Contains(Settings.Combat.AttackSkillId))
         {
-            _settings.Combat.AttackSkillId = ids.Contains(_profile.Data.Skills.DefaultAttack) ? _profile.Data.Skills.DefaultAttack : ids[0];
+            Settings.Combat.AttackSkillId = ids.Contains(_profile.Data.Skills.DefaultAttack) ? _profile.Data.Skills.DefaultAttack : ids[0];
             SettingsEdited();
         }
 
@@ -913,7 +902,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Clients.Clear();
             foreach (var client in clients)
                 Clients.Add(client);
-            SelectedClient = ClientList.KeepSelection(clients, keep, _appSettings.Connection.LastCharacter, ClientLock.IsTaken);
+            SelectedClient = ClientList.KeepSelection(clients, keep, _config.App.Connection.LastCharacter, ClientLock.IsTaken);
         }
         finally
         {
@@ -1107,59 +1096,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Log.RemoveAt(0);
     }
 
-    /// <summary>Общие настройки (подключение, шаблон).</summary>
-    private void SaveSettings()
-    {
-        try
-        {
-            _store.Save(_appSettings);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            _log.Error("Не удалось сохранить настройки: " + e.Message);
-        }
-    }
+    private void SaveSettings() => _config.SaveApp();
 
-    /// <summary>Настройки персонажа — в его файл; пока персонаж неизвестен — в общие.</summary>
-    private void SaveCharacter()
-    {
-        if (_nick is null)
-        {
-            SaveSettings();
-            return;
-        }
+    private void SaveCharacter() => _config.SaveCurrent();
 
-        try
-        {
-            _characters.Save(_nick, _settings);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            _log.Error($"Не удалось сохранить настройки {_nick}: {e.Message}");
-        }
-    }
-
-    /// <summary>Подключились к другому персонажу — берём его настройки (новый персонаж — копия общих).</summary>
+    /// <summary>Подключились к другому персонажу — берём его настройки (новый персонаж — копия общих) и отдаём боту.</summary>
     private void SwitchCharacter(string nick)
     {
-        if (nick == _nick)
+        if (!_config.SwitchTo(nick))
             return;
 
-        if (_appSettings.Connection.LastCharacter != nick)
-        {
-            _appSettings.Connection.LastCharacter = nick;
-            SaveSettings();
-        }
-
-        var isNew = !_characters.Exists(nick);
-        _settings = _characters.Load(nick, _appSettings, out var problem);
-        _nick = nick;
         _spots.Character = nick;
-        if (problem is not null)
-            _log.Warning($"{nick}: {problem}");
-        _log.Info(isNew ? $"Персонаж {nick}: новые настройки (копия общих)" : $"Персонаж {nick}: его настройки загружены");
-
-        _connection?.Bot?.UpdateSettings(_settings);
+        _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
         OnPropertyChanged(nameof(GroundPet));
         OnPropertyChanged(nameof(AirPet));
@@ -1200,10 +1148,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Режим бота у этого персонажа. Смена во время работы останавливает бота.</summary>
     public BotMode Mode
     {
-        get => _settings.Mode;
+        get => Settings.Mode;
         set
         {
-            if (_settings.Mode == value)
+            if (Settings.Mode == value)
                 return;
 
             if (IsRunning)
@@ -1212,15 +1160,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 _log.Info("Режим сменён — бот остановлен, нажмите «Старт»");
             }
 
-            _settings.Mode = value;
+            Settings.Mode = value;
             SettingsEdited();
             ModeChanged();
         }
     }
 
-    public bool ShowResourcesTab => _settings.Mode == BotMode.GatherResources;
-    public bool ShowMobsTab => _settings.Mode == BotMode.FarmMobs;
-    public bool ShowClickerTab => _settings.Mode == BotMode.Clicker;
+    public bool ShowResourcesTab => Settings.Mode == BotMode.GatherResources;
+    public bool ShowMobsTab => Settings.Mode == BotMode.FarmMobs;
+    public bool ShowClickerTab => Settings.Mode == BotMode.Clicker;
 
     private void ModeChanged()
     {
@@ -1238,7 +1186,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public const int TabClicker = 4;
 
     /// <summary>Чьи настройки сейчас на вкладках «Мобы» и «Общее».</summary>
-    public string SettingsOwner => _nick is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_nick}";
+    public string SettingsOwner => _config.Character is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_config.Character}";
 
     private static void OnUi(Action action)
     {
