@@ -188,7 +188,7 @@ public sealed record NpcInfo(
     /// </summary>
     public bool Returning { get; init; }
 
-    /// <summary>Идёт и стал ближе к персонажу, чем на прошлом снимке.</summary>
+    /// <summary>Идёт и стал ближе к персонажу, чем на прошлом снимке (ставит <see cref="NpcTracker"/> — нужна история).</summary>
     public bool Approaching { get; init; }
 
     /// <summary>

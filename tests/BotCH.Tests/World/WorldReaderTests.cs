@@ -321,45 +321,20 @@ public class WorldReaderTests
     }
 
     [Fact]
-    public void StuckTargetAfterReturnIsClearedUntilMobHitsAgain()
+    public void TargetIsReadAsIsAfterReturn()
     {
-        // 1.3.6 после отагра цель не сбрасывает: видели «возвращается» — дальше та же цель застрявшая, пока моб снова не ударит
+        // Только факты: застрявшую после отагра цель снимает NpcTracker (нужна история), читатель отдаёт её как есть
         var p = new ProfileCatalog().Load("comeback146").Data;
         var mob = ComebackWorldWithMob(p);
         var reader = new WorldReader(_memory, ModuleBase, p);
         _memory.WriteUInt32(mob + p.Npc.Target, FakeHost);
-        _memory.WriteUInt32(mob + p.Npc.State, NpcInfo.StateAttacking);
-        Assert.Equal(FakeHost, Assert.Single(reader.Read().Npcs).TargetWid);
-
         _memory.WriteUInt32(mob + p.Npc.Returning, 0x20000);
-        _memory.WriteUInt32(mob + p.Npc.State, 5);
-        Assert.True(Assert.Single(reader.Read().Npcs).Returning);
+        reader.Read();
 
         _memory.WriteUInt32(mob + p.Npc.Returning, 0);
         _memory.WriteUInt32(mob + p.Npc.State, 1);
-        Assert.Equal(0u, Assert.Single(reader.Read().Npcs).TargetWid);
 
-        _memory.WriteUInt32(mob + p.Npc.State, NpcInfo.StateAttacking);
         Assert.Equal(FakeHost, Assert.Single(reader.Read().Npcs).TargetWid);
-        _memory.WriteUInt32(mob + p.Npc.State, 1);
-        Assert.Equal(FakeHost, Assert.Single(reader.Read().Npcs).TargetWid);
-    }
-
-    [Fact]
-    public void MovingMobGettingCloserIsApproaching()
-    {
-        var p = new ProfileCatalog().Load("comeback146").Data;
-        var mob = ComebackWorldWithMob(p);
-        var reader = new WorldReader(_memory, ModuleBase, p);
-        _memory.WriteUInt32(mob + p.Npc.State, 5);
-        _memory.WriteBytes(mob + p.Npc.Location, System.BitConverter.GetBytes(20f)); // X; персонаж в (0, 0)
-        Assert.False(Assert.Single(reader.Read().Npcs).Approaching);
-
-        _memory.WriteBytes(mob + p.Npc.Location, System.BitConverter.GetBytes(18f)); // X; персонаж в (0, 0)
-        Assert.True(Assert.Single(reader.Read().Npcs).Approaching);
-
-        _memory.WriteBytes(mob + p.Npc.Location, System.BitConverter.GetBytes(19f)); // X; персонаж в (0, 0)
-        Assert.False(Assert.Single(reader.Read().Npcs).Approaching);
     }
 
     private const uint FakeHost = 0x0130ECE0;

@@ -66,7 +66,9 @@ public sealed class ClientConnection : IDisposable
             _log.Warning($"PID {game.Pid} уже подключён в другом окне BotCH — не запускайте двух ботов на один клиент");
 
         var reader = new WorldReader(game, game.MainModuleBase, profile, id => _skillNames.Get(id));
-        _monitor = new WorldMonitor(reader.Read, SnapshotPeriod);
+        // Читатель — факты из памяти, трекер — то, что требует истории (застрявшая цель, «идёт к нам»)
+        var tracker = new NpcTracker();
+        _monitor = new WorldMonitor(() => tracker.Track(reader.Read()), SnapshotPeriod);
         _monitor.Updated += world => WorldUpdated?.Invoke(world);
         _monitor.Failed += message => WorldFailed?.Invoke(message);
     }

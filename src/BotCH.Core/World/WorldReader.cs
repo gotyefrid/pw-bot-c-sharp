@@ -32,12 +32,6 @@ public sealed class WorldReader
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
-    // Моб отагрился (видели «возвращается») — какая цель у него тогда была: пока она та же и он не бьёт, это застрявшая цель
-    private readonly Dictionary<uint, uint> _shakenOff = [];
-    // Расстояние до персонажа (по горизонтали) на прошлом снимке — «идёт к нам или нет»
-    private readonly Dictionary<uint, float> _lastDistance = [];
-    // Где персонаж в читаемом снимке — от него «идёт к нам»
-    private Position _hostPosition;
 
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
     private const int MoveEnvWater = 1;
@@ -68,12 +62,9 @@ public sealed class WorldReader
 
         var game = GameAddress();
         var host = ReadHost(game, out var hostBlock);
-        _hostPosition = host.Position;
         var world = _memory.ReadUInt32(game + _p.World.World);
         var w = _p.World;
         var npcs = ReadList(world, w.Npcs, _npcSize, ReadNpc, out var npcCount);
-        Forget(_shakenOff, npcs);
-        Forget(_lastDistance, npcs);
         var items = ReadList(world, w.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
         var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
         var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
@@ -197,52 +188,23 @@ public sealed class WorldReader
             };
         }
 
-        var wid = b.UInt32(n.Wid);
-        var returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0;
-        // 1.3.6 после отагра цель не сбрасывает (1.4.6 — сбрасывает): видели, как моб пошёл назад, — та же цель дальше застрявшая,
-        // пока он снова не ударит (или не сменит цель) — тогда это новый агр
-        if (returning)
-            _shakenOff[wid] = target;
-        else if (_shakenOff.TryGetValue(wid, out var stuck))
-        {
-            if (target == stuck && state is not (NpcInfo.StateAttacking or NpcInfo.StateCasting))
-                target = 0;
-            else
-                _shakenOff.Remove(wid);
-        }
-
-        var position = ReadPosition(b, n.Location);
-        var distance = position.HorizontalDistanceTo(_hostPosition);
-        var approaching = state == NpcInfo.StateMoving && _lastDistance.TryGetValue(wid, out var last) && distance < last;
-        _lastDistance[wid] = distance;
-
+        // Только факты из памяти: цель как есть (застрявшую после отагра и «идёт к нам» толкует NpcTracker — нужна история)
         var npc = new NpcInfo(
             b.Address,
-            wid,
+            b.UInt32(n.Wid),
             (NpcKind)b.Int32(n.Type),
             state,
             target,
-            position,
+            ReadPosition(b, n.Location),
             ReadName(b.UInt32(n.NamePointer)),
             (int)Field(b, n.Hp))
         {
             Level = (int)Field(b, n.Level),
-            Returning = returning,
-            Approaching = approaching,
+            Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
         };
         return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
             ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius }
             : npc;
-    }
-
-    // Мобы, которых больше нет в списке, — забыть (WID моба после респавна тот же, но это уже другой бой)
-    private static void Forget<T>(Dictionary<uint, T> known, List<NpcInfo> npcs)
-    {
-        if (known.Count == 0)
-            return;
-        var present = new HashSet<uint>(npcs.Select(n => n.Wid));
-        foreach (var wid in known.Keys.Where(k => !present.Contains(k)).ToList())
-            known.Remove(wid);
     }
 
     // Запись моба в справочнике не меняется, пока клиент запущен, — у каждой читаем один раз

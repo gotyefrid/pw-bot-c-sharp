@@ -27,6 +27,8 @@ internal static class WorldCommands
     public static int Watch(IServerProfile profile, GameProcess game, int periodMs = 300)
     {
         var reader = CreateReader(profile, game, out _);
+        // Как видит бот: застрявшая после отагра цель снята, «идёт к нам» проставлено
+        var tracker = new NpcTracker();
         var stop = false;
         Console.CancelKeyPress += (_, e) =>
         {
@@ -39,7 +41,7 @@ internal static class WorldCommands
             string text;
             try
             {
-                text = Describe(reader.Read(), full: false);
+                text = Describe(tracker.Track(reader.Read()), full: false);
             }
             catch (WorldNotReadyException e)
             {
