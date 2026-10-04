@@ -250,7 +250,7 @@
             </StackPanel>
             <DockPanel Margin="0,8,0,0">
               <TextBlock Text="Ресурсы в радиусе, м" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding RouteRadius, UpdateSourceTrigger=PropertyChanged}"
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.Radius, UpdateSourceTrigger=PropertyChanged}"
                        ToolTip="Сколько метров вокруг точки бот ищет ресурсы. Участок ресурса ~110 м, видно его целиком с ~50 м" />
               <Grid />
             </DockPanel>
@@ -263,13 +263,13 @@
                          Text="К ресурсу в зоне агра опасного моба бот не летит: копает другие, на следующем круге проверит снова. Опасны только агрессивные — от уровня или из списка (боссы). Пассивные не опасны." />
               <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="Агрессивные от уровня" VerticalAlignment="Center" />
-                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding DangerLevel, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.DangerLevel, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Агрессивный моб этого уровня и выше — опасен. 0 — по уровню не считать, только список" />
                 <Grid />
               </DockPanel>
               <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="Запас к радиусу агра, м" VerticalAlignment="Center" />
-                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding DangerMargin, UpdateSourceTrigger=PropertyChanged}"
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.DangerMargin, UpdateSourceTrigger=PropertyChanged}"
                          ToolTip="Зона моба — его радиус агра (из игры) плюс запас, вокруг и по высоте. Не меньше 1 м" />
                 <Grid />
               </DockPanel>
@@ -314,11 +314,9 @@
       </DockPanel>
     </Border>
 
-    <!-- Мобы — что делает режим «Бить мобов»: кого бить и где: любое изменение сразу сохраняется и уходит работающему боту (SettingChanged) -->
+    <!-- Мобы — что делает режим «Бить мобов»: кого бить и где. Правку замечают сами настройки: через 0,5 с она сохраняется и уходит работающему боту -->
     <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
-                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=1}"
-                  ToggleButton.Checked="SettingChanged" ToggleButton.Unchecked="SettingChanged"
-                  TextBoxBase.TextChanged="SettingChanged" Selector.SelectionChanged="SettingChanged">
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=1}">
       <StackPanel>
         <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
                    ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
@@ -383,11 +381,9 @@
       </StackPanel>
     </ScrollViewer>
 
-    <!-- Общее — как бот бьёт, лутает, лечится и зовёт пета в любом режиме: любое изменение сразу сохраняется и уходит работающему боту (SettingChanged) -->
+    <!-- Общее — как бот бьёт, лутает, лечится и зовёт пета в любом режиме. Правку замечают сами настройки: через 0,5 с она сохраняется и уходит работающему боту -->
     <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
-                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=5}"
-                  ToggleButton.Checked="SettingChanged" ToggleButton.Unchecked="SettingChanged"
-                  TextBoxBase.TextChanged="SettingChanged" Selector.SelectionChanged="SettingChanged">
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=5}">
       <StackPanel>
         <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
                    ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />

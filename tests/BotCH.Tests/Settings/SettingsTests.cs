@@ -241,4 +241,48 @@ public class SettingsStoreTests : IDisposable
         Assert.Equal(80, s.Potions.HpPercent);
         Assert.Equal("{ это не json", System.IO.File.ReadAllText(File("settings.json.bad")));
     }
+
+    [Fact]
+    public void AnyEditIsReportedOnceAndSameValueIsNot()
+    {
+        // Окно привязано к полям напрямую и узнаёт о правке от самих настроек
+        var s = new BotSettings();
+        var edits = 0;
+        s.Edited += () => edits++;
+
+        s.Target.FarmRadius = 30;
+        s.Route.Radius = 80;
+        s.Pet.GroundPet = "Пчела";
+        s.Mode = BotMode.GatherResources;
+        s.Target.FarmRadius = 30;
+
+        Assert.Equal(4, edits);
+    }
+
+    [Fact]
+    public void ReplacedPartIsWatchedAndOldOneIsNot()
+    {
+        var s = new BotSettings();
+        var old = s.Loot;
+        var edits = 0;
+        s.Edited += () => edits++;
+
+        s.Loot = new LootSettings();
+        old.Attempts = 9;
+        s.Loot.Attempts = 9;
+
+        Assert.Equal(2, edits);
+    }
+
+    [Fact]
+    public void LoadedSettingsReportEditsToo()
+    {
+        var s = SettingsJson.Parse("""{ "target": { "farmRadius": 40 } }""");
+        var edits = 0;
+        s.Edited += () => edits++;
+
+        s.Target.FarmRadius = 50;
+
+        Assert.Equal(1, edits);
+    }
 }

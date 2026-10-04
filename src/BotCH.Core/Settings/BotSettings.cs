@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using BotCH.Core.World;
 using Newtonsoft.Json;
@@ -9,19 +10,62 @@ namespace BotCH.Core.Settings;
 /// <summary>
 /// Все настройки бота. Значения по умолчанию — как в старом боте (BotForm + ini).
 /// Окно меняет «свой» экземпляр, бот получает копию (<see cref="Clone"/>) — правки в окне не попадают в бота посреди решения.
+/// О любой правке — своей или в частях (цель, бой, лут, банки, пет, обход) — сообщает <see cref="Edited"/>.
 /// </summary>
 public sealed class BotSettings
 {
+    private BotMode _mode = BotMode.FarmMobs;
+    private TargetSettings _target = new();
+    private CombatSettings _combat = new();
+    private LootSettings _loot = new();
+    private PotionSettings _potions = new();
+    private PetSettings _pet = new();
+    private RouteSettings _route = new();
+
+    public BotSettings()
+    {
+        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route })
+            part.PropertyChanged += PartChanged;
+    }
+
+    /// <summary>Что-то поменяли (окно привязкой или кодом). Подключение (<see cref="Connection"/>) — не сюда: оно своё у окна.</summary>
+    public event Action? Edited;
+
     /// <summary>Чем занимается бот у этого персонажа.</summary>
-    public BotMode Mode { get; set; } = BotMode.FarmMobs;
+    public BotMode Mode
+    {
+        get => _mode;
+        set
+        {
+            if (_mode == value)
+                return;
+            _mode = value;
+            Edited?.Invoke();
+        }
+    }
 
     public ConnectionSettings Connection { get; set; } = new();
-    public TargetSettings Target { get; set; } = new();
-    public CombatSettings Combat { get; set; } = new();
-    public LootSettings Loot { get; set; } = new();
-    public PotionSettings Potions { get; set; } = new();
-    public PetSettings Pet { get; set; } = new();
-    public RouteSettings Route { get; set; } = new();
+    public TargetSettings Target { get => _target; set => Part(ref _target, value); }
+    public CombatSettings Combat { get => _combat; set => Part(ref _combat, value); }
+    public LootSettings Loot { get => _loot; set => Part(ref _loot, value); }
+    public PotionSettings Potions { get => _potions; set => Part(ref _potions, value); }
+    public PetSettings Pet { get => _pet; set => Part(ref _pet, value); }
+    public RouteSettings Route { get => _route; set => Part(ref _route, value); }
+
+    // Часть заменили целиком (чтение файла, Normalize): слушаем новую
+    private void Part<T>(ref T field, T value) where T : SettingsPart
+    {
+        if (ReferenceEquals(field, value))
+            return;
+        if (field is not null)
+            field.PropertyChanged -= PartChanged;
+        field = value;
+        if (value is not null)
+            value.PropertyChanged += PartChanged;
+        Edited?.Invoke();
+    }
+
+    private void PartChanged(object? sender, PropertyChangedEventArgs e) => Edited?.Invoke();
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
 
@@ -91,46 +135,57 @@ public sealed class ConnectionSettings
     public string LastCharacter { get; set; } = "";
 }
 
-public sealed class TargetSettings
+public sealed class TargetSettings : SettingsPart
 {
+    private bool _killMobs = true;
     /// <summary>Нападать на мобов (старое «Kill Mobs»). Выключено — бот только лечится/кормит пета.</summary>
-    public bool KillMobs { get; set; } = true;
+    public bool KillMobs { get => _killMobs; set => Set(ref _killMobs, value); }
 
+    private bool _preferAggressive = true;
     /// <summary>Сначала бить моба, который бьёт перса или пета (старое «Find agr mob»).</summary>
-    public bool PreferAggressive { get; set; } = true;
+    public bool PreferAggressive { get => _preferAggressive; set => Set(ref _preferAggressive, value); }
 
+    private bool _petTakesAggro = true;
     /// <summary>
     /// Снимать мобов с себя петом: моба, который бьёт перса, бьём сразу (и перс, и пет), даже посреди боя с тем, кто бьёт пета, —
     /// пет прочнее, пусть держит обоих. Без призванного пета не действует.
     /// </summary>
-    public bool PetTakesAggro { get; set; } = true;
+    public bool PetTakesAggro { get => _petTakesAggro; set => Set(ref _petTakesAggro, value); }
 
+    private bool _useMobList;
     /// <summary>Нападать только на мобов из списка названий (старое «Check ID»).</summary>
-    public bool UseMobList { get; set; }
+    public bool UseMobList { get => _useMobList; set => Set(ref _useMobList, value); }
 
+    private List<string> _mobNames = [];
     /// <summary>Названия мобов. Одно название — много мобов с разными WID.</summary>
-    public List<string> MobNames { get; set; } = [];
+    public List<string> MobNames { get => _mobNames; set => Set(ref _mobNames, value); }
 
+    private int _mobTimeoutSeconds = 120;
     /// <summary>Сколько секунд биться с одним мобом, прежде чем бросить.</summary>
-    public int MobTimeoutSeconds { get; set; } = 120;
+    public int MobTimeoutSeconds { get => _mobTimeoutSeconds; set => Set(ref _mobTimeoutSeconds, value); }
 
+    private int _farmRadius = 60;
     /// <summary>
     /// Радиус фарма, м: новые цели (мобы, ресурсы) — только не дальше этого от центра фарма (<see cref="FarmCenter"/>).
     /// Моб, который бьёт перса или пета, — всегда. 0 — без ограничения.
     /// </summary>
-    public int FarmRadius { get; set; } = 60;
+    public int FarmRadius { get => _farmRadius; set => Set(ref _farmRadius, value); }
 
+    private List<FarmPoint> _farmPoints = [];
     /// <summary>Сохранённые точки фарма персонажа.</summary>
-    public List<FarmPoint> FarmPoints { get; set; } = [];
+    public List<FarmPoint> FarmPoints { get => _farmPoints; set => Set(ref _farmPoints, value); }
 
+    private string _farmCenter = "";
     /// <summary>Центр фарма — название точки из <see cref="FarmPoints"/>; пусто (или точки нет) — точка старта (где стоял перс при «Старт»).</summary>
-    public string FarmCenter { get; set; } = "";
+    public string FarmCenter { get => _farmCenter; set => Set(ref _farmCenter, value); }
 
+    private bool _returnToCenter = true;
     /// <summary>Делать нечего — бежать в центр фарма и ждать мобов там.</summary>
-    public bool ReturnToCenter { get; set; } = true;
+    public bool ReturnToCenter { get => _returnToCenter; set => Set(ref _returnToCenter, value); }
 
+    private ApproachPath _returnPath = ApproachPath.Smart;
     /// <summary>Как бежать в центр: с автопутём или напрямик (отдельно от подхода к мобу).</summary>
-    public ApproachPath ReturnPath { get; set; } = ApproachPath.Smart;
+    public ApproachPath ReturnPath { get => _returnPath; set => Set(ref _returnPath, value); }
 
     /// <summary>Выбранная точка фарма; null — центр — точка старта.</summary>
     [JsonIgnore]
@@ -141,22 +196,27 @@ public sealed class TargetSettings
 /// <summary>
 /// Обход ресурсов: точки по порядку (после последней — первая), у каждой копаем ресурсы в радиусе — что именно, у каждой точки своё.
 /// </summary>
-public sealed class RouteSettings
+public sealed class RouteSettings : SettingsPart
 {
+    private List<RoutePoint> _points = [];
     /// <summary>Точки обхода по порядку. Записаны в полёте — бот летит на их высоте.</summary>
-    public List<RoutePoint> Points { get; set; } = [];
+    public List<RoutePoint> Points { get => _points; set => Set(ref _points, value); }
 
+    private int _radius = 50;
     /// <summary>Радиус поиска ресурсов вокруг точки, м. Участок ресурса ~110 м, виден с ~80 м — 50 м от точки хватает.</summary>
-    public int Radius { get; set; } = 50;
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
 
+    private int _dangerLevel;
     /// <summary>Опасны агрессивные мобы от этого уровня (0 — по уровню не считаем). См. <see cref="Brain.DangerZones"/>.</summary>
-    public int DangerLevel { get; set; }
+    public int DangerLevel { get => _dangerLevel; set => Set(ref _dangerLevel, value); }
 
+    private List<string> _dangerMobs = [];
     /// <summary>Агрессивные мобы с этими названиями опасны при любом уровне (боссы).</summary>
-    public List<string> DangerMobs { get; set; } = [];
+    public List<string> DangerMobs { get => _dangerMobs; set => Set(ref _dangerMobs, value); }
 
+    private int _dangerMargin = 1;
     /// <summary>Запас к радиусу агра опасного моба, м (не меньше 1).</summary>
-    public int DangerMargin { get; set; } = 1;
+    public int DangerMargin { get => _dangerMargin; set => Set(ref _dangerMargin, value); }
 }
 
 /// <summary>
@@ -233,23 +293,29 @@ public sealed class FarmPoint
             .ToList();
 }
 
-public sealed class CombatSettings
+public sealed class CombatSettings : SettingsPart
 {
-    public bool UseSkill { get; set; }
+    private bool _useSkill;
+    public bool UseSkill { get => _useSkill; set => Set(ref _useSkill, value); }
 
+    private int _attackSkillId = 299;
     /// <summary>ID атакующего скилла. 299 — по умолчанию в старом боте.</summary>
-    public int AttackSkillId { get; set; } = 299;
+    public int AttackSkillId { get => _attackSkillId; set => Set(ref _attackSkillId, value); }
 
+    private bool _useSword;
     /// <summary>Обычная атака (раз в ~5 с).</summary>
-    public bool UseSword { get; set; }
+    public bool UseSword { get => _useSword; set => Set(ref _useSword, value); }
 
+    private bool _comeCloser;
     /// <summary>Сначала подойти к мобу на <see cref="ComeCloserDistance"/>, потом бить (скиллом, атакой или только петом).</summary>
-    public bool ComeCloser { get; set; }
+    public bool ComeCloser { get => _comeCloser; set => Set(ref _comeCloser, value); }
 
-    public float ComeCloserDistance { get; set; } = 8;
+    private float _comeCloserDistance = 8;
+    public float ComeCloserDistance { get => _comeCloserDistance; set => Set(ref _comeCloserDistance, value); }
 
+    private ApproachPath _approachPath = ApproachPath.Smart;
     /// <summary>Как подходить: с автопутём (в обход препятствий, если сервер умеет) или напрямик.</summary>
-    public ApproachPath ApproachPath { get; set; } = ApproachPath.Smart;
+    public ApproachPath ApproachPath { get => _approachPath; set => Set(ref _approachPath, value); }
 }
 
 public enum ApproachPath
@@ -260,39 +326,49 @@ public enum ApproachPath
     Direct,
 }
 
-public sealed class LootSettings
+public sealed class LootSettings : SettingsPart
 {
-    public bool Enabled { get; set; }
+    private bool _enabled;
+    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
 
+    private int _attempts = 4;
     /// <summary>Сколько раз подбирать после смерти моба.</summary>
-    public int Attempts { get; set; } = 4;
+    public int Attempts { get => _attempts; set => Set(ref _attempts, value); }
 
+    private int _radius = 5;
     /// <summary>
     /// Радиус подбора, м — от места смерти моба (лут падает в 2–3 м от трупа). Больше — бот тянется за старым лутом
     /// прошлых мобов по цепочке.
     /// </summary>
-    public int Radius { get; set; } = 5;
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
 
-    public bool PickMoney { get; set; } = true;
-    public bool PickItems { get; set; } = true;
+    private bool _pickMoney = true;
+    public bool PickMoney { get => _pickMoney; set => Set(ref _pickMoney, value); }
+    private bool _pickItems = true;
+    public bool PickItems { get => _pickItems; set => Set(ref _pickItems, value); }
 
+    private bool _pickResources;
     /// <summary>
     /// Копать ресурсы в радиусе фарма: сначала все ресурсы, потом мобы. Нужна кирка в сумке. Не зависит от <see cref="Enabled"/>:
     /// можно копать, не подбирая лут с мобов, и наоборот. Что копать — <see cref="ResourceMode"/> и <see cref="ResourceNames"/>.
     /// </summary>
-    public bool PickResources { get; set; }
+    public bool PickResources { get => _pickResources; set => Set(ref _pickResources, value); }
 
+    private LootListMode _listMode = LootListMode.All;
     /// <summary>Как использовать <see cref="ItemNames"/>: не использовать / только они / все, кроме них. Монет не касается — у них <see cref="PickMoney"/>.</summary>
-    public LootListMode ListMode { get; set; } = LootListMode.All;
+    public LootListMode ListMode { get => _listMode; set => Set(ref _listMode, value); }
 
+    private List<string> _itemNames = [];
     /// <summary>Названия лута с мобов (как в игре: «Мягкий мех»). Ресурсов не касается — у них свой <see cref="ResourceNames"/>.</summary>
-    public List<string> ItemNames { get; set; } = [];
+    public List<string> ItemNames { get => _itemNames; set => Set(ref _itemNames, value); }
 
+    private LootListMode _resourceMode = LootListMode.All;
     /// <summary>Какие ресурсы копать в радиусе фарма: все / только из <see cref="ResourceNames"/> / все, кроме них.</summary>
-    public LootListMode ResourceMode { get; set; } = LootListMode.All;
+    public LootListMode ResourceMode { get => _resourceMode; set => Set(ref _resourceMode, value); }
 
+    private List<string> _resourceNames = [];
     /// <summary>Названия ресурсов для <see cref="ResourceMode"/> («Железная руда»).</summary>
-    public List<string> ResourceNames { get; set; } = [];
+    public List<string> ResourceNames { get => _resourceNames; set => Set(ref _resourceNames, value); }
 }
 
 public enum LootListMode
@@ -305,40 +381,49 @@ public enum LootListMode
     ExceptListed,
 }
 
-public sealed class PotionSettings
+public sealed class PotionSettings : SettingsPart
 {
+    private int _hpPercent = 80;
     /// <summary>Пить банку HP, когда HP ниже этого процента.</summary>
-    public int HpPercent { get; set; } = 80;
+    public int HpPercent { get => _hpPercent; set => Set(ref _hpPercent, value); }
 
+    private int _mpBelow = 100;
     /// <summary>Пить банку MP, когда MP ниже этого числа (абсолютные единицы, как в старом боте).</summary>
-    public int MpBelow { get; set; } = 100;
+    public int MpBelow { get => _mpBelow; set => Set(ref _mpBelow, value); }
 }
 
-public sealed class PetSettings
+public sealed class PetSettings : SettingsPart
 {
+    private bool _enabled = true;
     /// <summary>Пользоваться петом. Выключено или пета нет (не друид) — всё про пета пропускается.</summary>
-    public bool Enabled { get; set; } = true;
+    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
 
+    private int _cage = 1;
     /// <summary>Клетка 1..N — если сервер не говорит, где питомец живёт (иначе — <see cref="GroundPet"/>/<see cref="AirPet"/>).</summary>
-    public int Cage { get; set; } = 1;
+    public int Cage { get => _cage; set => Set(ref _cage, value); }
 
+    private string _groundPet = "";
     /// <summary>Кого звать на земле — название питомца; пусто — первого, кто живёт на земле.</summary>
-    public string GroundPet { get; set; } = "";
+    public string GroundPet { get => _groundPet; set => Set(ref _groundPet, value); }
 
+    private string _airPet = "";
     /// <summary>Кого звать в воздухе (персонаж летит) — название питомца; пусто — первого, кто летает.</summary>
-    public string AirPet { get; set; } = "";
+    public string AirPet { get => _airPet; set => Set(ref _airPet, value); }
 
+    private string _waterPet = "";
     /// <summary>Кого звать в воде — название питомца; пусто — первого, кто живёт в воде.</summary>
-    public string WaterPet { get; set; } = "";
+    public string WaterPet { get => _waterPet; set => Set(ref _waterPet, value); }
 
+    private bool _onlyForFight;
     /// <summary>
     /// Пет только на время боя: напали (или бот начал бой) — призвать, боя нет несколько секунд — отозвать. Отозванного не
     /// кормим. Для обхода ресурсов: пет не ест между боями.
     /// </summary>
-    public bool OnlyForFight { get; set; }
+    public bool OnlyForFight { get => _onlyForFight; set => Set(ref _onlyForFight, value); }
 
+    private int _healPercent = 70;
     /// <summary>Лечить пета, когда его HP ниже этого процента.</summary>
-    public int HealPercent { get; set; } = 70;
+    public int HealPercent { get => _healPercent; set => Set(ref _healPercent, value); }
 }
 
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>

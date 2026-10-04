@@ -30,13 +30,6 @@ public partial class MainWindow : Window
         _model.Log.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 
-    // Любая правка в панели настроек: привязка уже записала значение в настройки — сохранить и отдать боту
-    private void SettingChanged(object sender, RoutedEventArgs e)
-    {
-        if (IsLoaded)
-            _model.SettingsEdited();
-    }
-
     private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x6B, 0x73, 0x85));
     private static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xD9, 0x8B, 0x0B));
     private static readonly Brush Bad = new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D));

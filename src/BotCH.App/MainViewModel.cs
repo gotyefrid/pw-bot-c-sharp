@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Threading;
 using BotCH.App.Mvvm;
 using BotCH.Core.Actions;
 using BotCH.Core.Brain;
@@ -48,6 +49,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly SpotService _spots;
     private DateTime _spotsShown;
 
+    // Правка настроек — сохранить файл и отдать боту копию через 0,5 с после последней (число в поле набирают по цифре)
+    private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(0.5);
+    private readonly DispatcherTimer _saveTimer = new() { Interval = SaveDelay };
+
     public MainViewModel(string appDirectory)
     {
         var ring = new RingBufferSink(MaxLogLines);
@@ -58,6 +63,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _connectionLog = logger.For("подключение");
 
         _config = new SettingsService(appDirectory, _log);
+        _saveTimer.Tick += (_, _) => FlushSettings();
+        Settings.Edited += SettingsEdited;
 
         var shared = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BotCH");
         _spots = new SpotService(shared, logger.For("ресурсы"));
@@ -334,7 +341,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _lastEvent, value);
     }
 
-    /// <summary>Настройки окна. Поля привязаны напрямую; после правки окно зовёт <see cref="SettingsEdited"/>.</summary>
+    /// <summary>Настройки окна. Поля привязаны напрямую; о правке сообщают сами (<see cref="BotSettings.Edited"/>).</summary>
     public BotSettings Settings => _config.Current;
 
     public sealed record SkillChoice(int Id, string Title);
@@ -601,48 +608,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Радиус поиска ресурсов вокруг точки, м. Поле не переписывается на ходу (иначе «1» по дороге к «100» сразу становилось 5):
-    /// границы 5–500 применяет копия настроек для бота.
-    /// </summary>
-    public int RouteRadius
-    {
-        get => Settings.Route.Radius;
-        set
-        {
-            if (value == Settings.Route.Radius)
-                return;
-            Settings.Route.Radius = value;
-            SettingsEdited();
-        }
-    }
-
-    /// <summary>Опасны агрессивные мобы от этого уровня (0 — только список). Границы — у копии настроек для бота, как у радиуса.</summary>
-    public int DangerLevel
-    {
-        get => Settings.Route.DangerLevel;
-        set
-        {
-            if (value == Settings.Route.DangerLevel)
-                return;
-            Settings.Route.DangerLevel = value;
-            SettingsEdited();
-        }
-    }
-
-    /// <summary>Запас к радиусу агра, м (не меньше 1 — у копии настроек для бота).</summary>
-    public int DangerMargin
-    {
-        get => Settings.Route.DangerMargin;
-        set
-        {
-            if (value == Settings.Route.DangerMargin)
-                return;
-            Settings.Route.DangerMargin = value;
-            SettingsEdited();
-        }
-    }
-
-    /// <summary>
     /// Варианты ресурсов (для точки обхода и для копания в фарме): рядом (и «нересурсы» — их можно копать, если назвать), потом
     /// известные по блокноту.
     /// </summary>
@@ -714,9 +679,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         SelectedRoutePoint = RouteRows.FirstOrDefault(r => r.Point == selected);
         LoadPointNames();
-        OnPropertyChanged(nameof(RouteRadius));
-        OnPropertyChanged(nameof(DangerLevel));
-        OnPropertyChanged(nameof(DangerMargin));
     }
 
     /// <summary>Список «что копать» в окне ← выбранная точка.</summary>
@@ -846,9 +808,24 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
     public bool CanChoosePath => _profile.Capabilities.Has(Capability.SmartMove);
 
-    /// <summary>Любая правка настройки: сохранить файл и отдать копию работающему боту.</summary>
-    public void SettingsEdited()
+    /// <summary>
+    /// Любая правка настройки (привязкой — сообщают сами настройки, из кода — так же или явным вызовом): через 0,5 с после
+    /// последней — сохранить файл и отдать копию работающему боту. Поле не переписывается на ходу (иначе «1» по дороге к «100»
+    /// сразу стало бы 5) — границы применяет копия для бота.
+    /// </summary>
+    private void SettingsEdited()
     {
+        _saveTimer.Stop();
+        _saveTimer.Start();
+    }
+
+    // Отложенная правка — сейчас (по таймеру, перед сменой персонажа и при закрытии)
+    private void FlushSettings()
+    {
+        if (!_saveTimer.IsEnabled)
+            return;
+
+        _saveTimer.Stop();
         SaveCharacter();
         _connection?.Bot?.UpdateSettings(Settings);
     }
@@ -883,6 +860,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
+        FlushSettings();
         Disconnect();
         _spots.Save();
     }
@@ -1095,8 +1073,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Подключились к другому персонажу — берём его настройки (новый персонаж — копия общих) и отдаём боту.</summary>
     private void SwitchCharacter(string nick)
     {
-        if (!_config.SwitchTo(nick))
+        if (nick == _config.Character)
             return;
+
+        // Правки прошлого персонажа — в его файл, пока он ещё текущий
+        FlushSettings();
+        Settings.Edited -= SettingsEdited;
+        _config.SwitchTo(nick);
+        Settings.Edited += SettingsEdited;
 
         _spots.Character = nick;
         _connection?.Bot?.UpdateSettings(Settings);
