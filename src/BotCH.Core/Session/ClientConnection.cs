@@ -150,10 +150,10 @@ public sealed class ClientConnection : IDisposable
 
         try
         {
-            foreach (var function in calls.Caller.Functions.Where(f => !f.IsUsable))
-                _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
+            foreach (var (name, why) in calls.Caller.Problems)
+                _log.Warning($"Функция {name} недоступна: {why}");
 
-            var runner = new ActionRunner(new GameControl(calls.Actions), _logger.For("действия"));
+            var runner = new ActionRunner(new GameControl(calls.Caller), _logger.For("действия"));
             var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For("мозг"), _profile.GatherTools, routeStart);
             var memoryLog = _logger.For("память");
             var inspector = new ProcessInspector(_game);

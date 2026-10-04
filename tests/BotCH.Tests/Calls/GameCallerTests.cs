@@ -4,6 +4,7 @@ using System.Linq;
 using BotCH.Core.Calls;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
+using BotCH.Core.World;
 using Xunit;
 
 namespace BotCH.Tests.Calls;
@@ -122,7 +123,7 @@ public class GameCallerTests
         // Персонажа вызов находит сам, свежим (раньше 1.3.6 брал его из снимка)
         PutHost(0x1FA1F868);
 
-        Caller().ApplySkill(299);
+        Caller().ApplySkill(299, 0);
 
         Assert.Equal(StubBuilder.Call(Address(GameFunctions.HostApplySkill), CallingConvention.Thiscall, 0x1FA1F868, [299, 0, 0, 0xFFFFFFFF]),
             _runner.Runs.Single().Stub);
@@ -131,7 +132,7 @@ public class GameCallerTests
     [Fact]
     public void ThiscallWithoutHostIsRefused()
     {
-        var result = Caller().ApplySkill(299);
+        var result = Caller().ApplySkill(299, 0);
 
         Assert.False(result.Ok);
         Assert.Contains("не в мире", result.Details);
@@ -147,7 +148,7 @@ public class GameCallerTests
             Functions = new() { [GameFunctions.HostApplySkill] = new GameFunction { Rva = apply.Rva, Signature = apply.Signature, Convention = CallingConvention.Thiscall } },
         };
 
-        var result = Caller(profile).ApplySkill(299);
+        var result = Caller(profile).ApplySkill(299, 0);
 
         Assert.False(result.Ok);
         Assert.Contains("this", result.Details);
@@ -204,7 +205,7 @@ public class GameCallerTests
     [Fact]
     public void UseItemFromBag()
     {
-        Caller().UseItem(2, 8618);
+        Caller().UseItem(new InventoryItem(2, 8618, 0, 1, null, null));
 
         Assert.Equal(StubBuilder.Call(Address(GameFunctions.UseItem), CallingConvention.Cdecl, 0, [0, 2, 8618, 1]), _runner.Runs.Single().Stub);
     }
@@ -216,7 +217,7 @@ public class GameCallerTests
         PutHost(host);
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
 
-        var result = Caller().MoveTo(-1800f, 220f, -110.5f);
+        var result = Caller().MoveTo(new Position(-1800f, 220f, -110.5f), smart: false);
 
         Assert.True(result.Ok, result.Details);
         var run = _runner.Runs.Single();
@@ -248,7 +249,7 @@ public class GameCallerTests
             MoveTypes = new MoveTypes { Direct = 0, Smart = 5 },
         };
 
-        var result = Caller(profile).MoveTo(1f, 2f, 3f, smart: true);
+        var result = Caller(profile).MoveTo(new Position(1f, 2f, 3f), smart: true);
 
         Assert.True(result.Ok, result.Details);
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
@@ -264,7 +265,7 @@ public class GameCallerTests
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
 
         Assert.Equal("у сервера нет автопути", Caller().Capabilities.WhyNot(Capability.SmartMove));
-        Caller().MoveTo(1f, 2f, 3f, smart: true);
+        Caller().MoveTo(new Position(1f, 2f, 3f), smart: true);
 
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
             [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 1, 0]), _runner.Runs.Single().Stub);
@@ -319,6 +320,38 @@ public class GameCallerTests
         Assert.Empty(_runner.Runs);
     }
 
+    [Theory]
+    [InlineData("pwclassic136")]
+    [InlineData("comeback136")]
+    [InlineData("comeback146")]
+    public void ShippedProfilesDescribeEveryFunctionCorrectly(string id)
+    {
+        // Функции на своих местах — значит, всё, что осталось в Problems, — ошибка описания в профиле (её видно при «Старт»)
+        var profile = new ProfileCatalog().Load(id).Data;
+        var memory = new MemoryImage();
+        foreach (var function in profile.Functions.Values)
+            memory.WriteBytes(ModuleBase + function.Rva, CodeFor(function.Signature!));
+
+        Assert.Empty(new GameCaller(memory, _runner, ModuleBase, profile).Problems);
+    }
+
+    [Fact]
+    public void ProfileMistakeIsKnownBeforeAnyCall()
+    {
+        var select = Profile.Functions[GameFunctions.SelectTarget];
+        var profile = new ProfileData
+        {
+            Functions = new() { [GameFunctions.SelectTarget] = new GameFunction { Rva = select.Rva, Signature = select.Signature, Args = ["wid", "опечатка"] } },
+        };
+
+        var caller = Caller(profile);
+
+        Assert.False(caller.Can(GameFunctions.SelectTarget));
+        var problem = Assert.Single(caller.Problems);
+        Assert.Equal(GameFunctions.SelectTarget, problem.Name);
+        Assert.Contains("опечатка", problem.Why);
+    }
+
     [Fact]
     public void UnknownArgInProfileIsRefused()
     {
@@ -351,7 +384,7 @@ public class GameCallerTests
             },
         };
 
-        Caller(profile).UseItem(1, 8647);
+        Caller(profile).UseItem(new InventoryItem(1, 8647, 0, 1, null, null));
 
         Assert.Equal(StubBuilder.Call(Address(GameFunctions.UseItem), CallingConvention.Cdecl, 0, [8647, 1], ecx: 0, edx: 1),
             _runner.Runs.Single().Stub);
@@ -369,7 +402,7 @@ public class GameCallerTests
             },
         };
 
-        var result = Caller(profile).UseItem(1, 8647);
+        var result = Caller(profile).UseItem(new InventoryItem(1, 8647, 0, 1, null, null));
 
         Assert.False(result.Ok);
         Assert.Contains("esi", result.Details);

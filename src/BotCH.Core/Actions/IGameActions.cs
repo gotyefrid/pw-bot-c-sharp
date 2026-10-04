@@ -5,8 +5,9 @@ using BotCH.Core.World;
 namespace BotCH.Core.Actions;
 
 /// <summary>
-/// Всё, что бот умеет делать в игре. Реализации: прямые вызовы функций клиента (<see cref="DirectCallActions"/>),
-/// позже — клавиши. Методы только отправляют команду; сработала ли она, решает <see cref="ActionRunner"/> по снимкам.
+/// Всё, что бот умеет делать в игре вызовами функций клиента (<see cref="GameCaller"/>; в тестах — подставные). Клавиши — потом,
+/// отдельным способом в <see cref="GameControl"/>. Методы только отправляют команду; сработала ли она, решает
+/// <see cref="ActionRunner"/> по снимкам.
 /// </summary>
 public interface IGameActions
 {
@@ -60,29 +61,4 @@ public interface IGameActions
 
     /// <summary>Лететь в точку вместе с её высотой (только в воздухе).</summary>
     CallResult FlyTo(Position point);
-}
-
-/// <summary>Действия прямыми вызовами функций клиента — работают и при неактивном окне игры.</summary>
-public sealed class DirectCallActions(GameCaller caller) : IGameActions
-{
-    public string Mode => "вызовы";
-
-    public Capabilities Capabilities => caller.Capabilities;
-
-    public CallResult SelectTarget(uint wid) => caller.SelectTarget(wid);
-    public CallResult Unselect() => caller.Unselect();
-    public CallResult NormalAttack() => caller.NormalAttack();
-    public CallResult CastSkill(int skillId, uint targetWid) => caller.CastSkill(skillId, targetWid);
-    public CallResult ApplySkill(int skillId, uint targetWid) => caller.ApplySkill(skillId, targetWid);
-    public CallResult PetAttack(uint targetWid) => caller.PetAttack(targetWid);
-    public CallResult CancelAction() => caller.CancelAction();
-    public CallResult Pickup(GroundItem item) => caller.Pickup(item.Id, item.Tid);
-    public CallResult PickupObject(GroundItem item) => caller.PickupObject(item.Id);
-    public CallResult UseItem(InventoryItem item) => caller.UseItem(item.Slot, item.Tid);
-    public CallResult SummonPet(int cage) => caller.SummonPet(cage);
-    public CallResult RecallPet() => caller.RecallPet();
-    public CallResult MoveTo(Position point, bool smart) => caller.MoveTo(point.X, point.Height, point.Y, smart);
-    public CallResult Gather(GroundItem resource) => caller.PickupObject(resource.Id, gather: true);
-    public CallResult ToggleFly() => caller.ToggleFly();
-    public CallResult FlyTo(Position point) => caller.FlyTo(point.X, point.Height, point.Y);
 }

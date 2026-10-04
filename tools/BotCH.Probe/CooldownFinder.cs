@@ -79,7 +79,7 @@ internal static class CooldownFinder
             return 3;
         }
 
-        var runner = new ActionRunner(new GameControl(calls.Actions), NullLogger.Instance);
+        var runner = new ActionRunner(new GameControl(calls.Caller), NullLogger.Instance);
         var submit = runner.Submit(new ActionOwner("probe"), new UseItemAction(food, use), world);
         if (!submit.Sent)
         {

@@ -35,7 +35,6 @@ public sealed class GameCalls : IDisposable
         _window = window;
         _watch = watch;
         Caller = caller;
-        Actions = new DirectCallActions(caller);
         Transport = transport;
     }
 
@@ -44,10 +43,8 @@ public sealed class GameCalls : IDisposable
     /// <summary>Связь с окном игры потеряна (несколько вызовов подряд не дошли) — дальше вызывать бесполезно; null — всё в порядке.</summary>
     public string? Broken => _watch?.Broken;
 
-    /// <summary>Функции клиента: какие найдены, какие нет (для предупреждений в лог).</summary>
+    /// <summary>Действия вызовами функций клиента; что вызывать нельзя и почему — <see cref="GameCaller.Problems"/>.</summary>
     public GameCaller Caller { get; }
-
-    public IGameActions Actions { get; }
 
     public Capabilities Capabilities => Caller.Capabilities;
 

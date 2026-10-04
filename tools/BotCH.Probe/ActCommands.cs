@@ -69,7 +69,7 @@ internal static class ActCommands
 
         Console.WriteLine(transport == CallTransport.Thread ? "Вызовы: отдельным потоком (--thread)" : "Вызовы: в главном потоке игры (через окно)");
         var log = new Logger { MinLevel = LogLevel.Debug }.AddSink(new ConsoleSink()).For("act");
-        var runner = new ActionRunner(new GameControl(calls.Actions), log);
+        var runner = new ActionRunner(new GameControl(calls.Caller), log);
 
         var world = reader.Read();
         var action = Build(name, rest, world, data, out var problem);
