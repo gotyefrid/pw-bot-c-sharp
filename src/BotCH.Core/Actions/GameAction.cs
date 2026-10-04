@@ -34,6 +34,42 @@ public enum ActionResource
     Body,
 }
 
+/// <summary>
+/// Слот действия: в игре одновременно ждёт подтверждения только одно действие слота (<see cref="ActionKey"/>) — одна смена
+/// цели, одно действие с петом, один скилл с этим ID. Слот объявляет сам класс действия.
+/// </summary>
+public enum ActionSlot
+{
+    /// <summary>Выбрать или снять цель.</summary>
+    Target,
+    /// <summary>Обычная атака.</summary>
+    Attack,
+    /// <summary>Скилл; в ключе — его ID.</summary>
+    Skill,
+    /// <summary>Банка или корм; в ключе — ячейка сумки.</summary>
+    Item,
+    /// <summary>Подбор с земли; в ключе — ID предмета.</summary>
+    Pickup,
+    /// <summary>Сбор ресурса; в ключе — ID ресурса.</summary>
+    Gather,
+    /// <summary>Бег или полёт в точку.</summary>
+    Movement,
+    /// <summary>Взлёт или посадка.</summary>
+    Flight,
+    /// <summary>Призвать, отозвать или воскресить пета.</summary>
+    Pet,
+    /// <summary>Приказ пету.</summary>
+    PetOrder,
+    /// <summary>Прервать каст или копание.</summary>
+    Cancel,
+}
+
+/// <summary>«То же самое действие»: слот и, где нужно, что в нём (ID скилла, ячейка, предмет); у остальных 0.</summary>
+public readonly record struct ActionKey(ActionSlot Slot, uint Id = 0)
+{
+    public override string ToString() => Id == 0 ? Slot.ToString() : $"{Slot} {Id}";
+}
+
 /// <summary>Насколько действие важно, когда тело занято: более важное прерывает менее важное (решает <see cref="ActionRunner"/>).</summary>
 public enum ActionPriority
 {
@@ -54,8 +90,14 @@ public abstract class GameAction
     /// <summary>Для лога: «скилл 299 → Сидящий волк».</summary>
     public abstract string Name { get; }
 
-    /// <summary>Одинаковый ключ — «то же самое действие». По умолчанию — <see cref="Name"/>.</summary>
-    public virtual string Key => Name;
+    /// <summary>Слот: в игре одновременно ждёт только одно действие слота с тем же <see cref="SlotId"/>.</summary>
+    public abstract ActionSlot Slot { get; }
+
+    /// <summary>Что именно в слоте: ID скилла, ячейка, предмет на земле; у остальных 0.</summary>
+    public virtual uint SlotId => 0;
+
+    /// <summary>Одинаковый ключ — «то же самое действие».</summary>
+    public ActionKey Key => new(Slot, SlotId);
 
     /// <summary>Что занимает, пока ждёт подтверждения: тело — одновременно только одно такое действие.</summary>
     public virtual ActionResource Resource => ActionResource.None;
@@ -87,7 +129,7 @@ public sealed class SelectTargetAction(NpcInfo npc) : GameAction
 {
     public NpcInfo Npc { get; } = npc;
     public override string Name => $"выбрать цель {Npc.Name} 0x{Npc.Wid:X8}";
-    public override string Key => "цель";
+    public override ActionSlot Slot => ActionSlot.Target;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override CallResult Send(IGameActions actions, WorldState now) => actions.SelectTarget(Npc.Wid);
 
@@ -98,7 +140,7 @@ public sealed class SelectTargetAction(NpcInfo npc) : GameAction
 public sealed class UnselectAction : GameAction
 {
     public override string Name => "снять цель";
-    public override string Key => "цель";
+    public override ActionSlot Slot => ActionSlot.Target;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override CallResult Send(IGameActions actions, WorldState now) => actions.Unselect();
     public override Verdict Check(WorldState start, WorldState now) => now.Host.TargetWid == 0 ? Verdict.Confirmed() : Verdict.Pending;
@@ -113,7 +155,7 @@ public sealed class CancelAction(string what) : GameAction
     /// <summary>Что прерываем: «каст», «копание».</summary>
     public string What { get; } = what;
     public override string Name => $"прервать {What}";
-    public override string Key => "прервать";
+    public override ActionSlot Slot => ActionSlot.Cancel;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override CallResult Send(IGameActions actions, WorldState now) => actions.CancelAction();
 
@@ -125,6 +167,7 @@ public sealed class CancelAction(string what) : GameAction
 public sealed class NormalAttackAction : GameAction
 {
     public override string Name => "обычная атака";
+    public override ActionSlot Slot => ActionSlot.Attack;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(6);
     public override ActionResource Resource => ActionResource.Body;
 
@@ -174,7 +217,8 @@ public sealed class SkillAction : GameAction
     public string Title { get; }
 
     public override string Name => TargetWid == 0 ? Title : $"{Title} → 0x{TargetWid:X8}";
-    public override string Key => $"скилл {Skill}";
+    public override ActionSlot Slot => ActionSlot.Skill;
+    public override uint SlotId => (uint)Skill;
     public override ActionResource Resource => ActionResource.Body;
     public override int CastsSkill => Skill;
     // Как кнопкой: не дождались за 5 с — бот просто нажмёт ещё раз (клиент продолжит подход), долго ждать незачем
@@ -218,7 +262,8 @@ public sealed class UseItemAction(InventoryItem item, ItemUse use) : GameAction
     public ItemUse Use { get; } = use;
 
     public override string Name => $"{(Use == ItemUse.Potion ? "банка" : "корм")} tid {Item.Tid} (ячейка {Item.Slot}, ×{Item.Count})";
-    public override string Key => $"предмет {Item.Slot}";
+    public override ActionSlot Slot => ActionSlot.Item;
+    public override uint SlotId => (uint)Item.Slot;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
     public override ActionStatus TimeoutStatus => ActionStatus.Rejected;
 
@@ -241,7 +286,8 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
     public GroundItem Item { get; } = item;
 
     public override string Name => $"подобрать {Item.Name} ({Item.Distance:0.0} м{(approach ? ", с подходом" : "")})";
-    public override string Key => $"подбор 0x{Item.Id:X8}";
+    public override ActionSlot Slot => ActionSlot.Pickup;
+    public override uint SlotId => Item.Id;
     // Пакетом персонаж не двигается; «как мышкой» — бежит к предмету
     public override ActionResource Resource => approach ? ActionResource.Body : ActionResource.None;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(approach ? 10 : 3);
@@ -288,7 +334,8 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     public GroundItem Item { get; } = resource;
 
     public override string Name => $"собрать {Item.Name} ({Item.Distance:0.0} м)";
-    public override string Key => $"сбор 0x{Item.Id:X8}";
+    public override ActionSlot Slot => ActionSlot.Gather;
+    public override uint SlotId => Item.Id;
     public override ActionResource Resource => ActionResource.Body;
     public override ActionPriority Priority { get; init; } = ActionPriority.Background;
     // Подойти + копать несколько секунд
@@ -358,8 +405,9 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
     public bool Fly { get; } = fly;
 
     public override string Name => Fly ? $"лететь в {Point}" : $"идти в {Point}";
+    public override ActionSlot Slot => ActionSlot.Movement;
     // Фоновый бег (возврат в центр) — отдельно: подход к мобу его вытесняет, а не ждёт как «такой же уже идёт»
-    public override string Key => Priority == ActionPriority.Background ? "движение фоном" : "движение";
+    public override uint SlotId => Priority == ActionPriority.Background ? 1u : 0u;
     public override ActionResource Resource => ActionResource.Body;
 
     // Бег ~5 м/с, с запасом: 5 с + 0.4 с на метр (считается от точки отправки в Check); здесь — только верхний предел
@@ -406,7 +454,7 @@ public sealed class FlyAction(bool up) : GameAction
 {
     public bool Up { get; } = up;
     public override string Name => Up ? "взлететь" : "сесть";
-    public override string Key => "полёт";
+    public override ActionSlot Slot => ActionSlot.Flight;
     public override ActionResource Resource => ActionResource.Body;
 
     // Взлёт ~1 с; посадка — спуск до земли, с высоты дольше
@@ -432,7 +480,7 @@ public sealed class SummonPetAction(int cage) : GameAction
 {
     public int Cage { get; } = cage;
     public override string Name => $"призвать пета из клетки {Cage}";
-    public override string Key => "пет";
+    public override ActionSlot Slot => ActionSlot.Pet;
     public override ActionResource Resource => ActionResource.Body;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(8);
 
@@ -454,7 +502,7 @@ public sealed class SummonPetAction(int cage) : GameAction
 public sealed class RecallPetAction : GameAction
 {
     public override string Name => "отозвать пета";
-    public override string Key => "пет";
+    public override ActionSlot Slot => ActionSlot.Pet;
     public override ActionResource Resource => ActionResource.Body;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(5);
 
@@ -471,7 +519,7 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
 {
     public int Cage { get; } = cage;
     public override string Name => $"воскресить пета (клетка {Cage})";
-    public override string Key => "пет";
+    public override ActionSlot Slot => ActionSlot.Pet;
     public override ActionResource Resource => ActionResource.Body;
     public override ActionPriority Priority { get; init; } = ActionPriority.Urgent;
     public override int CastsSkill => skill;
@@ -493,7 +541,7 @@ public sealed class PetAttackAction(uint targetWid) : GameAction
 {
     public uint TargetWid { get; } = targetWid;
     public override string Name => $"пет атакует 0x{TargetWid:X8}";
-    public override string Key => "приказ пету";
+    public override ActionSlot Slot => ActionSlot.PetOrder;
 
     // В игре подтверждение пришло через 3.1 с: пет сначала разворачивается и бежит к цели
     public override TimeSpan Timeout => TimeSpan.FromSeconds(6);

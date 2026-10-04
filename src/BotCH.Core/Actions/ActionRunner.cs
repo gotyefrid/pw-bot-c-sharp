@@ -76,10 +76,17 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
     /// <summary>Результат каждого действия (и неотправленного тоже).</summary>
     public event Action<ActionOutcome>? Completed;
 
-    public bool IsPending(string key)
+    public bool IsPending(ActionKey key)
     {
         lock (_lock)
             return _pending.Any(p => p.Action.Key == key);
+    }
+
+    /// <summary>Ждёт ли что-нибудь в слоте (любой скилл, любое действие с петом).</summary>
+    public bool IsPending(ActionSlot slot)
+    {
+        lock (_lock)
+            return _pending.Any(p => p.Action.Slot == slot);
     }
 
     /// <summary>Действие, которое сейчас занимает тело; null — свободно.</summary>
@@ -186,7 +193,7 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
             return null;
 
         var cancel = new CancelAction(digging ? "копание" : "каст");
-        if (_pending.Any(p => p.Action.Key == cancel.Key))
+        if (_pending.Any(p => p.Action.Slot == ActionSlot.Cancel))
             return $"прерываю {cancel.What}";
 
         // Свой же каст не сбиваем; чужой — только срочным и только зная, что кастуется (вдруг это и есть наше лечение)

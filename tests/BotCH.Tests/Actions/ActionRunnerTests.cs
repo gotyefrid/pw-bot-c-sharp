@@ -67,7 +67,7 @@ public class ActionRunnerTests
         var outcome = Single(_runner.Update(_world.Wait(1.5).Snapshot()));
 
         Assert.Equal(ActionStatus.Timeout, outcome.Status);
-        Assert.False(_runner.IsPending("скилл 299"));
+        Assert.False(_runner.IsPending(new ActionKey(ActionSlot.Skill, 299)));
     }
 
     [Fact]

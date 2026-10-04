@@ -75,7 +75,7 @@ public sealed class PetBehavior(CombatBehavior combat) : IBehavior
             return false;
         }
 
-        if (c.Runner.IsPending("пет"))
+        if (c.Runner.IsPending(ActionSlot.Pet))
         {
             Status = "жду пета";
             return false;
