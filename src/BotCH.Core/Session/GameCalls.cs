@@ -79,7 +79,7 @@ public sealed class GameCalls : IDisposable
 
         problem = "";
         var watch = window is null ? null : new WindowLossWatch(window);
-        var caller = new GameCaller(game, watch ?? (IRemoteRunner)exec, game.MainModuleBase, profile);
+        var caller = new GameCaller(game, watch ?? (IRemoteRunner)new ThreadCallRunner(exec), game.MainModuleBase, profile);
         return new GameCalls(exec, window, watch, caller, transport);
     }
 

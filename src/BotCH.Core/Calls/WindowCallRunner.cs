@@ -29,14 +29,14 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
     private const int OriginalSlotOffset = 0x100;
     private const string MessageName = "BotCH.Call";
 
-    private readonly GameProcess _game;
+    private readonly RemotePages _pages;
     private readonly IntPtr _window;
     private readonly uint _message;
     private bool _disposed;
 
     private WindowCallRunner(GameProcess game, IntPtr window, uint message, bool reused)
     {
-        _game = game;
+        _pages = new RemotePages(game);
         _window = window;
         _message = message;
         Reused = reused;
@@ -78,7 +78,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
             return false;
         }
 
-        var restore = game.Run(null, _ => WindowStubs.Restore(user32.GetWindowLong, user32.SetWindowLong, user32.Window, ours,
+        var restore = new ThreadCallRunner(game).Run(null, _ => WindowStubs.Restore(user32.GetWindowLong, user32.SetWindowLong, user32.Window, ours,
             ours + OriginalSlotOffset));
         details = restore.Details;
         return restore.IsDone;
@@ -90,7 +90,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
     /// </summary>
     private static uint? FindOurs(GameProcess game, User32 user32)
     {
-        var read = game.Run(null, _ => WindowStubs.ReadWindowProc(user32.GetWindowLong, user32.Window), out var proc);
+        var read = new ThreadCallRunner(game).Run(null, _ => WindowStubs.ReadWindowProc(user32.GetWindowLong, user32.Window), out var proc);
         if (!read.IsDone || proc == 0)
             return null;
 
@@ -109,7 +109,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
     /// </summary>
     private static uint? Install(GameProcess game, User32 user32, out string problem)
     {
-        if (game.AllocateResident(new byte[OriginalSlotOffset + 4]) is not { } windowProc)
+        if (new RemotePages(game).AllocateResident(new byte[OriginalSlotOffset + 4]) is not { } windowProc)
         {
             problem = "не удалось выделить память под обработчик";
             return null;
@@ -121,7 +121,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
             return null;
         }
 
-        var install = game.Run(null, _ => WindowStubs.Install(user32.SetWindowLong, user32.Window, windowProc, windowProc + OriginalSlotOffset));
+        var install = new ThreadCallRunner(game).Run(null, _ => WindowStubs.Install(user32.SetWindowLong, user32.Window, windowProc, windowProc + OriginalSlotOffset));
         if (!install.IsDone || !game.TryReadUInt32(windowProc + OriginalSlotOffset, out var original) || original == 0)
         {
             problem = $"обработчик не поставился{(install.IsDone ? "" : ": " + install.Details)}";
@@ -139,7 +139,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
         // Окна больше нет (игра его пересоздала) — сообщение не дойдёт: не тратим страницу и 5 с ожидания
         if (!IsWindow(_window))
             return new RemoteRunResult(RemoteRunStatus.WindowLost, "окно игры закрыто или пересоздано");
-        if (_game.PrepareCall(data, buildStub, out var page) is { } failed)
+        if (_pages.Prepare(data, buildStub, out var page) is { } failed)
             return failed;
 
         var sent = SendMessageTimeout(_window, _message, new IntPtr(unchecked((int)page)), IntPtr.Zero, SmtoAbortIfHung,
@@ -150,7 +150,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
             return new RemoteRunResult(RemoteRunStatus.Timeout, $"игра не обработала вызов за {CallTimeout.TotalSeconds:0} с");
         }
 
-        _game.FreePage(page);
+        _pages.Free(page);
         return unchecked((uint)result.ToInt32()) == WindowStubs.Handled
             ? new RemoteRunResult(RemoteRunStatus.Done)
             : new RemoteRunResult(RemoteRunStatus.WindowLost, "обработчик окна снят — вызов не выполнен");

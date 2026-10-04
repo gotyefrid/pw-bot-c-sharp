@@ -156,8 +156,9 @@ public sealed class ClientConnection : IDisposable
             var runner = new ActionRunner(new GameControl(calls.Actions), _logger.For("действия"));
             var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For("мозг"), _profile.GatherTools, routeStart);
             var memoryLog = _logger.For("память");
-            var guard = new GameMemoryGuard(_game.QueryFreeMemory, memoryLog);
-            if (_game.QueryFreeMemory() is FreeMemory free)
+            var inspector = new ProcessInspector(_game);
+            var guard = new GameMemoryGuard(inspector.QueryFreeMemory, memoryLog);
+            if (inspector.QueryFreeMemory() is FreeMemory free)
                 memoryLog.Info($"Свободно у игры {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ");
 
             var bot = new RunningBot(_monitor, brain, calls, guard.ShouldStop, () => calls.Broken, _log);

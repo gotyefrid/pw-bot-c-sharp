@@ -99,7 +99,7 @@ internal static class Program
 
     private static int Memory(GameProcess game)
     {
-        if (game.QueryFreeMemory() is not FreeMemory free)
+        if (new ProcessInspector(game).QueryFreeMemory() is not FreeMemory free)
         {
             Console.Error.WriteLine("❌ Windows не ответила (VirtualQueryEx)");
             return 2;
@@ -113,12 +113,13 @@ internal static class Program
 
     private static int MemoryMap(GameProcess game, string[] args)
     {
-        var regions = game.Regions().ToList();
+        var inspector = new ProcessInspector(game);
+        var regions = inspector.Regions().ToList();
         var files = new System.Collections.Generic.Dictionary<uint, string>();
         foreach (var r in regions.Where(r => r.State != MemoryRegion.Free && r.Type != MemoryRegion.Private))
         {
             if (!files.ContainsKey(r.AllocationBase))
-                files[r.AllocationBase] = game.MappedFileName(r.Start) ?? "";
+                files[r.AllocationBase] = inspector.MappedFileName(r.Start) ?? "";
         }
 
         string Kind(MemoryRegion r) => r.State == MemoryRegion.Free ? "free"
@@ -158,7 +159,7 @@ internal static class Program
     // из аргументов (кучи видны в memmap: сигнатура сегмента 0xFFEEFFEE). У _HEAP x86: +0x40 Flags, +0x60 EEFFEEFF
     private static int Heaps(GameProcess game, string[] args)
     {
-        if (game.PebAddress() is not uint peb)
+        if (new ProcessInspector(game).PebAddress() is not uint peb)
         {
             Console.Error.WriteLine("❌ PEB не прочитать");
             return 2;
@@ -204,7 +205,7 @@ internal static class Program
         Console.WriteLine("время      свободно      изм.     кусок подряд   занято игрой   изм.    темп       хватит");
         while (!game.HasExited)
         {
-            if (game.QueryFreeMemory() is FreeMemory free)
+            if (new ProcessInspector(game).QueryFreeMemory() is FreeMemory free)
             {
                 process.Refresh();
                 var used = process.PrivateMemorySize64 >> 20;

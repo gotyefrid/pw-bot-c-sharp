@@ -33,7 +33,7 @@ public class RemoteRunTests
         var function = unchecked((uint)Marshal.GetFunctionPointerForDelegate(receiver).ToInt32());
         using var self = GameProcess.Open(Process.GetCurrentProcess().Id, GameProcessRights.Execute);
 
-        var result = self.Run(BitConverter.GetBytes(0xC0FFEEu), data => StubBuilder.Call(function, BotCH.Core.Profiles.CallingConvention.Cdecl, 0, [111, 222, data]));
+        var result = new ThreadCallRunner(self).Run(BitConverter.GetBytes(0xC0FFEEu), data => StubBuilder.Call(function, BotCH.Core.Profiles.CallingConvention.Cdecl, 0, [111, 222, data]));
 
         Assert.True(result.IsDone, result.Details);
         Assert.Equal((111u, 222u, 0xC0FFEEu), (_a, _b, _dataValue));
@@ -45,7 +45,7 @@ public class RemoteRunTests
     {
         using var self = GameProcess.Open(Process.GetCurrentProcess().Id);
 
-        Assert.Throws<InvalidOperationException>(() => self.Run(null, _ => [0xC3]));
+        Assert.Throws<InvalidOperationException>(() => new ThreadCallRunner(self).Run(null, _ => [0xC3]));
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class RemoteRunTests
     {
         using var self = GameProcess.Open(Process.GetCurrentProcess().Id, GameProcessRights.Execute);
 
-        var result = self.Run(null, _ => new byte[0x200]);
+        var result = new ThreadCallRunner(self).Run(null, _ => new byte[0x200]);
 
         Assert.Equal(RemoteRunStatus.Failed, result.Status);
     }

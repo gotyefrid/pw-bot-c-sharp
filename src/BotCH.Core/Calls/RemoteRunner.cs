@@ -24,7 +24,7 @@ public sealed record RemoteRunResult(RemoteRunStatus Status, string Details = ""
 /// <summary>
 /// Выполняет заглушку в процессе игры: данные и код кладутся в выделенную страницу, поток запускается и ожидается.
 /// <paramref name="buildStub"/> получает адрес, куда легли <c>data</c> (указатель для аргументов).
-/// В тестах подменяется — настоящий поток в игре создаёт только <see cref="Memory.GameProcess"/>.
+/// Настоящие — <see cref="WindowCallRunner"/> (главный поток игры) и <see cref="ThreadCallRunner"/> (свой поток); в тестах подменяется.
 /// </summary>
 public interface IRemoteRunner
 {

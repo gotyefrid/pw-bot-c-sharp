@@ -87,7 +87,7 @@ public class GameMemoryGuardTests
     {
         using var process = GameProcess.Open(Process.GetCurrentProcess().Id);
 
-        var free = process.QueryFreeMemory();
+        var free = new ProcessInspector(process).QueryFreeMemory();
 
         Assert.NotNull(free);
         Assert.InRange(free!.Value.Largest, 1, free.Value.Total);

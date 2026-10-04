@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using BotCH.Core.Calls;
 using Microsoft.Win32.SafeHandles;
 
 namespace BotCH.Core.Memory;
@@ -20,10 +18,12 @@ public enum GameProcessRights
 }
 
 /// <summary>
-/// Открытый процесс клиента игры. Один экземпляр — один клиент.
-/// Сам дескриптор процесса держится открытым, пока объект не освобождён (Dispose).
+/// Открытый процесс клиента игры: дескриптор с нужными правами, чтение и запись памяти, где загружен exe и библиотеки.
+/// Один экземпляр — один клиент; дескриптор держится открытым, пока объект не освобождён (Dispose). Вызовы функций игры —
+/// <see cref="Calls.ThreadCallRunner"/> и <see cref="Calls.WindowCallRunner"/> (страницы — <see cref="Calls.RemotePages"/>),
+/// диагностика памяти — <see cref="ProcessInspector"/>.
 /// </summary>
-public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
+public sealed class GameProcess : IMemory, IDisposable
 {
     private readonly SafeProcessHandle _handle;
     private readonly Process _process;
@@ -104,123 +104,6 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
             && written.ToInt64() == data.Length;
     }
 
-    private const int RemotePageSize = 0x1000;
-    // Стек нашего потока. По умолчанию Windows резервирует как у exe игры (1 МБ); когда адресное пространство
-    // игры (2 ГБ) забито и раздроблено, 1 МБ подряд не находится — CreateRemoteThread падает с ошибкой 8.
-    // Функциям отправки пакетов 256 КБ хватает с большим запасом.
-    private const int RemoteStackSize = 0x40000;
-    private const int RemoteDataOffset = 0x100;
-    private static readonly TimeSpan RemoteTimeout = TimeSpan.FromSeconds(5);
-
-    /// <summary>
-    /// Выполняет заглушку потоком в игре (как старый GameCall): страница под код и данные, запись, защита «только
-    /// чтение и выполнение», CreateRemoteThread, ожидание до 5 с, освобождение. Код самой игры не меняется.
-    /// Нужны права <see cref="GameProcessRights.Execute"/>.
-    /// </summary>
-    public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub) => Run(data, buildStub, out _);
-
-    /// <summary>То же, плюс что заглушка вернула в eax (код выхода потока); 0, если не выполнена.</summary>
-    public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub, out uint returned)
-    {
-        returned = 0;
-        if (PrepareCall(data, buildStub, out var page) is { } failed)
-            return failed;
-
-        var free = true;
-        try
-        {
-            using var thread = NativeMethods.CreateRemoteThread(_handle, IntPtr.Zero, new IntPtr(RemoteStackSize), ToPointer(page), IntPtr.Zero,
-                NativeMethods.StackSizeParamIsAReservation, IntPtr.Zero);
-            if (thread.IsInvalid)
-                return Failed("CreateRemoteThread");
-
-            if (NativeMethods.WaitForSingleObject(thread, (uint)RemoteTimeout.TotalMilliseconds) != NativeMethods.WaitObject0)
-            {
-                // Поток ещё работает — память не освобождаем, иначе игра упадёт
-                free = false;
-                return new RemoteRunResult(RemoteRunStatus.Timeout, $"поток в игре не закончился за {RemoteTimeout.TotalSeconds:0} с");
-            }
-
-            if (!NativeMethods.GetExitCodeThread(thread, out returned))
-                returned = 0;
-            return new RemoteRunResult(RemoteRunStatus.Done);
-        }
-        finally
-        {
-            if (free)
-                FreePage(page);
-        }
-    }
-
-    /// <summary>
-    /// Страница под вызов: данные со смещения 0x100, заглушка в начале, защита «чтение и выполнение».
-    /// null — готово, адрес в <paramref name="page"/> (освободить <see cref="FreePage"/>, когда выполнится); иначе — отказ.
-    /// </summary>
-    public RemoteRunResult? PrepareCall(byte[]? data, Func<uint, byte[]> buildStub, out uint page)
-    {
-        page = 0;
-        if (!Rights.HasFlag(GameProcessRights.Execute))
-            throw new InvalidOperationException("Процесс открыт без права вызывать функции игры");
-        if (data is { Length: > RemotePageSize - RemoteDataOffset })
-            return new RemoteRunResult(RemoteRunStatus.Failed, "слишком много данных для вызова");
-
-        var memory = NativeMethods.VirtualAllocEx(_handle, IntPtr.Zero, new IntPtr(RemotePageSize),
-            NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageReadWrite);
-        if (memory == IntPtr.Zero)
-            return Failed("VirtualAllocEx");
-
-        var pageAddress = unchecked((uint)memory.ToInt32());
-        var dataAddress = pageAddress + RemoteDataOffset;
-        RemoteRunResult? problem = null;
-        if (data is not null && !TryWriteRaw(dataAddress, data))
-            problem = Failed("запись данных");
-
-        if (problem is null)
-        {
-            var stub = buildStub(dataAddress);
-            if (stub.Length > RemoteDataOffset)
-                problem = new RemoteRunResult(RemoteRunStatus.Failed, "заглушка не помещается перед данными");
-            else if (!TryWriteRaw(pageAddress, stub)
-                     || !NativeMethods.VirtualProtectEx(_handle, memory, new IntPtr(RemotePageSize), NativeMethods.PageExecuteRead, out _))
-                problem = Failed("запись заглушки");
-        }
-
-        if (problem is not null)
-        {
-            FreePage(pageAddress);
-            return problem;
-        }
-
-        page = pageAddress;
-        return null;
-    }
-
-    public void FreePage(uint page) => NativeMethods.VirtualFreeEx(_handle, ToPointer(page), IntPtr.Zero, NativeMethods.MemRelease);
-
-    /// <summary>
-    /// Постоянная страница «код + свои данные» (чтение, запись, выполнение) — для обработчика окна: живёт до закрытия игры,
-    /// не освобождается (на её коде может стоять чей-то стек). null — не вышло.
-    /// </summary>
-    public uint? AllocateResident(byte[] content)
-    {
-        if (!Rights.HasFlag(GameProcessRights.Execute))
-            throw new InvalidOperationException("Процесс открыт без права вызывать функции игры");
-        if (content.Length > RemotePageSize)
-            return null;
-
-        var memory = NativeMethods.VirtualAllocEx(_handle, IntPtr.Zero, new IntPtr(RemotePageSize),
-            NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageExecuteReadWrite);
-        if (memory == IntPtr.Zero)
-            return null;
-
-        var address = unchecked((uint)memory.ToInt32());
-        if (TryWriteRaw(address, content))
-            return address;
-
-        FreePage(address);
-        return null;
-    }
-
     /// <summary>Где у игры загружена системная библиотека (например user32.dll); null — не загружена.</summary>
     public uint? ModuleBase(string name)
     {
@@ -234,80 +117,11 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
         return null;
     }
 
-    /// <summary>
-    /// Сколько адресного пространства игры свободно (только чтение, VirtualQueryEx): всего и самый большой кусок подряд.
-    /// null — Windows не ответила.
-    /// </summary>
-    public FreeMemory? QueryFreeMemory()
-    {
-        long total = 0, largest = 0;
-        var regions = 0;
-        foreach (var region in Regions())
-        {
-            regions++;
-            if (region.State == MemoryRegion.Free)
-            {
-                total += region.Size;
-                largest = Math.Max(largest, region.Size);
-            }
-        }
-
-        return regions == 0 ? null : new FreeMemory(total, largest);
-    }
-
-    /// <summary>Карта адресного пространства игры (VirtualQueryEx, только чтение) — для разбора, куда уходит память.</summary>
-    public IEnumerable<MemoryRegion> Regions()
-    {
-        long address = 0;
-        var size = new IntPtr(Marshal.SizeOf(typeof(NativeMethods.MemoryBasicInformation)));
-        var regions = 0;
-        while (address < 0x1_0000_0000 && regions++ < 1_000_000)
-        {
-            if (NativeMethods.VirtualQueryEx(_handle, new IntPtr(unchecked((int)address)), out var info, size) == IntPtr.Zero)
-                yield break;
-
-            var regionSize = (long)unchecked((uint)info.RegionSize.ToInt32());
-            if (regionSize == 0)
-                yield break;
-
-            var start = unchecked((uint)info.BaseAddress.ToInt32());
-            yield return new MemoryRegion(start, unchecked((uint)info.AllocationBase.ToInt32()), regionSize,
-                info.State, info.Type, info.Protect);
-            address = start + regionSize;
-        }
-    }
-
-    /// <summary>Адрес PEB игры (бот и игра 32-битные — это её 32-битный PEB); null — Windows не ответила.</summary>
-    public uint? PebAddress()
-    {
-        var status = NativeMethods.NtQueryInformationProcess(_handle, 0, out var info,
-            Marshal.SizeOf(typeof(NativeMethods.ProcessBasicInformation)), out _);
-        return status == 0 ? unchecked((uint)info.PebBaseAddress.ToInt32()) : null;
-    }
-
-    /// <summary>Файл, отображённый в память по этому адресу (для MEM_MAPPED и MEM_IMAGE), или null.</summary>
-    public string? MappedFileName(uint address)
-    {
-        var name = new System.Text.StringBuilder(1024);
-        var length = NativeMethods.GetMappedFileName(_handle, ToPointer(address), name, name.Capacity);
-        return length == 0 ? null : name.ToString();
-    }
-
-    private bool TryWriteRaw(uint address, byte[] data)
-        => NativeMethods.WriteProcessMemory(_handle, ToPointer(address), data, new IntPtr(data.Length), out var written)
-           && written.ToInt64() == data.Length;
-
-    private static RemoteRunResult Failed(string step)
-    {
-        var error = Marshal.GetLastWin32Error();
-        // 8 — ERROR_NOT_ENOUGH_MEMORY: у игры кончилось адресное пространство, лечится только перезапуском клиента
-        return new(RemoteRunStatus.Failed, error == 8
-            ? $"{step}: игре не хватает памяти (ошибка Windows 8) — перезапустите клиент"
-            : $"{step}: ошибка Windows {error}");
-    }
+    /// <summary>Дескриптор процесса — для страниц под вызовы, потока и диагностики (<see cref="Calls.RemotePages"/>, <see cref="ProcessInspector"/>).</summary>
+    internal SafeProcessHandle Handle => _handle;
 
     // В 32-битном процессе IntPtr(long) для адреса ≥ 0x80000000 бросает OverflowException — берём те же 32 бита как int
-    private static IntPtr ToPointer(uint address) => new(unchecked((int)address));
+    internal static IntPtr ToPointer(uint address) => new(unchecked((int)address));
 
     public void Dispose()
     {
