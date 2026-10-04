@@ -38,11 +38,12 @@ public static class BotModes
         _ => "Бить мобов",
     };
 
+    /// <param name="routeStart">Обход: с какой точки начинать (с 0) — выбранная в окне.</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
-        IReadOnlyCollection<uint>? gatherTools = null)
+        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0)
         => mode switch
         {
-            BotMode.GatherResources => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools, mode: BotMode.GatherResources),
+            BotMode.GatherResources => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools, mode: BotMode.GatherResources, routeStart: routeStart),
             BotMode.Clicker => new NotReadyMode("кликер", "часть 10", log),
             _ => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools),
         };

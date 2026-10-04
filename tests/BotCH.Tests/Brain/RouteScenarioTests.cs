@@ -23,6 +23,7 @@ public class RouteScenarioTests
     private readonly List<LogEntry> _log = [];
     private readonly BotSettings _settings = new();
     private BotBrain? _brain;
+    private int _routeStart;
     private string? _stopped;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
@@ -45,7 +46,7 @@ public class RouteScenarioTests
             if (_brain is not null)
                 return _brain;
             _brain = new BotBrain(new ActionRunner(_actions, NullLogger.Instance), Skills, _settings,
-                new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe], BotMode.GatherResources);
+                new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe], BotMode.GatherResources, _routeStart);
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
         }
@@ -87,7 +88,7 @@ public class RouteScenarioTests
     public void StartsFromChosenPoint()
     {
         Route(50, 100, 150);
-        _settings.Route.StartIndex = 2;
+        _routeStart = 2;
 
         Tick();
 

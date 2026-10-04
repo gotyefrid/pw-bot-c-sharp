@@ -13,7 +13,8 @@ namespace BotCH.Core.Brain;
 /// то, что задано у этой точки, в радиусе от неё; напавших бьёт бой. Копать больше нечего — к следующей точке. Двигаемся так, как стоял перс при «Старт»: в воздухе — летим
 /// на высоте точки (упал на землю — взлетаем), на земле — бежим с автопутём.
 /// </summary>
-public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
+/// <param name="start">С какой точки начинать (с 0) — выбранная в окне при «Старт»; не настройка, в файл не пишется.</param>
+public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior
 {
     // Дошли — ближе этого к точке по земле (высота не важна: в полёте точку могли записать у земли)
     private const float ArriveDistance = 5f;
@@ -68,7 +69,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools) : IBehavior
         if (_inAir is null)
         {
             _inAir = w.Host.Flying == true;
-            _index = route.StartIndex >= 0 && route.StartIndex < points.Count ? route.StartIndex : 0;
+            _index = start >= 0 && start < points.Count ? start : 0;
             c.Log.Info($"Обход: {points.Count} точек, начинаю с {_index + 1}-й, {(_inAir.Value ? "в воздухе" : "по земле")}, "
                        + $"ресурсы в {route.Radius} м от точки");
         }

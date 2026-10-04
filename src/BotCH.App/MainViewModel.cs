@@ -267,8 +267,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         // Обход — с точки, выбранной в списке (не выбрана — с первой)
-        Settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
-        var result = _connection.StartBot(Settings.Mode, Settings, transport);
+        var routeStart = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
+        var result = _connection.StartBot(Settings.Mode, Settings, routeStart, transport);
         switch (result.Status)
         {
             case StartStatus.Started:

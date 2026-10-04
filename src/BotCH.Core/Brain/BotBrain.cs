@@ -25,8 +25,9 @@ public sealed class BotBrain : IBotRunner
 
     /// <param name="mode">Фарм мобов или обход ресурсов (<see cref="BotMode.GatherResources"/>): у обхода бой — только защита,
     /// копание — у точек маршрута, вместо возврата в центр — переход к следующей точке.</param>
+    /// <param name="routeStart">Обход: с какой точки начинать (с 0).</param>
     public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
-        IReadOnlyCollection<uint>? gatherTools = null, BotMode mode = BotMode.FarmMobs)
+        IReadOnlyCollection<uint>? gatherTools = null, BotMode mode = BotMode.FarmMobs, int routeStart = 0)
     {
         _mode = mode;
         _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = Effective(settings) };
@@ -35,7 +36,7 @@ public sealed class BotBrain : IBotRunner
         {
             Combat = new CombatBehavior(defendOnly: true);
             Pet = new PetBehavior(Combat);
-            Route = new RouteBehavior(gatherTools ?? []);
+            Route = new RouteBehavior(gatherTools ?? [], routeStart);
             Gather = new GatherBehavior(Combat, gatherTools ?? [], Route.Scope);
             Escape = new EscapeBehavior(Route, Combat);
             _behaviors = [Survival, Escape, Pet, Gather, Combat, Route];

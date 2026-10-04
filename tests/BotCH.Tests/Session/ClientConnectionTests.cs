@@ -19,7 +19,7 @@ public class ClientConnectionTests : IDisposable
 
     public void Dispose() => _connection.Dispose();
 
-    private StartResult Start(CallTransport transport) => _connection.StartBot(BotMode.FarmMobs, new BotSettings(), transport);
+    private StartResult Start(CallTransport transport) => _connection.StartBot(BotMode.FarmMobs, new BotSettings(), 0, transport);
 
     [Fact]
     public void WindowNotFoundOffersFallbackInsteadOfSwitchingSilently()

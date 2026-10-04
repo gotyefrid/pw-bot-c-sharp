@@ -133,7 +133,8 @@ public sealed class ClientConnection : IDisposable
     /// Запустить бота. Основной способ вызовов не подключился — <see cref="StartStatus.WindowFailed"/>: спросить пользователя и,
     /// если согласен, позвать ещё раз с <see cref="CallTransport.Thread"/>. Сам на запасной не переходит.
     /// </summary>
-    public StartResult StartBot(BotMode mode, BotSettings settings, CallTransport transport)
+    /// <param name="routeStart">Обход: с какой точки начинать (с 0).</param>
+    public StartResult StartBot(BotMode mode, BotSettings settings, int routeStart, CallTransport transport)
     {
         lock (_lock)
         {
@@ -151,7 +152,7 @@ public sealed class ClientConnection : IDisposable
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
             var runner = new ActionRunner(calls.Actions, _logger.For("действия"));
-            var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For("мозг"), _profile.GatherTools);
+            var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For("мозг"), _profile.GatherTools, routeStart);
             var memoryLog = _logger.For("память");
             var guard = new GameMemoryGuard(_game.QueryFreeMemory, memoryLog);
             if (_game.QueryFreeMemory() is FreeMemory free)
