@@ -8,17 +8,17 @@ using BotCH.Core.World;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Копать ресурсы: что и где — <see cref="GatherScope"/> (фарм — в радиусе фарма по списку лута, обход — у точки по своему
+/// Копать ресурсы: что и где — <see cref="IGatherScope"/> (фарм — в радиусе фарма по списку лута, обход — у точки по своему
 /// списку). Стоит перед боем: пока рядом есть ресурсы из списка — копаем их подряд, потом мобы.
 /// Бой и лут не перебиваем; напали на перса или пета — бросаем копание, бой убивает нападающего, потом копаем дальше.
 /// Без инструмента (кирки) в сумке к ресурсам не подходим. Сумка полна — копаем только то, чья добыча (по справочнику игры,
 /// <see cref="GroundItem.Mine"/>) целиком ляжет в начатые стопки. Ресурс выше уровня персонажа (по справочнику) не копаем. «Нересурсы» (<see cref="GroundItem.Special"/>: квестовые,
 /// особые) — только если их название явно в списке, и тогда без всяких условий: просто пробуем копать.
-/// Ресурс в зоне опасного моба (<see cref="GatherScope.Guard"/>, у обхода) не копаем — проверяем каждый раз заново: моб мог уйти.
+/// Ресурс в зоне опасного моба (<see cref="IGatherScope.Guard"/>, у обхода) не копаем — проверяем каждый раз заново: моб мог уйти.
 /// </summary>
-public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, GatherScope? scope = null) : IBehavior
+public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, IGatherScope? scope = null) : IBehavior
 {
-    private readonly GatherScope _scope = scope ?? GatherScope.FarmArea;
+    private readonly IGatherScope _scope = scope ?? FarmAreaScope.Instance;
 
     // Не вышло (нет инструмента, не дошли, сбили N раз подряд) — ресурс бросаем на время
     private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(3);

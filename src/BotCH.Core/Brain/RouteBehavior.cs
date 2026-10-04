@@ -9,12 +9,13 @@ namespace BotCH.Core.Brain;
 
 /// <summary>
 /// Обход маршрута в режиме «Собирать ресурсы»: точки по порядку, после последней — снова первая. Сначала долетаем до
-/// текущей точки (по дороге ничего не копаем), потом <see cref="GatherBehavior"/> (стоит раньше, со <see cref="Scope"/>) копает
+/// текущей точки (по дороге ничего не копаем), потом <see cref="GatherBehavior"/> (стоит раньше; что и где копать, говорит
+/// обход — <see cref="IGatherScope"/>) копает
 /// то, что задано у этой точки, в радиусе от неё; напавших бьёт бой. Копать больше нечего — к следующей точке. Двигаемся так, как стоял перс при «Старт»: в воздухе — летим
 /// на высоте точки (упал на землю — взлетаем), на земле — бежим с автопутём.
 /// </summary>
 /// <param name="start">С какой точки начинать (с 0) — выбранная в окне при «Старт»; не настройка, в файл не пишется.</param>
-public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior, IRouteProgress
+public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior, IRouteProgress, IGatherScope
 {
     // Дошли — ближе этого к точке по земле (высота не важна: в полёте точку могли записать у земли)
     private const float ArriveDistance = 5f;
@@ -40,14 +41,19 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     /// <summary>Номер текущей точки (с 0).</summary>
     public int Index => _index;
 
-    /// <summary>Что и где копать при обходе: только долетев до текущей точки — в радиусе от неё то, что задано у этой точки.</summary>
-    public GatherScope Scope => new(
-        c => _arrived && c.Settings.Route.Points.Count > 0,
-        (c, p) => Current(c) is { } point && p.HorizontalDistanceTo(point.Position) <= c.Settings.Route.Radius,
-        (c, name) => Current(c)?.Wants(name) == true,
-        (c, name) => Current(c)?.Lists(name) == true,
-        c => c.Settings.Route.Points.Count > 0 ? $" у точки {_index % c.Settings.Route.Points.Count + 1}/{c.Settings.Route.Points.Count}" : "",
-        (c, p) => DangerZones.Guard(c.World, p, c.Settings.Route));
+    // Что и где копать при обходе (IGatherScope): только долетев до текущей точки — в радиусе от неё то, что задано у этой точки
+    public bool Enabled(BrainContext c) => _arrived && c.Settings.Route.Points.Count > 0;
+
+    public bool InArea(BrainContext c, Position p)
+        => Current(c) is { } point && p.HorizontalDistanceTo(point.Position) <= c.Settings.Route.Radius;
+
+    public bool Wanted(BrainContext c, string name) => Current(c)?.Wants(name) == true;
+    public bool Listed(BrainContext c, string name) => Current(c)?.Lists(name) == true;
+
+    public string Where(BrainContext c)
+        => c.Settings.Route.Points.Count > 0 ? $" у точки {_index % c.Settings.Route.Points.Count + 1}/{c.Settings.Route.Points.Count}" : "";
+
+    public NpcInfo? Guard(BrainContext c, Position p) => DangerZones.Guard(c.World, p, c.Settings.Route);
 
     private RoutePoint? Current(BrainContext c)
     {
@@ -170,7 +176,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
 
     // Нужный обычный ресурс у точки, который не ляжет в сумку
     private bool Blocked(BrainContext c, GroundItem item)
-        => item is { Kind: GroundItemKind.Resource, Special: false } && Scope.InArea(c, item.Position) && Scope.Wanted(c, item.Name)
+        => item is { Kind: GroundItemKind.Resource, Special: false } && InArea(c, item.Position) && Wanted(c, item.Name)
            && !c.World.FitsInBag(item);
 
     private void Next(BrainContext c, string why)

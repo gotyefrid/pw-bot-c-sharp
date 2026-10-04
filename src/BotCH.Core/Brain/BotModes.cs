@@ -83,7 +83,7 @@ public static class BotModes
         var combat = new CombatBehavior(defendOnly: true);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
-            [new SurvivalBehavior(), new EscapeBehavior(route, combat), new PetBehavior(combat), new GatherBehavior(combat, tools, route.Scope), combat, route],
+            [new SurvivalBehavior(), new EscapeBehavior(route, combat), new PetBehavior(combat), new GatherBehavior(combat, tools, route), combat, route],
             main: combat);
     }
 }
