@@ -9,8 +9,8 @@ using BotCH.Core.World;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Режим работы бота — свой ход выполнения на каждом снимке. Окно знает только этот интерфейс:
-/// новый режим — новый класс, остальные не трогаются.
+/// Режим работы бота — свой ход выполнения на каждом снимке. Окно знает только этот интерфейс: новый режим — новый набор
+/// поведений в <see cref="BotModes"/> (или свой класс), мозг и окно не трогаются.
 /// </summary>
 public interface IBotRunner
 {
@@ -44,15 +44,48 @@ public static class BotModes
         _ => "Бить мобов",
     };
 
+    /// <summary>
+    /// Собрать режим: мозг (<see cref="BotBrain"/>) один, режимы отличаются набором поведений и их порядком. Кликер
+    /// (часть 10) — ещё один набор: [банки?, пет?, шаги].
+    /// </summary>
     /// <param name="routeStart">Обход: с какой точки начинать (с 0) — выбранная в окне.</param>
+    /// <param name="random">Паузы и разброс; тесты задают свой, чтобы ход повторялся.</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
-        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0)
-        => mode switch
-        {
-            BotMode.GatherResources => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools, mode: BotMode.GatherResources, routeStart: routeStart),
-            BotMode.Clicker => new NotReadyMode("кликер", "часть 10", log),
-            _ => new BotBrain(runner, skills, settings, log, gatherTools: gatherTools),
-        };
+        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null)
+    {
+        if (mode == BotMode.Clicker)
+            return new NotReadyMode("кликер", "часть 10", log);
+
+        // Копия настроек: окно может менять свои дальше (новые мозг получит через UpdateSettings)
+        var context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
+        var tools = gatherTools ?? [];
+        return mode == BotMode.GatherResources ? GatherResources(context, tools, routeStart) : FarmMobs(context, tools);
+    }
+
+    /// <summary>
+    /// Фарм мобов: выжить → пет → копать ресурсы в радиусе фарма → бой → вернуться в центр фарма. Первым — запись центра
+    /// фарма в лог (хода не занимает).
+    /// </summary>
+    private static BotBrain FarmMobs(BrainContext context, IReadOnlyCollection<uint> tools)
+    {
+        var combat = new CombatBehavior();
+        return new BotBrain(context,
+            [new FarmCenterLog(), new SurvivalBehavior(), new PetBehavior(combat), new GatherBehavior(combat, tools), combat, new ReturnBehavior(combat)],
+            main: combat);
+    }
+
+    /// <summary>
+    /// Обход ресурсов: выжить → уйти вверх от опасного моба → пет → копать у текущей точки → защита (бьём только напавших) →
+    /// к следующей точке.
+    /// </summary>
+    private static BotBrain GatherResources(BrainContext context, IReadOnlyCollection<uint> tools, int routeStart)
+    {
+        var combat = new CombatBehavior(defendOnly: true);
+        var route = new RouteBehavior(tools, routeStart);
+        return new BotBrain(context,
+            [new SurvivalBehavior(), new EscapeBehavior(route, combat), new PetBehavior(combat), new GatherBehavior(combat, tools, route.Scope), combat, route],
+            main: combat);
+    }
 }
 
 /// <summary>

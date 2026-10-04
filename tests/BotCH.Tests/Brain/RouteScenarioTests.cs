@@ -22,7 +22,7 @@ public class RouteScenarioTests
     private readonly FakeActions _actions = new();
     private readonly List<LogEntry> _log = [];
     private readonly BotSettings _settings = new();
-    private BotBrain? _brain;
+    private IBotRunner? _brain;
     private int _routeStart;
     private string? _stopped;
 
@@ -39,14 +39,14 @@ public class RouteScenarioTests
         _world.Bag.Add(new InventoryItem(5, Pickaxe, 0, 1, null, null));
     }
 
-    private BotBrain Brain
+    private IBotRunner Brain
     {
         get
         {
             if (_brain is not null)
                 return _brain;
-            _brain = new BotBrain(new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
-                new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe], BotMode.GatherResources, _routeStart);
+            _brain = BotModes.Create(BotMode.GatherResources, new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
+                new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), [Pickaxe], _routeStart, new Random(1));
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
         }
@@ -321,7 +321,7 @@ public class RouteScenarioTests
         Tick(5);
 
         Assert.Empty(_actions.Calls);
-        Assert.StartsWith("вишу на +10 м", Brain.Escape!.Status);
+        Assert.StartsWith("вишу на +10 м", Brain.Part<EscapeBehavior>()!.Status);
     }
 
     [Fact]

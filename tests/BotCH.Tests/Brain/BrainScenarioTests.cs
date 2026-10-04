@@ -21,16 +21,16 @@ public class BrainScenarioTests
     private readonly FakeActions _actions = new();
     private readonly List<LogEntry> _log = [];
     private readonly BotSettings _settings = new();
-    private BotBrain? _brain;
+    private IBotRunner? _brain;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
         public void Write(LogEntry entry) => entries.Add(entry);
     }
 
-    private BotBrain Brain => _brain ??= new BotBrain(
+    private IBotRunner Brain => _brain ??= BotModes.Create(BotMode.FarmMobs,
         new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
-        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe]);
+        new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), [Pickaxe], random: new Random(1));
 
     private const uint Pickaxe = 3073;
 
@@ -961,7 +961,7 @@ public class BrainScenarioTests
         var snake = _world.AddMob(0x80000001, "Уж", 3, hp: 100, targetWid: FakeWorld.HostWid);
         _world.TargetWid = snake.Wid;
         Tick();
-        Assert.StartsWith("бой", Brain.Combat.Status);
+        Assert.StartsWith("бой", Brain.Part<CombatBehavior>()!.Status);
 
         _settings.Target.KillMobs = false;
         Brain.UpdateSettings(_settings);
@@ -1286,6 +1286,22 @@ public class BrainScenarioTests
     }
 
     // ── Центр фарма ─────────────────────────────────────────────────────────
+
+    [Fact]
+    public void FarmCenterIsLoggedAtStartAndWhenRadiusChanges()
+    {
+        _settings.Target.FarmRadius = 60;
+        Tick();
+        Tick();
+        _settings.Target.FarmRadius = 40;
+        Brain.UpdateSettings(_settings);
+        Tick();
+        Tick();
+
+        Assert.Equal(
+            ["Центр фарма: точка старта (0,0; 0,0; h 0,0), радиус 60 м, до него 0 м", "Центр фарма: точка старта (0,0; 0,0; h 0,0), радиус 40 м, до него 0 м"],
+            _log.Select(e => e.Message).Where(m => m.StartsWith("Центр фарма")));
+    }
 
     private void FarmAt(float x, int radius = 20)
     {

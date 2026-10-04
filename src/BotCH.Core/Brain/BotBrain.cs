@@ -1,77 +1,45 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using BotCH.Core.Actions;
 using BotCH.Core.Logging;
-using BotCH.Core.Profiles;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Мозг бота: на каждом снимке — проверить ждущие действия, затем поведения по приоритету
-/// (выжить → пет → копать ресурсы → бой → вернуться в центр фарма), первое занявшее ход останавливает перебор. Один поток решений: <see cref="Tick"/>
-/// вызывается из потока снимков. Режим «фарм мобов»; другие режимы (сбор ресурсов) — другим набором поведений.
+/// Мозг бота — один цикл для любого режима: на каждом снимке — итоги ждущих действий хозяевам, затем поведения по порядку,
+/// первое занявшее ход останавливает перебор. Какие поведения и в каком порядке, решает режим (<see cref="BotModes"/>):
+/// мозг о режимах не знает. Один поток решений: <see cref="Tick"/> вызывается из потока снимков.
 /// </summary>
 public sealed class BotBrain : IBotRunner
 {
     private readonly object _lock = new();
     private readonly BrainContext _context;
     private readonly IReadOnlyList<IBehavior> _behaviors;
+    private readonly IBehavior _main;
     private BotSettings? _newSettings;
     private string _status = "ожидание";
-    private string? _centerText;
 
-    /// <param name="mode">Фарм мобов или обход ресурсов (<see cref="BotMode.GatherResources"/>): у обхода бой — только защита,
-    /// копание — у точек маршрута, вместо возврата в центр — переход к следующей точке.</param>
-    /// <param name="routeStart">Обход: с какой точки начинать (с 0).</param>
-    public BotBrain(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, Random? random = null,
-        IReadOnlyCollection<uint>? gatherTools = null, BotMode mode = BotMode.FarmMobs, int routeStart = 0)
+    /// <param name="context">Контекст хода; настройки в нём — уже копия (окно может менять свои дальше).</param>
+    /// <param name="behaviors">Поведения по приоритету: первое занявшее ход останавливает перебор.</param>
+    /// <param name="main">Чей статус показывать, когда ход никто не занял (у фарма и обхода — бой: «ищу цель…»).</param>
+    public BotBrain(BrainContext context, IReadOnlyList<IBehavior> behaviors, IBehavior main)
     {
-        _mode = mode;
-        // Копия: окно может менять свои дальше
-        _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
-        Survival = new SurvivalBehavior();
-        if (mode == BotMode.GatherResources)
-        {
-            Combat = new CombatBehavior(defendOnly: true);
-            Pet = new PetBehavior(Combat);
-            Route = new RouteBehavior(gatherTools ?? [], routeStart);
-            Gather = new GatherBehavior(Combat, gatherTools ?? [], Route.Scope);
-            Escape = new EscapeBehavior(Route, Combat);
-            _behaviors = [Survival, Escape, Pet, Gather, Combat, Route];
-            return;
-        }
+        if (!behaviors.Contains(main))
+            throw new ArgumentException("Главное поведение должно быть в наборе", nameof(main));
 
-        Combat = new CombatBehavior();
-        Pet = new PetBehavior(Combat);
-        Gather = new GatherBehavior(Combat, gatherTools ?? []);
-        Return = new ReturnBehavior(Combat);
-        _behaviors = [Survival, Pet, Gather, Combat, Return];
+        _context = context;
+        _behaviors = behaviors;
+        _main = main;
     }
-
-    private readonly BotMode _mode;
-
-    public SurvivalBehavior Survival { get; }
-    public PetBehavior Pet { get; }
-    public CombatBehavior Combat { get; }
-    public GatherBehavior Gather { get; }
-    /// <summary>Возврат в центр фарма; null — в режиме обхода.</summary>
-    public ReturnBehavior? Return { get; }
-
-    /// <summary>Обход маршрута; null — в режиме фарма мобов.</summary>
-    public RouteBehavior? Route { get; }
-
-    /// <summary>Уход вверх от опасного моба (обход); null — в режиме фарма мобов.</summary>
-    public EscapeBehavior? Escape { get; }
 
     /// <summary>Что делает бот — для окна.</summary>
     public string Status => _status;
 
     public event Action<string>? StatusChanged;
 
-    /// <summary>Мозг сам просит остановку (персонаж погиб).</summary>
+    /// <summary>Мозг сам просит остановку (персонаж погиб или поведение попросило).</summary>
     public event Action<string>? StopRequested;
 
     /// <summary>Новые настройки применяются на следующем шаге (копия — окно может менять свои дальше).</summary>
@@ -94,13 +62,6 @@ public sealed class BotBrain : IBotRunner
 
             _context.World = world;
             _context.StartPosition ??= world.Host.Position;
-            var center = _mode == BotMode.FarmMobs ? CenterText() : _centerText;
-            if (center != _centerText)
-            {
-                _centerText = center;
-                var distance = _context.FarmCenter is { } c ? $", до него {world.Host.Position.HorizontalDistanceTo(c):0} м" : "";
-                _context.Log.Info(center + distance);
-            }
 
             _context.Executor.Update(world);
             Deliver();
@@ -125,7 +86,7 @@ public sealed class BotBrain : IBotRunner
 
                 _context.Owner = null;
                 Deliver();
-                SetStatus((acted ?? Combat).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
+                SetStatus((acted ?? _main).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
                 if (_context.StopReason is { } reason)
                 {
                     _context.StopReason = null;
@@ -153,7 +114,6 @@ public sealed class BotBrain : IBotRunner
             _context.TakeOutcomes();
             _context.StartPosition = null;
             _context.StopReason = null;
-            _centerText = null;
             foreach (var behavior in _behaviors)
                 behavior.Reset();
             SetStatus("ожидание");
@@ -173,15 +133,6 @@ public sealed class BotBrain : IBotRunner
         }
 
         _context.Owner = null;
-    }
-
-    // «Центр фарма …» — в лог при старте и когда сменили точку или радиус
-    private string CenterText()
-    {
-        var target = _context.Settings.Target;
-        var point = target.SelectedFarmPoint;
-        var where = point is null ? $"точка старта {_context.StartPosition}" : $"«{point.Name}» {point.Position}";
-        return target.FarmRadius > 0 ? $"Центр фарма: {where}, радиус {target.FarmRadius} м" : $"Центр фарма: {where}, радиус не ограничен";
     }
 
     private void SetStatus(string status)
