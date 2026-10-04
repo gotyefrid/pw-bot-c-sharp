@@ -266,10 +266,14 @@ public enum ItemUse
 }
 
 /// <summary>Банка или корм. Подтверждение — стопка в ячейке уменьшилась. Не уменьшилась за срок — отказ игры.</summary>
-public sealed class UseItemAction(InventoryItem item, ItemUse use) : GameAction
+/// <param name="potion">Банка: от чего пьём (HP или MP) — выпитая действует какое-то время, такую же пока не пить.</param>
+public sealed class UseItemAction(InventoryItem item, ItemUse use, PotionKind? potion = null) : GameAction
 {
     public InventoryItem Item { get; } = item;
     public ItemUse Use { get; } = use;
+
+    /// <summary>Банка: HP или MP; null — не банка (или неважно).</summary>
+    public PotionKind? Potion { get; } = potion;
 
     public override string Name => $"{(Use == ItemUse.Potion ? "банка" : "корм")} tid {Item.Tid} (ячейка {Item.Slot}, ×{Item.Count})";
     public override ActionSlot Slot => ActionSlot.Item;

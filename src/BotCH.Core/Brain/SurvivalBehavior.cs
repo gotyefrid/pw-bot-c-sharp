@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
 
@@ -11,7 +10,6 @@ namespace BotCH.Core.Brain;
 public sealed class SurvivalBehavior : IBehavior
 {
     private readonly PotionPolicy _policy = new();
-    private readonly Dictionary<GameAction, PotionKind> _sent = [];
 
     public string Name => "банки";
     public string? Status { get; private set; }
@@ -38,7 +36,7 @@ public sealed class SurvivalBehavior : IBehavior
             return false;
         }
 
-        var action = new UseItemAction(potion, ItemUse.Potion);
+        var action = new UseItemAction(potion, ItemUse.Potion, kind);
         if (c.Runner.IsPending(action.Key))
             return false;
 
@@ -46,24 +44,15 @@ public sealed class SurvivalBehavior : IBehavior
         if (!c.Submit(action))
             return false;
 
-        _sent[action] = kind;
         Status = $"пью банку {kind}";
         return true;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
-        if (!_sent.TryGetValue(outcome.Action, out var kind))
-            return;
-
-        _sent.Remove(outcome.Action);
-        if (outcome.Status == ActionStatus.Confirmed)
-            _policy.Drunk(((UseItemAction)outcome.Action).Item, kind, c.Now);
+        if (outcome.Action is UseItemAction { Potion: { } kind } drink && outcome.Status == ActionStatus.Confirmed)
+            _policy.Drunk(drink.Item, kind, c.Now);
     }
 
-    public void Reset()
-    {
-        _sent.Clear();
-        Status = null;
-    }
+    public void Reset() => Status = null;
 }
