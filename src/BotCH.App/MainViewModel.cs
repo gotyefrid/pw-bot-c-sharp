@@ -16,6 +16,7 @@ using BotCH.Core.Logging;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
 using BotCH.Core.Resources;
+using BotCH.Core.Session;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 
@@ -52,9 +53,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private IServerProfile _profile;
     private bool _refreshing;
 
-    // Бот (мозг) — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute
-    private GameProcess? _exec;
-    private WindowCallRunner? _windowRunner;
+    // Бот (мозг) — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute (внутри GameCalls)
+    private GameCalls? _calls;
     private IBotRunner? _brain;
     private Action<WorldState>? _brainTick;
 
@@ -284,17 +284,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            _exec = GameProcess.Open(_game.Pid, GameProcessRights.Execute);
-
             // Вызовы — в главном потоке игры через её окно: из отдельного потока клиент падал на стыке «работ» персонажа
-            _windowRunner = WindowCallRunner.Install(_exec, NativeWindows.FindMainWindow(_game.Pid, includeHidden: true), out var problem);
-            if (_windowRunner is null)
+            _calls = GameCalls.Open(_game, _profile.Data, CallTransport.Window, out var problem);
+            if (_calls is null)
+            {
                 _log.Warning($"Вызовы через окно игры не подключились ({problem}) — вызываю отдельным потоком, клиент может падать");
-            var caller = new GameCaller(_game, _windowRunner ?? (IRemoteRunner)_exec, _game.MainModuleBase, _profile.Data);
-            foreach (var function in caller.Functions.Where(f => !f.IsUsable))
+                _calls = GameCalls.Open(_game, _profile.Data, CallTransport.Thread, out var threadProblem)
+                         ?? throw new InvalidOperationException(threadProblem);
+            }
+            foreach (var function in _calls.Caller.Functions.Where(f => !f.IsUsable))
                 _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
 
-            var runner = new ActionRunner(new DirectCallActions(caller), _logger.For("действия"));
+            var runner = new ActionRunner(_calls.Actions, _logger.For("действия"));
             // Обход — с точки, выбранной в списке (не выбрана — с первой)
             _settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
             _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools);
@@ -340,10 +341,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _brainTick = null;
         _brain?.Reset();
         _brain = null;
-        _windowRunner?.Dispose();
-        _windowRunner = null;
-        _exec?.Dispose();
-        _exec = null;
+        _calls?.Dispose();
+        _calls = null;
 
         if (IsRunning)
             _log.Info("Стоп");

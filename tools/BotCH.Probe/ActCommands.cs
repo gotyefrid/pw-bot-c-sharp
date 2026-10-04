@@ -9,6 +9,7 @@ using BotCH.Core.Clients;
 using BotCH.Core.Logging;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
+using BotCH.Core.Session;
 using BotCH.Core.World;
 
 namespace BotCH.Probe;
@@ -58,20 +59,17 @@ internal static class ActCommands
         var reader = new WorldReader(game, game.MainModuleBase, data);
 
         // Вызовы — в главном потоке игры через её окно; --thread — по-старому, отдельным потоком
-        var useThread = rest.Contains("--thread");
-        var installProblem = "";
-        using var windowRunner = useThread ? null
-            : WindowCallRunner.Install(game, NativeWindows.FindMainWindow(game.Pid, includeHidden: true), out installProblem);
-        if (windowRunner is null && !useThread)
+        var transport = rest.Contains("--thread") ? CallTransport.Thread : CallTransport.Window;
+        using var calls = GameCalls.Open(game, data, transport, out var callsProblem);
+        if (calls is null)
         {
-            Console.WriteLine($"❌ вызов через окно игры не подключился: {installProblem}");
+            Console.WriteLine($"❌ вызовы не подключились: {callsProblem}");
             return 3;
         }
 
-        Console.WriteLine(windowRunner is null ? "Вызовы: отдельным потоком (--thread)" : "Вызовы: в главном потоке игры (через окно)");
-        var caller = new GameCaller(game, windowRunner ?? (IRemoteRunner)game, game.MainModuleBase, data);
+        Console.WriteLine(transport == CallTransport.Thread ? "Вызовы: отдельным потоком (--thread)" : "Вызовы: в главном потоке игры (через окно)");
         var log = new Logger { MinLevel = LogLevel.Debug }.AddSink(new ConsoleSink()).For("act");
-        var runner = new ActionRunner(new DirectCallActions(caller), log);
+        var runner = new ActionRunner(calls.Actions, log);
 
         var world = reader.Read();
         var action = Build(name, rest, world, data, out var problem);

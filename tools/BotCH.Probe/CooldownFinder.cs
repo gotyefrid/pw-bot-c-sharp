@@ -8,6 +8,7 @@ using BotCH.Core.Calls;
 using BotCH.Core.Logging;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
+using BotCH.Core.Session;
 using BotCH.Core.World;
 
 namespace BotCH.Probe;
@@ -70,7 +71,15 @@ internal static class CooldownFinder
 
         Sample();
         Console.WriteLine($"Использую ({what}): tid {food.Tid} из ячейки {food.Slot} (×{food.Count})");
-        var runner = new ActionRunner(new DirectCallActions(new GameCaller(game, game, game.MainModuleBase, data)), NullLogger.Instance);
+        // Как бот: в главном потоке игры через её окно (отдельным потоком клиент 1.4.6 падал)
+        using var calls = GameCalls.Open(game, data, CallTransport.Window, out var callsProblem);
+        if (calls is null)
+        {
+            Console.WriteLine($"❌ вызовы не подключились: {callsProblem}");
+            return 3;
+        }
+
+        var runner = new ActionRunner(calls.Actions, NullLogger.Instance);
         var submit = runner.Submit(new UseItemAction(food, use), world);
         if (!submit.Sent)
         {
