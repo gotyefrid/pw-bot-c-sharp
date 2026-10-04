@@ -23,7 +23,7 @@ public sealed class WorldReader
     private const int MaxSkills = 256;
 
     private readonly IMemory _memory;
-    private readonly uint _moduleBase;
+    private readonly GameRoots _roots;
     private readonly ProfileData _p;
     private readonly Func<int, string?> _skillName;
     private readonly int _hostSize;
@@ -40,7 +40,7 @@ public sealed class WorldReader
     public WorldReader(IMemory memory, uint moduleBase, ProfileData profile, Func<int, string?>? skillName = null)
     {
         _memory = memory;
-        _moduleBase = moduleBase;
+        _roots = new GameRoots(memory, moduleBase, profile);
         _p = profile;
         _skillName = skillName ?? (_ => null);
 
@@ -96,7 +96,7 @@ public sealed class WorldReader
     {
         try
         {
-            var game = _memory.ReadPointerChain(_moduleBase + _p.Base.BasePointer, _p.Base.Game);
+            var game = _roots.Game();
             if (game == 0)
                 throw new WorldNotReadyException("Игра не загружена (game = 0)");
             return game;
@@ -395,7 +395,7 @@ public sealed class WorldReader
     {
         var d = _p.ElementData;
         if (d.Manager == 0 || id == 0
-            || !_memory.TryReadUInt32(_moduleBase + _p.Base.BasePointer, out var basePointer)
+            || !_roots.TryBase(out var basePointer)
             || !_memory.TryReadUInt32(basePointer + d.Manager, out var manager) || manager == 0
             || !_memory.TryReadUInt32(manager + d.EssenceMap + d.MapBuckets, out var buckets)
             || !_memory.TryReadUInt32(manager + d.EssenceMap + d.MapBucketCount, out var count) || count == 0

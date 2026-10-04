@@ -40,7 +40,7 @@ public sealed class GameCaller
 
     private readonly IMemory _memory;
     private readonly IRemoteRunner _runner;
-    private readonly uint _moduleBase;
+    private readonly GameRoots _roots;
     private readonly ProfileData _profile;
     private readonly HashSet<uint> _forbidden;
     private readonly Dictionary<string, FunctionLocation> _functions;
@@ -49,7 +49,7 @@ public sealed class GameCaller
     {
         _memory = memory;
         _runner = runner;
-        _moduleBase = moduleBase;
+        _roots = new GameRoots(memory, moduleBase, profile);
         _profile = profile;
         _forbidden = new HashSet<uint>(profile.ForbiddenFunctions.Values.Select(rva => moduleBase + rva));
         resolver ??= new FunctionResolver(memory, moduleBase);
@@ -202,9 +202,9 @@ public sealed class GameCaller
     {
         var function = _functions[name];
         var definition = _profile.Functions[name];
-        if (definition.This == FunctionThis.Host && !TryReadHost(out thisPointer))
+        if (definition.This == FunctionThis.Host && !_roots.TryHost(out thisPointer))
             return CallResult.Refused($"{name}: персонаж не в мире");
-        if (definition.This == FunctionThis.Session && !TryReadSession(out thisPointer))
+        if (definition.This == FunctionThis.Session && !_roots.TrySession(out thisPointer))
             return CallResult.Refused($"{name}: нет связи с сервером");
         if (definition.Convention == CallingConvention.Thiscall && thisPointer == 0)
             return CallResult.Refused($"{name}: нет объекта для вызова");
@@ -231,24 +231,6 @@ public sealed class GameCaller
             return StubBuilder.Call(function.Address, definition.Convention, thisPointer, names.Select(Value).ToArray(),
                 Register("ecx"), Register("edx"));
         }));
-    }
-
-    private bool TryReadHost(out uint host)
-    {
-        host = 0;
-        return _memory.TryReadUInt32(_moduleBase + _profile.Base.BasePointer, out var basePointer)
-               && _memory.TryReadUInt32(basePointer + _profile.Base.Game, out var game)
-               && _memory.TryReadUInt32(game + _profile.Host.Struct, out host)
-               && host != 0;
-    }
-
-    private bool TryReadSession(out uint session)
-    {
-        session = 0;
-        return _profile.Base.Session != 0
-               && _memory.TryReadUInt32(_moduleBase + _profile.Base.BasePointer, out var basePointer)
-               && _memory.TryReadUInt32(basePointer + _profile.Base.Session, out session)
-               && session != 0;
     }
 
     private static uint ParseNumber(string text) => TryParseNumber(text, out var value) ? value : 0;

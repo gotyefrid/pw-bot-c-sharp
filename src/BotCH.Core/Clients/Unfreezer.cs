@@ -54,7 +54,7 @@ public sealed class Unfreezer : IDisposable
 
         try
         {
-            var baseAddress = game.ReadUInt32(game.MainModuleBase + _profile.Base.BasePointer);
+            var baseAddress = new GameRoots(game, game.MainModuleBase, _profile).Base();
             game.WriteUInt32(baseAddress + _profile.Base.Unfreeze, 1);
             _warned = false;
         }

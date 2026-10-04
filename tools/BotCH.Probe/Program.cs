@@ -241,7 +241,7 @@ internal static class Program
         Console.WriteLine($"Сервер:   {profile.Name}");
         Console.WriteLine($"Процесс:  {game.ProcessName} PID {game.Pid}, модуль 0x{game.MainModuleBase:X8} ({game.MainModuleSize / 1024} КБ)");
 
-        var gameAddress = game.ReadPointerChain(game.MainModuleBase + data.Base.BasePointer, data.Base.Game);
+        var gameAddress = new GameRoots(game, game.MainModuleBase, data).Game();
         Console.WriteLine($"game      = 0x{gameAddress:X8}");
 
         var pers = game.ReadUInt32(gameAddress + data.Host.Struct);
