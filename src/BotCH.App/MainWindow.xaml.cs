@@ -105,9 +105,15 @@ public partial class MainWindow : Window
     {
         _model.Dispose();
         base.OnClosed(e);
-        Application.Current?.Shutdown();
 
         // Всё нужное уже сделано (бот отключён, точки сохранены): выход завис — страховка (см. ExitWatchdog)
         ExitWatchdog.Start(Dispatcher, Thread.CurrentThread, _model.WindowLog);
+
+        // Выход — на месте, без очереди. При «Закрыть окно» из панели задач (ПКМ по значку) поставленное в очередь до главного
+        // потока не доходит: по логу страховки 04.10 главный поток ждал сообщений в GetMessage, диспетчер даже не начал выход,
+        // Application.Shutdown и «толчок» так и стояли в очереди. InvokeShutdown из своего потока останавливает диспетчер сразу:
+        // главный цикл выходит, когда этот обработчик закончится, — сообщение для этого не нужно
+        Application.Current?.Shutdown();
+        Dispatcher.InvokeShutdown();
     }
 }
