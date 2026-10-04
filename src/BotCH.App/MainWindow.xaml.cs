@@ -107,13 +107,7 @@ public partial class MainWindow : Window
         base.OnClosed(e);
         Application.Current?.Shutdown();
 
-        // «Закрыть окно» из панели задач: окно уничтожается, а сигнал диспетчеру «обработай очередь» теряется — выход
-        // (ShutdownCallback) так и стоит в очереди, процесс висит без окна. Всё нужное уже сделано (бот отключён, точки
-        // сохранены) — не вышли за 3 с, выходим сами
-        new Thread(() =>
-        {
-            Thread.Sleep(TimeSpan.FromSeconds(3));
-            Environment.Exit(0);
-        }) { IsBackground = true, Name = "BotCH: выход" }.Start();
+        // Всё нужное уже сделано (бот отключён, точки сохранены): выход завис — страховка (см. ExitWatchdog)
+        ExitWatchdog.Start(Dispatcher, Thread.CurrentThread, _model.WindowLog);
     }
 }

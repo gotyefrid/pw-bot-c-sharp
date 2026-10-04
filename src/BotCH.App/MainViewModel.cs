@@ -325,6 +325,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _connection?.Bot?.UpdateSettings(Settings);
     }
 
+    /// <summary>Лог окна — для страховки выхода (<see cref="ExitWatchdog"/>), когда модель уже освобождена.</summary>
+    internal ILogger WindowLog => _log;
+
     public void Dispose()
     {
         FlushSettings();
