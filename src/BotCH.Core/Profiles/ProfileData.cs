@@ -185,6 +185,10 @@ public sealed class NpcOffsets
     public uint Level { get; init; }
     /// <summary>Только у выбранной цели.</summary>
     public uint Hp { get; init; }
+    /// <summary>
+    /// Расстояние до персонажа, которое держит сама игра (float, по горизонтали). Бот его не читает — считает из координат;
+    /// нужно только Probe selftest: сверка «расчёт = память» ловит ошибку в смещении позиции на новом клиенте. 0 — не найдено.
+    /// </summary>
     public uint Distance { get; init; }
     /// <summary>WID того, кого бьёт моб; 0 — нейтрален.</summary>
     public uint Target { get; init; }
@@ -222,6 +226,10 @@ public sealed class GroundItemOffsets
     public uint Tid { get; init; }
     /// <summary>1 предмет, 2 ресурс, 3 монеты.</summary>
     public uint Kind { get; init; }
+    /// <summary>
+    /// Расстояние до персонажа, которое держит сама игра (float, в 3D — с высотой). Бот его не читает — считает из
+    /// координат; нужно только Probe selftest (сверка «расчёт = память»). 0 — не найдено.
+    /// </summary>
     public uint Distance { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }

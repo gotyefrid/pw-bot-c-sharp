@@ -109,12 +109,12 @@ internal static class ActCommands
         problem = "";
         var number = args.Select(a => int.TryParse(a, out var n) ? n : (int?)null).FirstOrDefault(n => n is not null);
         var skills = data.Skills;
-        var nearestItem = w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource).OrderBy(i => i.Distance).FirstOrDefault();
+        var nearestItem = w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource).OrderBy(i => i.Offset.Direct).FirstOrDefault();
 
         switch (name)
         {
             case "target":
-                var mob = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Distance).FirstOrDefault();
+                var mob = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
                 problem = "рядом нет живых мобов";
                 return mob is null ? null : new SelectTargetAction(mob);
 
@@ -166,7 +166,7 @@ internal static class ActCommands
 
             case "pickup":
                 problem = "рядом (до 10 м) нет предметов";
-                return nearestItem is { Distance: <= 10 } ? new PickupAction(nearestItem, approach: false) : null;
+                return nearestItem is { Offset.Direct: <= 10 } ? new PickupAction(nearestItem, approach: false) : null;
 
             case "pickup-approach":
                 problem = "на земле нет предметов";
@@ -180,10 +180,10 @@ internal static class ActCommands
                 return new CancelAction("каст или копание");
 
             case "gather":
-                var resource = w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).OrderBy(i => i.Distance).FirstOrDefault();
+                var resource = w.GroundItems.Where(i => i.Kind == GroundItemKind.Resource).OrderBy(i => i.Offset.Direct).FirstOrDefault();
                 Console.WriteLine($"Сумка: {string.Join(", ", w.Inventory.Select(i => $"{i.Tid}×{i.Count}"))}");
                 problem = resource is null ? "рядом нет ресурсов" : $"{resource.Name} дальше 50 м";
-                return resource is { Distance: <= 50 } ? new GatherAction(resource) : null;
+                return resource is { Offset.Direct: <= 50 } ? new GatherAction(resource) : null;
 
             case "move":
                 var numbers = args.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
@@ -230,9 +230,9 @@ internal static class ActCommands
                 return new MoveAction(new Position(from.X + shift[0], from.Height + shift[2], from.Y + shift[1]), fly: true);
 
             case "move-mob":
-                var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Distance).FirstOrDefault();
+                var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
                 problem = near is null ? "рядом нет живых мобов" : $"{near.Name} дальше 50 м";
-                return near is { Distance: <= 50 } ? new MoveAction(near.Position, smart: true) : null;
+                return near is { Offset.Horizontal: <= 50 } ? new MoveAction(near.Position, smart: true) : null;
 
             default:
                 problem = $"неизвестное действие «{name}»\n{Usage}";

@@ -339,8 +339,8 @@ public class BrainScenarioTests
 
         // Перс убежал на 50 м: моб рядом с ним (55 м от старта) — нельзя, моб в 20 м от старта — можно
         _world.Position = new Position(50, 0, 0);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(55, 0, 0), 5, "Волк", 0));
-        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Mob, 1, 0, new Position(20, 0, 0), 30, "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(55, 0, 0), "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Mob, 1, 0, new Position(20, 0, 0), "Волк", 0));
         Tick();
 
         Assert.Equal("select 80000002", LastCall);
@@ -391,7 +391,7 @@ public class BrainScenarioTests
         _settings.Target.ReturnToCenter = false;
         Tick(); // старт в (0, 0)
         _world.Position = new Position(100, 0, 0);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(110, 0, 0), 10, "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(110, 0, 0), "Волк", 0));
         Tick();
         Assert.Empty(_actions.Calls);
 
@@ -406,7 +406,7 @@ public class BrainScenarioTests
     {
         _settings.Target.KillMobs = true;
         _world.AddMob(0x80000001, "Волк", 3, state: NpcInfo.StateDead);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Npc, 1, 0, new Position(2, 0, 0), 2, "Отшельник", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Npc, 1, 0, new Position(2, 0, 0), "Отшельник", 0));
         var alive = _world.AddMob(0x80000003, "Волк", 20);
 
         Tick();
@@ -618,8 +618,8 @@ public class BrainScenarioTests
         // Моб умер в 10 м; рядом с ним ресурс и мех
         _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
         _world.TargetWid = 0;
-        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3089, GroundItemKind.Resource, new Position(10, 0, 0), 9.5f, "Шахта угля"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(11, 0, 0), 11, "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3089, GroundItemKind.Resource, new Position(10, 0, 0), "Шахта угля"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(11, 0, 0), "Мягкий мех"));
         Tick();
 
         // К месту смерти не идём — подбор «как мышкой» сам подводит к предмету
@@ -633,7 +633,7 @@ public class BrainScenarioTests
     {
         // Скилл, заказанный по живому мобу, кастуется уже после его смерти — подбор в это время клиент отбрасывает
         KillMobForLoot();
-        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), 3, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
         _world.Casting = true;
         Tick();
         Assert.DoesNotContain("pickup-approach C0000001", _actions.Calls);
@@ -651,7 +651,7 @@ public class BrainScenarioTests
         // Моб умер в (2, 0); предмет в 7 м от места смерти — подбирается только при радиусе больше 7
         _settings.Loot.Radius = radius;
         KillMobForLoot();
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(9, 0, 0), 9, "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(9, 0, 0), "Мягкий мех"));
         Tick();
 
         Assert.Equal(picked, _actions.Calls.Contains("pickup-approach C0000002"));
@@ -669,8 +669,8 @@ public class BrainScenarioTests
 
         // Моб умер в (2, 0); монета с него рядом, старый мех — в 14 м от места смерти (и в 12 м от перса)
         _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
-        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), 3, "Монета"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(-12, 0, 0), 12, "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(-12, 0, 0), "Мягкий мех"));
         Tick();
         Assert.Equal("pickup-approach C0000001", LastCall);
 
@@ -700,9 +700,9 @@ public class BrainScenarioTests
         _world.Bag.Add(new InventoryItem(0, 8094, 8, 5, null, null) { MaxCount = 99 }); // «Мягкий мех» ×5 из 99
         _world.Bag.Add(new InventoryItem(1, 830, 8, 1, null, null) { MaxCount = 1 });
         KillMobForLoot();
-        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(2, 0, 0), 1, "Разорванный мех"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), 2, "Мягкий мех"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000003, 3044, GroundItemKind.Money, new Position(4, 0, 0), 3, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(2, 0, 0), "Разорванный мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000003, 3044, GroundItemKind.Money, new Position(4, 0, 0), "Монета"));
 
         Tick();
         Assert.Equal("pickup-approach C0000002", LastCall); // ляжет в стопку
@@ -720,10 +720,10 @@ public class BrainScenarioTests
     {
         _settings.Loot.Attempts = 10;
         KillMobForLoot();
-        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(2, 0, 0), 1, "Разорванный мех"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), 2, "Мягкий мех"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000003, 8090, GroundItemKind.Item, new Position(3, 0, 0), 2, "Клык"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000004, 3044, GroundItemKind.Money, new Position(4, 0, 0), 3, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(2, 0, 0), "Разорванный мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000003, 8090, GroundItemKind.Item, new Position(3, 0, 0), "Клык"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000004, 3044, GroundItemKind.Money, new Position(4, 0, 0), "Монета"));
 
         // Два предмета подряд не поднялись (лежат на земле дольше 10 с)
         Tick();
@@ -750,8 +750,8 @@ public class BrainScenarioTests
         Tick();
 
         _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
-        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(1, 0, 0), 1, "Разорванный мех"));
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(3, 0, 0), 3, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(1, 0, 0), "Разорванный мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
         Tick();
 
         Assert.Equal("pickup-approach C0000002", LastCall);
@@ -767,7 +767,7 @@ public class BrainScenarioTests
         _world.TargetWid = mob.Wid;
         Tick();
         _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(3, 0, 0), 3, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
         Tick();
         Assert.Equal("pickup-approach C0000002", LastCall);
 
@@ -797,7 +797,7 @@ public class BrainScenarioTests
 
     private GroundItem AddOre(uint id, float distance, string name = "Железная руда")
     {
-        var ore = new GroundItem(0, id, 3079, GroundItemKind.Resource, new Position(distance, 0, 0), distance, name);
+        var ore = new GroundItem(0, id, 3079, GroundItemKind.Resource, new Position(distance, 0, 0), name);
         _world.Ground.Add(ore);
         return ore;
     }
@@ -1063,7 +1063,7 @@ public class BrainScenarioTests
         // Лут кончился — следующую цель не выбираем, пока в радиусе есть ресурсы
         GatherWithPickaxe();
         KillMobForLoot();
-        _world.Ground.Add(new GroundItem(0, 0xC0000009, 3044, GroundItemKind.Money, new Position(2, 0, 0), 2, "Монета"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000009, 3044, GroundItemKind.Money, new Position(2, 0, 0), "Монета"));
         _world.AddMob(0x80000002, "Волк", 15, hp: 100);
         _world.TargetWid = 0;
         Tick();

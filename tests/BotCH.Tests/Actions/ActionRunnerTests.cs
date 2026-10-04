@@ -104,7 +104,7 @@ public class ActionRunnerTests
     public void GatherKnockedDownIsRejectedAtOnce()
     {
         // Копали камень 8 с, моб сбил на 1,8 с — не ждём 30 с
-        var stone = new GroundItem(1, 0xC0100AD9, 3079, GroundItemKind.Resource, new Position(2, 0, 0), 2, "Залежи камня");
+        var stone = new GroundItem(1, 0xC0100AD9, 3079, GroundItemKind.Resource, new Position(2, 0, 0), "Залежи камня");
         _world.Ground.Add(stone);
         _world.Gather = new GatherProgress(false, 8000, 8000);
         _runner.Submit(Bot, new GatherAction(stone), _world.Snapshot());
@@ -122,7 +122,7 @@ public class ActionRunnerTests
     public void GatherFinishedWaitsForLoot()
     {
         // Полоска дошла до конца, ресурс ещё виден пару кадров — это не срыв
-        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), 2, "Железная руда");
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), "Железная руда");
         _world.Ground.Add(ore);
         _runner.Submit(Bot, new GatherAction(ore), _world.Snapshot());
         _world.Gather = new GatherProgress(true, 2500, 5000);
@@ -139,7 +139,7 @@ public class ActionRunnerTests
     public void GatherNotStartedWhileStandingIsRejected()
     {
         // Подошли, а полоски нет (нет кирки) — 4 с стоим и бросаем
-        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), 2, "Железная руда");
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), "Железная руда");
         _world.Ground.Add(ore);
         _world.Gather = new GatherProgress(false, 0, 0);
         _runner.Submit(Bot, new GatherAction(ore), _world.Snapshot());
@@ -272,7 +272,7 @@ public class ActionRunnerTests
     public void NormalBreaksDiggingButNotCast()
     {
         // Копание — фон: бой его прерывает; чужой каст обычное действие не трогает
-        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), 2, "Железная руда");
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), "Железная руда");
         _world.Ground.Add(ore);
         _runner.Submit(Bot, new GatherAction(ore), _world.Snapshot());
         _world.Gather = new GatherProgress(true, 1000, 5000);
@@ -382,7 +382,7 @@ public class ActionRunnerTests
     [Fact]
     public void PickupConfirmedWhenItemDisappears()
     {
-        var coin = new GroundItem(1, 0xC0126480, 3044, GroundItemKind.Money, new Position(6, 0, 0), 6, "Монета");
+        var coin = new GroundItem(1, 0xC0126480, 3044, GroundItemKind.Money, new Position(6, 0, 0), "Монета");
         _world.Ground.Add(coin);
 
         _runner.Submit(Bot, new PickupAction(coin, approach: true), _world.Snapshot());
@@ -396,7 +396,7 @@ public class ActionRunnerTests
     [Fact]
     public void PickupGivesUpAfter3sStandingNextToItem()
     {
-        var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(2, 0, 0), 2, "Мех животных");
+        var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(2, 0, 0), "Мех животных");
         _world.Ground.Add(fur);
 
         _runner.Submit(Bot, new PickupAction(fur, approach: true), _world.Snapshot());
@@ -412,7 +412,7 @@ public class ActionRunnerTests
     [Fact]
     public void PickupWaitsWhileWalkingToItem()
     {
-        var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(8, 0, 0), 8, "Мех животных");
+        var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(8, 0, 0), "Мех животных");
         _world.Ground.Add(fur);
 
         _runner.Submit(Bot, new PickupAction(fur, approach: true), _world.Snapshot());
@@ -427,7 +427,7 @@ public class ActionRunnerTests
     [Fact]
     public void ResourceIsNeverPickedUp()
     {
-        var ore = new GroundItem(1, 0xC0100AD9, 3089, GroundItemKind.Resource, new Position(5, 0, 0), 5, "Шахта крупного угля");
+        var ore = new GroundItem(1, 0xC0100AD9, 3089, GroundItemKind.Resource, new Position(5, 0, 0), "Шахта крупного угля");
 
         Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(ore, approach: true), _world.Snapshot()).Status);
         Assert.Empty(_actions.Calls);
@@ -436,7 +436,7 @@ public class ActionRunnerTests
     [Fact]
     public void FarPacketPickupIsRefused()
     {
-        var far = new GroundItem(1, 0xC0000001, 3044, GroundItemKind.Money, new Position(15, 0, 0), 15, "Монета");
+        var far = new GroundItem(1, 0xC0000001, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета");
 
         Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(far, approach: false), _world.Snapshot()).Status);
     }
@@ -681,7 +681,7 @@ public class ActionRunnerTests
         var slow = new SlowActions();
         var runner = new ActionRunner(new GameControl(slow), NullLogger.Instance);
         var snapshot = _world.Snapshot();
-        var mobs = Enumerable.Range(1, 20).Select(i => new NpcInfo(0, (uint)i, NpcKind.Mob, 1, 0, default, 1, "м", 0)).ToList();
+        var mobs = Enumerable.Range(1, 20).Select(i => new NpcInfo(0, (uint)i, NpcKind.Mob, 1, 0, default, "м", 0)).ToList();
 
         Parallel.ForEach(mobs, mob =>
         {

@@ -1013,7 +1013,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var target = w.Target;
         HasTarget = target is not null;
         TargetName = target?.Name ?? (h.TargetWid == 0 ? "Нет цели" : "Цель вне списка мобов");
-        TargetDetails = target is null ? "" : $"HP {target.Hp} · {target.Distance:0.0} м · {StateText(target, w)}";
+        TargetDetails = target is null ? "" : $"HP {target.Hp} · {target.Offset} · {StateText(target, w)}";
 
         var pet = w.Pet;
         var active = pet?.ActiveCage is int cage ? pet.InCage(cage) : null;

@@ -302,7 +302,7 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
 {
     public GroundItem Item { get; } = item;
 
-    public override string Name => $"подобрать {Item.Name} ({Item.Distance:0.0} м{(approach ? ", с подходом" : "")})";
+    public override string Name => $"подобрать {Item.Name} ({Item.Offset}{(approach ? ", с подходом" : "")})";
     public override ActionSlot Slot => ActionSlot.Pickup;
     public override uint SlotId => Item.Id;
     // Пакетом персонаж не двигается; «как мышкой» — бежит к предмету
@@ -311,7 +311,7 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
 
     public override string? Precondition(WorldState now)
         => Item.Kind == GroundItemKind.Resource ? "ресурс не подбирается, а собирается"
-            : !approach && Item.Distance > 10 ? "дальше 10 м — сервер не поднимет без подхода"
+            : !approach && Item.Offset.Direct > 10 ? "дальше 10 м — сервер не поднимет без подхода"
             : null;
 
     public override CallResult Send(GameControl control, WorldState now)
@@ -350,7 +350,7 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 {
     public GroundItem Item { get; } = resource;
 
-    public override string Name => $"собрать {Item.Name} ({Item.Distance:0.0} м)";
+    public override string Name => $"собрать {Item.Name} ({Item.Offset})";
     public override ActionSlot Slot => ActionSlot.Gather;
     public override uint SlotId => Item.Id;
     public override ActionResource Resource => ActionResource.Body;

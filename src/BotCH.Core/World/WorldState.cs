@@ -29,7 +29,33 @@ public readonly record struct Position(float X, float Height, float Y)
 }
 
 /// <summary>
+/// Где объект относительно персонажа. Считается из позиций (<see cref="Between"/>), а не берётся из памяти: число в памяти
+/// игры у моба — по горизонтали, у предмета на земле — в 3D, а расчёт одинаков для всех и совпадает с памятью до сотых.
+/// </summary>
+/// <param name="Horizontal">По земле, м.</param>
+/// <param name="Vertical">Высота объекта минус высота персонажа, м: плюс — объект выше, минус — ниже.</param>
+public readonly record struct Offset(float Horizontal, float Vertical)
+{
+    /// <summary>С какой разницы по высоте её стоит показывать: «12 м (выше 30 м)».</summary>
+    private const float NotableHeight = 5f;
+
+    /// <summary>Кратчайшее, с высотой: √(по земле² + по высоте²).</summary>
+    public float Direct => (float)Math.Sqrt(Horizontal * Horizontal + Vertical * Vertical);
+
+    /// <summary>Где <paramref name="target"/> относительно <paramref name="origin"/> (персонажа).</summary>
+    public static Offset Between(Position origin, Position target) => new(origin.HorizontalDistanceTo(target), target.Height - origin.Height);
+
+    /// <summary>«12,0 м» — по земле; заметная разница по высоте — «12,0 м (выше 30 м)».</summary>
+    public override string ToString()
+        => Math.Abs(Vertical) < NotableHeight
+            ? $"{Horizontal:0.0} м"
+            : $"{Horizontal:0.0} м ({(Vertical > 0 ? "выше" : "ниже")} {Math.Abs(Vertical):0} м)";
+}
+
+/// <summary>
 /// Всё, на чём бот принимает решения, прочитанное одним проходом. Неизменяемый: читается целиком, потом передаётся мозгу.
+/// Расстояния до мобов и предметов (<see cref="NpcInfo.Offset"/>, <see cref="GroundItem.Offset"/>) — от персонажа в этом
+/// снимке: привязывает их только сборка снимка (этот конструктор), поэтому они не расходятся с позициями.
 /// </summary>
 public sealed record WorldState(
     DateTime Time,
@@ -41,6 +67,12 @@ public sealed record WorldState(
     IReadOnlyList<SkillInfo> Skills,
     PetState? Pet)
 {
+    /// <summary>Мобы, NPC и петы — с расстояниями от персонажа в этом снимке.</summary>
+    public IReadOnlyList<NpcInfo> Npcs { get; init; } = Npcs.Select(n => n with { Origin = Host.Position }).ToList();
+
+    /// <summary>Предметы и ресурсы на земле — с расстояниями от персонажа в этом снимке.</summary>
+    public IReadOnlyList<GroundItem> GroundItems { get; init; } = GroundItems.Select(i => i with { Origin = Host.Position }).ToList();
+
     /// <summary>Сколько объектов в списках по данным самой игры (для самопроверки: прочитали всё ли).</summary>
     public int NpcCountInGame { get; init; } = -1;
     public int GroundItemCountInGame { get; init; } = -1;
@@ -131,11 +163,16 @@ public sealed record NpcInfo(
     /// <summary>Кого бьёт (WID перса или пета); 0 — никого.</summary>
     uint TargetWid,
     Position Position,
-    float Distance,
     string Name,
     /// <summary>Игра знает HP только у выбранной цели; у остальных 0.</summary>
     int Hp)
 {
+    /// <summary>Откуда считается <see cref="Offset"/> — где персонаж в этом снимке. Ставит только сборка снимка.</summary>
+    internal Position Origin { get; init; }
+
+    /// <summary>Где моб относительно персонажа. Из позиции: <c>with { Position = … }</c> его тоже пересчитает.</summary>
+    public Offset Offset => Offset.Between(Origin, Position);
+
     /// <summary>Уровень; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Level { get; init; }
 
@@ -177,8 +214,14 @@ public enum GroundItemKind
     Money = 3,
 }
 
-public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind Kind, Position Position, float Distance, string Name)
+public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind Kind, Position Position, string Name)
 {
+    /// <summary>Откуда считается <see cref="Offset"/> — где персонаж в этом снимке. Ставит только сборка снимка.</summary>
+    internal Position Origin { get; init; }
+
+    /// <summary>Где предмет относительно персонажа. Из позиции: <c>with { Position = … }</c> его тоже пересчитает.</summary>
+    public Offset Offset => Offset.Between(Origin, Position);
+
     /// <summary>Для ресурса — его запись в справочнике игры; null — не ресурс или запись не найдена для сервера.</summary>
     public MineInfo? Mine { get; init; }
 

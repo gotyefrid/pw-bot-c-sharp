@@ -54,23 +54,18 @@ internal sealed class FakeWorld
         return this;
     }
 
-    /// <summary>
-    /// Снимок. Расстояния — из позиций, от того места, где сейчас персонаж (как в игре): у моба по горизонтали, у предмета
-    /// на земле — в 3D. Сами тесты расстояние не задают — только позицию.
-    /// </summary>
+    /// <summary>Снимок. Расстояния до мобов и предметов снимок считает сам — из позиций, от того места, где сейчас персонаж.</summary>
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, Casting, PetFoodCooldownMs)
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater },
-        Npcs.Select(n => n with { Distance = n.Position.HorizontalDistanceTo(Position) }).ToList(),
-        Ground.Select(i => i with { Distance = i.Position.DistanceTo(Position) }).ToList(),
-        Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
+        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
 
     /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int? state = null, int hp = 0)
     {
         var mob = new NpcInfo(wid, wid, NpcKind.Mob, state ?? (targetWid != 0 ? NpcInfo.StateAttacking : 1), targetWid,
-            new Position(distance, 0, 0), distance, name, hp);
+            new Position(distance, 0, 0), name, hp);
         Npcs.Add(mob);
         return mob;
     }
@@ -125,7 +120,7 @@ internal sealed class FakeWorld
         Pet = new PetState(summoned ? cage : null, summoned ? PetWid : 0, [new PetInCage(cage, hpRatio, hunger)]);
         Npcs.RemoveAll(n => n.Kind == NpcKind.Pet);
         if (summoned)
-            Npcs.Add(new NpcInfo(1, PetWid, NpcKind.Pet, 1, 0, new Position(2, 0, 0), 2, "Пет", 0));
+            Npcs.Add(new NpcInfo(1, PetWid, NpcKind.Pet, 1, 0, new Position(2, 0, 0), "Пет", 0));
     }
 }
 

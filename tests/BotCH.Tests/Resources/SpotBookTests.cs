@@ -26,7 +26,7 @@ public class SpotBookTests : IDisposable
 
     private GroundItem Resource(string name, float x, float y = 0)
     {
-        var item = new GroundItem(1, _nextId++, 3079, GroundItemKind.Resource, new Position(x, 0, y), 0, name);
+        var item = new GroundItem(1, _nextId++, 3079, GroundItemKind.Resource, new Position(x, 0, y), name);
         _world.Ground.Add(item);
         return item;
     }
@@ -319,7 +319,7 @@ public class SpotBookTests : IDisposable
         Assert.Equal([SpotEventKind.Empty], events.Select(e => e.Kind));
 
         // Ресурс появился, хоть копки мы и не видели — «в поле зрения»
-        _world.Ground.Add(new GroundItem(1, 0xC0100B37, 3536, GroundItemKind.Resource, new Position(55, 0, 0), 0, "Шалфей"));
+        _world.Ground.Add(new GroundItem(1, 0xC0100B37, 3536, GroundItemKind.Resource, new Position(55, 0, 0), "Шалфей"));
         book.Observe(_world.Wait(0.25).Snapshot());
         Assert.Equal(SpotEventKind.InView, events.Last().Kind);
         Assert.Equal(5, events.Last().FromCenter, 1);
@@ -398,7 +398,7 @@ public class SpotBookTests : IDisposable
         // ресурс пропал — это копка, а не «ушёл из виду»
         var spot = new ResourceSpot { Name = "Шалфей", Seen = 5, Ids = { [Server] = 0xC0100B37 } };
         var book = new SpotBook([spot]) { Server = Server };
-        var sage = new GroundItem(1, 0xC0100B37, 3536, GroundItemKind.Resource, new Position(50, 0, 0), 0, "Шалфей");
+        var sage = new GroundItem(1, 0xC0100B37, 3536, GroundItemKind.Resource, new Position(50, 0, 0), "Шалфей");
         _world.Ground.Add(sage);
         _world.Position = new Position(60, 0, 0);
         book.Observe(_world.Wait(0.25).Snapshot());

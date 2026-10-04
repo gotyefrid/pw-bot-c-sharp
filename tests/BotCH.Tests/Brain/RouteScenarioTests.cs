@@ -59,7 +59,7 @@ public class RouteScenarioTests
 
     private GroundItem AddResource(uint id, float x, string name)
     {
-        var item = new GroundItem(0, id, 3079, GroundItemKind.Resource, new Position(x, 0, 0), Math.Abs(x - _world.Position.X), name);
+        var item = new GroundItem(0, id, 3079, GroundItemKind.Resource, new Position(x, 0, 0), name);
         _world.Ground.Add(item);
         return item;
     }
@@ -149,7 +149,7 @@ public class RouteScenarioTests
 
     private NpcInfo AddAggressive(uint wid, string name, float x, int level, int aggro = 8, float height = 0)
     {
-        var mob = new NpcInfo(wid, wid, NpcKind.Mob, 1, 0, new Position(x, height, 0), x, name, 0)
+        var mob = new NpcInfo(wid, wid, NpcKind.Mob, 1, 0, new Position(x, height, 0), name, 0)
             { Level = level, Aggressive = true, AggroRadius = aggro };
         _world.Npcs.Add(mob);
         return mob;
@@ -181,7 +181,7 @@ public class RouteScenarioTests
         AddResource(0xC0000001, 10, "Шалфей");
         AddResource(0xC0000002, 30, "Железная руда");
         AddAggressive(0x80000001, "Волк", 12, level: 20);                       // слабее порога
-        _world.Npcs.Add(new NpcInfo(0x80000002, 0x80000002, NpcKind.Mob, 1, 0, new Position(28, 0, 0), 28, "Король пауков", 0)
+        _world.Npcs.Add(new NpcInfo(0x80000002, 0x80000002, NpcKind.Mob, 1, 0, new Position(28, 0, 0), "Король пауков", 0)
             { Level = 40, Aggressive = false, AggroRadius = 8 });                // из списка, но пассивный
 
         Tick();

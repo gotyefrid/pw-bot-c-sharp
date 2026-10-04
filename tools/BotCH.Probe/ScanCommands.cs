@@ -32,9 +32,9 @@ internal static class ScanCommands
             var world = new WorldReader(game, game.MainModuleBase, profile.Data).Read();
             objects = what switch
             {
-                "item" => world.GroundItems.OrderBy(i => i.Distance).Take(3).Select(i => i.Address).ToArray(),
-                "npc" => world.Npcs.Where(n => n.Kind == NpcKind.Npc).OrderBy(n => n.Distance).Take(3).Select(n => n.Address).ToArray(),
-                _ => world.Mobs.OrderBy(n => n.Distance).Take(3).Select(n => n.Address).ToArray(),
+                "item" => world.GroundItems.OrderBy(i => i.Offset.Direct).Take(3).Select(i => i.Address).ToArray(),
+                "npc" => world.Npcs.Where(n => n.Kind == NpcKind.Npc).OrderBy(n => n.Offset.Horizontal).Take(3).Select(n => n.Address).ToArray(),
+                _ => world.Mobs.OrderBy(n => n.Offset.Horizontal).Take(3).Select(n => n.Address).ToArray(),
             };
         }
 

@@ -140,7 +140,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
             .Where(m => !m.IsDead && !m.Returning && !_shaken.Contains(m.Wid) && m.TargetWid != 0
                         && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid)
                         && DangerZones.IsDangerous(m, c.Settings.Route))
-            .OrderBy(m => m.Distance)
+            .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
     }
 

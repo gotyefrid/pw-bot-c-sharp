@@ -66,7 +66,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         // Нересурс (квестовый, особый) — только если явно в списке, и тогда без условий: ни инструмент, ни сумку, ни квест не проверяем
         var special = near.Where(i => i.Special && _scope.Listed(c, i.Name));
         var resource = special.Concat(Regular(c, near.Where(i => !i.Special)))
-            .OrderBy(i => i.Distance)
+            .OrderBy(i => i.Offset.Direct)
             .FirstOrDefault(i => Safe(c, i));
         if (resource is null)
             return false;
@@ -77,7 +77,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         Status = $"копаю {resource.Name}";
         var sent = c.Send(new GatherAction(resource));
         if (sent == SubmitStatus.Sent)
-            c.Log.Info($"Копаю {resource.Name}{_scope.Where(c)}, {resource.Distance:0.0} м");
+            c.Log.Info($"Копаю {resource.Name}{_scope.Where(c)}, {resource.Offset}");
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 

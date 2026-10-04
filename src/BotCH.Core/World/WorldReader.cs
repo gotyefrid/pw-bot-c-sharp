@@ -34,8 +34,10 @@ public sealed class WorldReader
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
     // Моб отагрился (видели «возвращается») — какая цель у него тогда была: пока она та же и он не бьёт, это застрявшая цель
     private readonly Dictionary<uint, uint> _shakenOff = [];
-    // Расстояние до персонажа на прошлом снимке — «идёт к нам или нет»
+    // Расстояние до персонажа (по горизонтали) на прошлом снимке — «идёт к нам или нет»
     private readonly Dictionary<uint, float> _lastDistance = [];
+    // Где персонаж в читаемом снимке — от него «идёт к нам»
+    private Position _hostPosition;
 
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
     private const int MoveEnvWater = 1;
@@ -52,10 +54,11 @@ public sealed class WorldReader
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
             h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
-        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Distance, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence,
+        // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
+        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence,
             n.Returning);
         var g = profile.GroundItem;
-        _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.Distance, g.NamePointer, g.Location + 8);
+        _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
     }
 
     public WorldState Read()
@@ -65,6 +68,7 @@ public sealed class WorldReader
 
         var game = GameAddress();
         var host = ReadHost(game, out var hostBlock);
+        _hostPosition = host.Position;
         var world = _memory.ReadUInt32(game + _p.World.World);
         var w = _p.World;
         var npcs = ReadList(world, w.Npcs, _npcSize, ReadNpc, out var npcCount);
@@ -207,7 +211,8 @@ public sealed class WorldReader
                 _shakenOff.Remove(wid);
         }
 
-        var distance = b.Float(n.Distance);
+        var position = ReadPosition(b, n.Location);
+        var distance = position.HorizontalDistanceTo(_hostPosition);
         var approaching = state == NpcInfo.StateMoving && _lastDistance.TryGetValue(wid, out var last) && distance < last;
         _lastDistance[wid] = distance;
 
@@ -217,8 +222,7 @@ public sealed class WorldReader
             (NpcKind)b.Int32(n.Type),
             state,
             target,
-            ReadPosition(b, n.Location),
-            distance,
+            position,
             ReadName(b.UInt32(n.NamePointer)),
             (int)Field(b, n.Hp))
         {
@@ -265,7 +269,6 @@ public sealed class WorldReader
             b.UInt32(g.Tid),
             (GroundItemKind)b.Int32(g.Kind),
             ReadPosition(b, g.Location),
-            b.Float(g.Distance),
             ReadName(name));
         if (item.Kind != GroundItemKind.Resource)
             return item;

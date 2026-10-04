@@ -143,7 +143,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         _targetLostAt = null;
         _lastSword = DateTime.MinValue;
         _lastPetOrder = DateTime.MinValue;
-        c.Log.Info($"Бой: {mob.Name} 0x{mob.Wid:X8}, {mob.Distance:0.0} м{(why.Length > 0 ? " — " + why : "")}");
+        c.Log.Info($"Бой: {mob.Name} 0x{mob.Wid:X8}, {mob.Offset}{(why.Length > 0 ? " — " + why : "")}");
     }
 
     // ── Бой ──────────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
             return c.Submit(new SelectTargetAction(danger));
         }
 
-        Status = $"бой: {_mobName}, {mob.Distance:0.0} м, {elapsed.TotalSeconds:0} с";
+        Status = $"бой: {_mobName}, {mob.Offset}, {elapsed.TotalSeconds:0} с";
         return Attack(c, mob);
     }
 
@@ -263,7 +263,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var distance = c.Settings.Combat.ComeCloserDistance;
         // Только свой подход: фоновый бег в центр фарма — не «уже бежим к мобу», его вытеснит подход или удар
         var running = c.Mine.OfType<MoveAction>().FirstOrDefault();
-        if (mob.Distance <= distance)
+        if (mob.Offset.Horizontal <= distance)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
             if (running is null)
@@ -274,13 +274,13 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 
         var point = PointNear(w.Host.Position, mob.Position, Math.Max(0.5f, distance - ApproachMargin));
         var smart = c.Settings.Combat.ApproachPath == ApproachPath.Smart;
-        Status = $"бой: {_mobName} — подхожу, {mob.Distance:0.0} м";
+        Status = $"бой: {_mobName} — подхожу, {mob.Offset}";
         if (running is null)
         {
             // Тело занято (скилл ещё ждёт, каст) — бежать позже; в лог только когда бег правда начался
             if (c.Send(Approach(w, point, smart)) == SubmitStatus.Sent)
             {
-                c.Log.Info($"Подхожу к {mob.Name}: {mob.Distance:0.0} м > {distance:0} м");
+                c.Log.Info($"Подхожу к {mob.Name}: {mob.Offset} > {distance:0} м");
                 _lastApproach = c.Now;
             }
 
@@ -290,7 +290,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         // Моб убегает — не добегать до старой точки, а сразу к новой
         if (running.Point.HorizontalDistanceTo(point) > RetargetDistance && c.Now - _lastApproach >= RetargetPeriod)
         {
-            c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Distance:0.0} м");
+            c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Offset}");
             _lastApproach = c.Now;
             c.Replace(Approach(w, point, smart));
         }
@@ -372,7 +372,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var item = w.GroundItems
             .Where(i => i.Position.HorizontalDistanceTo(_deathPlace) <= loot.Radius && !_lootSkipped.Contains(i.Id) && LootFilter.Allows(loot, i))
             .Where(i => w.FitsInBag(i) && (!onlyMoney || i.Kind == GroundItemKind.Money))
-            .OrderBy(i => i.Distance)
+            .OrderBy(i => i.Offset.Direct)
             .FirstOrDefault();
         if (item is null)
         {

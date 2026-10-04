@@ -74,16 +74,28 @@ internal static class WorldCommands
         Check(world.NpcCountInGame < 0 || world.Npcs.Count == world.NpcCountInGame, $"мобов прочитано {world.Npcs.Count}, в игре {world.NpcCountInGame}");
         var badKind = world.Npcs.Where(n => n.Kind is not (NpcKind.Mob or NpcKind.Npc or NpcKind.Pet)).ToList();
         Check(badKind.Count == 0, $"у всех мобов тип 6/7/9{Bad(badKind.Select(n => $"{n.Name}={(int)n.Kind}"))}");
-        var badPos = world.Npcs.Where(n => !n.Position.IsFinite || n.Distance < 0 || n.Distance > 1000).ToList();
-        Check(badPos.Count == 0, $"координаты и дистанция мобов разумные{Bad(badPos.Select(n => n.Name))}");
+        var badPos = world.Npcs.Where(n => !n.Position.IsFinite || n.Offset.Direct > 1000).ToList();
+        Check(badPos.Count == 0, $"координаты мобов разумные (ближе 1000 м){Bad(badPos.Select(n => n.Name))}");
         var noName = world.Npcs.Count(n => n.Name.Length == 0);
         Check(noName == 0, $"у всех мобов есть название (без названия: {noName})");
-        var distanceMismatch = world.Npcs.Where(n => Math.Abs(n.Position.DistanceTo(h.Position) - n.Distance) > 2).ToList();
-        Check(distanceMismatch.Count == 0, $"дистанция моба совпадает с расчётом по координатам (±2 м){Bad(distanceMismatch.Select(n => $"{n.Name} {n.Distance:0.0}≠{n.Position.DistanceTo(h.Position):0.0}"))}");
+        // Бот расстояния считает из координат; число в памяти игры — независимая проверка, что смещения позиций найдены верно
+        var data = profile.Data;
+        if (data.Npc.Distance != 0)
+        {
+            var off = world.Npcs.Where(n => Math.Abs(game.ReadFloat(n.Address + data.Npc.Distance) - n.Offset.Horizontal) > 0.5f).ToList();
+            Check(off.Count == 0, $"расстояние до моба по координатам = в памяти (по горизонтали, ±0,5 м)"
+                                  + Bad(off.Select(n => $"{n.Name} {n.Offset.Horizontal:0.0}≠{game.ReadFloat(n.Address + data.Npc.Distance):0.0}")));
+        }
 
         Check(world.GroundItemCountInGame < 0 || world.GroundItems.Count == world.GroundItemCountInGame, $"предметов на земле прочитано {world.GroundItems.Count}, в игре {world.GroundItemCountInGame}");
         var badItems = world.GroundItems.Where(i => i.Kind is not (GroundItemKind.Item or GroundItemKind.Resource or GroundItemKind.Money) || !i.Position.IsFinite).ToList();
         Check(badItems.Count == 0, $"у предметов на земле вид 1/2/3 и нормальные координаты{Bad(badItems.Select(i => $"{i.Name}={(int)i.Kind}"))}");
+        if (data.GroundItem.Distance != 0)
+        {
+            var off = world.GroundItems.Where(i => Math.Abs(game.ReadFloat(i.Address + data.GroundItem.Distance) - i.Offset.Direct) > 0.5f).ToList();
+            Check(off.Count == 0, $"расстояние до предмета по координатам = в памяти (в 3D, ±0,5 м)"
+                                  + Bad(off.Select(i => $"{i.Name} {i.Offset.Direct:0.0}≠{game.ReadFloat(i.Address + data.GroundItem.Distance):0.0}")));
+        }
 
         Check(world.Inventory.Count > 0, $"в сумке есть предметы: {world.Inventory.Count}");
         Check(world.Inventory.All(i => i.Count > 0), "у всех предметов в сумке количество > 0");
@@ -146,6 +158,10 @@ internal static class WorldCommands
         return list.Count == 0 ? "" : " — " + string.Join(", ", list);
     }
 
+    // Высота объекта над персонажем, если заметна: «↑30», «↓113»
+    private static string Height(Offset offset)
+        => Math.Abs(offset.Vertical) < 5 ? "" : $"{(offset.Vertical > 0 ? "↑" : "↓")}{Math.Abs(offset.Vertical):0}";
+
     private static WorldReader CreateReader(IServerProfile profile, GameProcess game, out SkillNames names)
     {
         names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out var problem);
@@ -168,19 +184,19 @@ internal static class WorldCommands
         var target = w.Target;
         s.AppendLine(h.TargetWid == 0 ? "Цель   нет" : target is null
             ? $"Цель   0x{h.TargetWid:X8} (не моб — игрок/NPC вне списка?)"
-            : $"Цель   {target.Name} 0x{target.Wid:X8}, HP {target.Hp}, {target.Distance:0.0} м, состояние {State(target)}");
+            : $"Цель   {target.Name} 0x{target.Wid:X8}, HP {target.Hp}, {target.Offset}, состояние {State(target)}");
 
         s.AppendLine(w.Pet is { } pet
             ? $"Пет    {(pet.IsSummoned ? $"призван из клетки {pet.ActiveCage}, WID 0x{pet.ActiveWid:X8}" : "не призван")}; " +
               string.Join("; ", pet.Cages.Select(c => $"клетка {c.Cage}: {(c.Name is { } name ? $"{name} ({PetHabitats.Text(c.Habitat)}), " : "")}HP {c.HpPercent} %, сытость {c.Hunger}{(c.IsAlive ? "" : " (мёртв)")}"))
             : "Пет    нет");
 
-        var npcs = w.Npcs.OrderBy(n => n.Distance).Take(full ? 10 : 5).ToList();
+        var npcs = w.Npcs.OrderBy(n => n.Offset.Horizontal).Take(full ? 10 : 5).ToList();
         s.AppendLine($"Мобы   {w.Npcs.Count} (в игре {w.NpcCountInGame}), ближайшие:");
         foreach (var n in npcs)
         {
             var aggro = n.TargetWid == 0 ? "" : n.TargetWid == h.Wid ? "  ⚔ бьёт перса" : w.Pet?.ActiveWid == n.TargetWid ? "  ⚔ бьёт пета" : $"  → 0x{n.TargetWid:X8}";
-            s.AppendLine($"       {n.Distance,6:0.0} м  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}  {State(n)}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{aggro}");
+            s.AppendLine($"       {n.Offset.Horizontal,6:0.0} м {Height(n.Offset),6}  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}  {State(n)}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{aggro}");
         }
 
         if (full)
@@ -190,8 +206,8 @@ internal static class WorldCommands
         }
 
         s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame})");
-        foreach (var i in w.GroundItems.OrderBy(i => i.Distance).Take(full ? 10 : 3))
-            s.AppendLine($"       {i.Distance,6:0.0} м  {ItemKind(i.Kind),-7} {i.Name} (id 0x{i.Id:X8}, tid {i.Tid})");
+        foreach (var i in w.GroundItems.OrderBy(i => i.Offset.Direct).Take(full ? 10 : 3))
+            s.AppendLine($"       {i.Offset.Horizontal,6:0.0} м {Height(i.Offset),6}  {ItemKind(i.Kind),-7} {i.Name} (id 0x{i.Id:X8}, tid {i.Tid})");
 
         if (!full)
             return s.ToString();

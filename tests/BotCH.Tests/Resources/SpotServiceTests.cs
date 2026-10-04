@@ -25,7 +25,7 @@ public class SpotServiceTests : IDisposable
     private SpotService Service() => new(_folder, NullLogger.Instance, () => _now);
 
     private void SeeOre(string name = "Железная руда", float x = 10)
-        => _world.Ground.Add(new GroundItem(0, 0xC0000001, 3079, GroundItemKind.Resource, new Position(x, 0, 0), x, name));
+        => _world.Ground.Add(new GroundItem(0, 0xC0000001, 3079, GroundItemKind.Resource, new Position(x, 0, 0), name));
 
     private static string[] Names(string file) => new SpotBookStore(file).Load(out _).Select(s => s.Name).ToArray();
 

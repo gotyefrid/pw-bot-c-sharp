@@ -42,7 +42,7 @@ public static class TargetSelector
             .Select(m => (Mob: m, Threat: ThreatOf(m, w, hitsUsFirst, petTakesAggro)))
             .Where(x => x.Threat != Threat.None)
             .OrderByDescending(x => x.Threat)
-            .ThenBy(x => x.Mob.Distance)
+            .ThenBy(x => x.Mob.Offset.Horizontal)
             .FirstOrDefault();
         threat = best.Threat;
         return best.Mob;
@@ -57,7 +57,7 @@ public static class TargetSelector
         var petWid = w.Pet?.ActiveWid ?? 0;
         return w.Mobs
             .Where(m => !m.IsDead && !m.Returning && m.Engaging && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid))
-            .OrderBy(m => m.Distance)
+            .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
     }
 
@@ -69,6 +69,6 @@ public static class TargetSelector
     public static NpcInfo? Nearest(WorldState w, TargetSettings target, ICollection<uint> skip, Func<NpcInfo, bool>? inArea = null)
         => w.Mobs
             .Where(m => IsAllowed(m, target) && !skip.Contains(m.Wid) && (inArea?.Invoke(m) ?? true))
-            .OrderBy(m => m.Distance)
+            .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
 }
