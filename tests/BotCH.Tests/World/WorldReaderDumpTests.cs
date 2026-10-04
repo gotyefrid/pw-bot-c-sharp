@@ -29,7 +29,7 @@ public class WorldReaderDumpTests
     {
         var h = W.Host;
 
-        Assert.Equal("Купчихан", h.Name);
+        Assert.Equal("Персонаж", h.Name);
         Assert.Equal(10, h.Level);
         Assert.Equal(0x0015A420u, h.Wid);
         Assert.Equal((458, 479), (h.Hp, h.MaxHp));

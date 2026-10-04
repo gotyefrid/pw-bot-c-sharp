@@ -90,15 +90,15 @@ public class SettingsServiceTests : IDisposable
         config.App.Connection.Unfreeze = true;
         config.SaveApp();
         Directory.CreateDirectory(Path.Combine(_folder, "characters"));
-        File.WriteAllText(Path.Combine(_folder, "characters", "Купчихан.json"), "{ \"target\": { \"farmRadius\": 30 } }");
+        File.WriteAllText(Path.Combine(_folder, "characters", "Персонаж.json"), "{ \"target\": { \"farmRadius\": 30 } }");
 
         var again = Service();
-        again.SwitchTo("Купчихан");
+        again.SwitchTo("Персонаж");
 
         Assert.True(again.Current.Unfreeze);
         var third = Service();
         third.App.Connection.Unfreeze = false;
-        third.SwitchTo("Купчихан");
+        third.SwitchTo("Персонаж");
         Assert.True(third.Current.Unfreeze); // своё уже записано в файл персонажа
     }
 

@@ -450,14 +450,14 @@ public class SpotBookTests : IDisposable
         var time = new DateTime(2026, 10, 3, 10, 55, 16, DateTimeKind.Utc);
         var e = new SpotEvent(time, SpotEventKind.Respawned, "Высохший древесный корень", 0xC0100E80,
             new Position(-136.7f, 237.3f, 71.5f), new Position(-140.1f, 236.1f, 53.4f), 18.4f, TimeSpan.FromMinutes(10.27), 35.2f);
-        journal.Write(e, "comeback146", "ClaudeCot");
-        journal.Write(e with { Kind = SpotEventKind.Dug, SinceDug = null }, "comeback146", "ClaudeCot");
+        journal.Write(e, "comeback146", "Персонаж");
+        journal.Write(e with { Kind = SpotEventKind.Dug, SinceDug = null }, "comeback146", "Персонаж");
 
         var lines = File.ReadAllLines(_file);
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("время;сервер;персонаж;событие", lines[0]);
         // Время снимка всемирное, в журнале — местное (для людей)
-        Assert.Equal($"{time.ToLocalTime():yyyy-MM-dd HH:mm:ss};comeback146;ClaudeCot;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2;;;", lines[1]);
+        Assert.Equal($"{time.ToLocalTime():yyyy-MM-dd HH:mm:ss};comeback146;Персонаж;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2;;;", lines[1]);
         Assert.Contains(";выкопан;", lines[2]);
     }
 

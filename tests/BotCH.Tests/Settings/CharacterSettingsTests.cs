@@ -26,27 +26,27 @@ public class CharacterSettingsTests : IDisposable
     [Fact]
     public void NewCharacterStartsFromTemplateAndGetsFile()
     {
-        var settings = _characters.Load("Купчихан", _template, out var problem);
+        var settings = _characters.Load("Персонаж", _template, out var problem);
 
         Assert.Null(problem);
         Assert.Equal(65, settings.Potions.HpPercent);
-        Assert.True(_characters.Exists("Купчихан"));
-        Assert.EndsWith("Купчихан.json", _characters.PathFor("Купчихан"));
+        Assert.True(_characters.Exists("Персонаж"));
+        Assert.EndsWith("Персонаж.json", _characters.PathFor("Персонаж"));
     }
 
     [Fact]
     public void TwoCharactersHaveOwnSettings()
     {
-        var druid = _characters.Load("Купчихан", _template, out _);
+        var druid = _characters.Load("Персонаж", _template, out _);
         druid.Pet.Cage = 3;
-        _characters.Save("Купчихан", druid);
+        _characters.Save("Персонаж", druid);
 
         var warrior = _characters.Load("Воин", _template, out _);
         warrior.Pet.Enabled = false;
         _characters.Save("Воин", warrior);
 
-        Assert.Equal(3, _characters.Load("Купчихан", _template, out _).Pet.Cage);
-        Assert.True(_characters.Load("Купчихан", _template, out _).Pet.Enabled);
+        Assert.Equal(3, _characters.Load("Персонаж", _template, out _).Pet.Cage);
+        Assert.True(_characters.Load("Персонаж", _template, out _).Pet.Enabled);
         Assert.False(_characters.Load("Воин", _template, out _).Pet.Enabled);
         Assert.Equal(1, _characters.Load("Воин", _template, out _).Pet.Cage);
     }
@@ -54,7 +54,7 @@ public class CharacterSettingsTests : IDisposable
     [Fact]
     public void TemplateIsCopiedNotShared()
     {
-        var settings = _characters.Load("Купчихан", _template, out _);
+        var settings = _characters.Load("Персонаж", _template, out _);
         settings.Target.MobNames.Add("Волк");
 
         Assert.Empty(_template.Target.MobNames);
@@ -63,10 +63,10 @@ public class CharacterSettingsTests : IDisposable
     [Fact]
     public void LaterTemplateChangesDoNotTouchExistingCharacter()
     {
-        _characters.Load("Купчихан", _template, out _);
+        _characters.Load("Персонаж", _template, out _);
         _template.Potions.HpPercent = 10;
 
-        Assert.Equal(65, _characters.Load("Купчихан", _template, out _).Potions.HpPercent);
+        Assert.Equal(65, _characters.Load("Персонаж", _template, out _).Potions.HpPercent);
     }
 
     [Theory]
@@ -82,9 +82,9 @@ public class CharacterSettingsTests : IDisposable
     {
         // Файл от прошлой версии бота: нет лута по спискам и перезарядки, есть неизвестное поле
         Directory.CreateDirectory(_directory);
-        File.WriteAllText(_characters.PathFor("Купчихан"), """{ "pet": { "cage": 2 }, "oldField": true }""");
+        File.WriteAllText(_characters.PathFor("Персонаж"), """{ "pet": { "cage": 2 }, "oldField": true }""");
 
-        var settings = _characters.Load("Купчихан", _template, out var problem);
+        var settings = _characters.Load("Персонаж", _template, out var problem);
 
         Assert.Null(problem);
         Assert.Equal(2, settings.Pet.Cage);
@@ -95,9 +95,9 @@ public class CharacterSettingsTests : IDisposable
     public void BrokenFileFallsBackToTemplate()
     {
         Directory.CreateDirectory(_directory);
-        File.WriteAllText(_characters.PathFor("Купчихан"), "{ сломано");
+        File.WriteAllText(_characters.PathFor("Персонаж"), "{ сломано");
 
-        var settings = _characters.Load("Купчихан", _template, out var problem);
+        var settings = _characters.Load("Персонаж", _template, out var problem);
 
         Assert.NotNull(problem);
         Assert.Equal(65, settings.Potions.HpPercent);

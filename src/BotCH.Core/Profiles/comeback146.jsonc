@@ -1,5 +1,5 @@
 /*
-  Comeback PW 1.4.6 — https://comeback.pw/ (свой сервер-аналог, клиент D:\Torrent\Comeback146.pw\element\elementclient.exe)
+  Comeback PW 1.4.6 — https://comeback.pw/ (свой сервер-аналог)
 
   Сборка клиента новая (метка в exe — сентябрь 2026), старые смещения Comeback146X.cs из ветки master подходят лишь частично.
   Найдено 02.10.2026 чтением памяти живого клиента (ничего не писалось и не вызывалось). Как искать — см. pwclassic136.jsonc.

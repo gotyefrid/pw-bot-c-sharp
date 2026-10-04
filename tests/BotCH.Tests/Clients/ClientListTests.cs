@@ -19,16 +19,16 @@ public class ClientListTests
     [Fact]
     public void ClientsAreSortedByPidWithNicks()
     {
-        var list = ClientList.Build(new FakeSource((300, "Купчихан"), (100, null), (200, "Лучница")), "elementclient");
+        var list = ClientList.Build(new FakeSource((300, "Персонаж"), (100, null), (200, "Лучница")), "elementclient");
 
         Assert.Equal([100, 200, 300], list.Select(c => c.Pid));
         Assert.Equal("PID 100 — персонаж не в мире", list[0].Display);
-        Assert.Equal("Купчихан (PID 300)", list[2].Display);
+        Assert.Equal("Персонаж (PID 300)", list[2].Display);
         Assert.Equal(new IntPtr(3000), list[2].Window);
     }
 
     [Theory]
-    [InlineData("Купчихан", 13840, "Купчихан 13840")]
+    [InlineData("Персонаж", 13840, "Персонаж 13840")]
     [InlineData(null, 13840, "13840")]
     [InlineData("", 13840, "13840")]
     public void WindowTitleIsNickAndPid(string? nick, int pid, string title)
@@ -58,11 +58,11 @@ public class ClientListTests
     public void OnStartLastCharacterThenReadableNickAmongFreeClients()
     {
         // 100 — клиент другого сервера (ник не читается этим профилем), 200 — занят другим окном BotCH
-        var list = ClientList.Build(new FakeSource((100, null), (200, "Купчихан"), (300, "ClaudeCot"), (400, "Лучница")), "elementclient");
+        var list = ClientList.Build(new FakeSource((100, null), (200, "Персонаж"), (300, "Воин"), (400, "Лучница")), "elementclient");
         bool Taken(int pid) => pid == 200;
 
         Assert.Equal(400, ClientList.KeepSelection(list, null, "Лучница", Taken)!.Pid);
-        Assert.Equal(300, ClientList.KeepSelection(list, null, "Купчихан", Taken)!.Pid);
+        Assert.Equal(300, ClientList.KeepSelection(list, null, "Персонаж", Taken)!.Pid);
         Assert.Equal(300, ClientList.KeepSelection(list, null, "", Taken)!.Pid);
         // Подключённый остаётся, даже если он «занят» — это наша же метка
         Assert.Equal(200, ClientList.KeepSelection(list, 200, "Лучница", Taken)!.Pid);
