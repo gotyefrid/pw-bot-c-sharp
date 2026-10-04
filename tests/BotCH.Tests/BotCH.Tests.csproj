@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Unit-тесты без игры: фейковая память, дампы, сценарии на подставном снимке мира -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BotCH.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!--
+      xUnit1031, xUnit1051: тесты остановки бота нарочно ждут задачи с таймаутом в самом тесте — проверяют «не закончилось
+      за 200 мс» и «закончилось вовремя»; асинхронное ожидание с таймаутом в .NET Framework 4.8 — лишний код без пользы
+    -->
+    <NoWarn>$(NoWarn);xUnit1031;xUnit1051</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BotCH.Core\BotCH.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Дампы памяти клиента (Probe dump) и снимки к ним -->
+    <None Include="Fixtures\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="xunit.v3" Version="4.0.1" />
+  </ItemGroup>
+</Project>

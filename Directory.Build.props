@@ -1,0 +1,13 @@
+<Project>
+  <!-- Общие настройки всех проектов (src/, tools/, tests/) -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <!-- Клиент игры 32-битный: процесс бота тоже 32-битный -->
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <Deterministic>true</Deterministic>
+    <Company>gotyefrid</Company>
+    <Product>BotCH</Product>
+  </PropertyGroup>
+</Project>

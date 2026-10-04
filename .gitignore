@@ -1,0 +1,14 @@
+# Сборка
+bin/
+obj/
+*.binlog
+TestResults/
+
+# Visual Studio, Rider
+.vs/
+.idea/
+*.user
+*.suo
+
+# Рабочие заметки — не для репозитория
+/tz-refactoring/

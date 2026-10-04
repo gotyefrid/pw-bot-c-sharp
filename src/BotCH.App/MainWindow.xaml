@@ -1,0 +1,525 @@
+<Window x:Class="BotCH.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:BotCH.App"
+        Title="BotCH" Width="440" Height="760" MinWidth="380" MinHeight="600"
+        WindowStartupLocation="CenterScreen" Icon="BotCH.ico"
+        Style="{StaticResource AppWindow}">
+  <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="Visible" />
+    <app:InverseVisibilityConverter x:Key="Hidden" />
+    <app:TabVisibilityConverter x:Key="TabVisible" />
+    <app:TabCheckedConverter x:Key="TabChecked" />
+    <app:LootModeConverter x:Key="LootMode" />
+  </Window.Resources>
+
+  <Grid Margin="14">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- Шапка -->
+    <DockPanel Margin="2,0,2,12">
+      <Border DockPanel.Dock="Right" VerticalAlignment="Center">
+        <Border.Style>
+          <Style TargetType="Border" BasedOn="{StaticResource Chip}">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                <Setter Property="Background" Value="#E6F6EE" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </Border.Style>
+        <StackPanel Orientation="Horizontal">
+          <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
+            <Ellipse.Style>
+              <Style TargetType="Ellipse">
+                <Setter Property="Fill" Value="{StaticResource Bad}" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                    <Setter Property="Fill" Value="{StaticResource Good}" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </Ellipse.Style>
+          </Ellipse>
+          <TextBlock Text="{Binding ConnectionText}" FontSize="12" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <TextBlock Text="BotCH" FontSize="20" FontWeight="Bold" />
+        <TextBlock Text="  PW бот" FontSize="13" Style="{StaticResource Muted}" VerticalAlignment="Bottom" Margin="0,0,0,3" />
+      </StackPanel>
+    </DockPanel>
+
+    <!-- Подключение -->
+    <Border Grid.Row="1" Style="{StaticResource Card}">
+      <StackPanel>
+        <TextBlock Text="ПОДКЛЮЧЕНИЕ" Style="{StaticResource CardTitle}" />
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="70" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <TextBlock Text="Сервер" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+          <ComboBox Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}" DisplayMemberPath="Name" />
+
+          <TextBlock Grid.Row="2" Text="Клиент" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+          <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Clients}" SelectedItem="{Binding SelectedClient}" DisplayMemberPath="Display" />
+          <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource IconButton}" Margin="6,0,0,0" Content="&#xE72C;"
+                  Command="{Binding RefreshCommand}" ToolTip="Обновить список клиентов" />
+        </Grid>
+        <WrapPanel Margin="0,10,0,0">
+          <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"
+                    ToolTip="Переименовывать окна клиентов в ник персонажа и PID — видно, где кто" />
+          <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Unfreeze}" IsEnabled="{Binding HasCharacter}" Content="Unfreeze"
+                    ToolTip="У этого персонажа: клиент не «засыпает», когда окно не в фокусе (раз в секунду пишет флаг в память игры). У нового персонажа выключен" />
+        </WrapPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+          <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />
+          <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Вкладки; Старт/Стоп — в карточке подключения, видны на любой вкладке -->
+    <DockPanel Grid.Row="2" Margin="0,0,0,10">
+      <Border Background="#E6E9F0" CornerRadius="9" Padding="3" HorizontalAlignment="Left">
+        <StackPanel Orientation="Horizontal">
+          <RadioButton Style="{StaticResource Segment}" Content="Бот" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=0}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Ресы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=3}"
+                       Visibility="{Binding ShowResourcesTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Кликер" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=4}"
+                       Visibility="{Binding ShowClickerTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Мобы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}"
+                       Visibility="{Binding ShowMobsTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Общее" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=5}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
+        </StackPanel>
+      </Border>
+    </DockPanel>
+
+    <!-- Персонаж, цель, пет -->
+    <Border Grid.Row="3" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
+      <StackPanel>
+        <DockPanel Margin="0,0,0,12">
+          <TextBlock Text="Режим" Style="{StaticResource Muted}" VerticalAlignment="Center" Width="60" />
+          <ComboBox ItemsSource="{Binding Modes}" DisplayMemberPath="Title" SelectedValuePath="Mode" SelectedValue="{Binding Mode}"
+                    ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
+        </DockPanel>
+        <DockPanel Margin="0,0,0,8">
+          <TextBlock DockPanel.Dock="Right" Text="{Binding Status.HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding Status.HostName}" FontSize="15" FontWeight="SemiBold" />
+        </DockPanel>
+
+        <Grid Margin="0,0,0,6">
+          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource HpBrush}" Value="{Binding Status.HpPercent, Mode=OneWay}" />
+          <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.HpText, StringFormat=HP  {0}}" />
+        </Grid>
+        <Grid>
+          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource MpBrush}" Value="{Binding Status.MpPercent, Mode=OneWay}" />
+          <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.MpText, StringFormat=MP  {0}}" />
+        </Grid>
+
+        <Border Height="1" Background="{StaticResource CardBorder}" Margin="0,12" />
+
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="14" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+
+          <StackPanel>
+            <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
+            <TextBlock Text="{Binding Status.TargetName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Status.HasTarget}" Value="False">
+                      <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+            <TextBlock Text="{Binding Status.TargetDetails}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2">
+            <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
+            <TextBlock Text="{Binding Status.PetTitle}" FontWeight="SemiBold" Margin="0,0,0,4">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Status.HasPet}" Value="False">
+                      <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+            <Grid Visibility="{Binding Status.HasPet, Converter={StaticResource Visible}}">
+              <ProgressBar Style="{StaticResource Bar}" Height="16" Foreground="{StaticResource PetBrush}" Value="{Binding Status.PetHpPercent, Mode=OneWay}" />
+              <TextBlock Style="{StaticResource BarText}" FontSize="11" Text="{Binding Status.PetHpText}" />
+            </Grid>
+            <TextBlock Text="{Binding Status.PetDetails}" Style="{StaticResource Muted}" Margin="0,3,0,0" />
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+
+    <!-- Бот -->
+    <Border Grid.Row="4" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
+      <DockPanel>
+        <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
+          <TextBlock Text="БОТ" Style="{StaticResource CardTitle}" Margin="0,0,0,2" />
+          <TextBlock Text="{Binding BotState}" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding Status.SnapshotInfo}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+          <TextBlock Text="{Binding Log.LastEvent}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                     ToolTip="Последняя запись лога. Весь лог — на вкладке «Лог»" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Ресы: маршрут обхода (часть 8, этап 2). Блокнот точек ресурсов работает в фоне и в окне не показывается -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=3}">
+      <StackPanel>
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="МАРШРУТ ОБХОДА" Style="{StaticResource CardTitle}" />
+            <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
+                       Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке. «Старт» — с выбранной точки (не выбрана — с первой)." />
+            <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding Route.RouteRows}" SelectedItem="{Binding Route.SelectedRoutePoint}" BorderThickness="0" Background="Transparent">
+              <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Current}" Value="True">
+                      <Setter Property="FontWeight" Value="SemiBold" />
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </ListView.ItemContainerStyle>
+              <ListView.View>
+                <GridView>
+                  <GridViewColumn Header="№" Width="34" DisplayMemberBinding="{Binding Number}" />
+                  <GridViewColumn Header="Что копать" Width="250" DisplayMemberBinding="{Binding What}" />
+                  <GridViewColumn Header="Отсюда" Width="60" DisplayMemberBinding="{Binding DistanceText}" />
+                </GridView>
+              </ListView.View>
+            </ListView>
+            <DockPanel Margin="0,8,0,0">
+              <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
+                      Command="{Binding Route.RemoveRoutePointCommand}" ToolTip="Удалить выбранную точку маршрута" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70D;" Margin="6,0,0,0"
+                      Command="{Binding Route.RoutePointDownCommand}" ToolTip="Позже в обходе" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"
+                      Command="{Binding Route.RoutePointUpCommand}" ToolTip="Раньше в обходе" />
+              <Button Style="{StaticResource ButtonBase}" Content="Добавить здесь" HorizontalAlignment="Left"
+                      Command="{Binding Route.AddRoutePointCommand}"
+                      ToolTip="Место персонажа — следующая точка маршрута (с высотой: в полёте бот потом летит на ней)" />
+            </DockPanel>
+            <StackPanel Margin="0,8,0,0" Visibility="{Binding Route.HasSelectedRoutePoint, Converter={StaticResource Visible}}">
+              <DockPanel>
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Route.SelectedRouteMode}"
+                          ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка (например, ресурс у агрессивного моба)">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="{Binding Route.SelectedRouteTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+              </DockPanel>
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.RouteNames}" Options="{Binding Route.RouteOptions}"
+                             Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
+                             ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
+            </StackPanel>
+            <DockPanel Margin="0,8,0,0">
+              <TextBlock Text="Ресурсы в радиусе, м" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.Radius, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="Сколько метров вокруг точки бот ищет ресурсы. Участок ресурса ~110 м, видно его целиком с ~50 м" />
+              <Grid />
+            </DockPanel>
+          </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+              <TextBlock Text="ОПАСНЫЕ МОБЫ" Style="{StaticResource CardTitle}" />
+              <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
+                         Text="К ресурсу в зоне агра опасного моба бот не летит: копает другие, на следующем круге проверит снова. Опасны только агрессивные — от уровня или из списка (боссы). Пассивные не опасны." />
+              <DockPanel Margin="0,0,0,4">
+                <TextBlock Text="Агрессивные от уровня" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.DangerLevel, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Агрессивный моб этого уровня и выше — опасен. 0 — по уровню не считать, только список" />
+                <Grid />
+              </DockPanel>
+              <DockPanel Margin="0,0,0,4">
+                <TextBlock Text="Запас к радиусу агра, м" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.DangerMargin, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Зона моба — его радиус агра (из игры) плюс запас, вокруг и по высоте. Не меньше 1 м" />
+                <Grid />
+              </DockPanel>
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.DangerNames}" Options="{Binding Farm.MobOptions}"
+                             Placeholder="Боссы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
+                             ToolTip="Эти агрессивные мобы опасны при любом уровне: боссы, которых не убить, хотя уровень как у персонажа" />
+            </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Кликер (часть 10) — пока заготовка -->
+    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" VerticalAlignment="Top"
+            Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=4}">
+      <StackPanel>
+        <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
+        <TextBlock TextWrapping="Wrap" Text="Здесь будет список шагов, которые бот повторяет по кругу: нажать клавишу или скилл, подобрать, выбрать моба, подождать." />
+        <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,8,0,0"
+                   Text="Режим ещё не сделан: при «Старт» бот ничего не делает в игре." />
+      </StackPanel>
+    </Border>
+
+    <!-- Лог: текст можно выделять и копировать -->
+    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" Margin="0" Padding="0"
+            Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=2}">
+      <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="14,10,10,4">
+          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            <CheckBox Style="{StaticResource Switch}" Content="Только важное" IsChecked="{Binding Log.OnlyImportantLog}" Margin="0,0,10,0"
+                      ToolTip="Показывать только предупреждения и ошибки (в файл пишется всё)" Checked="LogFilterChanged" Unchecked="LogFilterChanged" />
+            <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE838;" Click="OpenLogFolder"
+                    ToolTip="Открыть папку с файлами лога" Background="Transparent" />
+            <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE74D;" Command="{Binding Log.ClearLogCommand}"
+                    ToolTip="Очистить лог в окне (файл не трогается)" Background="Transparent" />
+          </StackPanel>
+          <TextBlock Text="ЛОГ" Style="{StaticResource CardTitle}" Margin="0" VerticalAlignment="Center" />
+        </DockPanel>
+        <RichTextBox x:Name="LogBox" IsReadOnly="True" IsReadOnlyCaretVisible="True" BorderThickness="0" Background="Transparent"
+                     Margin="6,0,6,8" FontFamily="Consolas" FontSize="11.5" VerticalScrollBarVisibility="Auto">
+          <FlowDocument PagePadding="4" />
+        </RichTextBox>
+      </DockPanel>
+    </Border>
+
+    <!-- Мобы — что делает режим «Бить мобов»: кого бить и где. Правку замечают сами настройки: через 0,5 с она сохраняется и уходит работающему боту -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=1}">
+      <StackPanel>
+        <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
+                   ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="МОБЫ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Нападать на мобов" IsChecked="{Binding Settings.Target.KillMobs}"
+                      ToolTip="Выключено — бот только пьёт банки и следит за петом" />
+            <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Радиус фарма, м" VerticalAlignment="Center"
+                         ToolTip="Новые цели (мобы, ресурсы) — только в этом радиусе от центра фарма. Кто бьёт вас или пета — всегда. 0 — без ограничения" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.FarmRadius, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Центр фарма" VerticalAlignment="Center"
+                         ToolTip="Откуда считать радиус: место, где стоял персонаж при «Старт», или сохранённая точка — тогда «Старт» можно жать где угодно" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE74D;"
+                      Command="{Binding Farm.RemoveFarmPointCommand}" ToolTip="Удалить выбранную точку" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
+                      Command="{Binding Farm.AddFarmPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как новую точку фарма" />
+              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.FarmCenters}" SelectedItem="{Binding Farm.SelectedFarmCenter}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.HasFarmPoint, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding Farm.FarmPointInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Width="170" Margin="0,0,64,0" Text="{Binding Farm.FarmPointName}" ToolTip="Название точки — можно поменять" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр" IsChecked="{Binding Settings.Target.ReturnToCenter}"
+                        VerticalAlignment="Center"
+                        ToolTip="Персонаж оказался за радиусом фарма (погнался за мобом), а целей нет 2 с — бежит в центр и ждёт там. Внутри радиуса стоит на месте" />
+              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding Farm.ApproachPaths}" DisplayMemberPath="Title"
+                        SelectedValuePath="Path" SelectedValue="{Binding Settings.Target.ReturnPath}"
+                        Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
+                        ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Копать ресурсы в радиусе фарма" IsChecked="{Binding Settings.Loot.PickResources}"
+                      ToolTip="Сначала все ресурсы, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше. Сбор лута с мобов (вкладка «Общее») на это не влияет" />
+            <StackPanel Margin="0,4,0,8" Visibility="{Binding Settings.Loot.PickResources, Converter={StaticResource Visible}}">
+              <DockPanel>
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Settings.Loot.ResourceMode}"
+                          ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="Что копать" VerticalAlignment="Center" />
+              </DockPanel>
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.FarmResourceNames}" Options="{Binding Route.RouteOptions}"
+                             Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
+                             ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
+            </StackPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
+            <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
+                           Selected="{Binding Farm.MobNames}" Options="{Binding Farm.MobOptions}"
+                           Placeholder="Мобы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
+                           ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
+            <!-- «Только из списка», а список пуст: новых целей нет -->
+            <TextBlock Text="Список пуст — бот бьёт только напавших" Margin="0,4,0,0" TextWrapping="Wrap">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <MultiDataTrigger>
+                      <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Settings.Target.UseMobList}" Value="True" />
+                        <Condition Binding="{Binding Farm.MobNames.Count}" Value="0" />
+                      </MultiDataTrigger.Conditions>
+                      <Setter Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <!-- Общее — как бот бьёт, лутает, лечится и зовёт пета в любом режиме. Правку замечают сами настройки: через 0,5 с она сохраняется и уходит работающему боту -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=5}">
+      <StackPanel>
+        <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
+                   ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Farm.AttackSkills}" DisplayMemberPath="Title"
+                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
+                        ToolTip="Сначала подойти к мобу на это расстояние, потом бить. Пока бежим — не бьём, пока бьём — не бежим" />
+              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding Farm.ApproachPaths}" DisplayMemberPath="Title"
+                        SelectedValuePath="Path" SelectedValue="{Binding Settings.Combat.ApproachPath}"
+                        Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
+                        ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="40" Text="{Binding Settings.Combat.ComeCloserDistance, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Снимать мобов с меня петом" IsChecked="{Binding Settings.Target.PetTakesAggro}"
+                      ToolTip="Моб бьёт персонажа — бой сразу переходит на него, и пет тоже: он прочнее, пусть держит всех. Прежний моб подождёт. Без пета не действует" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Бросить моба через, с" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.MobTimeoutSeconds, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="ЛУТ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <CheckBox Style="{StaticResource Switch}" Content="Собирать лут, попыток" IsChecked="{Binding Settings.Loot.Enabled}" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Loot.Attempts, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Радиус подбора, м" VerticalAlignment="Center"
+                         ToolTip="Считается от места смерти моба, а не от персонажа. Лут падает в 2–3 м от трупа; больше — бот начнёт собирать старый лут прошлых мобов по цепочке" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Loot.Radius, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <WrapPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="Монеты" IsChecked="{Binding Settings.Loot.PickMoney}" Margin="0,4,18,4"
+                        ToolTip="Монеты — только этой галкой, список ниже их не касается" />
+              <CheckBox Style="{StaticResource Switch}" Content="Предметы" IsChecked="{Binding Settings.Loot.PickItems}" Margin="0,4,18,4" />
+            </WrapPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Что собирать" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Settings.Loot.ListMode}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </DockPanel>
+            <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.LootNames}" Options="{Binding Farm.LootOptions}"
+                           Placeholder="Предметы не выбраны" EmptyOptionsText="На земле ничего нет — дождитесь лута"
+                           ToolTip="Только лут с мобов. Варианты — предметы на земле вокруг и те, что встречались за сессию. Ресурсы — в режиме фарма, под «Копать ресурсы»" />
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="БАНКИ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Банка HP, когда HP ниже, %" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.HpPercent, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Банка MP, когда MP ниже (единиц)" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.MpBelow, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Использовать пета" IsChecked="{Binding Settings.Pet.Enabled}"
+                      ToolTip="Выключено или пета нет (не друид) — всё про пета пропускается" />
+            <TextBlock Text="У персонажа нет петов — эти настройки не используются" Style="{StaticResource Muted}" Margin="0,2,0,4"
+                       Visibility="{Binding Pets.HasPets, Converter={StaticResource Hidden}}" />
+            <StackPanel IsEnabled="{Binding Settings.Pet.Enabled}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Hidden}}">
+                <TextBlock Text="Клетка" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.Cage, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
+                <TextBlock Text="Пет на земле" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.GroundPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Pets.GroundPet}"
+                          ToolTip="Кого звать, когда персонаж на земле. Авто — первого, кто живёт на земле" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
+                <TextBlock Text="Пет в воде" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.WaterPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Pets.WaterPet}"
+                          ToolTip="Кого звать, когда персонаж в воде. Авто — первого, кто живёт в воде" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
+                <TextBlock Text="Пет в воздухе" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.AirPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Pets.AirPet}"
+                          ToolTip="Кого звать, когда персонаж летит (наземного сервер в воздухе не призовёт). Авто — первого, кто летает" />
+              </DockPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="Пет только на время боя" IsChecked="{Binding Settings.Pet.OnlyForFight}"
+                        Visibility="{Binding CanRecallPet, Converter={StaticResource Visible}}"
+                        ToolTip="Напали — призвать, боя нет 3 с — отозвать (сначала вылечив). Отозванного не нужно кормить. Удобно при обходе ресурсов; копание и каст отзыв не прерывает" />
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Лечить пета, когда HP ниже, %" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.HealPercent, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+  </Grid>
+</Window>

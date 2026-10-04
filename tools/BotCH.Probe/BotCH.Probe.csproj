@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Консоль для проверок на живом клиенте: чтение (запускает кто угодно) и действия (запускает владелец) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>BotCH.Probe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BotCH.Core\BotCH.Core.csproj" />
+  </ItemGroup>
+</Project>
