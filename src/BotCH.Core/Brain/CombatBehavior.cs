@@ -263,7 +263,10 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var distance = c.Settings.Combat.ComeCloserDistance;
         // Только свой подход: фоновый бег в центр фарма — не «уже бежим к мобу», его вытеснит подход или удар
         var running = c.Mine.OfType<MoveAction>().FirstOrDefault();
-        if (mob.Offset.Horizontal <= distance)
+        // В воздухе — по прямой, с высотой: моб прямо под нами на 40 м — не «рядом» (иначе ждали, пока скилл «как кнопкой»
+        // сам спустит перса, 5–9 с). На земле — по горизонтали: моб на склоне или под обрывом не заставляет бегать зря
+        var gap = w.Host.Flying == true ? mob.Offset.Direct : mob.Offset.Horizontal;
+        if (gap <= distance)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
             if (running is null)

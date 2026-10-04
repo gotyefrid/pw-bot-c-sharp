@@ -485,6 +485,38 @@ public class BrainScenarioTests
         Assert.Equal("fly (16,7; 0,0; h 5,0)", LastCall); // 6 м до моба по прямой, с высотой
     }
 
+    [Fact]
+    public void ComeCloserInAirCountsHeight()
+    {
+        // Моб почти под нами (3 м в сторону), но на 40 м ниже — в воздухе это не «рядом»: подлетаем, а не бьём сверху
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _world.Flying = true;
+        _world.Position = new Position(0, 40, 0);
+        _world.TargetWid = _world.AddMob(0x80000001, "Оса", 3).Wid;
+
+        Tick();
+
+        Assert.Equal("fly (2,6; 0,0; h 6,0)", LastCall); // 6 м до моба по прямой
+    }
+
+    [Fact]
+    public void ComeCloserOnGroundIgnoresHeight()
+    {
+        // На земле моб на уступе (3 м в сторону, 20 м выше) — рядом, не бежим: подойти по прямой всё равно нельзя
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        var mob = _world.AddMob(0x80000001, "Волк", 3);
+        _world.Replace(mob, m => m with { Position = new Position(3, 20, 0) });
+        _world.TargetWid = mob.Wid;
+
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, call => call.StartsWith("move"));
+    }
+
     [Theory]
     [InlineData(ApproachPath.Smart, true)]
     [InlineData(ApproachPath.Direct, false)]
