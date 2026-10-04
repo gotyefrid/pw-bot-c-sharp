@@ -50,16 +50,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private bool _refreshing;
 
     // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\BotCH\resources.json), копятся в любом режиме
-    private static readonly TimeSpan SpotsSaveEvery = TimeSpan.FromSeconds(10);
-    // Другие копии бота пишут в тот же файл — их точки подтягиваем, даже если у нас ничего не менялось
-    private static readonly TimeSpan SpotsSyncEvery = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan SpotsShowEvery = TimeSpan.FromSeconds(1);
-    private readonly SpotBookStore _spotStore;
-    private readonly SpotBook _spots;
-    private readonly SpotJournal _spotJournal;
-    private DateTime _spotsSaved = DateTime.Now;
+    private readonly SpotService _spots;
     private DateTime _spotsShown;
-    private DateTime _spotsSynced = DateTime.Now;
 
     public MainViewModel(string appDirectory)
     {
@@ -78,14 +71,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _log.Warning(problem);
 
         var shared = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BotCH");
-        _spotStore = new SpotBookStore(Path.Combine(shared, "resources.json"));
-        _spots = new SpotBook(_spotStore.Load(out var spotsProblem), logger.For("ресурсы"));
-        if (spotsProblem is not null)
-            _log.Warning(spotsProblem);
-        _spots.Consolidate();
-        ImportLocalSpots(Path.Combine(appDirectory, "resources.json"));
-        _spotJournal = new SpotJournal(Path.Combine(shared, "resource-events.csv"));
-        _spots.Happened += WriteSpotEvent;
+        _spots = new SpotService(shared, logger.For("ресурсы"));
+        _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _appSettings.Connection.ServerId) ?? Servers.First();
@@ -562,77 +549,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Точки ресурсов (блокнот — в фоне, в окне не показывается) ───────────
 
-    /// <summary>Сохранить: сначала слить с файлом — в него пишут и другие копии бота.</summary>
-    private void SaveSpots(bool force = false)
-    {
-        if (!_spots.Changed && !force)
-            return;
-
-        try
-        {
-            _spots.Merge(_spotStore.Load(out _));
-            _spotStore.Save(_spots.Spots);
-            _spots.MarkSaved();
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            // Файл занят другой копией — попробуем при следующем сохранении
-            _log.Debug("Не удалось сохранить точки ресурсов: " + e.Message);
-        }
-
-        _spotsSaved = _spotsSynced = DateTime.Now;
-    }
-
-    private void WriteSpotEvent(SpotEvent e)
-    {
-        try
-        {
-            _spotJournal.Write(e, _profile.Id, _nick);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            _log.Debug("Журнал ресурсов: " + ex.Message);
-        }
-    }
-
-    /// <summary>Точки, накопленные до общего файла в папке бота, — в общий файл; старый файл переименовывается.</summary>
-    private void ImportLocalSpots(string local)
-    {
-        if (!File.Exists(local))
-            return;
-
-        var spots = new SpotBookStore(local).Load(out var problem);
-        if (problem is not null)
-        {
-            _log.Warning(problem);
-            return;
-        }
-
-        var added = _spots.Merge(spots);
-        SaveSpots(force: true);
-        try
-        {
-            File.Move(local, local + ".imported");
-        }
-        catch (IOException)
-        {
-            // Уже есть .imported — оставляем как есть, повторное слияние ничего не добавит
-        }
-
-        _log.Info($"Точки ресурсов из папки бота перенесены в общий файл {_spotStore.Path}: новых {added}");
-    }
-
-    /// <summary>Список в окне ← блокнот (раз в секунду: расстояния и состояние), сохранение — раз в 10 с, если менялось.</summary>
+    /// <summary>Список точек маршрута в окне — раз в секунду: расстояния и какая сейчас текущая.</summary>
     private void ShowSpots(WorldState w, bool force = false)
     {
         var now = DateTime.Now;
-        if (now - _spotsSaved >= SpotsSaveEvery)
-            SaveSpots();
-        if (now - _spotsSynced >= SpotsSyncEvery)
-        {
-            _spots.Merge(_spotStore.Load(out _));
-            _spotsSynced = now;
-        }
         if (!force && now - _spotsShown < SpotsShowEvery)
             return;
         _spotsShown = now;
@@ -975,7 +895,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         Disconnect();
-        SaveSpots();
+        _spots.Save();
     }
 
     // ── Внутреннее ──────────────────────────────────────────────────────────
@@ -1234,6 +1154,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var isNew = !_characters.Exists(nick);
         _settings = _characters.Load(nick, _appSettings, out var problem);
         _nick = nick;
+        _spots.Character = nick;
         if (problem is not null)
             _log.Warning($"{nick}: {problem}");
         _log.Info(isNew ? $"Персонаж {nick}: новые настройки (копия общих)" : $"Персонаж {nick}: его настройки загружены");
