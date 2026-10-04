@@ -81,6 +81,13 @@ public sealed record WorldState(
 
     public IEnumerable<NpcInfo> Mobs => Npcs.Where(n => n.Kind == NpcKind.Mob);
 
+    /// <summary>
+    /// Моб нацелен на перса или пета: жив, не возвращается (возвращающийся неуязвим и уже не наш, хотя цель может ещё
+    /// показывать нас) и его цель — мы. Напал ли он на самом деле, а не просто стоит с нашей целью, — <see cref="NpcInfo.Engaging"/>.
+    /// </summary>
+    public bool TargetsUs(NpcInfo mob)
+        => !mob.IsDead && !mob.Returning && mob.TargetWid != 0 && (mob.TargetWid == Host.Wid || mob.TargetWid == Pet?.ActiveWid);
+
     public SkillInfo? Skill(int id) => Skills.FirstOrDefault(s => s.Id == id);
 
     /// <summary>Сколько ячеек в сумке (0 — неизвестно).</summary>

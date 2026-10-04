@@ -137,9 +137,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         foreach (var back in w.Mobs.Where(m => _shaken.Contains(m.Wid) && (Hits(m) || m.TargetWid != w.Host.Wid && m.TargetWid != petWid)).ToList())
             _shaken.Remove(back.Wid);
         return w.Mobs
-            .Where(m => !m.IsDead && !m.Returning && !_shaken.Contains(m.Wid) && m.TargetWid != 0
-                        && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid)
-                        && DangerZones.IsDangerous(m, c.Settings.Route))
+            .Where(m => w.TargetsUs(m) && !_shaken.Contains(m.Wid) && DangerZones.IsDangerous(m, c.Settings.Route))
             .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
     }

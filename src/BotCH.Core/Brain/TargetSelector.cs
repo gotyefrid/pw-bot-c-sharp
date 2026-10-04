@@ -25,14 +25,13 @@ public static class TargetSelector
     /// <param name="petTakesAggro">«Снимать мобов с меня петом» (и пет призван).</param>
     public static Threat ThreatOf(NpcInfo mob, WorldState w, bool hitsUsFirst, bool petTakesAggro)
     {
-        // Возвращается — неуязвим и уже не наш (цель может ещё показывать нас); стоит с нашей целью и не бьёт — не напал
-        if (mob.IsDead || mob.TargetWid == 0 || mob.Returning || !mob.Engaging)
+        // Стоит с нашей целью и не бьёт — не напал
+        if (!w.TargetsUs(mob) || !mob.Engaging)
             return Threat.None;
         if (petTakesAggro && mob.TargetWid == w.Host.Wid)
             return Threat.HitsMe;
 
-        var petWid = w.Pet?.ActiveWid ?? 0;
-        return hitsUsFirst && (mob.TargetWid == w.Host.Wid || mob.TargetWid == petWid) ? Threat.HitsUs : Threat.None;
+        return hitsUsFirst ? Threat.HitsUs : Threat.None;
     }
 
     /// <summary>Самый опасный моб: сначала по <see cref="Threat"/>, при равной — ближайший. null — никто из мобов нас не бьёт.</summary>
@@ -53,13 +52,10 @@ public static class TargetSelector
     /// Ближайший из таких. Белый список для него не важен.
     /// </summary>
     public static NpcInfo? Aggressor(WorldState w)
-    {
-        var petWid = w.Pet?.ActiveWid ?? 0;
-        return w.Mobs
-            .Where(m => !m.IsDead && !m.Returning && m.Engaging && m.TargetWid != 0 && (m.TargetWid == w.Host.Wid || m.TargetWid == petWid))
+        => w.Mobs
+            .Where(m => w.TargetsUs(m) && m.Engaging)
             .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
-    }
 
     /// <summary>Можно ли нападать на этого моба по настройкам (жив, моб, название из списка).</summary>
     public static bool IsAllowed(NpcInfo mob, TargetSettings target)
