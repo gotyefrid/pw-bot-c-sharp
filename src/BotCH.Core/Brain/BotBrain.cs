@@ -142,6 +142,9 @@ public sealed class BotBrain : IBotRunner
         }
     }
 
+    /// <summary>Поведение с этой возможностью (например, обход — <see cref="IRouteProgress"/>).</summary>
+    public T? Part<T>() where T : class => _behaviors.OfType<T>().FirstOrDefault();
+
     public void Reset()
     {
         lock (_lock)

@@ -547,7 +547,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _spotsShown = now;
 
         var here = w.Host.Position;
-        var current = (_connection?.Bot?.Brain as BotBrain)?.Route?.Index;
+        var current = _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index;
         foreach (var row in RouteRows)
             row.Update(here.HorizontalDistanceTo(row.Point.Position), IsRunning && current == RouteRows.IndexOf(row));
     }

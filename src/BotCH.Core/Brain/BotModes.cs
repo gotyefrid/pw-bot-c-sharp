@@ -27,6 +27,12 @@ public interface IBotRunner
     void UpdateSettings(BotSettings settings);
 
     void Reset();
+
+    /// <summary>
+    /// Часть режима с нужной окну возможностью: <see cref="IRouteProgress"/> — какая точка маршрута текущая (потом так же —
+    /// текущий шаг кликера). Окно спрашивает возможность, а не класс режима. Нет такой части — null.
+    /// </summary>
+    T? Part<T>() where T : class;
 }
 
 public static class BotModes
@@ -83,4 +89,6 @@ public sealed class NotReadyMode(string name, string where, ILogger log) : IBotR
     }
 
     public void Reset() => _said = false;
+
+    public T? Part<T>() where T : class => null;
 }

@@ -14,7 +14,7 @@ namespace BotCH.Core.Brain;
 /// на высоте точки (упал на землю — взлетаем), на земле — бежим с автопутём.
 /// </summary>
 /// <param name="start">С какой точки начинать (с 0) — выбранная в окне при «Старт»; не настройка, в файл не пишется.</param>
-public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior
+public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior, IRouteProgress
 {
     // Дошли — ближе этого к точке по земле (высота не важна: в полёте точку могли записать у земли)
     private const float ArriveDistance = 5f;

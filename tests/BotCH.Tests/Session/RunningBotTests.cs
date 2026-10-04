@@ -87,6 +87,8 @@ public class RunningBotTests
             lock (events)
                 events.Add("сброс");
         }
+
+        public T? Part<T>() where T : class => null;
     }
 
     private RunningBot Start(Func<DateTime, bool>? outOfMemory = null, Func<string?>? broken = null)

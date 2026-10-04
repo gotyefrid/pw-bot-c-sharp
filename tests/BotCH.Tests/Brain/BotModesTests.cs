@@ -20,7 +20,16 @@ public class BotModesTests
     public void FarmModeIsTheBrain()
     {
         Assert.IsType<BotBrain>(Create(BotMode.FarmMobs));
-        Assert.NotNull(Assert.IsType<BotBrain>(Create(BotMode.GatherResources)).Route);
+        Assert.IsType<BotBrain>(Create(BotMode.GatherResources));
+    }
+
+    [Fact]
+    public void OnlyGatheringReportsRouteProgress()
+    {
+        // Окно подсвечивает текущую точку маршрута, спрашивая возможность, а не класс режима
+        Assert.Equal(0, Create(BotMode.GatherResources).Part<IRouteProgress>()?.Index);
+        Assert.Null(Create(BotMode.FarmMobs).Part<IRouteProgress>());
+        Assert.Null(Create(BotMode.Clicker).Part<IRouteProgress>());
     }
 
     [Theory]
