@@ -73,7 +73,7 @@ internal static class WorldCommands
         Check(h.Wid != 0, $"WID перса: 0x{h.Wid:X8}");
         Check(h.Position.IsFinite, $"координаты перса: {h.Position}");
 
-        Check(world.NpcCountInGame < 0 || world.Npcs.Count == world.NpcCountInGame, $"мобов прочитано {world.Npcs.Count}, в игре {world.NpcCountInGame}");
+        Check(world.NpcCountInGame is null || world.Npcs.Count == world.NpcCountInGame, $"мобов прочитано {world.Npcs.Count}, в игре {world.NpcCountInGame}");
         var badKind = world.Npcs.Where(n => n.Kind is not (NpcKind.Mob or NpcKind.Npc or NpcKind.Pet)).ToList();
         Check(badKind.Count == 0, $"у всех мобов тип 6/7/9{Bad(badKind.Select(n => $"{n.Name}={(int)n.Kind}"))}");
         var badPos = world.Npcs.Where(n => !n.Position.IsFinite || n.Offset.Direct > 1000).ToList();
@@ -89,7 +89,7 @@ internal static class WorldCommands
                                   + Bad(off.Select(n => $"{n.Name} {n.Offset.Horizontal:0.0}≠{game.ReadFloat(n.Address + data.Npc.Distance):0.0}")));
         }
 
-        Check(world.GroundItemCountInGame < 0 || world.GroundItems.Count == world.GroundItemCountInGame, $"предметов на земле прочитано {world.GroundItems.Count}, в игре {world.GroundItemCountInGame}");
+        Check(world.GroundItemCountInGame is null || world.GroundItems.Count == world.GroundItemCountInGame, $"предметов на земле прочитано {world.GroundItems.Count}, в игре {world.GroundItemCountInGame}");
         var badItems = world.GroundItems.Where(i => i.Kind is not (GroundItemKind.Item or GroundItemKind.Resource or GroundItemKind.Money) || !i.Position.IsFinite).ToList();
         Check(badItems.Count == 0, $"у предметов на земле вид 1/2/3 и нормальные координаты{Bad(badItems.Select(i => $"{i.Name}={(int)i.Kind}"))}");
         if (data.GroundItem.Distance != 0)
@@ -194,7 +194,7 @@ internal static class WorldCommands
             : "Пет    нет");
 
         var npcs = w.Npcs.OrderBy(n => n.Offset.Horizontal).Take(full ? 10 : 5).ToList();
-        s.AppendLine($"Мобы   {w.Npcs.Count} (в игре {w.NpcCountInGame}), ближайшие:");
+        s.AppendLine($"Мобы   {w.Npcs.Count} (в игре {w.NpcCountInGame?.ToString() ?? "?"}), ближайшие:");
         foreach (var n in npcs)
         {
             var aggro = n.TargetWid == 0 ? "" : n.TargetWid == h.Wid ? "  ⚔ бьёт перса" : w.Pet?.ActiveWid == n.TargetWid ? "  ⚔ бьёт пета" : $"  → 0x{n.TargetWid:X8}";
@@ -207,7 +207,7 @@ internal static class WorldCommands
             s.AppendLine($"       мобы по названиям: {string.Join(", ", names)}");
         }
 
-        s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame})");
+        s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame?.ToString() ?? "?"})");
         foreach (var i in w.GroundItems.OrderBy(i => i.Offset.Direct).Take(full ? 10 : 3))
             s.AppendLine($"       {i.Offset.Horizontal,6:0.0} м {Height(i.Offset),6}  {ItemKind(i.Kind),-7} {i.Name} (id 0x{i.Id:X8}, tid {i.Tid})");
 
@@ -233,15 +233,7 @@ internal static class WorldCommands
         return s.ToString();
     }
 
-    private static string State(NpcInfo n) => n.State switch
-    {
-        1 => "стоит",
-        2 => "бьёт",
-        3 => "кастует",
-        4 => "мёртв",
-        5 => "идёт",
-        var x => $"состояние {x}",
-    };
+    private static string State(NpcInfo n) => n.State.Text() ?? $"состояние {(int)n.State}";
 
     private static string Kind(NpcKind kind) => kind switch
     {

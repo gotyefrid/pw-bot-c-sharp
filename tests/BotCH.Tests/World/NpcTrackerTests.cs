@@ -19,15 +19,15 @@ public class NpcTrackerTests
         var mob = _world.AddMob(1, "Скарабей", 10, targetWid: FakeWorld.HostWid);
         Assert.Equal(FakeWorld.HostWid, Next().TargetWid);
 
-        _world.Replace(mob, m => m with { Returning = true, State = NpcInfo.StateMoving });
+        _world.Replace(mob, m => m with { Returning = true, State = NpcState.Moving });
         Assert.True(Next().Returning);
 
-        _world.Replace(mob, m => m with { Returning = false, State = 1 });
+        _world.Replace(mob, m => m with { Returning = false, State = NpcState.Standing });
         Assert.Equal(0u, Next().TargetWid);
 
-        _world.Replace(mob, m => m with { State = NpcInfo.StateAttacking });
+        _world.Replace(mob, m => m with { State = NpcState.Attacking });
         Assert.Equal(FakeWorld.HostWid, Next().TargetWid);
-        _world.Replace(mob, m => m with { State = 1 });
+        _world.Replace(mob, m => m with { State = NpcState.Standing });
         Assert.Equal(FakeWorld.HostWid, Next().TargetWid); // новый агр — уже не застрявшая
     }
 
@@ -38,7 +38,7 @@ public class NpcTrackerTests
         _world.Replace(mob, m => m with { Returning = true });
         Next();
 
-        _world.Replace(mob, m => m with { Returning = false, State = 1, TargetWid = FakeWorld.PetWid });
+        _world.Replace(mob, m => m with { Returning = false, State = NpcState.Standing, TargetWid = FakeWorld.PetWid });
 
         Assert.Equal(FakeWorld.PetWid, Next().TargetWid);
     }
@@ -46,7 +46,7 @@ public class NpcTrackerTests
     [Fact]
     public void MovingMobGettingCloserIsApproaching()
     {
-        var mob = _world.AddMob(1, "Волк", 20, state: NpcInfo.StateMoving);
+        var mob = _world.AddMob(1, "Волк", 20, state: NpcState.Moving);
         Assert.False(Next().Approaching);
 
         _world.Replace(mob, m => m with { Position = new Position(18, 0, 0) });
@@ -72,12 +72,12 @@ public class NpcTrackerTests
     public void VanishedMobIsForgotten()
     {
         // Моб исчез (убит, респавн с тем же WID) — его прошлое расстояние не делает нового «идущим к нам»
-        _world.AddMob(1, "Волк", 20, state: NpcInfo.StateMoving);
+        _world.AddMob(1, "Волк", 20, state: NpcState.Moving);
         Next();
         _world.Npcs.Clear();
         _tracker.Track(_world.Snapshot());
 
-        _world.AddMob(1, "Волк", 15, state: NpcInfo.StateMoving);
+        _world.AddMob(1, "Волк", 15, state: NpcState.Moving);
 
         Assert.False(Next().Approaching);
     }

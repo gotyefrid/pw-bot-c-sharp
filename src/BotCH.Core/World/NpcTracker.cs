@@ -38,14 +38,14 @@ public sealed class NpcTracker
             _shakenOff[npc.Wid] = target;
         else if (_shakenOff.TryGetValue(npc.Wid, out var stuck))
         {
-            if (target == stuck && npc.State is not (NpcInfo.StateAttacking or NpcInfo.StateCasting))
+            if (target == stuck && npc.State is not (NpcState.Attacking or NpcState.Casting))
                 target = 0;
             else
                 _shakenOff.Remove(npc.Wid);
         }
 
         var distance = npc.Offset.Horizontal;
-        var approaching = npc.State == NpcInfo.StateMoving && _lastDistance.TryGetValue(npc.Wid, out var last) && distance < last;
+        var approaching = npc.State == NpcState.Moving && _lastDistance.TryGetValue(npc.Wid, out var last) && distance < last;
         _lastDistance[npc.Wid] = distance;
 
         return target == npc.TargetWid && approaching == npc.Approaching ? npc : npc with { TargetWid = target, Approaching = approaching };

@@ -92,7 +92,7 @@ public class ActionRunnerTests
         _world.TargetWid = mob.Wid;
 
         _runner.Submit(Bot, new SkillAction(299, 0, approach: true), _world.Snapshot());
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
         _world.TargetWid = 0;
 
         var outcome = Single(_runner.Update(_world.Wait(0.3).Snapshot()));
@@ -681,7 +681,7 @@ public class ActionRunnerTests
         var slow = new SlowActions();
         var runner = new ActionRunner(new GameControl(slow), NullLogger.Instance);
         var snapshot = _world.Snapshot();
-        var mobs = Enumerable.Range(1, 20).Select(i => new NpcInfo(0, (uint)i, NpcKind.Mob, 1, 0, default, "м", 0)).ToList();
+        var mobs = Enumerable.Range(1, 20).Select(i => new NpcInfo(0, (uint)i, NpcKind.Mob, NpcState.Standing, 0, default, "м", 0)).ToList();
 
         Parallel.ForEach(mobs, mob =>
         {

@@ -62,9 +62,9 @@ internal sealed class FakeWorld
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
 
     /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
-    public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, int? state = null, int hp = 0)
+    public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, NpcState? state = null, int hp = 0)
     {
-        var mob = new NpcInfo(wid, wid, NpcKind.Mob, state ?? (targetWid != 0 ? NpcInfo.StateAttacking : 1), targetWid,
+        var mob = new NpcInfo(wid, wid, NpcKind.Mob, state ?? (targetWid != 0 ? NpcState.Attacking : NpcState.Standing), targetWid,
             new Position(distance, 0, 0), name, hp);
         Npcs.Add(mob);
         return mob;
@@ -120,7 +120,7 @@ internal sealed class FakeWorld
         Pet = new PetState(summoned ? cage : null, summoned ? PetWid : 0, [new PetInCage(cage, hpRatio, hunger)]);
         Npcs.RemoveAll(n => n.Kind == NpcKind.Pet);
         if (summoned)
-            Npcs.Add(new NpcInfo(1, PetWid, NpcKind.Pet, 1, 0, new Position(2, 0, 0), "Пет", 0));
+            Npcs.Add(new NpcInfo(1, PetWid, NpcKind.Pet, NpcState.Standing, 0, new Position(2, 0, 0), "Пет", 0));
     }
 }
 

@@ -127,7 +127,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 
-    private static bool Hits(NpcInfo mob) => mob.State is NpcInfo.StateAttacking or NpcInfo.StateCasting;
+    private static bool Hits(NpcInfo mob) => mob.State is NpcState.Attacking or NpcState.Casting;
 
     // Опасный моб бьёт перса или пета: не возвращается (тот уже не наш), не «отставший» с застрявшей целью — пока снова не ударит
     private NpcInfo? Threat(BrainContext c)

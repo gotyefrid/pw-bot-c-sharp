@@ -73,9 +73,9 @@ public sealed record WorldState(
     /// <summary>Предметы и ресурсы на земле — с расстояниями от персонажа в этом снимке.</summary>
     public IReadOnlyList<GroundItem> GroundItems { get; init; } = GroundItems.Select(i => i with { Origin = Host.Position }).ToList();
 
-    /// <summary>Сколько объектов в списках по данным самой игры (для самопроверки: прочитали всё ли).</summary>
-    public int NpcCountInGame { get; init; } = -1;
-    public int GroundItemCountInGame { get; init; } = -1;
+    /// <summary>Сколько объектов в списках по данным самой игры (для самопроверки: прочитали всё ли); null — поле не найдено.</summary>
+    public int? NpcCountInGame { get; init; }
+    public int? GroundItemCountInGame { get; init; }
 
     public NpcInfo? Target => Host.TargetWid == 0 ? null : Npcs.FirstOrDefault(n => n.Wid == Host.TargetWid);
 
@@ -161,12 +161,37 @@ public enum NpcKind
     Pet = 9,
 }
 
+/// <summary>Что делает моб — поле состояния в памяти игры (числа те же, что у клиента).</summary>
+public enum NpcState
+{
+    /// <summary>0 — поле не найдено для сервера; так же и незнакомое число.</summary>
+    Unknown = 0,
+    Standing = 1,
+    Attacking = 2,
+    Casting = 3,
+    Dead = 4,
+    Moving = 5,
+}
+
+public static class NpcStates
+{
+    /// <summary>Для людей (окно, Probe): «стоит», «бьёт»…; null — незнакомое состояние.</summary>
+    public static string? Text(this NpcState state) => state switch
+    {
+        NpcState.Standing => "стоит",
+        NpcState.Attacking => "бьёт",
+        NpcState.Casting => "кастует",
+        NpcState.Dead => "мёртв",
+        NpcState.Moving => "идёт",
+        _ => null,
+    };
+}
+
 public sealed record NpcInfo(
     uint Address,
     uint Wid,
     NpcKind Kind,
-    /// <summary>1 стоит, 2 бьёт, 3 кастует, 4 мёртв, 5 идёт.</summary>
-    int State,
+    NpcState State,
     /// <summary>Кого бьёт (WID перса или пета); 0 — никого.</summary>
     uint TargetWid,
     Position Position,
@@ -202,14 +227,9 @@ public sealed record NpcInfo(
     /// Действует сейчас: бьёт, кастует или идёт к персонажу. Моб, который просто стоит с нашей целью, — не напал: так бывает,
     /// когда цель застряла (1.3.6 не сбрасывает её после отагра) или он нас не достаёт.
     /// </summary>
-    public bool Engaging => State is StateAttacking or StateCasting || Approaching;
+    public bool Engaging => State is NpcState.Attacking or NpcState.Casting || Approaching;
 
-    public const int StateAttacking = 2;
-    public const int StateCasting = 3;
-    public const int StateDead = 4;
-    public const int StateMoving = 5;
-
-    public bool IsDead => State == StateDead;
+    public bool IsDead => State == NpcState.Dead;
 }
 
 public enum GroundItemKind

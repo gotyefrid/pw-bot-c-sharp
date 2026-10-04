@@ -149,7 +149,7 @@ public class RouteScenarioTests
 
     private NpcInfo AddAggressive(uint wid, string name, float x, int level, int aggro = 8, float height = 0)
     {
-        var mob = new NpcInfo(wid, wid, NpcKind.Mob, 1, 0, new Position(x, height, 0), name, 0)
+        var mob = new NpcInfo(wid, wid, NpcKind.Mob, NpcState.Standing, 0, new Position(x, height, 0), name, 0)
             { Level = level, Aggressive = true, AggroRadius = aggro };
         _world.Npcs.Add(mob);
         return mob;
@@ -181,7 +181,7 @@ public class RouteScenarioTests
         AddResource(0xC0000001, 10, "Шалфей");
         AddResource(0xC0000002, 30, "Железная руда");
         AddAggressive(0x80000001, "Волк", 12, level: 20);                       // слабее порога
-        _world.Npcs.Add(new NpcInfo(0x80000002, 0x80000002, NpcKind.Mob, 1, 0, new Position(28, 0, 0), "Король пауков", 0)
+        _world.Npcs.Add(new NpcInfo(0x80000002, 0x80000002, NpcKind.Mob, NpcState.Standing, 0, new Position(28, 0, 0), "Король пауков", 0)
             { Level = 40, Aggressive = false, AggroRadius = 8 });                // из списка, но пассивный
 
         Tick();
@@ -234,7 +234,7 @@ public class RouteScenarioTests
         Tick();
         Tick(); // на точке 1
         var tiger = AddAggressive(0x80000001, "Тигр", 5, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = _world.Pet!.ActiveWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = _world.Pet!.ActiveWid, State = NpcState.Attacking });
         _actions.Calls.Clear();
 
         Tick();
@@ -263,10 +263,10 @@ public class RouteScenarioTests
         Tick();
         Tick(); // на точке 1
         var tiger = AddAggressive(0x80000001, "Тигр", 5, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         Tick();
         _world.Position = new Position(0, 70, 0);
-        _world.Replace(tiger, m => m with { TargetWid = 0, State = 1 });
+        _world.Replace(tiger, m => m with { TargetWid = 0, State = NpcState.Standing });
         _actions.Calls.Clear();
 
         Tick();
@@ -287,10 +287,10 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 5, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         Tick();
         _world.Position = new Position(0, 40, 0);
-        _world.Replace(tiger, m => m with { Returning = true, State = 5 });
+        _world.Replace(tiger, m => m with { Returning = true, State = NpcState.Moving });
         _actions.Calls.Clear();
 
         Tick();
@@ -310,10 +310,10 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         Tick();
         _world.Position = new Position(0, 10, 0);
-        _world.Replace(tiger, m => m with { State = 1 });
+        _world.Replace(tiger, m => m with { State = NpcState.Standing });
         Tick(4);
         _actions.Calls.Clear();
 
@@ -334,9 +334,9 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         Tick();
-        _world.Replace(tiger, m => m with { State = 1 });
+        _world.Replace(tiger, m => m with { State = NpcState.Standing });
         _world.Position = new Position(0, 10, 0);
         for (var i = 0; i < 8; i++)
             Tick(5);
@@ -353,7 +353,7 @@ public class RouteScenarioTests
         _world.Flying = true;
         AddResource(0xC0000001, 30, "Железная руда");
         var tiger = AddAggressive(0x80000001, "Тигр", 60, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = 1 });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Standing });
 
         Tick();
         Tick();
@@ -369,7 +369,7 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var wolf = AddAggressive(0x80000001, "Волк", 3, level: 20);
-        _world.Replace(wolf, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(wolf, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         _actions.Calls.Clear();
 
         Tick();
@@ -387,7 +387,7 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         _actions.Calls.Clear();
 
         Tick();
@@ -406,7 +406,7 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         _actions.Calls.Clear();
 
         for (var i = 0; i < 24; i++) // 6 с: взлёт ждёт подтверждения 5 с
@@ -426,7 +426,7 @@ public class RouteScenarioTests
         Tick();
         Tick();
         var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
         _actions.Calls.Clear();
 
         Tick();

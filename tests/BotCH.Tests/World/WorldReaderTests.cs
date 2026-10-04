@@ -273,10 +273,10 @@ public class WorldReaderTests
     }
 
     [Theory]
-    [InlineData(NpcInfo.StateCasting, 0xA0126CE5u)]   // кастует — цель каста
-    [InlineData(NpcInfo.StateAttacking, 0x0130ECE0u)] // бьёт рукой — цель удара
-    [InlineData(1, 0xFFFFFFFFu)]                      // стоит — запасные поля не смотрим
-    public void MobWithEmptyTargetFieldTargetsWhomItHits(int state, uint expected)
+    [InlineData(NpcState.Casting, 0xA0126CE5u)]   // кастует — цель каста
+    [InlineData(NpcState.Attacking, 0x0130ECE0u)] // бьёт рукой — цель удара
+    [InlineData(NpcState.Standing, 0xFFFFFFFFu)]  // стоит — запасные поля не смотрим
+    public void MobWithEmptyTargetFieldTargetsWhomItHits(NpcState state, uint expected)
     {
         var p = new ProfileCatalog().Load("comeback146").Data;
         var mob = ComebackWorldWithMob(p);
@@ -443,7 +443,7 @@ public class WorldReaderTests
         Assert.Null(state.Pet);
         var npc = Assert.Single(state.Npcs);
         Assert.Equal(0x80100018u, npc.Wid);
-        Assert.Equal(0, npc.State);
+        Assert.Equal(NpcState.Unknown, npc.State);
         Assert.Equal(0u, npc.TargetWid);
         Assert.Equal(1, state.NpcCountInGame);
     }

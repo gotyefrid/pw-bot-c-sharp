@@ -1070,15 +1070,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private static string StateText(NpcInfo n, WorldState w)
     {
-        var state = n.State switch
-        {
-            1 => "стоит",
-            2 => "бьёт",
-            3 => "кастует",
-            4 => "мёртв",
-            5 => "идёт",
-            _ => "",
-        };
+        var state = n.State.Text() ?? "";
         if (n.TargetWid != 0 && n.TargetWid == w.Host.Wid)
             state += ", бьёт вас";
         else if (n.TargetWid != 0 && n.TargetWid == w.Pet?.ActiveWid)

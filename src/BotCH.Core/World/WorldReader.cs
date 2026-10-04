@@ -137,11 +137,11 @@ public sealed class WorldReader
     }
 
     /// <summary>Обходит хэш-таблицу менеджера мира (мобы или предметы на земле).</summary>
-    private List<T> ReadList<T>(uint world, WorldListOffsets list, int objectSize, Func<MemoryBlock, T?> read, out int countInGame)
+    private List<T> ReadList<T>(uint world, WorldListOffsets list, int objectSize, Func<MemoryBlock, T?> read, out int? countInGame)
         where T : class
     {
         var result = new List<T>();
-        countInGame = -1;
+        countInGame = null;
         if (world == 0 || list.Manager == 0 || !_memory.TryReadUInt32(world + list.Manager, out var manager) || manager == 0)
             return result;
 
@@ -174,7 +174,7 @@ public sealed class WorldReader
     private NpcInfo? ReadNpc(MemoryBlock b)
     {
         var n = _p.Npc;
-        var state = (int)Field(b, n.State);
+        var state = (NpcState)Field(b, n.State);
 
         // Кто атакован: обычное поле, а если оно пусто (0 или -1) — цель удара у бьющего, цель каста у кастующего
         var target = Field(b, n.Target);
@@ -182,8 +182,8 @@ public sealed class WorldReader
         {
             target = state switch
             {
-                NpcInfo.StateAttacking when n.AttackTarget != 0 => Field(b, n.AttackTarget),
-                NpcInfo.StateCasting when n.CastTarget != 0 => Field(b, n.CastTarget),
+                NpcState.Attacking when n.AttackTarget != 0 => Field(b, n.AttackTarget),
+                NpcState.Casting when n.CastTarget != 0 => Field(b, n.CastTarget),
                 _ => target,
             };
         }

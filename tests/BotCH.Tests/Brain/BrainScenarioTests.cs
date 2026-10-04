@@ -339,8 +339,8 @@ public class BrainScenarioTests
 
         // Перс убежал на 50 м: моб рядом с ним (55 м от старта) — нельзя, моб в 20 м от старта — можно
         _world.Position = new Position(50, 0, 0);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(55, 0, 0), "Волк", 0));
-        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Mob, 1, 0, new Position(20, 0, 0), "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(55, 0, 0), "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Mob, NpcState.Standing, 0, new Position(20, 0, 0), "Волк", 0));
         Tick();
 
         Assert.Equal("select 80000002", LastCall);
@@ -391,7 +391,7 @@ public class BrainScenarioTests
         _settings.Target.ReturnToCenter = false;
         Tick(); // старт в (0, 0)
         _world.Position = new Position(100, 0, 0);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, 1, 0, new Position(110, 0, 0), "Волк", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(110, 0, 0), "Волк", 0));
         Tick();
         Assert.Empty(_actions.Calls);
 
@@ -405,8 +405,8 @@ public class BrainScenarioTests
     public void DeadMobsAndNpcsAreNotTargets()
     {
         _settings.Target.KillMobs = true;
-        _world.AddMob(0x80000001, "Волк", 3, state: NpcInfo.StateDead);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Npc, 1, 0, new Position(2, 0, 0), "Отшельник", 0));
+        _world.AddMob(0x80000001, "Волк", 3, state: NpcState.Dead);
+        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Npc, NpcState.Standing, 0, new Position(2, 0, 0), "Отшельник", 0));
         var alive = _world.AddMob(0x80000003, "Волк", 20);
 
         Tick();
@@ -648,7 +648,7 @@ public class BrainScenarioTests
         Tick();
 
         // Моб умер в 10 м; рядом с ним ресурс и мех
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
         _world.TargetWid = 0;
         _world.Ground.Add(new GroundItem(0, 0xC0000001, 3089, GroundItemKind.Resource, new Position(10, 0, 0), "Шахта угля"));
         _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(11, 0, 0), "Мягкий мех"));
@@ -700,7 +700,7 @@ public class BrainScenarioTests
         Tick();
 
         // Моб умер в (2, 0); монета с него рядом, старый мех — в 14 м от места смерти (и в 12 м от перса)
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
         _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
         _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(-12, 0, 0), "Мягкий мех"));
         Tick();
@@ -721,7 +721,7 @@ public class BrainScenarioTests
         var mob = _world.AddMob(0x80000001, "Волк", 2, hp: 100);
         _world.TargetWid = mob.Wid;
         Tick();
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
         return mob;
     }
 
@@ -781,7 +781,7 @@ public class BrainScenarioTests
         _world.TargetWid = mob.Wid;
         Tick();
 
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
         _world.Ground.Add(new GroundItem(0, 0xC0000001, 8083, GroundItemKind.Item, new Position(1, 0, 0), "Разорванный мех"));
         _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
         Tick();
@@ -798,7 +798,7 @@ public class BrainScenarioTests
         var mob = _world.AddMob(0x80000001, "Волк", 2, hp: 100);
         _world.TargetWid = mob.Wid;
         Tick();
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
         _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
         Tick();
         Assert.Equal("pickup-approach C0000002", LastCall);
@@ -966,7 +966,7 @@ public class BrainScenarioTests
         _settings.Target.KillMobs = false;
         Brain.UpdateSettings(_settings);
         Tick();
-        _world.Replace(snake, m => m with { State = NpcInfo.StateDead });
+        _world.Replace(snake, m => m with { State = NpcState.Dead });
         _world.TargetWid = 0;
         AddOre(0xC0000001, 10);
         _actions.Calls.Clear();
@@ -1021,7 +1021,7 @@ public class BrainScenarioTests
         // Убили — копаем тот же ресурс снова
         _world.TargetWid = mob.Wid;
         Tick();
-        _world.Replace(mob, m => m with { State = NpcInfo.StateDead, TargetWid = 0 });
+        _world.Replace(mob, m => m with { State = NpcState.Dead, TargetWid = 0 });
         _world.TargetWid = 0;
         Tick();
         Tick();
@@ -1033,10 +1033,10 @@ public class BrainScenarioTests
     public void StandingMobWithOurTargetIsNotAnAggressor()
     {
         // Цель — перс, но моб стоит (застрявшая цель или не достаёт) — не напал; пошёл к нам — напал
-        var mob = _world.AddMob(0x80000001, "Паук", 3, targetWid: FakeWorld.HostWid, state: 1);
+        var mob = _world.AddMob(0x80000001, "Паук", 3, targetWid: FakeWorld.HostWid, state: NpcState.Standing);
         Assert.Null(TargetSelector.Aggressor(_world.Snapshot()));
 
-        _world.Replace(mob, m => m with { State = NpcInfo.StateMoving, Approaching = true });
+        _world.Replace(mob, m => m with { State = NpcState.Moving, Approaching = true });
         Assert.NotNull(TargetSelector.Aggressor(_world.Snapshot()));
     }
 

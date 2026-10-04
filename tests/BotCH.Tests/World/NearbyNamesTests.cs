@@ -17,8 +17,8 @@ public class NearbyNamesTests
         _world.AddMob(3, "Сидящий волк", 12);
         _world.AddMob(4, "Сидящий волк", 50);
         _world.AddMob(5, "Колючий дикобраз", 20);
-        _world.AddMob(6, "Сидящий волк", 5, state: NpcInfo.StateDead); // труп не считаем
-        _world.Npcs.Add(new NpcInfo(0, 7, NpcKind.Npc, 1, 0, new Position(3, 0, 0), "Отшельник", 0)); // NPC — не моб
+        _world.AddMob(6, "Сидящий волк", 5, state: NpcState.Dead); // труп не считаем
+        _world.Npcs.Add(new NpcInfo(0, 7, NpcKind.Npc, NpcState.Standing, 0, new Position(3, 0, 0), "Отшельник", 0)); // NPC — не моб
 
         var names = NearbyNames.Mobs(_world.Snapshot());
 
@@ -45,10 +45,10 @@ public class NearbyNamesTests
     [Fact]
     public void MobLevelsShownInsteadOfCount()
     {
-        _world.Npcs.Add(new NpcInfo(0, 1, NpcKind.Mob, 1, 0, new Position(10, 0, 0), "Сидящий волк", 0) { Level = 10 });
-        _world.Npcs.Add(new NpcInfo(0, 2, NpcKind.Mob, 1, 0, new Position(20, 0, 0), "Сидящий волк", 0) { Level = 10 });
-        _world.Npcs.Add(new NpcInfo(0, 3, NpcKind.Mob, 1, 0, new Position(30, 0, 0), "Волк-вожак", 0) { Level = 12 });
-        _world.Npcs.Add(new NpcInfo(0, 4, NpcKind.Mob, 1, 0, new Position(30, 0, 0), "Волк-вожак", 0) { Level = 14 });
+        _world.Npcs.Add(new NpcInfo(0, 1, NpcKind.Mob, NpcState.Standing, 0, new Position(10, 0, 0), "Сидящий волк", 0) { Level = 10 });
+        _world.Npcs.Add(new NpcInfo(0, 2, NpcKind.Mob, NpcState.Standing, 0, new Position(20, 0, 0), "Сидящий волк", 0) { Level = 10 });
+        _world.Npcs.Add(new NpcInfo(0, 3, NpcKind.Mob, NpcState.Standing, 0, new Position(30, 0, 0), "Волк-вожак", 0) { Level = 12 });
+        _world.Npcs.Add(new NpcInfo(0, 4, NpcKind.Mob, NpcState.Standing, 0, new Position(30, 0, 0), "Волк-вожак", 0) { Level = 14 });
 
         var names = NearbyNames.Mobs(_world.Snapshot());
 
