@@ -120,17 +120,17 @@
                     ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
         </DockPanel>
         <DockPanel Margin="0,0,0,8">
-          <TextBlock DockPanel.Dock="Right" Text="{Binding HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding HostName}" FontSize="15" FontWeight="SemiBold" />
+          <TextBlock DockPanel.Dock="Right" Text="{Binding Status.HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding Status.HostName}" FontSize="15" FontWeight="SemiBold" />
         </DockPanel>
 
         <Grid Margin="0,0,0,6">
-          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource HpBrush}" Value="{Binding HpPercent, Mode=OneWay}" />
-          <TextBlock Style="{StaticResource BarText}" Text="{Binding HpText, StringFormat=HP  {0}}" />
+          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource HpBrush}" Value="{Binding Status.HpPercent, Mode=OneWay}" />
+          <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.HpText, StringFormat=HP  {0}}" />
         </Grid>
         <Grid>
-          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource MpBrush}" Value="{Binding MpPercent, Mode=OneWay}" />
-          <TextBlock Style="{StaticResource BarText}" Text="{Binding MpText, StringFormat=MP  {0}}" />
+          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource MpBrush}" Value="{Binding Status.MpPercent, Mode=OneWay}" />
+          <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.MpText, StringFormat=MP  {0}}" />
         </Grid>
 
         <Border Height="1" Background="{StaticResource CardBorder}" Margin="0,12" />
@@ -144,38 +144,38 @@
 
           <StackPanel>
             <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
-            <TextBlock Text="{Binding TargetName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+            <TextBlock Text="{Binding Status.TargetName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
               <TextBlock.Style>
                 <Style TargetType="TextBlock">
                   <Style.Triggers>
-                    <DataTrigger Binding="{Binding HasTarget}" Value="False">
+                    <DataTrigger Binding="{Binding Status.HasTarget}" Value="False">
                       <Setter Property="Foreground" Value="{StaticResource MutedText}" />
                     </DataTrigger>
                   </Style.Triggers>
                 </Style>
               </TextBlock.Style>
             </TextBlock>
-            <TextBlock Text="{Binding TargetDetails}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0" />
+            <TextBlock Text="{Binding Status.TargetDetails}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0" />
           </StackPanel>
 
           <StackPanel Grid.Column="2">
             <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
-            <TextBlock Text="{Binding PetTitle}" FontWeight="SemiBold" Margin="0,0,0,4">
+            <TextBlock Text="{Binding Status.PetTitle}" FontWeight="SemiBold" Margin="0,0,0,4">
               <TextBlock.Style>
                 <Style TargetType="TextBlock">
                   <Style.Triggers>
-                    <DataTrigger Binding="{Binding HasPet}" Value="False">
+                    <DataTrigger Binding="{Binding Status.HasPet}" Value="False">
                       <Setter Property="Foreground" Value="{StaticResource MutedText}" />
                     </DataTrigger>
                   </Style.Triggers>
                 </Style>
               </TextBlock.Style>
             </TextBlock>
-            <Grid Visibility="{Binding HasPet, Converter={StaticResource Visible}}">
-              <ProgressBar Style="{StaticResource Bar}" Height="16" Foreground="{StaticResource PetBrush}" Value="{Binding PetHpPercent, Mode=OneWay}" />
-              <TextBlock Style="{StaticResource BarText}" FontSize="11" Text="{Binding PetHpText}" />
+            <Grid Visibility="{Binding Status.HasPet, Converter={StaticResource Visible}}">
+              <ProgressBar Style="{StaticResource Bar}" Height="16" Foreground="{StaticResource PetBrush}" Value="{Binding Status.PetHpPercent, Mode=OneWay}" />
+              <TextBlock Style="{StaticResource BarText}" FontSize="11" Text="{Binding Status.PetHpText}" />
             </Grid>
-            <TextBlock Text="{Binding PetDetails}" Style="{StaticResource Muted}" Margin="0,3,0,0" />
+            <TextBlock Text="{Binding Status.PetDetails}" Style="{StaticResource Muted}" Margin="0,3,0,0" />
           </StackPanel>
         </Grid>
       </StackPanel>
@@ -187,8 +187,8 @@
         <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
           <TextBlock Text="БОТ" Style="{StaticResource CardTitle}" Margin="0,0,0,2" />
           <TextBlock Text="{Binding BotState}" FontWeight="SemiBold" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding SnapshotInfo}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-          <TextBlock Text="{Binding LastEvent}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+          <TextBlock Text="{Binding Status.SnapshotInfo}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+          <TextBlock Text="{Binding Log.LastEvent}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
                      ToolTip="Последняя запись лога. Весь лог — на вкладке «Лог»" />
         </StackPanel>
       </DockPanel>
@@ -298,11 +298,11 @@
       <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="14,10,10,4">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-            <CheckBox Style="{StaticResource Switch}" Content="Только важное" IsChecked="{Binding OnlyImportantLog}" Margin="0,0,10,0"
+            <CheckBox Style="{StaticResource Switch}" Content="Только важное" IsChecked="{Binding Log.OnlyImportantLog}" Margin="0,0,10,0"
                       ToolTip="Показывать только предупреждения и ошибки (в файл пишется всё)" Checked="LogFilterChanged" Unchecked="LogFilterChanged" />
             <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE838;" Click="OpenLogFolder"
                     ToolTip="Открыть папку с файлами лога" Background="Transparent" />
-            <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE74D;" Command="{Binding ClearLogCommand}"
+            <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE74D;" Command="{Binding Log.ClearLogCommand}"
                     ToolTip="Очистить лог в окне (файл не трогается)" Background="Transparent" />
           </StackPanel>
           <TextBlock Text="ЛОГ" Style="{StaticResource CardTitle}" Margin="0" VerticalAlignment="Center" />

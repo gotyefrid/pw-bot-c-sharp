@@ -27,7 +27,7 @@ public partial class MainWindow : Window
 
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
-        _model.Log.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
+        _model.Log.Entries.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 
     private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x6B, 0x73, 0x85));
@@ -81,13 +81,13 @@ public partial class MainWindow : Window
         return line;
     }
 
-    private bool Shown(LogEntry entry) => !_model.OnlyImportantLog || entry.Level >= LogLevel.Warning;
+    private bool Shown(LogEntry entry) => !_model.Log.OnlyImportantLog || entry.Level >= LogLevel.Warning;
 
     private void RebuildLog()
     {
         var blocks = LogBox.Document.Blocks;
         blocks.Clear();
-        foreach (var entry in _model.Log.Where(Shown))
+        foreach (var entry in _model.Log.Entries.Where(Shown))
             blocks.Add(Line(entry));
         LogBox.ScrollToEnd();
     }

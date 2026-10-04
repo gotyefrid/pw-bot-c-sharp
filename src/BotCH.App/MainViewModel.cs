@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using BotCH.App.Mvvm;
+using BotCH.App.Panels;
 using BotCH.Core.Actions;
 using BotCH.Core.Brain;
 using BotCH.Core.Calls;
@@ -30,8 +31,6 @@ namespace BotCH.App;
 /// </summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
-    private const int MaxLogLines = 500;
-
     private readonly ProfileCatalog _catalog = ProfileCatalog.Default();
 
     // Общие настройки (settings.json: подключение + шаблон) и текущего персонажа (characters\Ник.json)
@@ -56,9 +55,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel(string appDirectory)
     {
-        var ring = new RingBufferSink(MaxLogLines);
+        var ring = new RingBufferSink(LogPanel.MaxLines);
         var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(Path.Combine(appDirectory, "logs")));
-        ring.Added += entry => OnUi(() => AddLog(entry));
+        ring.Added += entry => OnUi(() => Log.Add(entry));
         _logger = logger;
         _log = logger.For("окно");
         _connectionLog = logger.For("подключение");
@@ -87,7 +86,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
 
-        ClearLogCommand = new RelayCommand(Log.Clear);
         AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _lastWorld is not null);
         RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
         AddRoutePointCommand = new RelayCommand(AddRoutePoint, () => _lastWorld is not null);
@@ -187,62 +185,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Состояние ────────────────────────────────────────────────────────────
 
-    private string _hostName = "—";
-    public string HostName { get => _hostName; private set => SetProperty(ref _hostName, value); }
+    /// <summary>Персонаж, цель, пет — на вкладке «Бот».</summary>
+    public StatusPanel Status { get; } = new();
 
-    private string _hostDetails = "";
-    public string HostDetails { get => _hostDetails; private set => SetProperty(ref _hostDetails, value); }
-
-    private double _hpPercent;
-    public double HpPercent { get => _hpPercent; private set => SetProperty(ref _hpPercent, value); }
-
-    private string _hpText = "—";
-    public string HpText { get => _hpText; private set => SetProperty(ref _hpText, value); }
-
-    private double _mpPercent;
-    public double MpPercent { get => _mpPercent; private set => SetProperty(ref _mpPercent, value); }
-
-    private string _mpText = "—";
-    public string MpText { get => _mpText; private set => SetProperty(ref _mpText, value); }
-
-    private bool _hasTarget;
-    public bool HasTarget { get => _hasTarget; private set => SetProperty(ref _hasTarget, value); }
-
-    private string _targetName = "Нет цели";
-    public string TargetName { get => _targetName; private set => SetProperty(ref _targetName, value); }
-
-    private string _targetDetails = "";
-    public string TargetDetails { get => _targetDetails; private set => SetProperty(ref _targetDetails, value); }
-
-    private bool _hasPet;
-    public bool HasPet { get => _hasPet; private set => SetProperty(ref _hasPet, value); }
-
-    private string _petTitle = "Пета нет";
-    public string PetTitle { get => _petTitle; private set => SetProperty(ref _petTitle, value); }
-
-    private double _petHpPercent;
-    public double PetHpPercent { get => _petHpPercent; private set => SetProperty(ref _petHpPercent, value); }
-
-    private string _petHpText = "";
-    public string PetHpText { get => _petHpText; private set => SetProperty(ref _petHpText, value); }
-
-    private string _petDetails = "";
-    public string PetDetails { get => _petDetails; private set => SetProperty(ref _petDetails, value); }
+    /// <summary>Лог в окне.</summary>
+    public LogPanel Log { get; } = new();
 
     private string _botState = "Ожидание";
     public string BotState { get => _botState; private set => SetProperty(ref _botState, value); }
 
-    private string _snapshotInfo = "";
-    public string SnapshotInfo { get => _snapshotInfo; private set => SetProperty(ref _snapshotInfo, value); }
-
-    // ── Лог и команды ───────────────────────────────────────────────────────
-
-    public ObservableCollection<LogEntry> Log { get; } = new();
+    // ── Команды ──────────────────────────────────────────────────────────────
 
     public ICommand RefreshCommand { get; }
     public ICommand StartCommand { get; }
     public ICommand StopCommand { get; }
-    public ICommand ClearLogCommand { get; }
 
     private bool _isRunning;
 
@@ -331,15 +287,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         get => _tab;
         set => SetProperty(ref _tab, value);
-    }
-
-    private string _lastEvent = "";
-
-    /// <summary>Последняя запись лога — видна на вкладке «Бот».</summary>
-    public string LastEvent
-    {
-        get => _lastEvent;
-        private set => SetProperty(ref _lastEvent, value);
     }
 
     /// <summary>Настройки окна. Поля привязаны напрямую; о правке сообщают сами (<see cref="BotSettings.Edited"/>).</summary>
@@ -999,30 +946,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (h.Name.Length > 0)
             SwitchCharacter(h.Name);
         ConnectionText = h.Name;
-        HostName = h.Name;
-        HostDetails = $"ур. {h.Level}" + (h.IsCasting ? " · кастует" : "") + (h.IsDead ? " · мёртв" : "");
-        HpPercent = Percent(h.Hp, h.MaxHp);
-        HpText = $"{h.Hp} / {h.MaxHp}";
-        MpPercent = h.MaxMp is int maxMp ? Percent(h.Mp, maxMp) : 100;
-        MpText = h.MaxMp is null ? $"{h.Mp}" : $"{h.Mp} / {h.MaxMp}";
-
-        var target = w.Target;
-        HasTarget = target is not null;
-        TargetName = target?.Name ?? (h.TargetWid == 0 ? "Нет цели" : "Цель вне списка мобов");
-        TargetDetails = target is null ? "" : $"HP {target.Hp} · {target.Offset} · {StateText(target, w)}";
-
-        var pet = w.Pet;
-        var active = pet?.ActiveCage is int cage ? pet.InCage(cage) : null;
-        HasPet = active is not null;
-        PetTitle = pet is null ? "Пета нет" : active is null ? "Пет не призван" : $"Пет · клетка {active.Cage}";
-        PetHpPercent = active?.HpPercent ?? 0;
-        PetHpText = active is null ? "" : $"{active.HpPercent} %";
-        PetDetails = active is null ? "" : active.IsHungry ? "голоден" : "сыт";
-
+        Status.Show(w);
         UpdateAttackSkills(w);
         UpdateFarmPointInfo();
         ShowSpots(w);
-        SnapshotInfo = $"мобов рядом {w.Mobs.Count(m => !m.IsDead)} · лута {w.GroundItems.Count}";
     }
 
     private void ShowFailure(string message)
@@ -1038,49 +965,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         ConnectionText = "Персонаж не в мире";
         ClearWorld();
-        SnapshotInfo = message;
+        Status.SnapshotInfo = message;
     }
 
-    // Мир не читается (другой сервер, загрузка, отключились) — старые HP/MP/пет не показываем, как будто они верные
+    // Мир не читается (другой сервер, загрузка, отключились) — старое состояние не показываем, как будто оно верное
     private void ClearWorld()
     {
         _lastWorld = null;
         _spots.Forget();
-        HostName = "—";
-        HostDetails = "";
-        HpPercent = 0;
-        HpText = "—";
-        MpPercent = 0;
-        MpText = "—";
-        HasTarget = false;
-        TargetName = "Нет цели";
-        TargetDetails = "";
-        HasPet = false;
-        PetTitle = "Пета нет";
-        PetHpPercent = 0;
-        PetHpText = "";
-        PetDetails = "";
-        SnapshotInfo = "";
-    }
-
-    private static string StateText(NpcInfo n, WorldState w)
-    {
-        var state = n.State.Text() ?? "";
-        if (n.TargetWid != 0 && n.TargetWid == w.Host.Wid)
-            state += ", бьёт вас";
-        else if (n.TargetWid != 0 && n.TargetWid == w.Pet?.ActiveWid)
-            state += ", бьёт пета";
-        return state;
-    }
-
-    private static double Percent(int value, int max) => max <= 0 ? 0 : Math.Max(0, Math.Min(100, value * 100.0 / max));
-
-    private void AddLog(LogEntry entry)
-    {
-        Log.Add(entry);
-        LastEvent = $"{entry.Time:HH:mm:ss} {entry.Message}";
-        while (Log.Count > MaxLogLines)
-            Log.RemoveAt(0);
+        Status.Clear();
     }
 
     private void SaveSettings() => _config.SaveApp();
@@ -1121,15 +1014,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         get => _hasPets;
         private set => SetProperty(ref _hasPets, value);
-    }
-
-    private bool _onlyImportantLog;
-
-    /// <summary>В логе только предупреждения и ошибки.</summary>
-    public bool OnlyImportantLog
-    {
-        get => _onlyImportantLog;
-        set => SetProperty(ref _onlyImportantLog, value);
     }
 
     public sealed record ModeChoice(BotMode Mode, string Title);
