@@ -84,8 +84,8 @@
         <WrapPanel Margin="0,10,0,0">
           <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"
                     ToolTip="Переименовывать окна клиентов в ник персонажа и PID — видно, где кто" />
-          <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Unfreeze}" Content="Unfreeze"
-                    ToolTip="Клиент не «засыпает», когда окно не в фокусе (раз в секунду пишет флаг в память игры)" />
+          <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding Unfreeze}" IsEnabled="{Binding HasCharacter}" Content="Unfreeze"
+                    ToolTip="У этого персонажа: клиент не «засыпает», когда окно не в фокусе (раз в секунду пишет флаг в память игры). У нового персонажа выключен" />
         </WrapPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
           <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />

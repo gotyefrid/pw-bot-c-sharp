@@ -6,7 +6,8 @@ namespace BotCH.Core.Settings;
 
 /// <summary>
 /// Настройки по персонажам: <c>characters\Ник.json</c> рядом с exe. У каждого персонажа свои бой/цель/лут/банки/пет;
-/// новый персонаж начинает с копии шаблона (общих настроек). Подключение (сервер, окна, unfreeze) — общее, не здесь.
+/// новый персонаж начинает с копии шаблона (общих настроек). Подключение (сервер, окна) — общее, не здесь; unfreeze — свой
+/// у персонажа (у нового выключен, см. <see cref="SettingsService.SwitchTo"/>).
 /// </summary>
 public sealed class CharacterSettings(string directory)
 {

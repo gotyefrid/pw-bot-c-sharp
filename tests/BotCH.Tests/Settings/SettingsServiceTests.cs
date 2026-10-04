@@ -67,6 +67,42 @@ public class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void NewCharacterHasUnfreezeOffEvenIfItWasOnForEveryone()
+    {
+        // Unfreeze пишет в игру — новый персонаж (а на другом сервере все новые) начинает с выключенным
+        var config = Service();
+        config.App.Connection.Unfreeze = true;
+        config.App.Unfreeze = true;
+
+        config.SwitchTo("Новый");
+
+        Assert.False(config.Current.Unfreeze);
+        var again = Service();
+        again.SwitchTo("Новый");
+        Assert.False(again.Current.Unfreeze);
+    }
+
+    [Fact]
+    public void CharacterFromOldFileKeepsCommonUnfreeze()
+    {
+        // До переноса unfreeze был общим — у прежних персонажей ферма продолжает работать в фоне, как работала
+        var config = Service();
+        config.App.Connection.Unfreeze = true;
+        config.SaveApp();
+        Directory.CreateDirectory(Path.Combine(_folder, "characters"));
+        File.WriteAllText(Path.Combine(_folder, "characters", "Купчихан.json"), "{ \"target\": { \"farmRadius\": 30 } }");
+
+        var again = Service();
+        again.SwitchTo("Купчихан");
+
+        Assert.True(again.Current.Unfreeze);
+        var third = Service();
+        third.App.Connection.Unfreeze = false;
+        third.SwitchTo("Купчихан");
+        Assert.True(third.Current.Unfreeze); // своё уже записано в файл персонажа
+    }
+
+    [Fact]
     public void BeforeCharacterIsKnownSaveGoesToAppSettings()
     {
         var config = Service();

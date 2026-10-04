@@ -15,6 +15,7 @@ namespace BotCH.Core.Settings;
 public sealed class BotSettings
 {
     private BotMode _mode = BotMode.FarmMobs;
+    private bool? _unfreeze;
     private TargetSettings _target = new();
     private CombatSettings _combat = new();
     private LootSettings _loot = new();
@@ -40,6 +41,22 @@ public sealed class BotSettings
             if (_mode == value)
                 return;
             _mode = value;
+            Edited?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Unfreeze у этого персонажа: клиент не «засыпает» без фокуса (раз в секунду пишет флаг в данные игры). Новый персонаж —
+    /// выключено; null — старый файл, где своего значения ещё нет (берётся прежнее общее, см. <see cref="ConnectionSettings.Unfreeze"/>).
+    /// </summary>
+    public bool? Unfreeze
+    {
+        get => _unfreeze;
+        set
+        {
+            if (_unfreeze == value)
+                return;
+            _unfreeze = value;
             Edited?.Invoke();
         }
     }
@@ -128,7 +145,10 @@ public sealed class ConnectionSettings
     /// <summary>Переименовывать окна клиентов в ник персонажа.</summary>
     public bool RenameWindows { get; set; } = true;
 
-    /// <summary>Не давать клиенту «засыпать» без фокуса (запись в данные игры раз в секунду).</summary>
+    /// <summary>
+    /// Прежнее общее «не давать клиенту засыпать». Теперь у каждого персонажа своё (<see cref="BotSettings.Unfreeze"/>); это
+    /// значение берёт только персонаж из старого файла, у которого своего ещё нет.
+    /// </summary>
     public bool Unfreeze { get; set; }
 
     /// <summary>С кем бот работал последним — при запуске выбирается его клиент.</summary>
