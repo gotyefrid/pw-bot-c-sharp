@@ -64,10 +64,12 @@ public class ProfileCatalogTests
     {
         var capabilities = _catalog.Load("pwclassic136").Capabilities;
 
-        Assert.True(capabilities.DirectCalls);
-        Assert.True(capabilities.ApproachLikeMouse);
-        Assert.True(capabilities.MoveToPoint);
-        Assert.True(capabilities.GroundItems);
+        Assert.True(capabilities.Has(Capability.Move));
+        Assert.True(capabilities.Has(Capability.FlyTo));
+        Assert.True(capabilities.Has(Capability.Cancel));
+        Assert.True(capabilities.Has(Capability.RecallPet));
+        // Автопути у этого клиента нет — с причиной для окна
+        Assert.Equal("у сервера нет автопути", capabilities.WhyNot(Capability.SmartMove));
     }
 
     [Fact]
@@ -83,8 +85,8 @@ public class ProfileCatalogTests
         Assert.Equal(FunctionThis.Host, select.This);
         Assert.Equal(["wid"], select.Args);
         Assert.Equal(["0"], profile.Data.Functions[GameFunctions.Unselect].Args);
-        Assert.True(profile.Capabilities.DirectCalls);
-        Assert.True(profile.Capabilities.GroundItems);
+        Assert.True(profile.Capabilities.Has(Capability.SmartMove));
+        Assert.True(profile.Capabilities.Has(Capability.RecallPet));
         // Выход из игры и «отпустить пета» запрещены с самого начала — до первой вызываемой функции
         Assert.Equal(0x445A20u, profile.Data.ForbiddenFunctions["logout"]);
         Assert.Equal(0x2D4EB0u, profile.Data.ForbiddenFunctions["releasePet"]);

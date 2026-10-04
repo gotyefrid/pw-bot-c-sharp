@@ -947,10 +947,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
 
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
-    public bool CanRecallPet => _profile.Data.Functions.ContainsKey(GameFunctions.RecallPet);
+    public bool CanRecallPet => _profile.Capabilities.Has(Capability.RecallPet);
 
     /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
-    public bool CanChoosePath => _profile.Capabilities.SmartPath;
+    public bool CanChoosePath => _profile.Capabilities.Has(Capability.SmartMove);
 
     /// <summary>Любая правка настройки: сохранить файл и отдать копию работающему боту.</summary>
     public void SettingsEdited()

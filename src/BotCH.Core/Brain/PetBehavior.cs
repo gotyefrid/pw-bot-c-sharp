@@ -1,6 +1,7 @@
 using System;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
+using BotCH.Core.Profiles;
 
 namespace BotCH.Core.Brain;
 
@@ -38,7 +39,7 @@ public sealed class PetBehavior(CombatBehavior combat) : IBehavior
         if (!settings.Enabled || pet is null)
             return false;
 
-        if (settings.OnlyForFight && c.Runner.Actions.CanRecallPet)
+        if (settings.OnlyForFight && c.Runner.Actions.Capabilities.Has(Capability.RecallPet))
         {
             // Бой — кто-то бьёт перса или пета, или бой/лут уже идёт
             if (TargetSelector.Aggressor(c.World) is not null || combat.State != CombatState.Search)

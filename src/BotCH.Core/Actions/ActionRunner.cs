@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Logging;
+using BotCH.Core.Profiles;
 using BotCH.Core.World;
 
 namespace BotCH.Core.Actions;
@@ -193,7 +194,7 @@ public sealed class ActionRunner(IGameActions actions, ILogger log)
         if (!digging && action.CastsSkill != 0 && casting == action.CastsSkill)
             return "кастуется этот же скилл";
         var canBreak = digging ? action.Priority > ActionPriority.Background : action.Priority == ActionPriority.Urgent && casting != 0;
-        if (!canBreak || !Actions.CanCancel)
+        if (!canBreak || !Actions.Capabilities.Has(Capability.Cancel))
             return digging ? "персонаж копает" : "персонаж кастует";
 
         var call = cancel.Send(Actions, now);

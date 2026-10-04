@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using BotCH.Core.Actions;
 using BotCH.Core.Calls;
 using BotCH.Core.Logging;
+using BotCH.Core.Profiles;
 using BotCH.Core.World;
 using BotCH.Tests.Fakes;
 using Xunit;
@@ -586,9 +587,7 @@ public class ActionRunnerTests
         private int _active;
         public int MaxParallel { get; private set; }
         public string Mode => "тест";
-        public bool CanMove => true;
-        public bool CanCancel => true;
-        public bool CanMoveSmart => true;
+        public Capabilities Capabilities => Capabilities.All;
 
         private CallResult Slow()
         {
@@ -610,7 +609,6 @@ public class ActionRunnerTests
         public CallResult PickupObject(HostState host, GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();
-        public bool CanRecallPet => true;
         public CallResult RecallPet() => Slow();
         public CallResult MoveTo(HostState host, Position point, bool smart) => Slow();
         public CallResult Gather(HostState host, GroundItem resource) => Slow();

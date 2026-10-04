@@ -16,7 +16,8 @@ public interface IServerProfile
     /// <summary>Смещения, адреса функций, ID скиллов.</summary>
     ProfileData Data { get; }
 
-    ServerCapabilities Capabilities { get; }
+    /// <summary>Что заявлено в профиле — пока клиент не подключён (после подключения — <see cref="Calls.GameCaller.Capabilities"/>).</summary>
+    Capabilities Capabilities { get; }
 }
 
 /// <summary>Профиль, целиком описанный данными (JSON). Для серверов с особым поведением — наследник или своя реализация.</summary>
@@ -25,7 +26,7 @@ public class DataServerProfile(ProfileData data) : IServerProfile
     public string Id => Data.Id;
     public string Name => Data.Name;
     public ProfileData Data { get; } = data;
-    public virtual ServerCapabilities Capabilities { get; } = ServerCapabilities.From(data);
+    public Capabilities Capabilities { get; } = Capabilities.FromProfile(data);
 
     public override string ToString() => Name;
 }

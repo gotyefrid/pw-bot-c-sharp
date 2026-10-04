@@ -54,16 +54,23 @@ public sealed class GameCaller
         _forbidden = new HashSet<uint>(profile.ForbiddenFunctions.Values.Select(rva => moduleBase + rva));
         resolver ??= new FunctionResolver(memory, moduleBase);
         _functions = profile.Functions.ToDictionary(f => f.Key, f => resolver.Resolve(f.Key, f.Value));
+        Capabilities = Capabilities.From(profile, WhyNot);
     }
 
+    /// <summary>Что можно делать в этом клиенте — по тому, что реально найдено (а не только заявлено в профиле).</summary>
+    public Capabilities Capabilities { get; }
+
     /// <summary>Можно ли вызывать функцию (есть в профиле и найдена).</summary>
-    public bool Can(string name) => _functions.TryGetValue(name, out var f) && f.IsUsable && !_forbidden.Contains(f.Address);
+    public bool Can(string name) => WhyNot(name) is null;
+
+    // Почему функцию нельзя вызывать; null — можно
+    private string? WhyNot(string name)
+        => !_functions.TryGetValue(name, out var f) ? $"в профиле нет функции {name}"
+            : !f.IsUsable ? $"{name}: {f.Details}"
+            : _forbidden.Contains(f.Address) ? $"{name} — запрещённый адрес"
+            : null;
 
     public IReadOnlyCollection<FunctionLocation> Functions => _functions.Values;
-
-    /// <summary>Есть всё для «идти в точку»: менеджер работ и три его функции.</summary>
-    public bool CanMoveTo => _profile.Host.WorkMan != 0
-                             && Can(GameFunctions.WorkCreate) && Can(GameFunctions.WorkMoveSetDestination) && Can(GameFunctions.WorkStart);
 
     public CallResult SelectTarget(uint wid) => Call(GameFunctions.SelectTarget, 0, null, ["wid"], ("wid", wid));
 
@@ -113,12 +120,6 @@ public sealed class GameCaller
     public CallResult PickupObject(uint host, uint id, bool gather = false)
         => Call(GameFunctions.HostPickupObject, host, null, ["id", "gather"], ("id", id), ("gather", gather ? 1u : 0u));
 
-    /// <summary>Есть ли у сервера автопуть (бег в обход препятствий).</summary>
-    public bool CanMoveSmart => CanMoveTo && _profile.MoveTypes.Smart != 0;
-
-    /// <summary>Есть ли «лететь в точку с высотой» (тип точки в пространстве).</summary>
-    public bool CanFlyTo => CanMoveTo && _profile.MoveTypes.Fly != 0;
-
     /// <summary>
     /// Кнопка «Полёт» (CECHostPlayer::CmdFly, this = перс): на земле — взлететь, в воздухе — сесть. Клиент сам проверяет,
     /// что полётник надет и сейчас можно; сидит — сначала встаёт (и тогда не взлетает).
@@ -127,7 +128,7 @@ public sealed class GameCaller
 
     /// <summary>Лететь в точку вместе с её высотой (тип точки <see cref="MoveTypes.Fly"/>). Только в воздухе.</summary>
     public CallResult FlyTo(uint host, float x, float height, float y)
-        => CanFlyTo ? MoveTo(host, x, height, y, _profile.MoveTypes.Fly) : CallResult.Refused("полёт в точку с высотой не найден для этого сервера");
+        => Capabilities.WhyNot(Capability.FlyTo) is { } why ? CallResult.Refused(why) : MoveTo(host, x, height, y, _profile.MoveTypes.Fly);
 
     /// <summary>
     /// Идти в точку: по прямой, как кликом по земле, или <paramref name="smart"/> — с автопутём, как кликом по карте (если он есть
@@ -135,7 +136,7 @@ public sealed class GameCaller
     /// <see cref="MoveTypes"/> (2 — направление, бежит бесконечно, не использовать).
     /// </summary>
     public CallResult MoveTo(uint host, float x, float height, float y, bool smart = false)
-        => MoveTo(host, x, height, y, smart && CanMoveSmart ? _profile.MoveTypes.Smart : _profile.MoveTypes.Direct);
+        => MoveTo(host, x, height, y, smart && Capabilities.Has(Capability.SmartMove) ? _profile.MoveTypes.Smart : _profile.MoveTypes.Direct);
 
     private CallResult MoveTo(uint host, float x, float height, float y, uint type)
     {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
+using BotCH.Core.Profiles;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 
@@ -235,7 +236,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 
         // Строго по очереди: сначала подходим, потом бьём. Бег, скилл и удар занимают тело — пока одно ждёт или персонаж кастует,
         // другое исполнитель не отправит («занято»), так что здесь только порядок
-        if (combat.ComeCloser && c.Runner.Actions.CanMove && ComeCloser(c, mob))
+        if (combat.ComeCloser && c.Runner.Actions.Capabilities.Has(Capability.Move) && ComeCloser(c, mob))
             return true;
 
         if (combat.UseSkill && w.Skill(combat.AttackSkillId) is { IsReady: true }

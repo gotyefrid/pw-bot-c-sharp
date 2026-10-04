@@ -13,14 +13,12 @@ public interface IGameActions
     /// <summary>Как выполняются действия: «вызовы» / «клавиши».</summary>
     string Mode { get; }
 
-    /// <summary>Умеет ли «идти в точку». Нет — мозг не ходит сам (подбор «как мышкой» всё равно подводит к предмету).</summary>
-    bool CanMove { get; }
-
-    /// <summary>Умеет ли бегать с автопутём (в обход препятствий). Нет — <see cref="MoveTo"/> бежит по прямой.</summary>
-    bool CanMoveSmart { get; }
-
-    /// <summary>Умеет ли прерывать каст и копание (<see cref="CancelAction"/>). Нет — пет ждёт, пока персонаж освободится.</summary>
-    bool CanCancel { get; }
+    /// <summary>
+    /// Что доступно на этом клиенте. Нет <see cref="Capability.Move"/> — мозг не ходит сам (подбор «как мышкой» всё равно подводит
+    /// к предмету); нет <see cref="Capability.SmartMove"/> — <see cref="MoveTo"/> бежит по прямой; нет <see cref="Capability.Cancel"/> —
+    /// пет ждёт, пока персонаж освободится.
+    /// </summary>
+    Capabilities Capabilities { get; }
 
     CallResult SelectTarget(uint wid);
     CallResult Unselect();
@@ -47,7 +45,6 @@ public interface IGameActions
     CallResult SummonPet(int cage);
 
     /// <summary>Умеет ли отзывать пета (<see cref="RecallPet"/>). Нет — пет остаётся призванным.</summary>
-    bool CanRecallPet { get; }
 
     /// <summary>Отозвать призванного пета в клетку.</summary>
     CallResult RecallPet();
@@ -70,11 +67,7 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
 {
     public string Mode => "вызовы";
 
-    public bool CanMove => caller.CanMoveTo;
-
-    public bool CanMoveSmart => caller.CanMoveSmart;
-
-    public bool CanCancel => caller.Can(GameFunctions.CancelAction);
+    public Capabilities Capabilities => caller.Capabilities;
 
     public CallResult SelectTarget(uint wid) => caller.SelectTarget(wid);
     public CallResult Unselect() => caller.Unselect();
@@ -87,7 +80,6 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public CallResult PickupObject(HostState host, GroundItem item) => caller.PickupObject(host.Address, item.Id);
     public CallResult UseItem(InventoryItem item) => caller.UseItem(item.Slot, item.Tid);
     public CallResult SummonPet(int cage) => caller.SummonPet(cage);
-    public bool CanRecallPet => caller.Can(GameFunctions.RecallPet);
     public CallResult RecallPet() => caller.RecallPet();
     public CallResult MoveTo(HostState host, Position point, bool smart)
         => caller.MoveTo(host.Address, point.X, point.Height, point.Y, smart);

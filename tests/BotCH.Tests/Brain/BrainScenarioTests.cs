@@ -1153,7 +1153,7 @@ public class BrainScenarioTests
     public void WithoutCancelPetWaitsForCastToEnd()
     {
         PetNeedsHealSoon();
-        _actions.CanCancel = false;
+        _actions.Capabilities = Capabilities.All.Without(Capability.Cancel, "тест");
         _world.SetPet(1, hpRatio: 0.4f);
         _world.Casting = true;
         _world.CastingSkillId = 299;

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
+using BotCH.Core.Profiles;
 using BotCH.Core.Settings;
 
 namespace BotCH.Core.Brain;
@@ -42,7 +43,7 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
     public bool Tick(BrainContext c)
     {
         Status = null;
-        if (!c.Settings.Target.ReturnToCenter || c.FarmCenter is not { } center || !c.Runner.Actions.CanMove)
+        if (!c.Settings.Target.ReturnToCenter || c.FarmCenter is not { } center || !c.Runner.Actions.Capabilities.Has(Capability.Move))
             return false;
         if (combat.State != CombatState.Search)
             return false;

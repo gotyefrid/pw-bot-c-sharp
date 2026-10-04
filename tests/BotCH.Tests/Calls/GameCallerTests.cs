@@ -228,7 +228,7 @@ public class GameCallerTests
         const uint host = 0x1FA1F868, workMan = 0x2222_0000;
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
 
-        Assert.False(Caller().CanMoveSmart);
+        Assert.Equal("у сервера нет автопути", Caller().Capabilities.WhyNot(Capability.SmartMove));
         Caller().MoveTo(host, 1f, 2f, 3f, smart: true);
 
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Calls;
+using BotCH.Core.Profiles;
 using BotCH.Core.World;
 
 namespace BotCH.Tests.Fakes;
@@ -133,11 +134,7 @@ internal sealed class FakeActions : IGameActions
 
     public string Mode => "тест";
 
-    public bool CanMove { get; set; } = true;
-
-    public bool CanCancel { get; set; } = true;
-
-    public bool CanMoveSmart { get; set; } = true;
+    public Capabilities Capabilities { get; set; } = Capabilities.All;
 
     private CallResult Record(string call)
     {
@@ -156,7 +153,6 @@ internal sealed class FakeActions : IGameActions
     public CallResult PickupObject(HostState host, GroundItem item) => Record($"pickup-approach {item.Id:X}");
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");
-    public bool CanRecallPet { get; set; } = true;
     public CallResult RecallPet() => Record("recall");
     public CallResult MoveTo(HostState host, Position point, bool smart) => Record(smart ? $"move {point} умно" : $"move {point}");
     public CallResult Gather(HostState host, GroundItem resource) => Record($"gather {resource.Id:X}");

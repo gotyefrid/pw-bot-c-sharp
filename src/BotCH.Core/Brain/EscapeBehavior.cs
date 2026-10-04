@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Logging;
+using BotCH.Core.Profiles;
 using BotCH.Core.World;
 
 namespace BotCH.Core.Brain;
@@ -85,7 +86,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         }
 
         // Пет не должен остаться драться один
-        if (w.Pet is { IsSummoned: true } && c.Runner.Actions.CanRecallPet && !_recallTried)
+        if (w.Pet is { IsSummoned: true } && c.Runner.Actions.Capabilities.Has(Capability.RecallPet) && !_recallTried)
         {
             Status = "отзываю пета";
             var recall = c.Send(new RecallPetAction { Priority = ActionPriority.Urgent });
