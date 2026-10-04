@@ -82,8 +82,10 @@ public enum ActionPriority
 }
 
 /// <summary>
-/// Действие бота: как отправить и как по снимкам понять, что оно сработало.
+/// Действие бота: как отправить (<see cref="Send"/>) и как по снимкам понять, что оно сработало (<see cref="Check"/>).
 /// Пока не подтверждено (или не вышел срок), такое же действие (<see cref="Key"/>) повторно не отправляется.
+/// Подтверждение — по условию над снимком; если проверять нечего (например, нажатие клавиши), <see cref="Check"/> сразу
+/// отвечает <see cref="Verdict.Confirmed"/> — исполнитель закроет действие на ближайшем снимке (≤ 250 мс).
 /// </summary>
 public abstract class GameAction
 {
@@ -127,7 +129,8 @@ public abstract class GameAction
     /// <summary>Можно ли отправлять при таком снимке; null — можно, иначе причина.</summary>
     public virtual string? Precondition(WorldState now) => null;
 
-    public abstract CallResult Send(IGameActions actions, WorldState now);
+    /// <summary>Отправить в игру: <paramref name="control"/> — чем (пока вызовы функций игры).</summary>
+    public abstract CallResult Send(GameControl control, WorldState now);
 
     /// <summary>Сравнивает снимок в момент отправки и текущий.</summary>
     public abstract Verdict Check(WorldState start, WorldState now);
@@ -141,7 +144,7 @@ public sealed class SelectTargetAction(NpcInfo npc) : GameAction
     public override string Name => $"выбрать цель {Npc.Name} 0x{Npc.Wid:X8}";
     public override ActionSlot Slot => ActionSlot.Target;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.SelectTarget(Npc.Wid);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.SelectTarget(Npc.Wid);
 
     public override Verdict Check(WorldState start, WorldState now)
         => now.Host.TargetWid == Npc.Wid ? Verdict.Confirmed() : Verdict.Pending;
@@ -152,7 +155,7 @@ public sealed class UnselectAction : GameAction
     public override string Name => "снять цель";
     public override ActionSlot Slot => ActionSlot.Target;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.Unselect();
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.Unselect();
     public override Verdict Check(WorldState start, WorldState now) => now.Host.TargetWid == 0 ? Verdict.Confirmed() : Verdict.Pending;
 }
 
@@ -167,7 +170,7 @@ public sealed class CancelAction(string what) : GameAction
     public override string Name => $"прервать {What}";
     public override ActionSlot Slot => ActionSlot.Cancel;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.CancelAction();
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.CancelAction();
 
     public override Verdict Check(WorldState start, WorldState now)
         => !now.Host.IsCasting && now.Host.Gather is not { Active: true } ? Verdict.Confirmed() : Verdict.Pending;
@@ -183,7 +186,7 @@ public sealed class NormalAttackAction : GameAction
 
     public override string? Precondition(WorldState now) => now.Target is null ? "нет цели" : null;
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.NormalAttack();
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NormalAttack();
 
     public override Verdict Check(WorldState start, WorldState now)
     {
@@ -242,8 +245,8 @@ public sealed class SkillAction : GameAction
             _ => null,
         };
 
-    public override CallResult Send(IGameActions actions, WorldState now)
-        => _approach ? actions.ApplySkill(now.Host, Skill, TargetWid) : actions.CastSkill(Skill, TargetWid);
+    public override CallResult Send(GameControl control, WorldState now)
+        => _approach ? control.Calls.ApplySkill(now.Host, Skill, TargetWid) : control.Calls.CastSkill(Skill, TargetWid);
 
     public override Verdict Check(WorldState start, WorldState now)
     {
@@ -284,7 +287,7 @@ public sealed class UseItemAction(InventoryItem item, ItemUse use, PotionKind? p
     public override string? Precondition(WorldState now)
         => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid) ? null : "предмета уже нет в сумке";
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.UseItem(Item);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.UseItem(Item);
 
     public override Verdict Check(WorldState start, WorldState now)
     {
@@ -311,8 +314,8 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
             : !approach && Item.Distance > 10 ? "дальше 10 м — сервер не поднимет без подхода"
             : null;
 
-    public override CallResult Send(IGameActions actions, WorldState now)
-        => approach ? actions.PickupObject(now.Host, Item) : actions.Pickup(Item);
+    public override CallResult Send(GameControl control, WorldState now)
+        => approach ? control.Calls.PickupObject(now.Host, Item) : control.Calls.Pickup(Item);
 
     // Стоим рядом, а предмет не исчезает — игра его не отдаёт (чужой лут, не дотянуться); 10 с ждать незачем
     private const float NearDistance = 3f;
@@ -358,7 +361,7 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     public override string? Precondition(WorldState now)
         => Item.Kind != GroundItemKind.Resource ? "это не ресурс — его подбирают" : null;
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.Gather(now.Host, Item);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.Gather(now.Host, Item);
 
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(4);
     private bool _started;
@@ -429,8 +432,8 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
     public override string? Precondition(WorldState now)
         => Fly && now.Host.Flying != true ? "лететь в точку можно только в воздухе" : null;
 
-    public override CallResult Send(IGameActions actions, WorldState now)
-        => Fly ? actions.FlyTo(now.Host, Point) : actions.MoveTo(now.Host, Point, Smart);
+    public override CallResult Send(GameControl control, WorldState now)
+        => Fly ? control.Calls.FlyTo(now.Host, Point) : control.Calls.MoveTo(now.Host, Point, Smart);
 
     // Перс встал, не дойдя (упёрся, бег сбился) — не ждём конца времени на дорогу
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(2.5);
@@ -482,7 +485,7 @@ public sealed class FlyAction(bool up) : GameAction
             _ => null,
         };
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.ToggleFly(now.Host);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ToggleFly(now.Host);
 
     public override Verdict Check(WorldState start, WorldState now)
         => now.Host.Flying == Up ? Verdict.Confirmed() : Verdict.Pending;
@@ -505,7 +508,7 @@ public sealed class SummonPetAction(int cage) : GameAction
             _ => null,
         };
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.SummonPet(Cage);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.SummonPet(Cage);
 
     public override Verdict Check(WorldState start, WorldState now)
         => now.Pet is { IsSummoned: true } pet && pet.ActiveCage == Cage ? Verdict.Confirmed() : Verdict.Pending;
@@ -522,7 +525,7 @@ public sealed class RecallPetAction : GameAction
 
     public override string? Precondition(WorldState now) => now.Pet is { IsSummoned: true } ? null : "пет не призван";
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.RecallPet();
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.RecallPet();
 
     public override Verdict Check(WorldState start, WorldState now)
         => now.Pet is not { IsSummoned: true } ? Verdict.Confirmed() : Verdict.Pending;
@@ -544,7 +547,7 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
             : now.Skill(skill) is not { IsReady: true } ? $"скилл {skill} не готов или не изучен"
             : null;
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.CastSkill(skill, 0);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.CastSkill(skill, 0);
 
     public override Verdict Check(WorldState start, WorldState now)
         => now.Pet?.InCage(Cage) is { IsAlive: true } ? Verdict.Confirmed() : Verdict.Pending;
@@ -562,7 +565,7 @@ public sealed class PetAttackAction(uint targetWid) : GameAction
 
     public override string? Precondition(WorldState now) => now.Pet is { IsSummoned: true } ? null : "пет не призван";
 
-    public override CallResult Send(IGameActions actions, WorldState now) => actions.PetAttack(TargetWid);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.PetAttack(TargetWid);
 
     public override Verdict Check(WorldState start, WorldState now)
     {

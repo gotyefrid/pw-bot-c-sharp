@@ -21,7 +21,7 @@ public class ActionRunnerTests
     private readonly ActionRunner _runner;
     private static readonly ActionOwner Bot = new("бот");
 
-    public ActionRunnerTests() => _runner = new ActionRunner(_actions, NullLogger.Instance);
+    public ActionRunnerTests() => _runner = new ActionRunner(new GameControl(_actions), NullLogger.Instance);
 
     private ActionOutcome Single(IReadOnlyList<ActionOutcome> outcomes) => Assert.Single(outcomes);
 
@@ -652,12 +652,34 @@ public class ActionRunnerTests
         Assert.Same(Bot, Assert.Single(_runner.Pending.OfType<CancelAction>()).Owner);
     }
 
+    /// <summary>Действие, которое нечем проверять (как будущее нажатие клавиши): подтверждено сразу.</summary>
+    private sealed class ImmediateAction : GameAction
+    {
+        public override string Name => "сразу";
+        public override ActionSlot Slot => ActionSlot.Attack;
+        public override ActionResource Resource => ActionResource.Body;
+        public override TimeSpan Timeout => TimeSpan.FromSeconds(5);
+        public override CallResult Send(GameControl control, WorldState now) => control.Calls.NormalAttack();
+        public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+    }
+
+    [Fact]
+    public void ImmediateConfirmationFreesBodyOnNextSnapshot()
+    {
+        Assert.True(_runner.Submit(Bot, new ImmediateAction(), _world.Snapshot()).Sent);
+        Assert.NotNull(_runner.BodyAction);
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.25).Snapshot())).Status);
+
+        Assert.Null(_runner.BodyAction);
+    }
+
     [Fact]
     public void CallsNeverOverlap()
     {
         // Два потока отправляют действия одновременно — вызовы в игре всё равно идут по одному
         var slow = new SlowActions();
-        var runner = new ActionRunner(slow, NullLogger.Instance);
+        var runner = new ActionRunner(new GameControl(slow), NullLogger.Instance);
         var snapshot = _world.Snapshot();
         var mobs = Enumerable.Range(1, 20).Select(i => new NpcInfo(0, (uint)i, NpcKind.Mob, 1, 0, default, 1, "м", 0)).ToList();
 

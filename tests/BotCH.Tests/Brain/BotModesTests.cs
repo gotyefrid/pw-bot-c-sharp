@@ -14,7 +14,7 @@ public class BotModesTests
     private readonly FakeActions _actions = new();
 
     private IBotRunner Create(BotMode mode)
-        => BotModes.Create(mode, new ActionRunner(_actions, NullLogger.Instance), new ClassSkills(), new BotSettings(), NullLogger.Instance);
+        => BotModes.Create(mode, new ActionRunner(new GameControl(_actions), NullLogger.Instance), new ClassSkills(), new BotSettings(), NullLogger.Instance);
 
     [Fact]
     public void FarmModeIsTheBrain()

@@ -45,7 +45,7 @@ public class RouteScenarioTests
         {
             if (_brain is not null)
                 return _brain;
-            _brain = new BotBrain(new ActionRunner(_actions, NullLogger.Instance), Skills, _settings,
+            _brain = new BotBrain(new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
                 new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe], BotMode.GatherResources, _routeStart);
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;

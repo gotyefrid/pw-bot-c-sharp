@@ -29,7 +29,7 @@ public class BrainScenarioTests
     }
 
     private BotBrain Brain => _brain ??= new BotBrain(
-        new ActionRunner(_actions, NullLogger.Instance), Skills, _settings,
+        new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
         new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), new Random(1), [Pickaxe]);
 
     private const uint Pickaxe = 3073;

@@ -68,14 +68,15 @@ public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = 
 /// новой; такое же или важнее — «занято». Копание в игре прерывается отменой (как Esc) ради обычного и срочного, чужой
 /// каст — только ради срочного и только если известно, какой скилл кастуется (свой же каст не сбиваем).
 /// </summary>
-public sealed class ActionRunner(IGameActions actions, ILogger log) : IPendingActions
+public sealed class ActionRunner(GameControl control, ILogger log) : IPendingActions
 {
     private readonly object _lock = new();
     private readonly List<(GameAction Action, WorldState Start)> _pending = [];
 
-    public IGameActions Actions { get; } = actions;
+    /// <summary>Чем действия управляют игрой.</summary>
+    public GameControl Control { get; } = control;
 
-    public Capabilities Capabilities => Actions.Capabilities;
+    public Capabilities Capabilities => Control.Calls.Capabilities;
 
     /// <summary>Результат каждого действия (и неотправленного, и отменённого); хозяин — в <see cref="GameAction.Owner"/>.</summary>
     public event Action<ActionOutcome>? Completed;
@@ -172,7 +173,7 @@ public sealed class ActionRunner(IGameActions actions, ILogger log) : IPendingAc
         }
         else
         {
-            var call = action.Send(Actions, now);
+            var call = action.Send(Control, now);
             if (call.Ok)
             {
                 _pending.Add((action, now));
@@ -211,10 +212,10 @@ public sealed class ActionRunner(IGameActions actions, ILogger log) : IPendingAc
         if (!digging && action.CastsSkill != 0 && casting == action.CastsSkill)
             return "кастуется этот же скилл";
         var canBreak = digging ? action.Priority > ActionPriority.Background : action.Priority == ActionPriority.Urgent && casting != 0;
-        if (!canBreak || !Actions.Capabilities.Has(Capability.Cancel))
+        if (!canBreak || !Capabilities.Has(Capability.Cancel))
             return digging ? "персонаж копает" : "персонаж кастует";
 
-        var call = cancel.Send(Actions, now);
+        var call = cancel.Send(Control, now);
         if (!call.Ok)
         {
             reports.Add(new ActionOutcome(cancel, ActionStatus.Failed, call.Details, TimeSpan.Zero));
