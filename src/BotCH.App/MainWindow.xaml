@@ -203,7 +203,7 @@
             <TextBlock Text="МАРШРУТ ОБХОДА" Style="{StaticResource CardTitle}" />
             <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
                        Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке. «Старт» — с выбранной точки (не выбрана — с первой)." />
-            <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding RouteRows}" SelectedItem="{Binding SelectedRoutePoint}" BorderThickness="0" Background="Transparent">
+            <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding Route.RouteRows}" SelectedItem="{Binding Route.SelectedRoutePoint}" BorderThickness="0" Background="Transparent">
               <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                   <Style.Triggers>
@@ -223,18 +223,18 @@
             </ListView>
             <DockPanel Margin="0,8,0,0">
               <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
-                      Command="{Binding RemoveRoutePointCommand}" ToolTip="Удалить выбранную точку маршрута" />
+                      Command="{Binding Route.RemoveRoutePointCommand}" ToolTip="Удалить выбранную точку маршрута" />
               <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70D;" Margin="6,0,0,0"
-                      Command="{Binding RoutePointDownCommand}" ToolTip="Позже в обходе" />
+                      Command="{Binding Route.RoutePointDownCommand}" ToolTip="Позже в обходе" />
               <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"
-                      Command="{Binding RoutePointUpCommand}" ToolTip="Раньше в обходе" />
+                      Command="{Binding Route.RoutePointUpCommand}" ToolTip="Раньше в обходе" />
               <Button Style="{StaticResource ButtonBase}" Content="Добавить здесь" HorizontalAlignment="Left"
-                      Command="{Binding AddRoutePointCommand}"
+                      Command="{Binding Route.AddRoutePointCommand}"
                       ToolTip="Место персонажа — следующая точка маршрута (с высотой: в полёте бот потом летит на ней)" />
             </DockPanel>
-            <StackPanel Margin="0,8,0,0" Visibility="{Binding HasSelectedRoutePoint, Converter={StaticResource Visible}}">
+            <StackPanel Margin="0,8,0,0" Visibility="{Binding Route.HasSelectedRoutePoint, Converter={StaticResource Visible}}">
               <DockPanel>
-                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding SelectedRouteMode}"
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding Route.SelectedRouteMode}"
                           ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка (например, ресурс у агрессивного моба)">
                   <ComboBox.ItemTemplate>
                     <DataTemplate>
@@ -242,9 +242,9 @@
                     </DataTemplate>
                   </ComboBox.ItemTemplate>
                 </ComboBox>
-                <TextBlock Text="{Binding SelectedRouteTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="{Binding Route.SelectedRouteTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
               </DockPanel>
-              <app:TagPicker Margin="0,4,0,0" Selected="{Binding RouteNames}" Options="{Binding RouteOptions}"
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.RouteNames}" Options="{Binding Route.RouteOptions}"
                              Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
                              ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
             </StackPanel>
@@ -273,7 +273,7 @@
                          ToolTip="Зона моба — его радиус агра (из игры) плюс запас, вокруг и по высоте. Не меньше 1 м" />
                 <Grid />
               </DockPanel>
-              <app:TagPicker Margin="0,4,0,0" Selected="{Binding DangerNames}" Options="{Binding MobOptions}"
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.DangerNames}" Options="{Binding MobOptions}"
                              Placeholder="Боссы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
                              ToolTip="Эти агрессивные мобы опасны при любом уровне: боссы, которых не убить, хотя уровень как у персонажа" />
             </StackPanel>
@@ -367,7 +367,7 @@
                 </ComboBox>
                 <TextBlock Text="Что копать" VerticalAlignment="Center" />
               </DockPanel>
-              <app:TagPicker Margin="0,4,0,0" Selected="{Binding FarmResourceNames}" Options="{Binding RouteOptions}"
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding FarmResourceNames}" Options="{Binding Route.RouteOptions}"
                              Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
                              ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
             </StackPanel>
