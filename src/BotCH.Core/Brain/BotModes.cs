@@ -63,27 +63,27 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Фарм мобов: выжить → пет → копать ресурсы в радиусе фарма → бой → вернуться в центр фарма. Первым — запись центра
+    /// Фарм мобов: выжить → пет → копать ресурсы в радиусе фарма → бой → лут → вернуться в центр фарма. Первым — запись центра
     /// фарма в лог (хода не занимает).
     /// </summary>
     private static BotBrain FarmMobs(BrainContext context, IReadOnlyCollection<uint> tools)
     {
         var combat = new CombatBehavior();
         return new BotBrain(context,
-            [new FarmCenterLog(), new SurvivalBehavior(), new PetBehavior(combat), new GatherBehavior(combat, tools), combat, new ReturnBehavior(combat)],
+            [new FarmCenterLog(), new SurvivalBehavior(), new PetBehavior(), new GatherBehavior(tools), combat, new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }
 
     /// <summary>
     /// Обход ресурсов: выжить → уйти вверх от опасного моба → пет → копать у текущей точки → защита (бьём только напавших) →
-    /// к следующей точке.
+    /// лут → к следующей точке.
     /// </summary>
     private static BotBrain GatherResources(BrainContext context, IReadOnlyCollection<uint> tools, int routeStart)
     {
         var combat = new CombatBehavior(defendOnly: true);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
-            [new SurvivalBehavior(), new EscapeBehavior(route, combat), new PetBehavior(combat), new GatherBehavior(combat, tools, route), combat, route],
+            [new SurvivalBehavior(), new EscapeBehavior(route), new PetBehavior(), new GatherBehavior(tools, route), combat, new LootBehavior(), route],
             main: combat);
     }
 }

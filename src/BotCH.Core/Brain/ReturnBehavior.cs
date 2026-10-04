@@ -13,7 +13,7 @@ namespace BotCH.Core.Brain;
 /// <see cref="IdleInside"/> и до центра больше <see cref="NearCenter"/>: при большом радиусе на краю мобы из списка клиенту
 /// не видны, и перс стоял бы там вечно. Радиус 0 — не возвращаемся. Бег фоновый: любое действие боя его перебивает.
 /// </summary>
-public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
+public sealed class ReturnBehavior : IBehavior
 {
     // Дальше — центр, видимо, в другом месте (сохранён в другой локации): не бежим через полкарты
     private const float MaxDistance = 300f;
@@ -45,7 +45,7 @@ public sealed class ReturnBehavior(CombatBehavior combat) : IBehavior
         Status = null;
         if (!c.Settings.Target.ReturnToCenter || c.FarmCenter is not { } center || !c.Runner.Capabilities.Has(Capability.Move))
             return false;
-        if (combat.State != CombatState.Search)
+        if (c.Fight.Busy)
             return false;
 
         var w = c.World;

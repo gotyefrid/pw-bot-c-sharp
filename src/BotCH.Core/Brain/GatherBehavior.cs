@@ -16,7 +16,7 @@ namespace BotCH.Core.Brain;
 /// особые) — только если их название явно в списке, и тогда без всяких условий: просто пробуем копать.
 /// Ресурс в зоне опасного моба (<see cref="IGatherScope.Guard"/>, у обхода) не копаем — проверяем каждый раз заново: моб мог уйти.
 /// </summary>
-public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<uint> tools, IGatherScope? scope = null) : IBehavior
+public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope? scope = null) : IBehavior
 {
     private readonly IGatherScope _scope = scope ?? FarmAreaScope.Instance;
 
@@ -54,7 +54,7 @@ public sealed class GatherBehavior(CombatBehavior combat, IReadOnlyCollection<ui
         }
 
         // Идёт бой или лут — не перебиваем
-        if (combat.State != CombatState.Search)
+        if (c.Fight.Busy)
             return false;
 
         foreach (var expired in _skipped.Where(s => s.Value <= c.Now).Select(s => s.Key).ToList())

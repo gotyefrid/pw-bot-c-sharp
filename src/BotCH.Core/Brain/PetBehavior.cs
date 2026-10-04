@@ -10,10 +10,10 @@ namespace BotCH.Core.Brain;
 /// (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить.
 /// Выключен в настройках или петов нет (не друид) — поведение молча пропускается. «Только на время боя»
 /// (<see cref="Settings.PetSettings.OnlyForFight"/>): без боя не призываем и не кормим, а через <see cref="CalmBeforeRecall"/>
-/// после боя (вылечив) отзываем. Идёт ли бой — от <see cref="CombatBehavior"/>, как и у копания.
+/// после боя (вылечив) отзываем. Идёт ли бой — из <see cref="FightState"/>, как и у копания.
 /// Лечение и воскрешение — срочные (<see cref="ActionPriority.Urgent"/>): что их пропускает вперёд, решает исполнитель.
 /// </summary>
-public sealed class PetBehavior(CombatBehavior combat) : IBehavior
+public sealed class PetBehavior : IBehavior
 {
     // Боя нет столько — отзываем (не сразу: моб мог отойти на шаг, лут ещё собирается)
     private static readonly TimeSpan CalmBeforeRecall = TimeSpan.FromSeconds(3);
@@ -42,7 +42,7 @@ public sealed class PetBehavior(CombatBehavior combat) : IBehavior
         if (settings.OnlyForFight && c.Runner.Capabilities.Has(Capability.RecallPet))
         {
             // Бой — кто-то бьёт перса или пета, или бой/лут уже идёт
-            if (TargetSelector.Aggressor(c.World) is not null || combat.State != CombatState.Search)
+            if (TargetSelector.Aggressor(c.World) is not null || c.Fight.Busy)
                 _calmSince = null;
             else
             {

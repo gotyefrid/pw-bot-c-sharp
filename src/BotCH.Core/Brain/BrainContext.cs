@@ -59,6 +59,9 @@ public sealed class BrainContext
     /// <summary>Копия настроек для мозга (окно правит свою, сюда попадает новая копия между шагами).</summary>
     public BotSettings Settings { get; internal set; } = new();
 
+    /// <summary>Идёт ли бой или лут и с кем — пишут бой и лут, остальные читают (см. <see cref="FightState"/>).</summary>
+    public FightState Fight { get; } = new();
+
     public WorldState World { get; internal set; } = null!;
 
     /// <summary>Где стоял персонаж, когда бот запустили.</summary>

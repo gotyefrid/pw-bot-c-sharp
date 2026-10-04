@@ -17,7 +17,7 @@ namespace BotCH.Core.Brain;
 /// Не вышло (полёта нет, моб всё бьёт через <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — дерёмся, как с любым
 /// напавшим, пока этот моб не отстанет. Стоит сразу после выживания: банки пьём и при подъёме.
 /// </summary>
-public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) : IBehavior
+public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
 {
     private const float ClimbStep = 10f;
     private const float MaxClimb = 200f;
@@ -61,7 +61,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         if (_from is null || _from.Wid != threat.Wid && !_fighting)
         {
             (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb, _fly) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null, null);
-            combat.Reset();
+            c.Fight.Abort();
             c.Log.Warning($"Напал опасный {threat.Name} (ур. {threat.Level}) — улетаю вверх");
         }
 
