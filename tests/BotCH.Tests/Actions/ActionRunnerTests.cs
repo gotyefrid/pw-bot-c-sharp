@@ -712,17 +712,17 @@ public class ActionRunnerTests
         public CallResult Unselect() => Slow();
         public CallResult NormalAttack() => Slow();
         public CallResult CastSkill(int skillId, uint targetWid) => Slow();
-        public CallResult ApplySkill(HostState host, int skillId, uint targetWid) => Slow();
+        public CallResult ApplySkill(int skillId, uint targetWid) => Slow();
         public CallResult PetAttack(uint targetWid) => Slow();
         public CallResult CancelAction() => Slow();
         public CallResult Pickup(GroundItem item) => Slow();
-        public CallResult PickupObject(HostState host, GroundItem item) => Slow();
+        public CallResult PickupObject(GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();
         public CallResult RecallPet() => Slow();
-        public CallResult MoveTo(HostState host, Position point, bool smart) => Slow();
-        public CallResult Gather(HostState host, GroundItem resource) => Slow();
-        public CallResult ToggleFly(HostState host) => Slow();
-        public CallResult FlyTo(HostState host, Position point) => Slow();
+        public CallResult MoveTo(Position point, bool smart) => Slow();
+        public CallResult Gather(GroundItem resource) => Slow();
+        public CallResult ToggleFly() => Slow();
+        public CallResult FlyTo(Position point) => Slow();
     }
 }

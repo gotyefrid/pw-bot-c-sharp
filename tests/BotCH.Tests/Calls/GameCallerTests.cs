@@ -43,6 +43,15 @@ public class GameCallerTests
 
     private static uint Address(string name) => ModuleBase + Profile.Functions[name].Rva;
 
+    // Персонаж в мире: цепочка «база → game → персонаж» профиля 1.3.6 ведёт к нему
+    private void PutHost(uint host)
+    {
+        const uint basePtr = 0x1000_0000, game = 0x1001_0000;
+        _memory.WriteUInt32(ModuleBase + Profile.Base.BasePointer, basePtr);
+        _memory.WriteUInt32(basePtr + Profile.Base.Game, game);
+        _memory.WriteUInt32(game + Profile.Host.Struct, host);
+    }
+
     [Fact]
     public void SelectTargetRunsCdeclStubAtFunctionAddress()
     {
@@ -110,7 +119,10 @@ public class GameCallerTests
     [Fact]
     public void ApplySkillIsThiscallOnHost()
     {
-        Caller().ApplySkill(0x1FA1F868, 299);
+        // Персонажа вызов находит сам, свежим (раньше 1.3.6 брал его из снимка)
+        PutHost(0x1FA1F868);
+
+        Caller().ApplySkill(299);
 
         Assert.Equal(StubBuilder.Call(Address(GameFunctions.HostApplySkill), CallingConvention.Thiscall, 0x1FA1F868, [299, 0, 0, 0xFFFFFFFF]),
             _runner.Runs.Single().Stub);
@@ -119,7 +131,26 @@ public class GameCallerTests
     [Fact]
     public void ThiscallWithoutHostIsRefused()
     {
-        Assert.False(Caller().ApplySkill(0, 299).Ok);
+        var result = Caller().ApplySkill(299);
+
+        Assert.False(result.Ok);
+        Assert.Contains("не в мире", result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
+    public void ThiscallWithoutThisInProfileIsRefused()
+    {
+        var apply = Profile.Functions[GameFunctions.HostApplySkill];
+        var profile = new ProfileData
+        {
+            Functions = new() { [GameFunctions.HostApplySkill] = new GameFunction { Rva = apply.Rva, Signature = apply.Signature, Convention = CallingConvention.Thiscall } },
+        };
+
+        var result = Caller(profile).ApplySkill(299);
+
+        Assert.False(result.Ok);
+        Assert.Contains("this", result.Details);
         Assert.Empty(_runner.Runs);
     }
 
@@ -182,9 +213,10 @@ public class GameCallerTests
     public void MoveToBuildsThreeCallsWithPoint()
     {
         const uint host = 0x1FA1F868, workMan = 0x2222_0000;
+        PutHost(host);
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
 
-        var result = Caller().MoveTo(host, -1800f, 220f, -110.5f);
+        var result = Caller().MoveTo(-1800f, 220f, -110.5f);
 
         Assert.True(result.Ok, result.Details);
         var run = _runner.Runs.Single();
@@ -198,11 +230,13 @@ public class GameCallerTests
     {
         // Comeback 1.4.6: SetDestination(5, &point) — автопуть, StartWork(1, work, 0) — на аргумент меньше, чем в 1.3.6
         const uint host = 0x1FA1F868, workMan = 0x2222_0000;
+        PutHost(host);
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
         var start = Profile.Functions[GameFunctions.WorkStart];
         var destination = Profile.Functions[GameFunctions.WorkMoveSetDestination];
         var profile = new ProfileData
         {
+            Base = Profile.Base,
             Host = Profile.Host,
             Functions = new(Profile.Functions)
             {
@@ -214,7 +248,7 @@ public class GameCallerTests
             MoveTypes = new MoveTypes { Direct = 0, Smart = 5 },
         };
 
-        var result = Caller(profile).MoveTo(host, 1f, 2f, 3f, smart: true);
+        var result = Caller(profile).MoveTo(1f, 2f, 3f, smart: true);
 
         Assert.True(result.Ok, result.Details);
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
@@ -226,10 +260,11 @@ public class GameCallerTests
     {
         // У 1.3.6 автопуть не найден — просьба «умно» бежит по прямой (тип 0)
         const uint host = 0x1FA1F868, workMan = 0x2222_0000;
+        PutHost(host);
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
 
         Assert.Equal("у сервера нет автопути", Caller().Capabilities.WhyNot(Capability.SmartMove));
-        Caller().MoveTo(host, 1f, 2f, 3f, smart: true);
+        Caller().MoveTo(1f, 2f, 3f, smart: true);
 
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
             [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 1, 0]), _runner.Runs.Single().Stub);

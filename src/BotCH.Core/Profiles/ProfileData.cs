@@ -354,7 +354,7 @@ public sealed class GameFunction
     /// <summary>Начало функции. Не совпало по адресу — ищем по всему коду; не нашли — не вызываем.</summary>
     public Signature? Signature { get; init; }
     public CallingConvention Convention { get; init; }
-    /// <summary>Откуда взять this: host — персонаж (бот находит его сам). None — передаёт вызывающий.</summary>
+    /// <summary>Откуда взять this у thiscall: host — персонаж, session — связь с сервером (бот находит их сам, свежими на каждом вызове).</summary>
     public FunctionThis This { get; init; }
     /// <summary>
     /// Аргументы по порядку: имена значений, которые даёт бот («wid», «data», у workStart — «work»…), или числа («0», «0xFFFFFFFF»).

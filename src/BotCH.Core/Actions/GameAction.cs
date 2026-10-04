@@ -246,7 +246,7 @@ public sealed class SkillAction : GameAction
         };
 
     public override CallResult Send(GameControl control, WorldState now)
-        => _approach ? control.Calls.ApplySkill(now.Host, Skill, TargetWid) : control.Calls.CastSkill(Skill, TargetWid);
+        => _approach ? control.Calls.ApplySkill(Skill, TargetWid) : control.Calls.CastSkill(Skill, TargetWid);
 
     public override Verdict Check(WorldState start, WorldState now)
     {
@@ -315,7 +315,7 @@ public sealed class PickupAction(GroundItem item, bool approach) : GameAction
             : null;
 
     public override CallResult Send(GameControl control, WorldState now)
-        => approach ? control.Calls.PickupObject(now.Host, Item) : control.Calls.Pickup(Item);
+        => approach ? control.Calls.PickupObject(Item) : control.Calls.Pickup(Item);
 
     // Стоим рядом, а предмет не исчезает — игра его не отдаёт (чужой лут, не дотянуться); 10 с ждать незачем
     private const float NearDistance = 3f;
@@ -361,7 +361,7 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     public override string? Precondition(WorldState now)
         => Item.Kind != GroundItemKind.Resource ? "это не ресурс — его подбирают" : null;
 
-    public override CallResult Send(GameControl control, WorldState now) => control.Calls.Gather(now.Host, Item);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.Gather(Item);
 
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(4);
     private bool _started;
@@ -433,7 +433,7 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
         => Fly && now.Host.Flying != true ? "лететь в точку можно только в воздухе" : null;
 
     public override CallResult Send(GameControl control, WorldState now)
-        => Fly ? control.Calls.FlyTo(now.Host, Point) : control.Calls.MoveTo(now.Host, Point, Smart);
+        => Fly ? control.Calls.FlyTo(Point) : control.Calls.MoveTo(Point, Smart);
 
     // Перс встал, не дойдя (упёрся, бег сбился) — не ждём конца времени на дорогу
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(2.5);
@@ -485,7 +485,7 @@ public sealed class FlyAction(bool up) : GameAction
             _ => null,
         };
 
-    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ToggleFly(now.Host);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ToggleFly();
 
     public override Verdict Check(WorldState start, WorldState now)
         => now.Host.Flying == Up ? Verdict.Confirmed() : Verdict.Pending;

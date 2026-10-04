@@ -72,19 +72,19 @@ public sealed class GameCaller
 
     public IReadOnlyCollection<FunctionLocation> Functions => _functions.Values;
 
-    public CallResult SelectTarget(uint wid) => Call(GameFunctions.SelectTarget, 0, null, ["wid"], ("wid", wid));
+    public CallResult SelectTarget(uint wid) => Call(GameFunctions.SelectTarget, null, ["wid"], ("wid", wid));
 
-    public CallResult Unselect() => Call(GameFunctions.Unselect, 0, null, []);
+    public CallResult Unselect() => Call(GameFunctions.Unselect, null, []);
 
     /// <summary>Обычная атака текущей цели, pvpMask 0.</summary>
-    public CallResult NormalAttack() => Call(GameFunctions.NormalAttack, 0, null, ["pvpMask"], ("pvpMask", 0));
+    public CallResult NormalAttack() => Call(GameFunctions.NormalAttack, null, ["pvpMask"], ("pvpMask", 0));
 
     /// <summary>Подобрать пакетом: сервер поднимает только в радиусе ~10 м, персонаж не подходит.</summary>
-    public CallResult Pickup(uint id, uint tid) => Call(GameFunctions.Pickup, 0, null, ["id", "tid"], ("id", id), ("tid", tid));
+    public CallResult Pickup(uint id, uint tid) => Call(GameFunctions.Pickup, null, ["id", "tid"], ("id", id), ("tid", tid));
 
     /// <summary>Использовать 1 предмет из ячейки основной сумки (банка, корм пета).</summary>
     public CallResult UseItem(int slot, uint tid)
-        => Call(GameFunctions.UseItem, 0, null, ["where", "slot", "tid", "count"], ("where", 0), ("slot", (uint)slot), ("tid", tid), ("count", 1));
+        => Call(GameFunctions.UseItem, null, ["where", "slot", "tid", "count"], ("where", 0), ("slot", (uint)slot), ("tid", tid), ("count", 1));
 
     /// <summary>Призвать пета из клетки 1..N (N — число клеток в профиле).</summary>
     public CallResult SummonPet(int cage)
@@ -92,53 +92,53 @@ public sealed class GameCaller
         var cages = _profile.PetManager.CageCount;
         return cage < 1 || cage > cages
             ? CallResult.Refused($"клетка {cage} вне 1..{cages}")
-            : Call(GameFunctions.SummonPet, 0, null, ["index"], ("index", (uint)(cage - 1)));
+            : Call(GameFunctions.SummonPet, null, ["index"], ("index", (uint)(cage - 1)));
     }
 
     /// <summary>Отозвать призванного пета в клетку (c2s 0x65; не «отпустить» 0x66 — тот в запрещённых).</summary>
-    public CallResult RecallPet() => Call(GameFunctions.RecallPet, 0, null, []);
+    public CallResult RecallPet() => Call(GameFunctions.RecallPet, null, []);
 
     /// <summary>Скилл пакетом: цель targetWid, 0 — без цели (воскрешение пета).</summary>
     public CallResult CastSkill(int skillId, uint targetWid)
-        => Call(GameFunctions.CastSkill, 0, BitConverter.GetBytes(targetWid), ["skill", "pvpMask", "count", DataArg],
+        => Call(GameFunctions.CastSkill, BitConverter.GetBytes(targetWid), ["skill", "pvpMask", "count", DataArg],
             ("skill", (uint)skillId), ("pvpMask", 0), ("count", targetWid != 0 ? 1u : 0u));
 
     /// <summary>Отменить текущее действие персонажа (каст, копание) — как Esc.</summary>
-    public CallResult CancelAction() => Call(GameFunctions.CancelAction, 0, null, []);
+    public CallResult CancelAction() => Call(GameFunctions.CancelAction, null, []);
 
     /// <summary>Приказ пету атаковать цель (данные — 1 байт pvpMask = 0).</summary>
     public CallResult PetAttack(uint targetWid)
-        => Call(GameFunctions.PetCtrl, 0, [0], ["target", "command", DataArg, "size"],
+        => Call(GameFunctions.PetCtrl, [0], ["target", "command", DataArg, "size"],
             ("target", targetWid), ("command", PetCommandAttack), ("size", 1));
 
     /// <summary>Скилл как нажатием кнопки: клиент сам подходит на дальность. target 0 — текущая цель.</summary>
-    public CallResult ApplySkill(uint host, int skillId, uint targetWid = 0)
-        => Call(GameFunctions.HostApplySkill, host, null, ["skill", "force", "target", "pvp"],
+    public CallResult ApplySkill(int skillId, uint targetWid = 0)
+        => Call(GameFunctions.HostApplySkill, null, ["skill", "force", "target", "pvp"],
             ("skill", (uint)skillId), ("force", 0), ("target", targetWid), ("pvp", 0xFFFFFFFF));
 
     /// <summary>Подобрать как кликом мыши: клиент подводит персонажа и сам отправляет подбор. gather — собрать ресурс.</summary>
-    public CallResult PickupObject(uint host, uint id, bool gather = false)
-        => Call(GameFunctions.HostPickupObject, host, null, ["id", "gather"], ("id", id), ("gather", gather ? 1u : 0u));
+    public CallResult PickupObject(uint id, bool gather = false)
+        => Call(GameFunctions.HostPickupObject, null, ["id", "gather"], ("id", id), ("gather", gather ? 1u : 0u));
 
     /// <summary>
     /// Кнопка «Полёт» (CECHostPlayer::CmdFly, this = перс): на земле — взлететь, в воздухе — сесть. Клиент сам проверяет,
     /// что полётник надет и сейчас можно; сидит — сначала встаёт (и тогда не взлетает).
     /// </summary>
-    public CallResult ToggleFly(uint host) => Call(GameFunctions.HostFly, host, null, ["force"], ("force", 0));
+    public CallResult ToggleFly() => Call(GameFunctions.HostFly, null, ["force"], ("force", 0));
 
     /// <summary>Лететь в точку вместе с её высотой (тип точки <see cref="MoveTypes.Fly"/>). Только в воздухе.</summary>
-    public CallResult FlyTo(uint host, float x, float height, float y)
-        => Capabilities.WhyNot(Capability.FlyTo) is { } why ? CallResult.Refused(why) : MoveTo(host, x, height, y, _profile.MoveTypes.Fly);
+    public CallResult FlyTo(float x, float height, float y)
+        => Capabilities.WhyNot(Capability.FlyTo) is { } why ? CallResult.Refused(why) : MoveTo(x, height, y, _profile.MoveTypes.Fly);
 
     /// <summary>
     /// Идти в точку: по прямой, как кликом по земле, или <paramref name="smart"/> — с автопутём, как кликом по карте (если он есть
     /// у сервера, иначе по прямой). Аргументы SetDestination и StartWork — из профиля, по умолчанию как в 1.3.6; тип точки — из
     /// <see cref="MoveTypes"/> (2 — направление, бежит бесконечно, не использовать).
     /// </summary>
-    public CallResult MoveTo(uint host, float x, float height, float y, bool smart = false)
-        => MoveTo(host, x, height, y, smart && Capabilities.Has(Capability.SmartMove) ? _profile.MoveTypes.Smart : _profile.MoveTypes.Direct);
+    public CallResult MoveTo(float x, float height, float y, bool smart = false)
+        => MoveTo(x, height, y, smart && Capabilities.Has(Capability.SmartMove) ? _profile.MoveTypes.Smart : _profile.MoveTypes.Direct);
 
-    private CallResult MoveTo(uint host, float x, float height, float y, uint type)
+    private CallResult MoveTo(float x, float height, float y, uint type)
     {
         var names = new[] { GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart };
         var addresses = new uint[names.Length];
@@ -149,6 +149,8 @@ public sealed class GameCaller
             addresses[i] = _functions[names[i]].Address;
         }
 
+        if (!_roots.TryHost(out var host))
+            return CallResult.Refused("персонаж не в мире");
         if (_profile.Host.WorkMan == 0 || !_memory.TryReadUInt32(host + _profile.Host.WorkMan, out var workMan) || workMan == 0)
             return CallResult.Refused("нет менеджера работ персонажа");
 
@@ -195,19 +197,21 @@ public sealed class GameCaller
 
     /// <param name="defaultArgs">Порядок аргументов, если в профиле нет args.</param>
     /// <param name="values">Значения, которые функция может получить, по именам.</param>
-    private CallResult Call(string name, uint thisPointer, byte[]? data, string[] defaultArgs, params (string Name, uint Value)[] values)
-        => Check(name) ?? Run(name, thisPointer, data, defaultArgs, values);
+    private CallResult Call(string name, byte[]? data, string[] defaultArgs, params (string Name, uint Value)[] values)
+        => Check(name) ?? Run(name, data, defaultArgs, values);
 
-    private CallResult Run(string name, uint thisPointer, byte[]? data, string[] defaultArgs, (string Name, uint Value)[] values)
+    private CallResult Run(string name, byte[]? data, string[] defaultArgs, (string Name, uint Value)[] values)
     {
         var function = _functions[name];
         var definition = _profile.Functions[name];
+        // this — свежий на каждом вызове (после перезахода персонаж уже другой объект)
+        var thisPointer = 0u;
         if (definition.This == FunctionThis.Host && !_roots.TryHost(out thisPointer))
             return CallResult.Refused($"{name}: персонаж не в мире");
         if (definition.This == FunctionThis.Session && !_roots.TrySession(out thisPointer))
             return CallResult.Refused($"{name}: нет связи с сервером");
         if (definition.Convention == CallingConvention.Thiscall && thisPointer == 0)
-            return CallResult.Refused($"{name}: нет объекта для вызова");
+            return CallResult.Refused($"{name}: thiscall, а в профиле не сказано, чей это метод (this)");
 
         var names = definition.Args ?? (IReadOnlyList<string>)defaultArgs;
         var registers = definition.Registers ?? new Dictionary<string, string>();

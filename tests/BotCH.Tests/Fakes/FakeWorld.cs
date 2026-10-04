@@ -148,16 +148,16 @@ internal sealed class FakeActions : IGameActions
     public CallResult Unselect() => Record("unselect");
     public CallResult NormalAttack() => Record("attack");
     public CallResult CastSkill(int skillId, uint targetWid) => Record($"cast {skillId} {targetWid:X}");
-    public CallResult ApplySkill(HostState host, int skillId, uint targetWid) => Record($"apply {skillId} {targetWid:X}");
+    public CallResult ApplySkill(int skillId, uint targetWid) => Record($"apply {skillId} {targetWid:X}");
     public CallResult PetAttack(uint targetWid) => Record($"pet-attack {targetWid:X}");
     public CallResult CancelAction() => Record("cancel");
     public CallResult Pickup(GroundItem item) => Record($"pickup {item.Id:X}");
-    public CallResult PickupObject(HostState host, GroundItem item) => Record($"pickup-approach {item.Id:X}");
+    public CallResult PickupObject(GroundItem item) => Record($"pickup-approach {item.Id:X}");
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");
     public CallResult RecallPet() => Record("recall");
-    public CallResult MoveTo(HostState host, Position point, bool smart) => Record(smart ? $"move {point} умно" : $"move {point}");
-    public CallResult Gather(HostState host, GroundItem resource) => Record($"gather {resource.Id:X}");
-    public CallResult ToggleFly(HostState host) => Record("fly-toggle");
-    public CallResult FlyTo(HostState host, Position point) => Record($"fly {point}");
+    public CallResult MoveTo(Position point, bool smart) => Record(smart ? $"move {point} умно" : $"move {point}");
+    public CallResult Gather(GroundItem resource) => Record($"gather {resource.Id:X}");
+    public CallResult ToggleFly() => Record("fly-toggle");
+    public CallResult FlyTo(Position point) => Record($"fly {point}");
 }

@@ -28,7 +28,7 @@ public interface IGameActions
     CallResult CastSkill(int skillId, uint targetWid);
 
     /// <summary>Скилл как нажатием кнопки: клиент сам подходит на дальность. target 0 — текущая цель.</summary>
-    CallResult ApplySkill(HostState host, int skillId, uint targetWid);
+    CallResult ApplySkill(int skillId, uint targetWid);
 
     CallResult PetAttack(uint targetWid);
 
@@ -39,7 +39,7 @@ public interface IGameActions
     CallResult Pickup(GroundItem item);
 
     /// <summary>Подобрать как кликом мыши: клиент подходит сам.</summary>
-    CallResult PickupObject(HostState host, GroundItem item);
+    CallResult PickupObject(GroundItem item);
 
     CallResult UseItem(InventoryItem item);
     CallResult SummonPet(int cage);
@@ -50,16 +50,16 @@ public interface IGameActions
     CallResult RecallPet();
 
     /// <summary>Бежать в точку: по прямой или <paramref name="smart"/> — с автопутём (если умеет, иначе по прямой).</summary>
-    CallResult MoveTo(HostState host, Position point, bool smart);
+    CallResult MoveTo(Position point, bool smart);
 
     /// <summary>Собрать ресурс (трава, руда) как кликом мыши: PickupObject с gather — клиент подходит и копает сам.</summary>
-    CallResult Gather(HostState host, GroundItem resource);
+    CallResult Gather(GroundItem resource);
 
     /// <summary>Кнопка «Полёт»: на земле — взлететь, в воздухе — сесть.</summary>
-    CallResult ToggleFly(HostState host);
+    CallResult ToggleFly();
 
     /// <summary>Лететь в точку вместе с её высотой (только в воздухе).</summary>
-    CallResult FlyTo(HostState host, Position point);
+    CallResult FlyTo(Position point);
 }
 
 /// <summary>Действия прямыми вызовами функций клиента — работают и при неактивном окне игры.</summary>
@@ -73,20 +73,16 @@ public sealed class DirectCallActions(GameCaller caller) : IGameActions
     public CallResult Unselect() => caller.Unselect();
     public CallResult NormalAttack() => caller.NormalAttack();
     public CallResult CastSkill(int skillId, uint targetWid) => caller.CastSkill(skillId, targetWid);
-    public CallResult ApplySkill(HostState host, int skillId, uint targetWid) => caller.ApplySkill(host.Address, skillId, targetWid);
+    public CallResult ApplySkill(int skillId, uint targetWid) => caller.ApplySkill(skillId, targetWid);
     public CallResult PetAttack(uint targetWid) => caller.PetAttack(targetWid);
     public CallResult CancelAction() => caller.CancelAction();
     public CallResult Pickup(GroundItem item) => caller.Pickup(item.Id, item.Tid);
-    public CallResult PickupObject(HostState host, GroundItem item) => caller.PickupObject(host.Address, item.Id);
+    public CallResult PickupObject(GroundItem item) => caller.PickupObject(item.Id);
     public CallResult UseItem(InventoryItem item) => caller.UseItem(item.Slot, item.Tid);
     public CallResult SummonPet(int cage) => caller.SummonPet(cage);
     public CallResult RecallPet() => caller.RecallPet();
-    public CallResult MoveTo(HostState host, Position point, bool smart)
-        => caller.MoveTo(host.Address, point.X, point.Height, point.Y, smart);
-
-    public CallResult Gather(HostState host, GroundItem resource) => caller.PickupObject(host.Address, resource.Id, gather: true);
-
-    public CallResult ToggleFly(HostState host) => caller.ToggleFly(host.Address);
-
-    public CallResult FlyTo(HostState host, Position point) => caller.FlyTo(host.Address, point.X, point.Height, point.Y);
+    public CallResult MoveTo(Position point, bool smart) => caller.MoveTo(point.X, point.Height, point.Y, smart);
+    public CallResult Gather(GroundItem resource) => caller.PickupObject(resource.Id, gather: true);
+    public CallResult ToggleFly() => caller.ToggleFly();
+    public CallResult FlyTo(Position point) => caller.FlyTo(point.X, point.Height, point.Y);
 }
