@@ -8,7 +8,7 @@ namespace BotCH.Core.World;
 /// Ошибка чтения не останавливает цикл: приходит <see cref="Failed"/>, через период — новая попытка.
 /// События приходят из фонового потока.
 /// </summary>
-public sealed class WorldMonitor(Func<WorldState> read, TimeSpan period) : IDisposable
+public sealed class WorldMonitor(Func<WorldState> read, TimeSpan period) : IWorldFeed, IDisposable
 {
     private readonly object _lock = new();
     private Thread? _thread;

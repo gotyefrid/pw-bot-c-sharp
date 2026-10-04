@@ -53,10 +53,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private IServerProfile _profile;
     private bool _refreshing;
 
-    // Бот (мозг) — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute (внутри GameCalls)
+    // Бот — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute (внутри GameCalls); их закрывает бот
     private GameCalls? _calls;
     private IBotRunner? _brain;
-    private Action<WorldState>? _brainTick;
+    private RunningBot? _bot;
 
     // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\BotCH\resources.json), копятся в любом режиме
     private static readonly TimeSpan SpotsSaveEvery = TimeSpan.FromSeconds(10);
@@ -299,29 +299,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             // Обход — с точки, выбранной в списке (не выбрана — с первой)
             _settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
             _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools);
-            _brain.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
-            _brain.StopRequested += reason => OnUi(Stop);
-            var brain = _brain;
             var memoryLog = _logger.For("память");
             var guard = new GameMemoryGuard(_game.QueryFreeMemory, memoryLog);
             if (_game.QueryFreeMemory() is FreeMemory free)
                 memoryLog.Info($"Свободно у игры {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ");
-            var outOfMemory = false;
-            _brainTick = world =>
-            {
-                if (outOfMemory)
-                    return;
-
-                if (guard.ShouldStop(DateTime.Now))
-                {
-                    outOfMemory = true;
-                    OnUi(Stop);
-                    return;
-                }
-
-                brain.Tick(world);
-            };
-            _monitor.Updated += _brainTick;
+            _bot = new RunningBot(_monitor, _brain, _calls, guard.ShouldStop);
+            _bot.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
+            _bot.StopRequested += _ => OnUi(Stop);
 
             IsRunning = true;
             BotState = "Запуск…";
@@ -336,10 +320,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Stop()
     {
-        if (_brainTick is not null && _monitor is not null)
-            _monitor.Updated -= _brainTick;
-        _brainTick = null;
-        _brain?.Reset();
+        // Бот дожидается хода, который идёт, и только потом закрывает вызовы; не дошли до бота (сбой при старте) — закрыть вызовы самим
+        _bot?.Dispose();
+        _bot = null;
         _brain = null;
         _calls?.Dispose();
         _calls = null;
@@ -955,7 +938,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void SettingsEdited()
     {
         SaveCharacter();
-        _brain?.UpdateSettings(_settings);
+        _bot?.UpdateSettings(_settings);
     }
 
     private void UpdateAttackSkills(WorldState w)
@@ -1291,7 +1274,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _log.Warning($"{nick}: {problem}");
         _log.Info(isNew ? $"Персонаж {nick}: новые настройки (копия общих)" : $"Персонаж {nick}: его настройки загружены");
 
-        _brain?.UpdateSettings(_settings);
+        _bot?.UpdateSettings(_settings);
         OnPropertyChanged(nameof(Settings));
         OnPropertyChanged(nameof(GroundPet));
         OnPropertyChanged(nameof(AirPet));
