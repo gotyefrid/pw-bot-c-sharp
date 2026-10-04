@@ -69,7 +69,7 @@ public sealed class GameCalls : IDisposable
         WindowCallRunner? window = null;
         if (transport == CallTransport.Window)
         {
-            window = WindowCallRunner.Install(exec, NativeWindows.FindMainWindow(game.Pid, includeHidden: true), out problem);
+            window = WindowCallRunner.Attach(exec, NativeWindows.FindMainWindow(game.Pid, includeHidden: true), out problem);
             if (window is null)
             {
                 exec.Dispose();
@@ -83,7 +83,29 @@ public sealed class GameCalls : IDisposable
         return new GameCalls(exec, window, watch, caller, transport);
     }
 
-    /// <summary>Вернуть окну игры прежний обработчик и закрыть дескриптор с правом вызова. Повторный вызов ничего не делает.</summary>
+    /// <summary>
+    /// Снять обработчик окна игры (см. <see cref="WindowCallRunner.Remove"/>) — при отключении от клиента. Свой дескриптор с
+    /// правом вызова на время снятия. true — снят; false — нет, почему — в <paramref name="details"/>.
+    /// </summary>
+    /// <param name="game">Дескриптор чтения клиента.</param>
+    public static bool RemoveWindowHandler(GameProcess game, out string details)
+    {
+        try
+        {
+            using var exec = GameProcess.Open(game.Pid, GameProcessRights.Execute);
+            return WindowCallRunner.Remove(exec, NativeWindows.FindMainWindow(game.Pid, includeHidden: true), out details);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            details = "нет доступа к процессу игры: " + e.Message;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Закрыть дескриптор с правом вызова. Обработчик окна остаётся: следующий «Старт» возьмёт его же, снимает его
+    /// <see cref="RemoveWindowHandler"/>. Повторный вызов ничего не делает.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)

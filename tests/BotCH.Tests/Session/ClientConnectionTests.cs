@@ -85,4 +85,18 @@ public class ClientConnectionTests : IDisposable
         Assert.Null(_connection.Bot);
         Assert.False(_connection.IsStopping);
     }
+
+    [Fact]
+    public void WithoutClientMarkWindowHandlerIsLeft()
+    {
+        // Метка клиента у первого подключения: второе на тот же клиент обработчик окна не снимает — он общий с ботом первого
+        var log = new RingBufferSink();
+        var second = ClientConnection.Open(Process.GetCurrentProcess().Id, new ProfileCatalog().Load("comeback146").Data,
+            new Logger { MinLevel = LogLevel.Debug }.AddSink(log));
+
+        second.Dispose();
+
+        Assert.Contains(log.Snapshot(), e => e.Message.StartsWith("Обработчик окна игры оставляю", StringComparison.Ordinal));
+        Assert.DoesNotContain(log.Snapshot(), e => e.Message.StartsWith("Обработчик окна игры снят", StringComparison.Ordinal));
+    }
 }

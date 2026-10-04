@@ -117,8 +117,12 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
     /// чтение и выполнение», CreateRemoteThread, ожидание до 5 с, освобождение. Код самой игры не меняется.
     /// Нужны права <see cref="GameProcessRights.Execute"/>.
     /// </summary>
-    public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub)
+    public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub) => Run(data, buildStub, out _);
+
+    /// <summary>То же, плюс что заглушка вернула в eax (код выхода потока); 0, если не выполнена.</summary>
+    public RemoteRunResult Run(byte[]? data, Func<uint, byte[]> buildStub, out uint returned)
     {
+        returned = 0;
         if (PrepareCall(data, buildStub, out var page) is { } failed)
             return failed;
 
@@ -137,6 +141,8 @@ public sealed class GameProcess : IMemory, IRemoteRunner, IDisposable
                 return new RemoteRunResult(RemoteRunStatus.Timeout, $"поток в игре не закончился за {RemoteTimeout.TotalSeconds:0} с");
             }
 
+            if (!NativeMethods.GetExitCodeThread(thread, out returned))
+                returned = 0;
             return new RemoteRunResult(RemoteRunStatus.Done);
         }
         finally

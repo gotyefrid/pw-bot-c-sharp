@@ -67,6 +67,20 @@ public static class WindowStubs
     }
 
     /// <summary>
+    /// Поток: какой обработчик сейчас у окна — <c>return GetWindowLong(window, GWL_WNDPROC)</c> (адрес — в коде выхода потока).
+    /// Изнутри игры: из своего процесса для чужого окна Windows может отдать не адрес, а служебное значение.
+    /// </summary>
+    public static byte[] ReadWindowProc(uint getWindowLong, uint window)
+    {
+        var code = new List<byte>();
+        code.AddRange([0x6A, GwlWndProc]);
+        Push(code, window);
+        CallAbsolute(code, getWindowLong);
+        code.AddRange([0xC2, 0x04, 0x00]);                  // ret 4 (eax — обработчик)
+        return code.ToArray();
+    }
+
+    /// <summary>
     /// Поток: вернуть прежний обработчик, только если сейчас стоит наш (кто-то мог подменить поверх — его не трогаем).
     /// <c>if (GetWindowLong(window, GWL_WNDPROC) == ourProc) SetWindowLong(window, GWL_WNDPROC, [originalSlot])</c>.
     /// </summary>

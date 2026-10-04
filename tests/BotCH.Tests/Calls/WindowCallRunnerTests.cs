@@ -9,7 +9,8 @@ namespace BotCH.Tests.Calls;
 
 /// <summary>
 /// Настоящий обработчик окна — на своём окне в процессе тестов: установка потоком, вызов через сообщение (должен выполниться
-/// в потоке окна, а не в отдельном), чужие сообщения доходят до прежнего обработчика, снятие возвращает прежний.
+/// в потоке окна, а не в отдельном), чужие сообщения доходят до прежнего обработчика, «Стоп» обработчик оставляет и следующий
+/// «Старт» берёт его же, снятие возвращает прежний.
 /// </summary>
 public class WindowCallRunnerTests : IDisposable
 {
@@ -35,6 +36,7 @@ public class WindowCallRunnerTests : IDisposable
     private readonly GameProcess _self = GameProcess.Open(Process.GetCurrentProcess().Id, GameProcessRights.Execute);
     private readonly WindowProc _gameProc;
     private readonly int _gameProcAddress;
+    private readonly WindowProc _foreignProc = DefWindowProc;
     private uint _received;
 
     public WindowCallRunnerTests()
@@ -54,6 +56,7 @@ public class WindowCallRunnerTests : IDisposable
     {
         DestroyWindow(_window);
         GC.KeepAlive(_gameProc);
+        GC.KeepAlive(_foreignProc);
         _self.Dispose();
     }
 
@@ -62,7 +65,7 @@ public class WindowCallRunnerTests : IDisposable
     {
         Receiver receiver = Receive;
         var function = unchecked((uint)Marshal.GetFunctionPointerForDelegate(receiver).ToInt32());
-        using var runner = WindowCallRunner.Install(_self, _window, out var problem);
+        using var runner = WindowCallRunner.Attach(_self, _window, out var problem);
         Assert.True(runner is not null, problem);
 
         var result = runner!.Run(BitConverter.GetBytes(0xC0FFEEu),
@@ -75,26 +78,73 @@ public class WindowCallRunnerTests : IDisposable
     }
 
     [Fact]
-    public void OtherMessagesReachOriginalAndRestoreBringsItBack()
+    public void OtherMessagesReachOriginal()
     {
-        var runner = WindowCallRunner.Install(_self, _window, out var problem);
+        using var runner = WindowCallRunner.Attach(_self, _window, out var problem);
         Assert.True(runner is not null, problem);
         Assert.NotEqual(_gameProcAddress, GetWindowLong(_window, -4));
 
         // Чужое сообщение доходит до «игры» через наш обработчик
         SendMessage(_window, TestMessage, new IntPtr(42), IntPtr.Zero);
-        Assert.Equal(42u, _received);
 
-        runner!.Dispose();
+        Assert.Equal(42u, _received);
+    }
+
+    [Fact]
+    public void StopLeavesHandlerAndNextStartReusesIt()
+    {
+        var first = WindowCallRunner.Attach(_self, _window, out var problem);
+        Assert.True(first is not null, problem);
+        Assert.False(first!.Reused);
+        var installed = GetWindowLong(_window, -4);
+
+        first.Dispose();
+        Assert.Equal(installed, GetWindowLong(_window, -4));
+        Assert.Equal(RemoteRunStatus.Failed, first.Run(null, _ => [0x31, 0xC0, 0xC2, 0x04, 0x00]).Status);
+
+        // Следующий «Старт» — тот же обработчик, новой страницы в игре нет
+        using var second = WindowCallRunner.Attach(_self, _window, out problem);
+        Assert.True(second is not null, problem);
+        Assert.True(second!.Reused);
+        Assert.Equal(installed, GetWindowLong(_window, -4));
+        Assert.True(second.Run(null, _ => [0x31, 0xC0, 0xC2, 0x04, 0x00]).IsDone);
+    }
+
+    [Fact]
+    public void RemoveBringsOriginalBack()
+    {
+        WindowCallRunner.Attach(_self, _window, out _)!.Dispose();
+
+        Assert.True(WindowCallRunner.Remove(_self, _window, out var details), details);
+
         Assert.Equal(_gameProcAddress, GetWindowLong(_window, -4));
-        Assert.Equal(RemoteRunStatus.Failed, runner.Run(null, _ => [0x31, 0xC0, 0xC2, 0x04, 0x00]).Status);
+        Assert.False(WindowCallRunner.Remove(_self, _window, out _)); // снимать больше нечего
+        SendMessage(_window, TestMessage, new IntPtr(7), IntPtr.Zero);
+        Assert.Equal(7u, _received);
+    }
+
+    [Fact]
+    public void ForeignHandlerOnTopIsNeitherRemovedNorReused()
+    {
+        // Кто-то поставил свой обработчик поверх нашего: снимать наш нельзя (снимем и его), брать — тоже (до нас не дойдёт)
+        WindowCallRunner.Attach(_self, _window, out _)!.Dispose();
+        var foreign = Marshal.GetFunctionPointerForDelegate(_foreignProc).ToInt32();
+        SetWindowLong(_window, -4, foreign);
+
+        Assert.False(WindowCallRunner.Remove(_self, _window, out _));
+        Assert.Equal(foreign, GetWindowLong(_window, -4));
+
+        using var runner = WindowCallRunner.Attach(_self, _window, out var problem);
+        Assert.True(runner is not null, problem);
+        Assert.False(runner!.Reused);
+        Assert.True(runner.Run(null, _ => [0x31, 0xC0, 0xC2, 0x04, 0x00]).IsDone);
     }
 
     [Fact]
     public void HandlerReplacedOnTopReportsWindowLost()
     {
         // Кто-то поставил свой обработчик поверх нашего: сообщение до нас не доходит — «окно потеряно», а не «выполнено»
-        using var runner = WindowCallRunner.Install(_self, _window, out var problem);
+        using var runner = WindowCallRunner.Attach(_self, _window, out var problem);
         Assert.True(runner is not null, problem);
         SetWindowLong(_window, -4, _gameProcAddress);
 
@@ -107,7 +157,7 @@ public class WindowCallRunnerTests : IDisposable
     public void DestroyedWindowReportsWindowLostAtOnce()
     {
         // Игра пересоздала окно: старого нет — сразу «окно потеряно», без 5 с ожидания и без страницы в игре
-        using var runner = WindowCallRunner.Install(_self, _window, out var problem);
+        using var runner = WindowCallRunner.Attach(_self, _window, out var problem);
         Assert.True(runner is not null, problem);
         DestroyWindow(_window);
 
@@ -121,7 +171,7 @@ public class WindowCallRunnerTests : IDisposable
     [Fact]
     public void NoWindowNoRunner()
     {
-        Assert.Null(WindowCallRunner.Install(_self, IntPtr.Zero, out var problem));
+        Assert.Null(WindowCallRunner.Attach(_self, IntPtr.Zero, out var problem));
         Assert.Contains("окно", problem);
     }
 

@@ -32,8 +32,8 @@ public sealed record StartResult(StartStatus Status, string Problem = "");
 /// <summary>
 /// Подключение к одному клиенту игры: дескриптор чтения, метка клиента, снимки мира, unfreeze, названия скиллов — и текущий
 /// бот. Бот принадлежит подключению: запускает и останавливает его только оно (<see cref="StartBot"/>,
-/// <see cref="StopBotAsync"/>), окно лишь просит. Закрывается по порядку: бот (дождавшись его хода) → снимки → unfreeze →
-/// дескриптор → метка.
+/// <see cref="StopBotAsync"/>), окно лишь просит. Закрывается по порядку: бот (дождавшись его хода) → обработчик окна игры →
+/// снимки → unfreeze → дескриптор → метка.
 /// </summary>
 public sealed class ClientConnection : IDisposable
 {
@@ -234,9 +234,32 @@ public sealed class ClientConnection : IDisposable
     }
 
     /// <summary>
+    /// Обработчик окна игры — один на все боты этого клиента (<see cref="Calls.WindowCallRunner"/>): «Стоп» его не снимает,
+    /// снимаем при отключении. Только если метка клиента у нас: без метки на этом клиенте работает и бот другого окна BotCH —
+    /// снимем обработчик, и тот встанет. Тогда оставляем: вреда нет, следующий «Старт» возьмёт его же.
+    /// </summary>
+    private void RemoveWindowHandler()
+    {
+        if (_clientLock is null)
+        {
+            _log.Debug("Обработчик окна игры оставляю: клиент подключён и в другом окне BotCH");
+            return;
+        }
+
+        if (_game.HasExited)
+            return;
+
+        _log.Debug(GameCalls.RemoveWindowHandler(_game, out var details)
+            ? "Обработчик окна игры снят"
+            : "Обработчик окна игры не снят: " + details);
+    }
+
+    /// <summary>
     /// Отключиться. Сначала бот — ждём его остановку до <see cref="StopWait"/> (окно может замереть, если как раз идёт вызов
     /// в игру). Не дождались — закрываемся дальше: бот закроет свой дескриптор вызовов сам, когда его ход выйдет; закрытие
     /// дескриптора чтения посреди чтения безопасно (SafeHandle держит счётчик ссылок, следующее чтение просто не удастся).
+    /// Остановился — снимаем обработчик окна игры (<see cref="RemoveWindowHandler"/>), не дождались — оставляем: бот ещё
+    /// может быть посреди вызова через него.
     /// </summary>
     public void Dispose()
     {
@@ -244,7 +267,9 @@ public sealed class ClientConnection : IDisposable
             return;
 
         _disposed = true;
-        if (!StopBotAsync().Wait(StopWait))
+        if (StopBotAsync().Wait(StopWait))
+            RemoveWindowHandler();
+        else
             _log.Warning($"Бот не остановился за {StopWait.TotalSeconds:0} с — отключаюсь, он закроет вызовы сам, когда закончит ход");
         _monitor.Dispose();
         _unfreezer?.Dispose();

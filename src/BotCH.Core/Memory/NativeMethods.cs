@@ -82,6 +82,10 @@ internal static class NativeMethods
     [DllImport("kernel32.dll", SetLastError = true)]
     public static extern uint WaitForSingleObject(SafeThreadHandle handle, uint milliseconds);
 
+    /// <summary>Код выхода потока — у нашей заглушки это eax на выходе (что она вернула).</summary>
+    [DllImport("kernel32.dll", SetLastError = true)]
+    public static extern bool GetExitCodeThread(SafeThreadHandle handle, out uint exitCode);
+
     /// <summary>Дескриптор потока: закрывается сам (CloseHandle).</summary>
     public sealed class SafeThreadHandle : SafeHandleZeroOrMinusOneIsInvalid
     {
