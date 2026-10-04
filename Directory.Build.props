@@ -1,7 +1,6 @@
 <Project>
-  <!-- Общие настройки нового бота (src/, tools/, tests/).
-       Старый проект BotCH/BotCH.csproj тоже видит этот файл — его не трогаем. -->
-  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'BotCH'">
+  <!-- Общие настройки всех проектов (src/, tools/, tests/) -->
+  <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <!-- Клиент игры 32-битный: процесс бота тоже 32-битный -->
     <PlatformTarget>x86</PlatformTarget>

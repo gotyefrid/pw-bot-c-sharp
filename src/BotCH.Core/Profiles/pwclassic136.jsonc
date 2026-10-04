@@ -1,6 +1,6 @@
 /*
   PW Classic 1.3.6 — https://pwclassic.net/
-  Перенесено из старого бота: BotCH/MemoryHelpers/Offsets/PwClassic136.cs (ветка master).
+  Перенесено из старого бота: BotCH/MemoryHelpers/Offsets/PwClassic136.cs (метка old-bot).
 
   Все адреса функций (rva) — от начала модуля ElementClient.exe. Он грузится с 0x400000,
   т.е. адрес в IDA/x32dbg = 0x400000 + rva. Смещения полей — от начала своего объекта.
