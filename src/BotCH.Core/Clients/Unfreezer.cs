@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using BotCH.Core.Logging;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
 
@@ -13,12 +14,12 @@ public sealed class Unfreezer : IDisposable
 {
     private readonly int _pid;
     private readonly ProfileData _profile;
-    private readonly Action<string> _log;
+    private readonly ILogger _log;
     private Timer? _timer;
     private GameProcess? _game;
     private bool _warned;
 
-    public Unfreezer(int pid, ProfileData profile, Action<string> log)
+    public Unfreezer(int pid, ProfileData profile, ILogger log)
     {
         _pid = pid;
         _profile = profile;
@@ -61,7 +62,7 @@ public sealed class Unfreezer : IDisposable
         catch (Exception e) when (e is MemoryAccessException or InvalidOperationException)
         {
             if (!_warned)
-                _log("Unfreeze: не удалось записать — " + e.Message);
+                _log.Warning("Unfreeze: не удалось записать — " + e.Message);
             _warned = true;
         }
     }

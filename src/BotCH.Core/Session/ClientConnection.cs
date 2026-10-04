@@ -202,7 +202,7 @@ public sealed class ClientConnection : IDisposable
 
         try
         {
-            var unfreezer = new Unfreezer(_game.Pid, _profile, message => _log.Warning(message));
+            var unfreezer = new Unfreezer(_game.Pid, _profile, _log);
             if (!unfreezer.IsSupported)
             {
                 unfreezer.Dispose();
