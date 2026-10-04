@@ -406,7 +406,7 @@ public class BrainScenarioTests
     {
         _settings.Target.KillMobs = true;
         _world.AddMob(0x80000001, "Волк", 3, state: NpcInfo.StateDead);
-        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Npc, 1, 0, default, 2, "Отшельник", 0));
+        _world.Npcs.Add(new NpcInfo(0, 0x80000002, NpcKind.Npc, 1, 0, new Position(2, 0, 0), 2, "Отшельник", 0));
         var alive = _world.AddMob(0x80000003, "Волк", 20);
 
         Tick();
@@ -521,7 +521,6 @@ public class BrainScenarioTests
 
         // Добежали: моб в 7 м — теперь скилл
         _world.Position = new Position(13, 0, 0);
-        _world.Replace(mob, m => m with { Distance = 7 });
         Tick();
         Tick();
         Assert.Equal("apply 299 0", LastCall);
@@ -543,7 +542,7 @@ public class BrainScenarioTests
         Tick();
         Assert.Equal("apply 299 0", LastCall);
 
-        _world.Replace(mob, m => m with { Position = new Position(20, 0, 0), Distance = 20 });
+        _world.Replace(mob, m => m with { Position = new Position(20, 0, 0) });
         Tick(1);
 
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));
@@ -561,11 +560,11 @@ public class BrainScenarioTests
         Assert.Contains("(14,0;", LastCall);
 
         // Моб отбежал на 2 м — к старой точке бежим дальше; ещё на 5 м — сразу к новому месту
-        _world.Replace(mob, m => m with { Position = new Position(22, 0, 0), Distance = 22 });
+        _world.Replace(mob, m => m with { Position = new Position(22, 0, 0) });
         Tick(1.5);
         Assert.Single(_actions.Calls, c => c.StartsWith("move"));
 
-        _world.Replace(mob, m => m with { Position = new Position(27, 0, 0), Distance = 27 });
+        _world.Replace(mob, m => m with { Position = new Position(27, 0, 0) });
         Tick(1.5);
         Assert.Contains("(21,0;", LastCall);
         Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("move")));
@@ -1483,7 +1482,6 @@ public class BrainScenarioTests
         Assert.Equal("move (19,0; 0,0; h 0,0) умно", LastCall); // точка в 1 м от моба (3 − 2)
 
         _world.Position = new Position(17.5f, 0, 0);
-        _world.Replace(mob, m => m with { Distance = 2.5f });
         Tick();
         Tick();
 
