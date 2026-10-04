@@ -302,6 +302,23 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void EmptyMobListMeansOnlyAttackers()
+    {
+        // Галка «только из списка», список пуст: сами никого не выбираем — но напавшего бьём
+        _settings.Target.KillMobs = true;
+        _settings.Target.UseMobList = true;
+        _world.AddMob(0x80000001, "Волк", 5);
+
+        Tick();
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("select"));
+        Assert.Equal("ищу цель: список мобов пуст — бью только напавших", Brain.Status);
+
+        var bear = _world.AddMob(0x80000002, "Медведь", 8, targetWid: FakeWorld.HostWid);
+        Tick();
+        Assert.Equal($"select {bear.Wid:X}", LastCall);
+    }
+
+    [Fact]
     public void MobListByNameNearestOfThatName()
     {
         _settings.Target.KillMobs = true;

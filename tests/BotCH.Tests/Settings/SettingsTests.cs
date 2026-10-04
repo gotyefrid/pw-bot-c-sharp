@@ -93,9 +93,11 @@ public class SettingsTests
     }
 
     [Fact]
-    public void EmptyMobListAllowsAnyone()
+    public void EmptyMobListAllowsNobody()
     {
-        Assert.True(MobNameFilter.Allows(new TargetSettings { UseMobList = true }, "Медведь"));
+        // «Только мобы из списка» с пустым списком — никого (раньше было «всех», и это удивляло)
+        Assert.False(MobNameFilter.Allows(new TargetSettings { UseMobList = true }, "Медведь"));
+        Assert.True(MobNameFilter.Allows(new TargetSettings { UseMobList = false }, "Медведь"));
     }
 
     [Theory]

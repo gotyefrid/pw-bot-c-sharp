@@ -480,14 +480,15 @@ public static class MobNameFilter
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-    /// <summary>Можно ли нападать на моба с таким названием при этих настройках.</summary>
+    /// <summary>
+    /// Можно ли нападать на моба с таким названием при этих настройках. «Только из списка» с пустым списком — никого:
+    /// новые цели бот не выбирает, бьёт только напавших (их список не касается).
+    /// </summary>
     public static bool Allows(TargetSettings target, string? mobName)
-    {
-        if (!target.UseMobList || target.MobNames.Count == 0)
-            return true;
+        => !target.UseMobList || Contains(target.MobNames, mobName);
 
-        return Contains(target.MobNames, mobName);
-    }
+    /// <summary>«Только из списка», а список пуст — новых целей нет.</summary>
+    public static bool ListIsEmpty(TargetSettings target) => target.UseMobList && target.MobNames.Count == 0;
 
     public static bool Contains(IEnumerable<string> names, string? name)
     {

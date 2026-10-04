@@ -100,7 +100,9 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, c.InFarmArea);
         if (mob is null)
         {
-            Status = target.FarmRadius > 0 ? $"ищу цель: в радиусе {target.FarmRadius} м подходящих мобов нет" : "ищу цель: подходящих мобов нет";
+            Status = MobNameFilter.ListIsEmpty(target) ? "ищу цель: список мобов пуст — бью только напавших"
+                : target.FarmRadius > 0 ? $"ищу цель: в радиусе {target.FarmRadius} м подходящих мобов нет"
+                : "ищу цель: подходящих мобов нет";
             return false;
         }
 

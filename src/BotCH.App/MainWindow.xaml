@@ -376,6 +376,23 @@
                            Selected="{Binding Farm.MobNames}" Options="{Binding Farm.MobOptions}"
                            Placeholder="Мобы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
                            ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
+            <!-- «Только из списка», а список пуст: новых целей нет -->
+            <TextBlock Text="Список пуст — бот бьёт только напавших" Margin="0,4,0,0" TextWrapping="Wrap">
+              <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                  <Setter Property="Visibility" Value="Collapsed" />
+                  <Style.Triggers>
+                    <MultiDataTrigger>
+                      <MultiDataTrigger.Conditions>
+                        <Condition Binding="{Binding Settings.Target.UseMobList}" Value="True" />
+                        <Condition Binding="{Binding Farm.MobNames.Count}" Value="0" />
+                      </MultiDataTrigger.Conditions>
+                      <Setter Property="Visibility" Value="Visible" />
+                    </MultiDataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </TextBlock.Style>
+            </TextBlock>
           </StackPanel>
         </Border>
       </StackPanel>
