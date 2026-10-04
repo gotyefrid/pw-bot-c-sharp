@@ -1,0 +1,258 @@
+/*
+  Comeback PW 1.3.6 — копия сервера comeback.pw 1.3.6 (своя, с 04.10.2026), клиент C:\Users\mel\Downloads\Comeback136.pw\element\ElementClient.exe
+
+  Клиент той же ветки, что Comeback 1.4.6 (автопуть, полёт, тот же код функций), но другая сборка — адреса и часть полей
+  персонажа сдвинуты. Перенесено 04.10.2026 с comeback146.jsonc (там подробно, что каждое поле значит и как найдено):
+    1) функции — по сигнатурам из comeback146 (9 из 14 нашлись сразу), остальные — по вызовам из уже найденных
+       (создание работы — из PickupObject, призыв пета — функция прямо перед отзывом, как в 1.4.6);
+    2) поля — сопоставлением кода: 6592 функции, одинаковые в обоих exe с точностью до чисел; в каждой паре одинаковые
+       инструкции дают «старое смещение → новое» (так видно, что у перса WID/HP/цель сдвинуты на -0xC, пет/сумка/работы на -0x34..-0x38);
+    3) проверено чтением живого клиента и записью памяти 5 раз/с, пока владелец делал действия (взлёт, пет, копание, корм, цель, каст).
+  Не путать с PW Classic 1.3.6 (pwclassic136.jsonc) — там другой клиент, общего кода почти нет.
+
+  Как обновить после новой сборки клиента: тот же путь — сигнатуры ниже, затем сопоставление кода со старым exe.
+  exe с ASLR (видели 0x120000) — все адреса от начала модуля; флаг LAA (4 ГБ) уже стоит.
+*/
+{
+  "id": "comeback136",
+  "name": "Comeback 1.3.6",
+  "clientProcessName": "elementclient",
+
+  // Ключи .pck те же, что в 1.4.6: все три числа есть в .data нового exe ровно по одному разу (как и в 1.4.6)
+  "gameFiles": {
+    "pck": { "key1": "0x1597270A", "key2": "0x604E0ECB", "offsetKey": "0x9A4E1CB0", "tailSize": "0x9E82" }
+  },
+
+  "base": {
+    // В 1.4.6 — 0x8EBC1C. Здесь: в 1082 сопоставленных функциях на месте [0xCEBC1C] стоит [0xCAE5CC] (база exe 0x400000).
+    // Проверено: [модуль + P] → +0x1C → +0x28 — персонаж с ником и координатами. Его же читает «выход» (0x419D30)
+    "basePointer": "0x8AE5CC",
+    "game": "0x1C",
+    // Не нужен: как в 1.4.6, в клиенте своя «работа в фоне»
+    "unfreeze": "0x0",
+    // Объект связи с сервером, SendGameData здесь — rva 0x412BC0 (ecx = [[база]+0x20])
+    "session": "0x20"
+  },
+
+  "host": {
+    "struct": "0x28",
+    // Ник (UTF-16) — «Заметно». В 1.4.6 +0x788
+    "namePointer": "0x780",
+    // Байт «кастует»: два каста атаки — 1 на ~2.5 с каждый
+    "castFlag": "0xB8",
+    // В 1.4.6 +0x4B8: сопоставление кода — 69 инструкций 0x4B8 → 0x4AC (весь блок уровень/HP/MP сдвинут на -0xC)
+    "wid": "0x4AC",
+    // 69 — как в игре
+    "level": "0x4B8",
+    // HP 2766 = максимум, MP 4051 = максимум (полные); MP падал на 1 за каст атаки
+    "hp": "0x4C0",
+    "mp": "0x4C4",
+    "maxHp": "0x524",
+    "maxMp": "0x528",
+    // Выбрал моба — его WID (0x80106570), снял — 0. В 1.4.6 +0x5B4
+    "targetId": "0x5A8",
+    // Перезарядка корма, мс: покормил — 0 → 59859 и убывает. В 1.4.6 +0xCB4
+    "petFoodCooldown": "0xC84",
+    "location": "0x3C",
+    // Объект скилла, пока кастуется (атака — 299), в конце 0; рядом +0x87C — цель каста. В 1.4.6 +0x87C
+    "castingSkill": "0x878",
+    // Копание: байт 0, пока идёт полоска (6 с на угле), иначе 1; прошло мс (0 → 6000) и всего (6000). В 1.4.6 +0x288/+0xC0C/+0xC10.
+    // (+0x288 здесь — float 1.0, не оно)
+    "gatherIdle": "0x28C",
+    "gatherElapsed": "0xBDC",
+    "gatherTotal": "0xBE0",
+    // Менеджер петов: его берёт кнопка призыва (0x31E670: mov edi, [esi+0x1948]). В 1.4.6 +0x1980
+    "petManager": "0x1948",
+    // Менеджер работ: 37 инструкций 0x1968 → 0x1930
+    "workMan": "0x1930",
+    // Сумка: 32 ячейки, банки/корм/кирка 3073 на месте. В 1.4.6 +0x10C4
+    "inventory": "0x1090",
+    // Скиллы друида 167, 299, 328, 329, 330. В 1.4.6 +0x1994/+0x1998
+    "skills": "0x195C",
+    "skillsCount": "0x1960",
+    // Где персонаж: взлёт — 2, приземлился — 0 (запись 04.10). Рядом +0x80C бит 0x10 — тоже «летит». В 1.4.6 +0x798
+    "moveEnv": "0x790"
+  },
+
+  // Как в 1.4.6. Призыв: +0x8 -1 → 0, +0x64 = WID пета; отзыв — обратно -1 и 0
+  "petManager": {
+    "activeCage": "0x8",
+    "cages": "0x10",
+    "cageCount": 20,
+    "activePetWid": "0x64"
+  },
+
+  // Как в 1.4.6: tid 10492 «Молодой узорчатый скорпион» — среда 0 (земля), 10521 «Молодая лиственная пчела» — 2 (воздух)
+  "pet": {
+    "hpRatio": "0x1C",
+    "hunger": "0x8",
+    "tid": "0xC",
+    "essence": "0x190",
+    "essenceName": "0x8",
+    "essenceInhabit": "0x1E8"
+  },
+
+  // Как в 1.4.6: обход совпал со счётчиками (14 мобов, 4 ресурса)
+  "world": {
+    "world": "0x14",
+    "slotCount": 769,
+    "objectInSlot": "0x4",
+    "npcs": { "manager": "0x20", "slotArray": "0x20", "count": "0x18" },
+    "groundItems": { "manager": "0x24", "slotArray": "0x1C", "count": "0x14" }
+  },
+
+  // Моб — всё как в 1.4.6 (сопоставление кода: каждое поле осталось на месте, десятки инструкций). Сверено вживую:
+  // названия, уровни, тип 6/9, дистанция = расчёт по координатам, запись справочника (+0x3A4) с id вида моба
+  "npc": {
+    "wid": "0x114",
+    "type": "0xB4",
+    "state": "0x2DC",
+    "hp": "0x128",
+    "target": "0x210",
+    "castTarget": "0x2FC",
+    "attackTarget": "0x2F8",
+    "level": "0x120",
+    "distance": "0x294",
+    "namePointer": "0x26C",
+    "location": "0x3C",
+    "essence": "0x3A4",
+    // 45 инструкций — то же место; в игре ещё не проверено
+    "returning": "0x22C",
+    "returningFlag": "0x20000"
+  },
+
+  // Как в 1.4.6: банки (категория 9), корм (27), кирка 3073 — кроме указателей на описание: они на 8 ближе
+  "inventory": {
+    "items": "0xC",
+    "size": "0x10",
+    "itemCategory": "0x8",
+    "itemTid": "0xC",
+    "itemCount": "0x14",
+    "itemMaxCount": "0x18",
+    // Указатель на описание (в нём +0x0 тот же tid): банка 8614 — HP 1000 за 10 с, 8644 — MP 1250 за 10 с; корм «Чистая вода» — 10.
+    // В 1.4.6 +0x78 и +0x70; сопоставление кода этого не показало (те же числа у других структур) — нашлось проверкой банок вживую
+    "itemEssence": "0x70",
+    "foodEssence": "0x68",
+    "categoryPotion": 9,
+    "categoryPetFood": 27
+  },
+
+  // Описание банки — как в 1.4.6 (то же место в коде)
+  "potion": {
+    "requiredLevel": "0x14C",
+    "hp": "0x154",
+    "hpSeconds": "0x158",
+    "mp": "0x15C",
+    "mpSeconds": "0x160"
+  },
+
+  "petFood": {
+    "loyalty": "0x148"
+  },
+
+  "skill": {
+    "id": "0x8",
+    "level": "0xC",
+    "cooldownLeft": "0x10",
+    "cooldownFull": "0x14",
+    "flags": "0x18"
+  },
+
+  "gatherTools": [ 3073 ],
+
+  // Как в 1.4.6. Тип работы «идти» (1) тот же: случай 1 в CreateWork создаёт объект того же размера 0x7C
+  "moveTypes": { "direct": 0, "smart": 5, "fly": 1 },
+
+  "skills": {
+    "healPet": 330,
+    "revivePet": 329,
+    "defaultAttack": 299,
+    "notAttack": [ 167, 329, 330 ]
+  },
+
+  // НИКОГДА не вызывать. Найдено по коду отправки «mov eax, N … mov word [esi], ax»: других мест с 0x01 и 0x66 в exe нет
+  "forbiddenFunctions": {
+    // c2s 0x01 — выход из игры (в 1.4.6 0x445A20)
+    "logout": "0x419D30",
+    // c2s 0x66 — отпустить пета навсегда (в 1.4.6 0x2D4EB0)
+    "releasePet": "0x2B8810"
+  },
+
+  // Как в 1.4.6: «Шахта крупного угля», «Высохший древесный корень» — вид 2, дистанция = расчёт
+  "groundItem": {
+    "id": "0x110",
+    "tid": "0x114",
+    "kind": "0x150",
+    "distance": "0x158",
+    "namePointer": "0x168",
+    "location": "0x3C"
+  },
+
+  // Как в 1.4.6: уголь 3089 — кирка 3073, даёт 815; корень 3074 — 795; уровень 1
+  "mineEssence": {
+    "nameInRecord": "0x8",
+    "size": "0x1C0",
+    "id": "0x0",
+    "tool": "0x50",
+    "materials": "0xE8",
+    "materialSlots": 16,
+    "amounts": "0x1A8",
+    "quest": "0x1B8",
+    "levelRequired": "0x4C"
+  },
+
+  // Как в 1.4.6 (125 и 39 инструкций — то же место); у мирных мобов здесь 0, радиус 6
+  "monsterEssence": {
+    "aggressive": "0x2B8",
+    "aggroRadius": "0x260"
+  },
+
+  // Функции — те же, что в 1.4.6 (там описано, что каждая делает), с тем же числом аргументов (ret N сверен у каждой).
+  // В скобках — адрес в 1.4.6
+  "functions": {
+    // (0x3411F0) — сигнатура из 1.4.6 подошла как есть
+    "selectTarget": { "rva": "0x31FB40", "convention": "thiscall", "this": "host", "args": [ "wid" ],
+                      "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
+    "unselect": { "rva": "0x31FB40", "convention": "thiscall", "this": "host", "args": [ "0" ],
+                  "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
+    // (0x351D30) c2s 0x03
+    "normalAttack": { "rva": "0x330000", "convention": "stdcall",
+                      "signature": "55 8B EC 83 EC 08 56 68 ?? ?? ?? ?? FF 15 ?? ??" },
+    // (0x33BE00) — по сопоставлению кода; первым читает флаги перса +0x80C (в 1.4.6 +0x814), поэтому старая сигнатура не подошла
+    "hostPickupObject": { "rva": "0x31A720", "convention": "thiscall", "this": "host",
+                          "signature": "55 8B EC 51 53 56 57 8B F9 8B 87 0C" },
+    // (0x3324F0)
+    "hostApplySkill": { "rva": "0x311630", "convention": "thiscall", "this": "host",
+                        "signature": "55 8B EC 83 EC 0C 53 56 57 68 ?? ?? ?? ?? 8B F9" },
+    // (0x3F6FD0) c2s 0x28, cl = где, dl = ячейка
+    "useItem": { "rva": "0x3CD940", "convention": "cdecl", "args": [ "tid", "count" ],
+                 "registers": { "ecx": "where", "edx": "slot" },
+                 "signature": "55 8B EC 53 56 6A 0A 8A DA 8A F9 FF" },
+    // (0x32B160) c2s 0x29
+    "castSkill": { "rva": "0x30A9E0", "convention": "thiscall", "this": "session",
+                   "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
+    // (0x12FC90) c2s 0x2A
+    "cancelAction": { "rva": "0x1200E0", "convention": "thiscall", "this": "session",
+                      "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 2A 00 00 00" },
+    // (0x1E3820) c2s 0x67
+    "petCtrl": { "rva": "0x1CDFD0", "convention": "thiscall", "this": "session",
+                 "signature": "55 8B EC 51 53 56 57 8D 45 FC C7 45" },
+    // (0x33FD20) c2s 0x64 — функция прямо перед recallPet; берёт менеджер петов [перс + 0x1948]
+    "summonPet": { "rva": "0x31E670", "convention": "thiscall", "this": "host",
+                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E 04 1C 00" },
+    // (0x33FED0) c2s 0x65. Ещё одна отправка 0x65 — 0x2F5EA0 (без проверок окна), её не используем
+    "recallPet": { "rva": "0x31E820", "convention": "thiscall", "this": "host",
+                   "signature": "56 8B F1 8B 8E 04 1C 00 00 85 C9 74" },
+    // (0x347A70) — вызов из PickupObject в той же позиции; типов работ здесь 0..0x13 (в 1.4.6 0..0x14)
+    "workCreate": { "rva": "0x325F70", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 13" },
+    // (0x34DDF0)
+    "workMoveSetDestination": { "rva": "0x32C070", "convention": "thiscall", "args": [ "type", "data" ],
+                                "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
+    // (0x30E340) кнопка «Полёт»
+    "hostFly": { "rva": "0x2EF6F0", "convention": "thiscall", "this": "host", "args": [ "force" ],
+                 "signature": "56 8B F1 57 8B 8E 04 1C 00 00 85 C9" },
+    // (0x3484D0)
+    "workStart": { "rva": "0x326850", "convention": "thiscall", "args": [ "1", "work", "0" ],
+                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
+  }
+}
