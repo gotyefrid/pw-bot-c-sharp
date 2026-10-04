@@ -96,6 +96,9 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
     {
         if (_disposed)
             return new RemoteRunResult(RemoteRunStatus.Failed, "обработчик окна уже снят");
+        // Окна больше нет (игра его пересоздала) — сообщение не дойдёт: не тратим страницу и 5 с ожидания
+        if (!IsWindow(_window))
+            return new RemoteRunResult(RemoteRunStatus.WindowLost, "окно игры закрыто или пересоздано");
         if (_game.PrepareCall(data, buildStub, out var page) is { } failed)
             return failed;
 
@@ -110,7 +113,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
         _game.FreePage(page);
         return unchecked((uint)result.ToInt32()) == WindowStubs.Handled
             ? new RemoteRunResult(RemoteRunStatus.Done)
-            : new RemoteRunResult(RemoteRunStatus.Failed, "обработчик окна снят — вызов не выполнен");
+            : new RemoteRunResult(RemoteRunStatus.WindowLost, "обработчик окна снят — вызов не выполнен");
     }
 
     /// <summary>Вернуть окну прежний обработчик (если поверх никто не поставил свой). Страница обработчика остаётся.</summary>

@@ -91,6 +91,34 @@ public class WindowCallRunnerTests : IDisposable
     }
 
     [Fact]
+    public void HandlerReplacedOnTopReportsWindowLost()
+    {
+        // Кто-то поставил свой обработчик поверх нашего: сообщение до нас не доходит — «окно потеряно», а не «выполнено»
+        using var runner = WindowCallRunner.Install(_self, _window, out var problem);
+        Assert.True(runner is not null, problem);
+        SetWindowLong(_window, -4, _gameProcAddress);
+
+        var result = runner!.Run(null, _ => [0x31, 0xC0, 0xC2, 0x04, 0x00]);
+
+        Assert.Equal(RemoteRunStatus.WindowLost, result.Status);
+    }
+
+    [Fact]
+    public void DestroyedWindowReportsWindowLostAtOnce()
+    {
+        // Игра пересоздала окно: старого нет — сразу «окно потеряно», без 5 с ожидания и без страницы в игре
+        using var runner = WindowCallRunner.Install(_self, _window, out var problem);
+        Assert.True(runner is not null, problem);
+        DestroyWindow(_window);
+
+        var watch = Stopwatch.StartNew();
+        var result = runner!.Run(null, _ => [0x31, 0xC0, 0xC2, 0x04, 0x00]);
+
+        Assert.Equal(RemoteRunStatus.WindowLost, result.Status);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
     public void NoWindowNoRunner()
     {
         Assert.Null(WindowCallRunner.Install(_self, IntPtr.Zero, out var problem));

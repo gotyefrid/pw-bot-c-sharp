@@ -157,7 +157,7 @@ public sealed class ClientConnection : IDisposable
             if (_game.QueryFreeMemory() is FreeMemory free)
                 memoryLog.Info($"Свободно у игры {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ");
 
-            var bot = new RunningBot(_monitor, brain, calls, guard.ShouldStop);
+            var bot = new RunningBot(_monitor, brain, calls, guard.ShouldStop, () => calls.Broken, _log);
             bot.StatusChanged += status => BotStatusChanged?.Invoke(status);
             bot.StopRequested += reason => BotStopRequested?.Invoke(reason);
             lock (_lock)

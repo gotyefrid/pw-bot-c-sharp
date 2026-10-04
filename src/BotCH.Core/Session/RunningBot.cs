@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using BotCH.Core.Brain;
+using BotCH.Core.Logging;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 
@@ -22,22 +23,29 @@ public sealed class RunningBot : IDisposable
     private readonly IBotRunner _brain;
     private readonly IDisposable _calls;
     private readonly Func<DateTime, bool> _outOfMemory;
+    private readonly Func<string?> _broken;
+    private readonly ILogger _log;
     private volatile bool _stopping;
     // Поток, который сейчас делает ход: Dispose из самого хода (подписчик StopRequested) не ждёт себя, а просит закрыть после хода
     private volatile Thread? _ticking;
     private bool _closeAfterTick;
     private int _disposed;
     private int _closed;
-    private bool _memoryStop;
+    // Бот сам попросил остановку (кончается память игры, потеряна связь с окном) — ходов больше нет, ждём «Стоп»
+    private bool _halted;
 
     /// <param name="calls">Транспорт вызовов (<see cref="GameCalls"/>); закрывается последним.</param>
     /// <param name="outOfMemory">Проверка памяти игры по времени снимка: true — пора остановиться (<see cref="Memory.GameMemoryGuard"/>).</param>
-    public RunningBot(IWorldFeed feed, IBotRunner brain, IDisposable calls, Func<DateTime, bool>? outOfMemory = null)
+    /// <param name="broken">После хода: вызовы больше не доходят (<see cref="GameCalls.Broken"/>) — причина; null — всё в порядке.</param>
+    public RunningBot(IWorldFeed feed, IBotRunner brain, IDisposable calls, Func<DateTime, bool>? outOfMemory = null,
+        Func<string?>? broken = null, ILogger? log = null)
     {
         _feed = feed;
         _brain = brain;
         _calls = calls;
         _outOfMemory = outOfMemory ?? (_ => false);
+        _broken = broken ?? (() => null);
+        _log = log ?? NullLogger.Instance;
         brain.StatusChanged += status => StatusChanged?.Invoke(status);
         brain.StopRequested += reason => StopRequested?.Invoke(reason);
     }
@@ -74,18 +82,21 @@ public sealed class RunningBot : IDisposable
             _ticking = Thread.CurrentThread;
             try
             {
-                if (_memoryStop || _outOfMemory(world.Time))
+                if (_halted)
                 {
-                    // Просим один раз; ходов больше нет — дальше остановит тот, кто подписан
-                    if (!_memoryStop)
-                    {
-                        _memoryStop = true;
-                        StopRequested?.Invoke("у игры кончается память");
-                    }
+                }
+                else if (_outOfMemory(world.Time))
+                {
+                    Halt("у игры кончается память");
                 }
                 else
                 {
                     _brain.Tick(world);
+                    if (_broken() is { } why)
+                    {
+                        _log.Warning($"{char.ToUpper(why[0])}{why.Substring(1)} — бот остановлен, нажмите «Старт»");
+                        Halt(why);
+                    }
                 }
             }
             finally
@@ -97,6 +108,13 @@ public sealed class RunningBot : IDisposable
 
         if (closeNow)
             Close();
+    }
+
+    // Просим остановку один раз; ходов больше нет — остановит тот, кто подписан
+    private void Halt(string reason)
+    {
+        _halted = true;
+        StopRequested?.Invoke(reason);
     }
 
     /// <summary>

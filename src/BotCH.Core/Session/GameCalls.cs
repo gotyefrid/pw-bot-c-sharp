@@ -26,18 +26,23 @@ public sealed class GameCalls : IDisposable
 {
     private readonly GameProcess _exec;
     private readonly WindowCallRunner? _window;
+    private readonly WindowLossWatch? _watch;
     private bool _disposed;
 
-    private GameCalls(GameProcess exec, WindowCallRunner? window, GameCaller caller, CallTransport transport)
+    private GameCalls(GameProcess exec, WindowCallRunner? window, WindowLossWatch? watch, GameCaller caller, CallTransport transport)
     {
         _exec = exec;
         _window = window;
+        _watch = watch;
         Caller = caller;
         Actions = new DirectCallActions(caller);
         Transport = transport;
     }
 
     public CallTransport Transport { get; }
+
+    /// <summary>Связь с окном игры потеряна (несколько вызовов подряд не дошли) — дальше вызывать бесполезно; null — всё в порядке.</summary>
+    public string? Broken => _watch?.Broken;
 
     /// <summary>Функции клиента: какие найдены, какие нет (для предупреждений в лог).</summary>
     public GameCaller Caller { get; }
@@ -73,8 +78,9 @@ public sealed class GameCalls : IDisposable
         }
 
         problem = "";
-        var caller = new GameCaller(game, window ?? (IRemoteRunner)exec, game.MainModuleBase, profile);
-        return new GameCalls(exec, window, caller, transport);
+        var watch = window is null ? null : new WindowLossWatch(window);
+        var caller = new GameCaller(game, watch ?? (IRemoteRunner)exec, game.MainModuleBase, profile);
+        return new GameCalls(exec, window, watch, caller, transport);
     }
 
     /// <summary>Вернуть окну игры прежний обработчик и закрыть дескриптор с правом вызова. Повторный вызов ничего не делает.</summary>

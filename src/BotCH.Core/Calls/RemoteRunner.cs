@@ -9,6 +9,11 @@ public enum RemoteRunStatus
     Failed,
     /// <summary>Поток не закончился вовремя. Память оставлена (освободить её под работающим потоком — уронить игру).</summary>
     Timeout,
+    /// <summary>
+    /// Окно игры наших вызовов не принимает: закрыто, пересоздано (например, Alt+Enter) или поверх нашего обработчика стоит
+    /// чужой. В игре ничего не выполнено.
+    /// </summary>
+    WindowLost,
 }
 
 public sealed record RemoteRunResult(RemoteRunStatus Status, string Details = "")

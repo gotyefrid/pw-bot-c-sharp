@@ -89,9 +89,9 @@ public class RunningBotTests
         }
     }
 
-    private RunningBot Start(Func<DateTime, bool>? outOfMemory = null)
+    private RunningBot Start(Func<DateTime, bool>? outOfMemory = null, Func<string?>? broken = null)
     {
-        var bot = new RunningBot(_feed, _brain, _calls, outOfMemory);
+        var bot = new RunningBot(_feed, _brain, _calls, outOfMemory, broken);
         bot.Start();
         return bot;
     }
@@ -187,6 +187,21 @@ public class RunningBotTests
         bot.Dispose();
 
         Assert.Equal(["сброс", "закрыты"], Events());
+    }
+
+    [Fact]
+    public void LostWindowAfterMoveAsksToStopOnceAndMakesNoMoreMoves()
+    {
+        // Связь с окном игры потеряна — бот не делает вид, что работает: просит остановку с причиной
+        using var bot = Start(broken: () => "связь с окном игры потеряна");
+        var reasons = new List<string>();
+        bot.StopRequested += reasons.Add;
+
+        _feed.Push(_world);
+        _feed.Push(_world);
+
+        Assert.Equal(["связь с окном игры потеряна"], reasons);
+        Assert.Equal(["вызов"], Events());
     }
 
     [Fact]
