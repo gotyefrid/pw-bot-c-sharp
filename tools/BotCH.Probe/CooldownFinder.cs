@@ -21,7 +21,7 @@ internal static class CooldownFinder
 {
     private sealed record Region(string Name, uint Address, int Size);
 
-    public static int Find(IServerProfile profile, string[] args)
+    public static int Find(ServerProfile profile, string[] args)
     {
         using var game = Program.OpenClient(args, GameProcessRights.Execute);
         var data = profile.Data;

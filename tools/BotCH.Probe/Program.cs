@@ -346,14 +346,14 @@ internal static class Program
         return failed == 0 ? 0 : 5;
     }
 
-    private static int WithClient(string[] args, Func<IServerProfile, GameProcess, int> command)
+    private static int WithClient(string[] args, Func<ServerProfile, GameProcess, int> command)
     {
         var profile = LoadProfile(args);
         using var game = OpenClient(args);
         return command(profile, game);
     }
 
-    private static IServerProfile LoadProfile(string[] args)
+    private static ServerProfile LoadProfile(string[] args)
     {
         var index = Array.IndexOf(args, "--server");
         var id = index >= 0 && index + 1 < args.Length ? args[index + 1] : "pwclassic136";

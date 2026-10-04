@@ -15,7 +15,7 @@ namespace BotCH.Probe;
 /// <summary>Снимок мира: печать, слежение, самопроверка. Только чтение.</summary>
 internal static class WorldCommands
 {
-    public static int Snapshot(IServerProfile profile, GameProcess game)
+    public static int Snapshot(ServerProfile profile, GameProcess game)
     {
         var reader = CreateReader(profile, game, out var names);
         Console.WriteLine(names.Count > 0 ? $"Названия скиллов: {names.Count} из {Path.GetFileName(names.Source)}" : "Названия скиллов не прочитаны");
@@ -24,7 +24,7 @@ internal static class WorldCommands
     }
 
     /// <summary>Снимок раз в <paramref name="periodMs"/> мс до Ctrl+C; показывает только перса, цель и ближайших.</summary>
-    public static int Watch(IServerProfile profile, GameProcess game, int periodMs = 300)
+    public static int Watch(ServerProfile profile, GameProcess game, int periodMs = 300)
     {
         var reader = CreateReader(profile, game, out _);
         // Как видит бот: застрявшая после отагра цель снята, «идёт к нам» проставлено
@@ -58,7 +58,7 @@ internal static class WorldCommands
     }
 
     /// <summary>Читает снимок и проверяет, что значения разумные. Плюс замер скорости.</summary>
-    public static int SelfTest(IServerProfile profile, GameProcess game)
+    public static int SelfTest(ServerProfile profile, GameProcess game)
     {
         var reader = CreateReader(profile, game, out var names);
         var world = reader.Read();
@@ -141,7 +141,7 @@ internal static class WorldCommands
     /// Снимает дамп: читает снимок через <see cref="RecordingMemory"/> и сохраняет только реально прочитанные байты
     /// (остальное на страницах — нули, лишнего из памяти клиента в файл не попадает). Рядом — текстовый снимок для сверки.
     /// </summary>
-    public static int Dump(IServerProfile profile, GameProcess game, string[] args)
+    public static int Dump(ServerProfile profile, GameProcess game, string[] args)
     {
         var path = args.FirstOrDefault(a => a.EndsWith(".dump", StringComparison.OrdinalIgnoreCase)) ?? $"world-{profile.Id}.dump";
         var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out _);
@@ -164,7 +164,7 @@ internal static class WorldCommands
     private static string Height(Offset offset)
         => Math.Abs(offset.Vertical) < 5 ? "" : $"{(offset.Vertical > 0 ? "↑" : "↓")}{Math.Abs(offset.Vertical):0}";
 
-    private static WorldReader CreateReader(IServerProfile profile, GameProcess game, out SkillNames names)
+    private static WorldReader CreateReader(ServerProfile profile, GameProcess game, out SkillNames names)
     {
         names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out var problem);
         if (problem is not null)

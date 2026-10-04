@@ -40,7 +40,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // Подключение к клиенту: снимки, unfreeze и бот (он принадлежит подключению — окно только просит запустить и остановить)
     private ClientConnection? _connection;
-    private IServerProfile _profile;
+    private ServerProfile _profile;
     private bool _refreshing;
 
     // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\BotCH\resources.json), копятся в любом режиме
@@ -94,9 +94,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Подключение ──────────────────────────────────────────────────────────
 
-    public IReadOnlyList<IServerProfile> Servers { get; }
+    public IReadOnlyList<ServerProfile> Servers { get; }
 
-    public IServerProfile SelectedServer
+    public ServerProfile SelectedServer
     {
         get => _profile;
         set

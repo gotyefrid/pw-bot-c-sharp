@@ -44,7 +44,7 @@ internal static class ActCommands
           act fly-to <dx> <dy> <dh>  в воздухе: лететь на dx, dy метров в сторону и dh вверх (минус — вниз), не дальше 100 м
         """;
 
-    public static int Act(IServerProfile profile, string[] args)
+    public static int Act(ServerProfile profile, string[] args)
     {
         if (args.Length == 0)
         {

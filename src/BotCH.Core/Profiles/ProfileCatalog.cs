@@ -34,7 +34,7 @@ public sealed class ProfileCatalog
             .OrderBy(n => n)
             .ToList();
 
-    public IServerProfile Load(string id)
+    public ServerProfile Load(string id)
     {
         var json = ReadOverride(id) ?? ReadEmbedded(id)
                    ?? throw new ArgumentException($"Неизвестный сервер «{id}». Есть: {string.Join(", ", Ids)}");
@@ -52,7 +52,7 @@ public sealed class ProfileCatalog
         if (data.Id != id)
             throw new FormatException($"В профиле «{id}» указан id «{data.Id}»");
 
-        return new DataServerProfile(data);
+        return new ServerProfile(data);
     }
 
     private static Assembly Assembly => typeof(ProfileCatalog).Assembly;

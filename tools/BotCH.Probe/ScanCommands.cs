@@ -17,7 +17,7 @@ internal static class ScanCommands
     /// Ищет в структуре указатели на строки UTF-16 (прямые [+x] и через ещё один указатель [[+x]]).
     /// Цель: адрес (0x...) или «mob» — объект ближайшего моба (тип 6).
     /// </summary>
-    public static int ScanStrings(IServerProfile profile, GameProcess game, string[] args)
+    public static int ScanStrings(ServerProfile profile, GameProcess game, string[] args)
     {
         var what = args.FirstOrDefault(a => a.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || a is "mob" or "npc" or "item") ?? "mob";
         var size = 0x800u;
@@ -70,7 +70,7 @@ internal static class ScanCommands
     /// Ищет в структуре персонажа int32 с заданным значением (поиск поля «до/после»): scanint 490 [ещё значения...].
     /// Повторить после изменения значения в игре — настоящее поле останется в обоих списках.
     /// </summary>
-    public static int ScanInt(IServerProfile profile, GameProcess game, string[] args)
+    public static int ScanInt(ServerProfile profile, GameProcess game, string[] args)
     {
         var values = args.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
         var world = new WorldReader(game, game.MainModuleBase, profile.Data).Read();
@@ -90,7 +90,7 @@ internal static class ScanCommands
     /// Ищет поле-«свойство вида» в структуре мобов (например, уровень): int в [min..max], одинаковый у всех мобов
     /// с одним названием и разный хотя бы у двух видов. Нужны рядом мобы двух и более видов, лучше по нескольку штук.
     /// </summary>
-    public static int MobFields(IServerProfile profile, GameProcess game, string[] args)
+    public static int MobFields(ServerProfile profile, GameProcess game, string[] args)
     {
         var numbers = args.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
         int min = numbers.Count > 0 ? numbers[0] : 1, max = numbers.Count > 1 ? numbers[1] : 150;
