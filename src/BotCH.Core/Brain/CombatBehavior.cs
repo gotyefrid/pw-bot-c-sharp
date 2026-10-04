@@ -27,7 +27,8 @@ public enum CombatState
 /// (клиент сам подводит), пауза 0.7–1.3 с. Кончился — ход отдаём (первым решает копание ресурсов).</item>
 /// </list>
 /// </summary>
-/// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета.</param>
+/// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета, —
+/// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма).</param>
 public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 {
     private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(5);
@@ -207,15 +208,18 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         return Attack(c, mob);
     }
 
-    // Правила выбора цели из настроек: «сначала тех, кто бьёт» и «снимать с меня петом» (только с призванным петом)
+    // Правила выбора цели: «сначала тех, кто бьёт» (из настроек; при «только защите» — всегда: кроме напавших, бить некого)
+    // и «снимать с меня петом» (только с призванным петом)
+    private bool HitsUsFirst(BrainContext c) => defendOnly || c.Settings.Target.PreferAggressive;
+
     private static bool PetTakesAggro(BrainContext c)
         => c.Settings.Target.PetTakesAggro && c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
 
-    private static NpcInfo? MostDangerous(BrainContext c, out Threat threat)
-        => TargetSelector.MostDangerous(c.World, c.Settings.Target.PreferAggressive, PetTakesAggro(c), out threat);
+    private NpcInfo? MostDangerous(BrainContext c, out Threat threat)
+        => TargetSelector.MostDangerous(c.World, HitsUsFirst(c), PetTakesAggro(c), out threat);
 
-    private static Threat ThreatOf(BrainContext c, NpcInfo mob)
-        => TargetSelector.ThreatOf(mob, c.World, c.Settings.Target.PreferAggressive, PetTakesAggro(c));
+    private Threat ThreatOf(BrainContext c, NpcInfo mob)
+        => TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c));
 
     private bool Attack(BrainContext c, NpcInfo mob)
     {
@@ -335,7 +339,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
             return LootDone();
 
         // Напали — лут подождёт
-        if (c.Settings.Target.PreferAggressive && TargetSelector.Aggressor(w) is { } aggressor)
+        if (HitsUsFirst(c) && TargetSelector.Aggressor(w) is { } aggressor)
         {
             c.Log.Info($"{aggressor.Name} напал во время лута — сначала бой");
             return BackToSearch(c);

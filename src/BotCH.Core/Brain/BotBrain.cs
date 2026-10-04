@@ -30,7 +30,8 @@ public sealed class BotBrain : IBotRunner
         IReadOnlyCollection<uint>? gatherTools = null, BotMode mode = BotMode.FarmMobs, int routeStart = 0)
     {
         _mode = mode;
-        _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = Effective(settings) };
+        // Копия: окно может менять свои дальше
+        _context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
         Survival = new SurvivalBehavior();
         if (mode == BotMode.GatherResources)
         {
@@ -51,9 +52,6 @@ public sealed class BotBrain : IBotRunner
     }
 
     private readonly BotMode _mode;
-
-    // Копия (окно может менять свои дальше); у обхода — напавших бьём всегда
-    private BotSettings Effective(BotSettings settings) => _mode == BotMode.GatherResources ? settings.ForGathering() : settings.Clone();
 
     public SurvivalBehavior Survival { get; }
     public PetBehavior Pet { get; }
@@ -80,7 +78,7 @@ public sealed class BotBrain : IBotRunner
     public void UpdateSettings(BotSettings settings)
     {
         lock (_lock)
-            _newSettings = Effective(settings);
+            _newSettings = settings.Clone();
     }
 
     public void Tick(WorldState world)

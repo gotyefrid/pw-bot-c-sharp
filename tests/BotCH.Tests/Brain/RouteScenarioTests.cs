@@ -543,6 +543,19 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void DefendsEvenWhenFarmSettingSaysNotToPreferAttackers()
+    {
+        // «Сначала тех, кто бьёт меня» — настройка фарма; обход отбивается всегда
+        _settings.Target.PreferAggressive = false;
+        Route(0, 300);
+        _world.AddMob(0x80000002, "Кабан", 5, targetWid: FakeWorld.HostWid);
+
+        Tick();
+
+        Assert.Contains("select 80000002", _actions.Calls);
+    }
+
+    [Fact]
     public void UnreachablePointIsSkipped()
     {
         Route(50, 100);

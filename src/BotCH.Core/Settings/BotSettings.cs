@@ -25,17 +25,6 @@ public sealed class BotSettings
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
 
-    /// <summary>
-    /// С чем работает обход ресурсов: бой, лут, банки и пет — общие с фармом (вкладка «Общее»); напавших бьём всегда,
-    /// поэтому «сначала тех, кто бьёт меня» (настройка фарма мобов) включено.
-    /// </summary>
-    public BotSettings ForGathering()
-    {
-        var s = Clone();
-        s.Target.PreferAggressive = true;
-        return s;
-    }
-
     /// <summary>Приводит значения к допустимым (после ручной правки файла или старой версии).</summary>
     public BotSettings Normalize()
     {
