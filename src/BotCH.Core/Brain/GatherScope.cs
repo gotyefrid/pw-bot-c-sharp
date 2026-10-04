@@ -5,7 +5,7 @@ using BotCH.Core.World;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Что и где копает <see cref="GatherBehavior"/>. Фарм мобов — по списку лута в радиусе фарма (<see cref="FarmArea"/>);
+/// Что и где копает <see cref="GatherBehavior"/>. Фарм мобов — по своему списку ресурсов в радиусе фарма (<see cref="FarmArea"/>);
 /// обход — по списку обхода у текущей точки (<see cref="RouteBehavior.Scope"/>).
 /// </summary>
 /// <param name="enabled">Копать ли вообще.</param>
@@ -23,7 +23,7 @@ public sealed class GatherScope(
     Func<BrainContext, Position, NpcInfo?>? guard = null)
 {
     public static readonly GatherScope FarmArea = new(
-        c => c.Settings.Loot is { Enabled: true, PickResources: true },
+        c => c.Settings.Loot.PickResources,
         (c, p) => c.InFarmArea(p),
         (c, name) => LootFilter.AllowsGather(c.Settings.Loot, name),
         (c, name) => LootFilter.ListsForGather(c.Settings.Loot, name));

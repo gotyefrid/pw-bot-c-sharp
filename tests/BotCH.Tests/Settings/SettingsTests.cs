@@ -134,6 +134,19 @@ public class SettingsTests
     }
 
     [Fact]
+    public void FarmResourceListIsSeparateFromLoot()
+    {
+        var s = SettingsJson.Parse("""{ "loot": { "resourceMode": "OnlyListed", "resourceNames": ["Железная руда", " железная руда"] } }""");
+
+        Assert.Equal(LootListMode.OnlyListed, s.Loot.ResourceMode);
+        Assert.Equal(["Железная руда"], s.Loot.ResourceNames);
+        Assert.Empty(s.Loot.ItemNames);
+        var again = SettingsJson.Parse(SettingsJson.Serialize(s)).Loot;
+        Assert.Equal(LootListMode.OnlyListed, again.ResourceMode);
+        Assert.Equal(["Железная руда"], again.ResourceNames);
+    }
+
+    [Fact]
     public void BotWorksWithoutPet()
     {
         // Не друид: пет выключен, остальные настройки не зависят от него

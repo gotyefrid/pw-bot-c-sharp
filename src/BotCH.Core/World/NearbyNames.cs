@@ -25,11 +25,11 @@ public static class NearbyNames
             .ThenBy(n => n.Nearest)
             .ToList();
 
-    /// <summary>Предметы, монеты и ресурсы на земле по названиям — для списка лута (он общий и для копания).</summary>
+    /// <summary>Предметы и монеты на земле по названиям — для списка лута (ресурсы — в <see cref="Resources"/>).</summary>
     public static IReadOnlyList<NameCount> GroundItems(WorldState world)
-        => Group(world.GroundItems.Where(i => i.Name.Length > 0).Select(i => (i.Name, i.Distance)));
+        => Group(world.GroundItems.Where(i => i.Kind != GroundItemKind.Resource && i.Name.Length > 0).Select(i => (i.Name, i.Distance)));
 
-    /// <summary>Ресурсы на земле по названиям (и «нересурсы»: их копают, если назвать явно) — для списка обхода.</summary>
+    /// <summary>Ресурсы на земле по названиям (и «нересурсы»: их копают, если назвать явно) — для списков обхода и фарма.</summary>
     public static IReadOnlyList<NameCount> Resources(WorldState world)
         => Group(world.GroundItems.Where(i => i.Kind == GroundItemKind.Resource && i.Name.Length > 0).Select(i => (i.Name, i.Distance)));
 

@@ -807,7 +807,6 @@ public class BrainScenarioTests
     {
         _settings.Target.KillMobs = true;
         _settings.Combat.UseSword = true;
-        _settings.Loot.Enabled = true;
         _settings.Loot.PickResources = true;
         _world.Bag.Add(new InventoryItem(5, Pickaxe, 0, 1, null, null));
     }
@@ -871,8 +870,8 @@ public class BrainScenarioTests
         _world.Bag.Clear(); // ни кирки,
         _world.BagSlots = 1;
         _world.Bag.Add(new InventoryItem(0, 830, 8, 1, null, null) { MaxCount = 1 }); // ни места в сумке
-        _settings.Loot.ListMode = mode;
-        _settings.Loot.ItemNames = ["Безымянный труп"];
+        _settings.Loot.ResourceMode = mode;
+        _settings.Loot.ResourceNames = ["Безымянный труп"];
         var corpse = AddOre(0xC0000003, 20, "Безымянный труп");
         _world.Ground[_world.Ground.IndexOf(corpse)] = corpse with { Special = true, Mine = new MineInfo(0, 1093, new Dictionary<uint, int>()) };
 
@@ -898,14 +897,42 @@ public class BrainScenarioTests
     public void GatherSkipsResourcesNotInList()
     {
         GatherWithPickaxe();
-        _settings.Loot.ListMode = LootListMode.ExceptListed;
-        _settings.Loot.ItemNames = ["Железная руда"];
+        _settings.Loot.ResourceMode = LootListMode.ExceptListed;
+        _settings.Loot.ResourceNames = ["Железная руда"];
         AddOre(0xC0000001, 5);
         AddOre(0xC0000002, 15, "Залежи камня");
 
         Tick();
 
         Assert.Equal(["gather C0000002"], _actions.Calls);
+    }
+
+    [Fact]
+    public void GatherDoesNotDependOnLoot()
+    {
+        // Лут с мобов не собираем (и список лута «только мех»), а ресурсы копаем — у них свой выбор
+        GatherWithPickaxe();
+        _settings.Loot.Enabled = false;
+        _settings.Loot.ListMode = LootListMode.OnlyListed;
+        _settings.Loot.ItemNames = ["Мягкий мех"];
+        AddOre(0xC0000001, 5);
+
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
+    [Fact]
+    public void GatherOffDigsNothingEvenWithLootOn()
+    {
+        GatherWithPickaxe();
+        _settings.Loot.PickResources = false;
+        _settings.Loot.Enabled = true;
+        AddOre(0xC0000001, 5);
+
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("gather"));
     }
 
     [Fact]

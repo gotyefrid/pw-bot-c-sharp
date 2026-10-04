@@ -105,6 +105,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
         RouteNames.CollectionChanged += (_, _) => RouteNamesEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
+        FarmResourceNames.CollectionChanged += (_, _) => NameListsEdited();
         DangerNames.CollectionChanged += (_, _) => NameListsEdited();
 
         RefreshCommand = new RelayCommand(RefreshClients);
@@ -386,6 +387,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Предметы для белого/чёрного списка лута.</summary>
     public ObservableCollection<string> LootNames { get; } = new();
 
+    /// <summary>Ресурсы для белого/чёрного списка копания в радиусе фарма (варианты — <see cref="RouteOptions"/>).</summary>
+    public ObservableCollection<string> FarmResourceNames { get; } = new();
+
     /// <summary>Опасные мобы обхода по названию (боссы) — выбираются из мобов вокруг.</summary>
     public ObservableCollection<string> DangerNames { get; } = new();
 
@@ -421,6 +425,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             LootNames.Clear();
             foreach (var name in _settings.Loot.ItemNames)
                 LootNames.Add(name);
+            FarmResourceNames.Clear();
+            foreach (var name in _settings.Loot.ResourceNames)
+                FarmResourceNames.Add(name);
             DangerNames.Clear();
             foreach (var name in _settings.Route.DangerMobs)
                 DangerNames.Add(name);
@@ -439,6 +446,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _settings.Target.MobNames = MobNameFilter.Clean(MobNames);
         _settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
+        _settings.Loot.ResourceNames = MobNameFilter.Clean(FarmResourceNames);
         _settings.Route.DangerMobs = MobNameFilter.Clean(DangerNames);
         SettingsEdited();
     }
@@ -740,7 +748,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Варианты: ресурсы рядом (и «нересурсы» — их можно копать, если назвать), потом известные по блокноту.</summary>
+    /// <summary>
+    /// Варианты ресурсов (для точки обхода и для копания в фарме): рядом (и «нересурсы» — их можно копать, если назвать), потом
+    /// известные по блокноту.
+    /// </summary>
     public Func<IReadOnlyList<PickOption>> RouteOptions
         => () => PickOptions(
             _lastWorld is null ? [] : NearbyNames.Resources(_lastWorld),
@@ -1131,7 +1142,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 ? kind with { MinLevel = Math.Min(seen.MinLevel, kind.MinLevel), MaxLevel = Math.Max(seen.MaxLevel, kind.MaxLevel) }
                 : kind;
         }
-        foreach (var item in w.GroundItems.Where(i => i.Name.Length > 0))
+        foreach (var item in w.GroundItems.Where(i => i.Kind != GroundItemKind.Resource && i.Name.Length > 0))
             _seenItems.Add(item.Name.Trim());
         var h = w.Host;
         if (h.Name.Length > 0)

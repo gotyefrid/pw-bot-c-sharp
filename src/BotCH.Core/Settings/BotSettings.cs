@@ -54,6 +54,7 @@ public sealed class BotSettings
         Target.FarmCenter = Target.FarmCenter?.Trim() ?? "";
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
+        Loot.ResourceNames = MobNameFilter.Clean(Loot.ResourceNames);
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
         Loot.Radius = Clamp(Loot.Radius, 1, 30);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
@@ -194,15 +195,10 @@ public sealed class RoutePoint
     public static RoutePoint At(string name, Position p) => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height };
 
     /// <summary>Обычный ресурс копать здесь.</summary>
-    public bool Wants(string? name) => ListMode switch
-    {
-        LootListMode.OnlyListed => MobNameFilter.Contains(Resources, name),
-        LootListMode.ExceptListed => !MobNameFilter.Contains(Resources, name),
-        _ => true,
-    };
+    public bool Wants(string? name) => LootFilter.ByList(ListMode, Resources, name);
 
     /// <summary>«Нересурс» (квестовый, особый) назван явно — копать без условий; «кроме списка» значит «не трогать».</summary>
-    public bool Lists(string? name) => ListMode != LootListMode.ExceptListed && MobNameFilter.Contains(Resources, name);
+    public bool Lists(string? name) => LootFilter.NamedExplicitly(ListMode, Resources, name);
 
     /// <summary>Для лога и окна: «все ресурсы», «только: …», «кроме: …».</summary>
     public string Describe() => ListMode switch
@@ -294,14 +290,23 @@ public sealed class LootSettings
     public bool PickMoney { get; set; } = true;
     public bool PickItems { get; set; } = true;
 
-    /// <summary>Копать ресурсы в радиусе фарма: сначала все ресурсы, потом мобы. Нужна кирка в сумке. Список — общий с лутом.</summary>
+    /// <summary>
+    /// Копать ресурсы в радиусе фарма: сначала все ресурсы, потом мобы. Нужна кирка в сумке. Не зависит от <see cref="Enabled"/>:
+    /// можно копать, не подбирая лут с мобов, и наоборот. Что копать — <see cref="ResourceMode"/> и <see cref="ResourceNames"/>.
+    /// </summary>
     public bool PickResources { get; set; }
 
     /// <summary>Как использовать <see cref="ItemNames"/>: не использовать / только они / все, кроме них.</summary>
     public LootListMode ListMode { get; set; } = LootListMode.All;
 
-    /// <summary>Названия предметов и ресурсов на земле (как в игре: «Мягкий мех», «Железная руда»).</summary>
+    /// <summary>Названия лута с мобов (как в игре: «Мягкий мех»). Ресурсов не касается — у них свой <see cref="ResourceNames"/>.</summary>
     public List<string> ItemNames { get; set; } = [];
+
+    /// <summary>Какие ресурсы копать в радиусе фарма: все / только из <see cref="ResourceNames"/> / все, кроме них.</summary>
+    public LootListMode ResourceMode { get; set; } = LootListMode.All;
+
+    /// <summary>Названия ресурсов для <see cref="ResourceMode"/> («Железная руда»).</summary>
+    public List<string> ResourceNames { get; set; } = [];
 }
 
 public enum LootListMode
@@ -363,29 +368,34 @@ public static class LootFilter
         if (kind == GroundItemKind.Item && !loot.PickItems)
             return false;
 
-        return ByList(loot, name);
+        return ByList(loot.ListMode, loot.ItemNames, name);
     }
 
     public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name);
 
-    /// <summary>Копать ли ресурс: лут включён, «Ресурсы» включены, и список (общий с лутом) разрешает.</summary>
+    /// <summary>Копать ли ресурс в радиусе фарма: «Копать ресурсы» включено, и список ресурсов разрешает (подбор лута ни при чём).</summary>
     public static bool AllowsGather(LootSettings loot, string? name)
-        => loot.Enabled && loot.PickResources && ByList(loot, name);
+        => loot.PickResources && ByList(loot.ResourceMode, loot.ResourceNames, name);
 
     /// <summary>
-    /// Копать ли «нересурс» (квестовый, особый): лут и «Ресурсы» включены, и название явно в списке — в режимах «все» и
-    /// «только из списка». «Кроме списка» значит «эти не трогать».
+    /// Копать ли «нересурс» (квестовый, особый): «Копать ресурсы» включено, и название явно в списке ресурсов — в режимах «все»
+    /// и «только из списка». «Кроме списка» значит «эти не трогать».
     /// </summary>
     public static bool ListsForGather(LootSettings loot, string? name)
-        => loot.Enabled && loot.PickResources && loot.ListMode != LootListMode.ExceptListed && MobNameFilter.Contains(loot.ItemNames, name);
+        => loot.PickResources && NamedExplicitly(loot.ResourceMode, loot.ResourceNames, name);
 
-    private static bool ByList(LootSettings loot, string? name)
-        => loot.ListMode switch
+    /// <summary>Пропускает ли список: «все» — всех, «только» — названных, «кроме» — всех, кроме названных.</summary>
+    public static bool ByList(LootListMode mode, IReadOnlyCollection<string> names, string? name)
+        => mode switch
         {
-            LootListMode.OnlyListed => MobNameFilter.Contains(loot.ItemNames, name),
-            LootListMode.ExceptListed => !MobNameFilter.Contains(loot.ItemNames, name),
+            LootListMode.OnlyListed => MobNameFilter.Contains(names, name),
+            LootListMode.ExceptListed => !MobNameFilter.Contains(names, name),
             _ => true,
         };
+
+    /// <summary>Название явно выбрано (в режимах «все» и «только»); «кроме списка» — значит «не трогать».</summary>
+    public static bool NamedExplicitly(LootListMode mode, IReadOnlyCollection<string> names, string? name)
+        => mode != LootListMode.ExceptListed && MobNameFilter.Contains(names, name);
 }
 
 /// <summary>Сравнение названий (мобов, предметов): без учёта регистра и пробелов по краям.</summary>

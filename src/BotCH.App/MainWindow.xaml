@@ -356,7 +356,23 @@
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
             </DockPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Копать ресурсы в радиусе фарма" IsChecked="{Binding Settings.Loot.PickResources}"
-                      ToolTip="Сначала все ресурсы, потом мобы. Что копать — по списку лута (вкладка «Общее»). Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше" />
+                      ToolTip="Сначала все ресурсы, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше. Сбор лута с мобов (вкладка «Общее») на это не влияет" />
+            <StackPanel Margin="0,4,0,8" Visibility="{Binding Settings.Loot.PickResources, Converter={StaticResource Visible}}">
+              <DockPanel>
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding Settings.Loot.ResourceMode}"
+                          ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="Что копать" VerticalAlignment="Center" />
+              </DockPanel>
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding FarmResourceNames}" Options="{Binding RouteOptions}"
+                             Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
+                             ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
+            </StackPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
             <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
                            Selected="{Binding MobNames}" Options="{Binding MobOptions}"
@@ -430,7 +446,7 @@
             </DockPanel>
             <app:TagPicker Margin="0,4,0,0" Selected="{Binding LootNames}" Options="{Binding LootOptions}"
                            Placeholder="Предметы не выбраны" EmptyOptionsText="На земле ничего нет — дождитесь лута"
-                           ToolTip="Варианты — предметы и ресурсы на земле вокруг и те, что встречались за сессию" />
+                           ToolTip="Только лут с мобов. Варианты — предметы на земле вокруг и те, что встречались за сессию. Ресурсы — в режиме фарма, под «Копать ресурсы»" />
           </StackPanel>
         </Border>
 
