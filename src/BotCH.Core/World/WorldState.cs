@@ -56,6 +56,7 @@ public readonly record struct Offset(float Horizontal, float Vertical)
 /// Всё, на чём бот принимает решения, прочитанное одним проходом. Неизменяемый: читается целиком, потом передаётся мозгу.
 /// Расстояния до мобов и предметов (<see cref="NpcInfo.Offset"/>, <see cref="GroundItem.Offset"/>) — от персонажа в этом
 /// снимке: привязывает их только сборка снимка (этот конструктор), поэтому они не расходятся с позициями.
+/// <see cref="Time"/> — когда прочитан, всемирное время (UTC); в местное — только для показа.
 /// </summary>
 public sealed record WorldState(
     DateTime Time,

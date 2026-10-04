@@ -447,7 +447,8 @@ public class SpotBookTests : IDisposable
     public void JournalWritesHeaderOnceAndOneLinePerEvent()
     {
         var journal = new SpotJournal(_file);
-        var e = new SpotEvent(new DateTime(2026, 10, 3, 13, 55, 16), SpotEventKind.Respawned, "Высохший древесный корень", 0xC0100E80,
+        var time = new DateTime(2026, 10, 3, 10, 55, 16, DateTimeKind.Utc);
+        var e = new SpotEvent(time, SpotEventKind.Respawned, "Высохший древесный корень", 0xC0100E80,
             new Position(-136.7f, 237.3f, 71.5f), new Position(-140.1f, 236.1f, 53.4f), 18.4f, TimeSpan.FromMinutes(10.27), 35.2f);
         journal.Write(e, "comeback146", "ClaudeCot");
         journal.Write(e with { Kind = SpotEventKind.Dug, SinceDug = null }, "comeback146", "ClaudeCot");
@@ -455,8 +456,30 @@ public class SpotBookTests : IDisposable
         var lines = File.ReadAllLines(_file);
         Assert.Equal(3, lines.Length);
         Assert.StartsWith("время;сервер;персонаж;событие", lines[0]);
-        Assert.Equal("2026-10-03 13:55:16;comeback146;ClaudeCot;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2;;;", lines[1]);
+        // Время снимка всемирное, в журнале — местное (для людей)
+        Assert.Equal($"{time.ToLocalTime():yyyy-MM-dd HH:mm:ss};comeback146;ClaudeCot;появился;Высохший древесный корень;0xC0100E80;-136.7;71.5;237.3;-140.1;53.4;18.4;10.27;35.2;;;", lines[1]);
         Assert.Contains(";выкопан;", lines[2]);
+    }
+
+    [Fact]
+    public void StoreKeepsUniversalTimeAndReadsOldLocalTime()
+    {
+        // До перехода на всемирное время копии бота писали местное с поясом — читается правильно, пишется с «Z»
+        File.WriteAllText(_file, """
+            { "version": 1, "spots": [ { "name": "Шалфей", "lastSeen": "2026-10-03T16:11:45+03:00",
+              "gone": { "comeback136": "2026-10-04T12:00:00+03:00" } } ] }
+            """);
+        var store = new SpotBookStore(_file);
+
+        var spot = Assert.Single(store.Load(out _));
+        Assert.Equal(new DateTime(2026, 10, 3, 13, 11, 45, DateTimeKind.Utc), spot.LastSeen);
+        Assert.Equal(DateTimeKind.Utc, spot.LastSeen!.Value.Kind);
+        Assert.Equal(new DateTime(2026, 10, 4, 9, 0, 0, DateTimeKind.Utc), spot.GoneOn("comeback136"));
+
+        store.Save([spot]);
+        var text = File.ReadAllText(_file);
+        Assert.Contains("\"lastSeen\": \"2026-10-03T13:11:45Z\"", text);
+        Assert.Contains("\"comeback136\": \"2026-10-04T09:00:00Z\"", text);
     }
 
     [Fact]

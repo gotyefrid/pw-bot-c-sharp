@@ -22,7 +22,7 @@ public sealed class SpotJournal(string path)
     {
         var c = CultureInfo.InvariantCulture;
         var line = string.Join(";",
-            e.Time.ToString("yyyy-MM-dd HH:mm:ss", c), server, character ?? "", KindText(e.Kind), e.Name.Replace(';', ','),
+            e.Time.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss", c), server, character ?? "", KindText(e.Kind), e.Name.Replace(';', ','),
             e.ResourceId == 0 ? "" : $"0x{e.ResourceId:X8}",
             e.At.X.ToString("0.0", c), e.At.Y.ToString("0.0", c), e.At.Height.ToString("0.0", c),
             e.Center.X.ToString("0.0", c), e.Center.Y.ToString("0.0", c),

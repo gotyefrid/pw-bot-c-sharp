@@ -16,7 +16,8 @@ internal sealed class FakeWorld
     public const uint HostWid = 0x0015A420;
     public const uint PetWid = 0x80116200;
 
-    public DateTime Time { get; private set; } = new(2026, 10, 1, 12, 0, 0);
+    // Как у настоящего снимка — всемирное время
+    public DateTime Time { get; private set; } = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
     public int Hp { get; set; } = 400;
     public int MaxHp { get; set; } = 500;
     public int Mp { get; set; } = 300;

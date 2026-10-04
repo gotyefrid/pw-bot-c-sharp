@@ -18,6 +18,8 @@ public sealed class SpotBookStore(string path)
         MissingMemberHandling = MissingMemberHandling.Ignore,
         NullValueHandling = NullValueHandling.Ignore,
         Formatting = Formatting.Indented,
+        // Время — всемирное: пишется с «Z», старые записи с поясом («+03:00») при чтении переводятся во всемирное
+        DateTimeZoneHandling = DateTimeZoneHandling.Utc,
     };
 
     public string Path { get; } = path;

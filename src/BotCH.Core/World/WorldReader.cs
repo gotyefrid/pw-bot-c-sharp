@@ -58,7 +58,9 @@ public sealed class WorldReader
     public WorldState Read()
     {
         var watch = Stopwatch.StartNew();
-        var time = DateTime.Now;
+        // Всемирное время: интервалы не ломает перевод часов (синхронизация, ручная правка), в общий файл ресурсов пишется
+        // одинаково из всех копий бота; в местное — только для показа
+        var time = DateTime.UtcNow;
 
         var game = GameAddress();
         var host = ReadHost(game, out var hostBlock);
