@@ -128,6 +128,9 @@ internal sealed class FakeActions : IGameActions
     public List<string> Calls { get; } = [];
     public CallResult Result { get; set; } = CallResult.Done;
 
+    /// <summary>Вызовы, которые начинаются с этих слов («move», «gather»), не отправляются — отказ, как у клиента без функции.</summary>
+    public HashSet<string> Refuse { get; } = [];
+
     public string Mode => "тест";
 
     public bool CanMove { get; set; } = true;
@@ -139,7 +142,7 @@ internal sealed class FakeActions : IGameActions
     private CallResult Record(string call)
     {
         Calls.Add(call);
-        return Result;
+        return Refuse.Any(call.StartsWith) ? CallResult.Refused($"тест: «{call}» не отправлен") : Result;
     }
 
     public CallResult SelectTarget(uint wid) => Record($"select {wid:X}");

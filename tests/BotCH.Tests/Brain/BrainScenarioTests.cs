@@ -1021,6 +1021,21 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void GatherNotSentSkipsResource()
+    {
+        // Копка не отправляется — ресурс откладываем, а не пробуем на каждом шаге
+        GatherWithPickaxe();
+        _actions.Refuse.Add("gather");
+        AddOre(0xC0000001, 5);
+
+        for (var i = 0; i < 8; i++)
+            Tick();
+
+        Assert.Single(_actions.Calls, c => c.StartsWith("gather"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Железная руда: тест") && e.Message.EndsWith("не копаю 3 мин"));
+    }
+
+    [Fact]
     public void GatherKnockedDownThreeTimesSkipsResource()
     {
         GatherWithPickaxe();
@@ -1356,6 +1371,19 @@ public class BrainScenarioTests
         Assert.Equal(goes ? [$"move ({fromCenter:0.0}; 0,0; h 0,0) умно"] : [], _actions.Calls);
         if (goes)
             Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с — иду в центр фарма"));
+    }
+
+    [Fact]
+    public void ReturnNotSentWaitsBeforeTryingAgain()
+    {
+        // Бег не отправляется (клиент отказал) — пауза, а не попытка на каждом снимке
+        FarmAt(30, radius: 60);
+        _actions.Refuse.Add("move");
+
+        for (var i = 0; i < 64; i++) // 16 с: через 10 с без целей — в центр, отказ, дальше ждём
+            Tick();
+
+        Assert.Single(_actions.Calls, c => c.StartsWith("move"));
     }
 
     [Fact]

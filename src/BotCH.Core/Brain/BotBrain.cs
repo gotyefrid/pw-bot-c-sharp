@@ -103,11 +103,7 @@ public sealed class BotBrain : IBotRunner
                 _context.Log.Info(center + distance);
             }
 
-            foreach (var outcome in _context.Runner.Update(world))
-            {
-                foreach (var behavior in _behaviors)
-                    behavior.OnOutcome(_context, outcome);
-            }
+            Deliver(_context.Runner.Update(world));
 
             if (world.Host.IsDead)
             {
@@ -126,6 +122,7 @@ public sealed class BotBrain : IBotRunner
                     }
                 }
 
+                Deliver(_context.TakeNotSent());
                 SetStatus((acted ?? Combat).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
                 if (_context.StopReason is { } reason)
                 {
@@ -148,12 +145,23 @@ public sealed class BotBrain : IBotRunner
         lock (_lock)
         {
             _context.Runner.Clear();
+            _context.TakeNotSent();
             _context.StartPosition = null;
             _context.StopReason = null;
             _centerText = null;
             foreach (var behavior in _behaviors)
                 behavior.Reset();
             SetStatus("ожидание");
+        }
+    }
+
+    // Итоги действий — всем поведениям (каждое берёт своё): и завершившиеся по снимку, и «не отправлено»
+    private void Deliver(IReadOnlyList<ActionOutcome> outcomes)
+    {
+        foreach (var outcome in outcomes)
+        {
+            foreach (var behavior in _behaviors)
+                behavior.OnOutcome(_context, outcome);
         }
     }
 

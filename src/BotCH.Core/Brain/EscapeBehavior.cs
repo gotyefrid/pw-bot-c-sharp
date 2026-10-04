@@ -32,6 +32,8 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
     private bool _recallTried;
     private bool _fighting;
     private MoveAction? _climb;
+    // Свой взлёт: по его итогу (не по чужому взлёту маршрута) решаем, уходить или драться
+    private FlyAction? _fly;
     // Отстали, а цель застряла на нас: не трогаем, пока снова не ударит
     private readonly HashSet<uint> _shaken = [];
 
@@ -57,7 +59,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
             return false;
         if (_from is null || _from.Wid != threat.Wid && !_fighting)
         {
-            (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null);
+            (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb, _fly) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null, null);
             combat.Reset();
             c.Log.Warning($"Напал опасный {threat.Name} (ур. {threat.Level}) — улетаю вверх");
         }
@@ -95,7 +97,12 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         if (w.Host.Flying == false)
         {
             Status = $"взлетаю — напал {threat.Name}";
-            return c.Submit(new FlyAction(up: true) { Priority = ActionPriority.Urgent });
+            var fly = new FlyAction(up: true) { Priority = ActionPriority.Urgent };
+            var takeoff = c.Send(fly);
+            // Свой — и ушедший, и не отправленный (его отказ тоже придёт в OnOutcome); «уже ждёт» — это прежний
+            if (takeoff is SubmitStatus.Sent or SubmitStatus.Failed)
+                _fly = fly;
+            return takeoff is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
         }
 
         if (_climb is not null && c.Runner.Pending.Contains(_climb))
@@ -156,10 +163,14 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
-        if (_from is null || _fighting || outcome.Status != ActionStatus.Failed)
+        if (_from is null || _fighting)
             return;
-        // Взлёт или подъём не выходит (нет полётника, нельзя в воде…) — значит, бой
-        if (outcome.Action is FlyAction || outcome.Action == _climb)
+        // Только свои действия: взлёт маршрута — не наш. Взлёт не вышел — значит, бой. Без полётника клиент на кнопку
+        // «Полёт» молча ничего не делает: вызов проходит, а взлёта нет — итог «нет подтверждения» за 5 с, не «не отправлено»
+        if (outcome.Action == _fly && outcome.Status is ActionStatus.Failed or ActionStatus.Rejected or ActionStatus.Timeout)
+            GiveUp(c, outcome.Details);
+        // Подъём не отправился (не в воздухе, нельзя лететь в точку)
+        else if (outcome.Action == _climb && outcome.Status == ActionStatus.Failed)
             GiveUp(c, outcome.Details);
     }
 
@@ -168,6 +179,7 @@ public sealed class EscapeBehavior(RouteBehavior route, CombatBehavior combat) :
         _from = null;
         _fighting = false;
         _climb = null;
+        _fly = null;
     }
 
     public void Reset()

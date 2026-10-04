@@ -13,12 +13,33 @@ public sealed class BrainContext
 {
     private readonly Dictionary<string, DateTime> _lastSaid = [];
 
+    // Отказы при отправке («не отправлено») — исполнитель отдаёт их сразу, посреди хода поведения. Раздать поведениям
+    // можно только после их хода (BotBrain), иначе OnOutcome сработает посреди чужого (или своего же) Tick
+    private readonly List<ActionOutcome> _notSent = [];
+
     internal BrainContext(ActionRunner runner, ClassSkills skills, ILogger log, Random random)
     {
         Runner = runner;
         Skills = skills;
         Log = log;
         Random = random;
+        // Ловим на исполнителе, а не в Submit: отправляют и в обход (Runner.Replace) — отказ не должен теряться нигде
+        runner.Completed += outcome =>
+        {
+            if (outcome.Status == ActionStatus.Failed)
+                _notSent.Add(outcome);
+        };
+    }
+
+    /// <summary>Отказы при отправке за этот ход — мозг раздаёт их поведениям после их хода. Очередь очищается.</summary>
+    internal IReadOnlyList<ActionOutcome> TakeNotSent()
+    {
+        if (_notSent.Count == 0)
+            return [];
+
+        var taken = _notSent.ToArray();
+        _notSent.Clear();
+        return taken;
     }
 
     public ActionRunner Runner { get; }

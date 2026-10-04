@@ -396,6 +396,46 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void WithoutFlightMountBotFightsWhenTakeoffNeverHappens()
+    {
+        // Полётника нет: клиент на «Полёт» молча ничего не делает — взлёт не подтвердился за 5 с, значит, дерёмся,
+        // а не жмём «Полёт» снова минуту, пока моб бьёт
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _actions.Calls.Clear();
+
+        for (var i = 0; i < 24; i++) // 6 с: взлёт ждёт подтверждения 5 с
+            Tick();
+
+        Assert.Equal(["fly-toggle", "select 80000001"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл от Тигр") && e.Message.EndsWith("дерусь"));
+    }
+
+    [Fact]
+    public void TakeoffNotSentBotFightsAtOnce()
+    {
+        // Взлёт не отправился вовсе (клиент отказал) — дерёмся сразу, не ждём
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _actions.Refuse.Add("fly-toggle");
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcInfo.StateAttacking });
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly-toggle", "select 80000001"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл от Тигр"));
+    }
+
+    [Fact]
     public void AfterDiggingBotReturnsToPointAndFliesToNextFromIt()
     {
         // Точки в воздухе на 30 м; выкопали руду у земли в 30 м от точки — к следующей не от руды, а сначала назад на точку
