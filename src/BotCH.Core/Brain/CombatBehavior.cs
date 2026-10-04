@@ -71,6 +71,13 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     {
         if (!defendOnly && !c.Settings.Target.KillMobs)
         {
+            // Выключили посреди боя или лута — бросаем: иначе бой так и висит «дерусь», а копание ждёт его конца
+            if (State != CombatState.Search)
+            {
+                c.Log.Info($"«Бить мобов» выключено — бросаю {(State == CombatState.Fight ? "бой: " + _mobName : "лут")}");
+                State = CombatState.Search;
+                _mob = 0;
+            }
             Status = "бой выключен";
             return false;
         }

@@ -923,6 +923,29 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void KillMobsTurnedOffMidFightLetsGatherGoOn()
+    {
+        // Включили «Бить мобов» ради напавшего, выключили, пока он ещё жив; умер — бой не должен висеть «дерусь», копаем дальше
+        GatherWithPickaxe();
+        var snake = _world.AddMob(0x80000001, "Уж", 3, hp: 100, targetWid: FakeWorld.HostWid);
+        _world.TargetWid = snake.Wid;
+        Tick();
+        Assert.StartsWith("бой", Brain.Combat.Status);
+
+        _settings.Target.KillMobs = false;
+        Brain.UpdateSettings(_settings);
+        Tick();
+        _world.Replace(snake, m => m with { State = NpcInfo.StateDead });
+        _world.TargetWid = 0;
+        AddOre(0xC0000001, 10);
+        _actions.Calls.Clear();
+
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
+    }
+
+    [Fact]
     public void GatherOffDigsNothingEvenWithLootOn()
     {
         GatherWithPickaxe();
