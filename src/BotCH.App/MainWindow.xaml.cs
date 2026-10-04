@@ -18,7 +18,11 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory);
+        _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory)
+        {
+            AskYesNo = text => MessageBox.Show(this, text, "BotCH", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes,
+            Tell = text => MessageBox.Show(this, text, "BotCH", MessageBoxButton.OK, MessageBoxImage.Error),
+        };
         DataContext = _model;
 
         // Лог в RichTextBox: текст можно выделять и копировать

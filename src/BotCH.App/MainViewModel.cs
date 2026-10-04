@@ -29,7 +29,6 @@ namespace BotCH.App;
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private const int MaxLogLines = 500;
-    private static readonly TimeSpan SnapshotPeriod = TimeSpan.FromMilliseconds(250);
 
     private readonly ProfileCatalog _catalog = ProfileCatalog.Default();
     private readonly SettingsStore _store;
@@ -45,18 +44,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly ILogger _connectionLog;
     private readonly Logger _logger;
 
-    private GameProcess? _game;
-    private ClientLock? _clientLock;
-    private WorldMonitor? _monitor;
-    private Unfreezer? _unfreezer;
-    private SkillNames _skillNames = SkillNames.Empty;
+    // Подключение к клиенту: снимки, unfreeze и бот (он принадлежит подключению — окно только просит запустить и остановить)
+    private ClientConnection? _connection;
     private IServerProfile _profile;
     private bool _refreshing;
-
-    // Бот — только пока нажат «Старт». Вызовы в игре — отдельным дескриптором с правом Execute (внутри GameCalls); их закрывает бот
-    private GameCalls? _calls;
-    private IBotRunner? _brain;
-    private RunningBot? _bot;
 
     // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\BotCH\resources.json), копятся в любом режиме
     private static readonly TimeSpan SpotsSaveEvery = TimeSpan.FromSeconds(10);
@@ -109,7 +100,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         DangerNames.CollectionChanged += (_, _) => NameListsEdited();
 
         RefreshCommand = new RelayCommand(RefreshClients);
-        StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning);
+        StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
 
         ClearLogCommand = new RelayCommand(Log.Clear);
@@ -277,60 +268,72 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _isRunning, value);
     }
 
-    public void Start()
+    private bool _isStopping;
+
+    /// <summary>Бот останавливается: дожидается своего хода (вызов в игру — до 5 с). «Старт» пока нельзя.</summary>
+    public bool IsStopping
     {
-        if (IsRunning || _game is null || _monitor is null)
+        get => _isStopping;
+        private set => SetProperty(ref _isStopping, value);
+    }
+
+    /// <summary>Спросить пользователя «да/нет» (окно ставит MessageBox).</summary>
+    public Func<string, bool> AskYesNo { get; set; } = _ => false;
+
+    /// <summary>Сообщить пользователю об ошибке (окно ставит MessageBox).</summary>
+    public Action<string> Tell { get; set; } = _ => { };
+
+    public void Start() => Start(CallTransport.Window);
+
+    private void Start(CallTransport transport)
+    {
+        if (IsRunning || IsStopping || _connection is null)
             return;
 
-        try
+        // Обход — с точки, выбранной в списке (не выбрана — с первой)
+        _settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
+        var result = _connection.StartBot(_settings.Mode, _settings, transport);
+        switch (result.Status)
         {
-            // Вызовы — в главном потоке игры через её окно: из отдельного потока клиент падал на стыке «работ» персонажа
-            _calls = GameCalls.Open(_game, _profile.Data, CallTransport.Window, out var problem);
-            if (_calls is null)
-            {
-                _log.Warning($"Вызовы через окно игры не подключились ({problem}) — вызываю отдельным потоком, клиент может падать");
-                _calls = GameCalls.Open(_game, _profile.Data, CallTransport.Thread, out var threadProblem)
-                         ?? throw new InvalidOperationException(threadProblem);
-            }
-            foreach (var function in _calls.Caller.Functions.Where(f => !f.IsUsable))
-                _log.Warning($"Функция {function.Name} недоступна: {function.Details}");
+            case StartStatus.Started:
+                IsRunning = true;
+                BotState = "Запуск…";
+                _log.Info($"Старт: {BotModes.Title(_settings.Mode)}{(transport == CallTransport.Thread ? " (вызовы отдельным потоком)" : "")}");
+                break;
 
-            var runner = new ActionRunner(_calls.Actions, _logger.For("действия"));
-            // Обход — с точки, выбранной в списке (не выбрана — с первой)
-            _settings.Route.StartIndex = SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
-            _brain = BotModes.Create(_settings.Mode, runner, _profile.Data.Skills, _settings, _logger.For("мозг"), _profile.Data.GatherTools);
-            var memoryLog = _logger.For("память");
-            var guard = new GameMemoryGuard(_game.QueryFreeMemory, memoryLog);
-            if (_game.QueryFreeMemory() is FreeMemory free)
-                memoryLog.Info($"Свободно у игры {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ");
-            _bot = new RunningBot(_monitor, _brain, _calls, guard.ShouldStop);
-            _bot.StatusChanged += status => OnUi(() => BotState = Capitalize(status));
-            _bot.StopRequested += _ => OnUi(Stop);
+            // Основной способ не вышел — сам на поток не переходим (на нём падал 1.4.6): спрашиваем. Выбор не запоминаем
+            case StartStatus.WindowFailed:
+                _log.Warning($"Вызовы через окно игры не подключились: {result.Problem}");
+                if (AskYesNo($"Не удалось подключиться к окну игры ({result.Problem}).\n\nМожно попробовать запасной способ — он работает, " +
+                             "но на некоторых клиентах игра от него падает. Попробовать?"))
+                    Start(CallTransport.Thread);
+                else
+                    _log.Info("Запасной способ не выбран — бот не запущен");
+                break;
 
-            IsRunning = true;
-            BotState = "Запуск…";
-            _log.Info($"Старт: {BotModes.Title(_settings.Mode)}");
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            _log.Error("Не удалось запустить бота: " + e.Message);
-            Stop();
+            default:
+                _log.Error($"Бот не может управлять этим клиентом: {result.Problem}");
+                Tell($"Бот не может управлять этим клиентом:\n{result.Problem}");
+                break;
         }
     }
 
+    /// <summary>Остановить бота: сразу «Останавливаю…», ожидание его хода — в фоне, окно не замирает.</summary>
     public void Stop()
     {
-        // Бот дожидается хода, который идёт, и только потом закрывает вызовы; не дошли до бота (сбой при старте) — закрыть вызовы самим
-        _bot?.Dispose();
-        _bot = null;
-        _brain = null;
-        _calls?.Dispose();
-        _calls = null;
+        if (!IsRunning || _connection is not { } connection)
+            return;
 
-        if (IsRunning)
-            _log.Info("Стоп");
         IsRunning = false;
-        BotState = "Ожидание";
+        IsStopping = true;
+        BotState = "Останавливаю…";
+        connection.StopBotAsync().ContinueWith(_ => OnUi(() =>
+        {
+            _log.Info("Стоп");
+            IsStopping = false;
+            BotState = "Ожидание";
+            CommandManager.InvalidateRequerySuggested();
+        }));
     }
 
     private static string Capitalize(string text) => text.Length == 0 ? text : char.ToUpper(text[0]) + text.Substring(1);
@@ -635,7 +638,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _spotsShown = now;
 
         var here = w.Host.Position;
-        var current = (_brain as BotBrain)?.Route?.Index;
+        var current = (_connection?.Bot?.Brain as BotBrain)?.Route?.Index;
         foreach (var row in RouteRows)
             row.Update(here.HorizontalDistanceTo(row.Point.Position), IsRunning && current == RouteRows.IndexOf(row));
     }
@@ -938,7 +941,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void SettingsEdited()
     {
         SaveCharacter();
-        _bot?.UpdateSettings(_settings);
+        _connection?.Bot?.UpdateSettings(_settings);
     }
 
     private void UpdateAttackSkills(WorldState w)
@@ -1001,7 +1004,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _connectionLog.Warning("Клиенты игры не найдены — запустите игру и нажмите «обновить»");
 
         RenameAll();
-        if (reconnect || SelectedClient?.Pid != _game?.Pid || _game is null || _game.HasExited)
+        if (reconnect || SelectedClient?.Pid != _connection?.Pid || _connection is null || _connection.HasExited)
             Connect(SelectedClient);
     }
 
@@ -1028,22 +1031,19 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         try
         {
-            _game = GameProcess.Open(client.Pid);
-            _clientLock = ClientLock.TryTake(client.Pid);
-            if (_clientLock is null)
-                _connectionLog.Warning($"PID {client.Pid} уже подключён в другом окне BotCH — не запускайте двух ботов на один клиент");
-            var reader = new WorldReader(_game, _game.MainModuleBase, _profile.Data, id => _skillNames.Get(id));
+            var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger);
             _spots.Server = _profile.Id;
-            _monitor = new WorldMonitor(reader.Read, SnapshotPeriod);
-            _monitor.Updated += state => OnUi(() => Show(state));
-            _monitor.Failed += message => OnUi(() => ShowFailure(message));
-            _monitor.Start();
+            connection.WorldUpdated += state => OnUi(() => Show(state));
+            connection.WorldFailed += message => OnUi(() => ShowFailure(message));
+            connection.BotStatusChanged += status => OnUi(() => BotState = Capitalize(status));
+            // Из хода бота — остановку не здесь, а в потоке окна (бот ждёт как раз этот ход)
+            connection.BotStopRequested += _ => OnUi(Stop);
 
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
             _connectionLog.Info($"Подключено: {client.Display}, сервер {_profile.Name}");
-            LoadSkillNamesInBackground(_game.MainModulePath);
-            ApplyUnfreeze();
+            connection.Start();
+            connection.SetUnfreeze(Unfreeze);
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
@@ -1053,65 +1053,29 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    /// <summary>
+    /// Отключиться. Подключение сначала останавливает бота и ждёт его ход — до 7 с в потоке окна: окно может замереть, если
+    /// сменить клиент как раз во время вызова в игру (обычно ожидание — миллисекунды).
+    /// </summary>
     private void Disconnect()
     {
-        Stop();
-        _monitor?.Dispose();
-        _monitor = null;
-        _unfreezer?.Dispose();
-        _unfreezer = null;
-        _game?.Dispose();
-        _game = null;
-        _clientLock?.Dispose();
-        _clientLock = null;
+        var wasRunning = IsRunning;
+        IsRunning = false;
+        _connection?.Dispose();
+        _connection = null;
+        if (wasRunning)
+            _log.Info("Стоп");
+        IsStopping = false;
+        BotState = "Ожидание";
         IsConnected = false;
         ClearWorld();
     }
 
-    private void LoadSkillNamesInBackground(string clientPath)
-    {
-        var pck = _profile.Data.GameFiles.Pck;
-        Task.Run(() =>
-        {
-            var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(clientPath)!, pck, out var problem);
-            _skillNames = names;
-            if (problem is not null)
-                _connectionLog.Warning("Названия скиллов: " + problem);
-            else
-                _connectionLog.Debug($"Названия скиллов: {names.Count}");
-        });
-    }
-
-    private void ApplyUnfreeze()
-    {
-        _unfreezer?.Dispose();
-        _unfreezer = null;
-        if (!Unfreeze || _game is null)
-            return;
-
-        try
-        {
-            _unfreezer = new Unfreezer(_game.Pid, _profile.Data, message => _connectionLog.Warning(message));
-            if (!_unfreezer.IsSupported)
-            {
-                _unfreezer = null;
-                _connectionLog.Info("Unfreeze на этом сервере не нужен — включите в настройках клиента работу в фоне");
-                return;
-            }
-
-            _unfreezer.Start();
-            _connectionLog.Info("Unfreeze включён");
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            _unfreezer = null;
-            _connectionLog.Error("Unfreeze: " + e.Message);
-        }
-    }
+    private void ApplyUnfreeze() => _connection?.SetUnfreeze(Unfreeze);
 
     private void Show(WorldState w)
     {
-        if (_monitor is null)
+        if (_connection is null)
             return;
 
         _lastWorld = w;
@@ -1159,7 +1123,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void ShowFailure(string message)
     {
-        if (_game is { HasExited: true })
+        if (_connection is { HasExited: true })
         {
             _connectionLog.Warning("Клиент игры закрыт");
             Disconnect();
@@ -1274,7 +1238,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _log.Warning($"{nick}: {problem}");
         _log.Info(isNew ? $"Персонаж {nick}: новые настройки (копия общих)" : $"Персонаж {nick}: его настройки загружены");
 
-        _bot?.UpdateSettings(_settings);
+        _connection?.Bot?.UpdateSettings(_settings);
         OnPropertyChanged(nameof(Settings));
         OnPropertyChanged(nameof(GroundPet));
         OnPropertyChanged(nameof(AirPet));

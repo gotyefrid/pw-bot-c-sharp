@@ -89,7 +89,12 @@ public class RunningBotTests
         }
     }
 
-    private RunningBot Start(Func<DateTime, bool>? outOfMemory = null) => new(_feed, _brain, _calls, outOfMemory);
+    private RunningBot Start(Func<DateTime, bool>? outOfMemory = null)
+    {
+        var bot = new RunningBot(_feed, _brain, _calls, outOfMemory);
+        bot.Start();
+        return bot;
+    }
 
     private string[] Events()
     {

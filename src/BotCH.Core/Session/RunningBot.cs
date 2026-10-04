@@ -40,7 +40,16 @@ public sealed class RunningBot : IDisposable
         _outOfMemory = outOfMemory ?? (_ => false);
         brain.StatusChanged += status => StatusChanged?.Invoke(status);
         brain.StopRequested += reason => StopRequested?.Invoke(reason);
-        feed.Updated += OnWorld;
+    }
+
+    /// <summary>Мозг — для окна (номер точки маршрута); управлять им снаружи нельзя.</summary>
+    public IBotRunner Brain => _brain;
+
+    /// <summary>Начать ходить по снимкам. Отдельно от конструктора: сначала подписаться на события бота, потом пойдут ходы.</summary>
+    public void Start()
+    {
+        if (!_stopping)
+            _feed.Updated += OnWorld;
     }
 
     /// <summary>Что делает бот — из потока снимков.</summary>
