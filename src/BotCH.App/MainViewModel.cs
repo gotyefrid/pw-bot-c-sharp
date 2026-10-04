@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
@@ -920,7 +921,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger);
             _spots.Server = _profile.Id;
-            connection.WorldUpdated += state => OnUi(() => Show(state));
+            // Блокноту ресурсов — каждый снимок, прямо в потоке снимков; окну — только последний
+            connection.WorldUpdated += _spots.Observe;
+            connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => OnUi(() => ShowFailure(message));
             connection.BotStatusChanged += status => OnUi(() => BotState = Capitalize(status));
             // Из хода бота — остановку не здесь, а в потоке окна (бот ждёт как раз этот ход)
@@ -950,6 +953,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsRunning = false;
         _connection?.Dispose();
         _connection = null;
+        Interlocked.Exchange(ref _latest, null);
         if (wasRunning)
             _log.Info("Стоп");
         IsStopping = false;
@@ -959,6 +963,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     private void ApplyUnfreeze() => _connection?.SetUnfreeze(Unfreeze);
+
+    // Снимок, который окно ещё не показало. Окно не успевает (4 снимка в секунду) — промежуточные пропускаем: очередь
+    // в поток окна не копится, показывается свежее
+    private WorldState? _latest;
+
+    private void ShowLatest(WorldState state)
+    {
+        if (Interlocked.Exchange(ref _latest, state) is null)
+            OnUi(() =>
+            {
+                if (Interlocked.Exchange(ref _latest, null) is { } world)
+                    Show(world);
+            });
+    }
 
     private void Show(WorldState w)
     {
@@ -1003,7 +1021,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         UpdateAttackSkills(w);
         UpdateFarmPointInfo();
-        _spots.Observe(w);
         ShowSpots(w);
         SnapshotInfo = $"мобов рядом {w.Mobs.Count(m => !m.IsDead)} · лута {w.GroundItems.Count}";
     }
@@ -1082,7 +1099,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _config.SwitchTo(nick);
         Settings.Edited += SettingsEdited;
 
-        _spots.Character = nick;
         _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
         OnPropertyChanged(nameof(GroundPet));

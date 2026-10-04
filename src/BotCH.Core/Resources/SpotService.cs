@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using BotCH.Core.Logging;
 using BotCH.Core.World;
 
@@ -8,9 +9,10 @@ namespace BotCH.Core.Resources;
 
 /// <summary>
 /// Блокнот точек ресурсов вместе с файлами: общий файл точек (в него пишут все копии бота — перед сохранением сливаем с ним),
-/// журнал событий (появился / выкопан / пропал), перенос старого файла из папки бота. Своих потоков нет: его зовут на каждом
-/// снимке из одного потока (окна) — блокноту нужен каждый снимок (прыжок больше 30 м он считает телепортом, начало копки
-/// ловит по переходу «не копал → копает»).
+/// журнал событий (появился / выкопан / пропал), перенос старого файла из папки бота. Своих потоков нет: <see cref="Observe"/>
+/// зовут на каждом снимке из потока снимков (не из окна — окну достаётся только последний снимок, а блокноту нужен каждый:
+/// прыжок больше 30 м он считает телепортом, начало копки ловит по переходу «не копал → копает»). Окно читает точки и
+/// сохраняет при закрытии из своего потока — поэтому всё под одним замком.
 /// </summary>
 public sealed class SpotService
 {
@@ -25,8 +27,10 @@ public sealed class SpotService
     private readonly SpotJournal _journal;
     private readonly ILogger _log;
     private readonly Func<DateTime> _clock;
+    private readonly object _lock = new();
     private DateTime _saved;
     private DateTime _synced;
+    private string? _character;
 
     /// <param name="folder">Общая папка всех копий бота (%AppData%\BotCH): resources.json и resource-events.csv.</param>
     /// <param name="clock">Часы для «раз в 10 с / раз в минуту» (в тестах — подставные).</param>
@@ -44,37 +48,66 @@ public sealed class SpotService
         _saved = _synced = _clock();
     }
 
-    public IReadOnlyList<ResourceSpot> Spots => _book.Spots;
+    /// <summary>Точки сейчас (копия: блокнот тем временем меняется в потоке снимков).</summary>
+    public IReadOnlyList<ResourceSpot> Spots
+    {
+        get
+        {
+            lock (_lock)
+                return _book.Spots.ToList();
+        }
+    }
 
     /// <summary>Сервер, к которому подключены (id точек ресурсов у каждого сервера свои).</summary>
     public string Server
     {
-        get => _book.Server;
-        set => _book.Server = value;
+        get
+        {
+            lock (_lock)
+                return _book.Server;
+        }
+        set
+        {
+            lock (_lock)
+                _book.Server = value;
+        }
     }
-
-    /// <summary>Чей персонаж сейчас — для журнала.</summary>
-    public string? Character { get; set; }
 
     /// <summary>Новый снимок: блокнот смотрит, что появилось и пропало; пора — сохранить файл или подтянуть чужие точки.</summary>
     public void Observe(WorldState world)
     {
-        _book.Observe(world);
-        var now = _clock();
-        if (now - _saved >= SaveEvery)
-            Save();
-        if (now - _synced >= SyncEvery)
+        lock (_lock)
         {
-            _book.Merge(_store.Load(out _));
-            _synced = now;
+            // Чей снимок — того и события в журнале
+            if (world.Host.Name.Length > 0)
+                _character = world.Host.Name;
+            _book.Observe(world);
+            var now = _clock();
+            if (now - _saved >= SaveEvery)
+                SaveLocked(force: false);
+            if (now - _synced >= SyncEvery)
+            {
+                _book.Merge(_store.Load(out _));
+                _synced = now;
+            }
         }
     }
 
     /// <summary>Мир не читается (другой персонаж, загрузка): что было видно — забыть.</summary>
-    public void Forget() => _book.Forget();
+    public void Forget()
+    {
+        lock (_lock)
+            _book.Forget();
+    }
 
     /// <summary>Сохранить, если что-то менялось (<paramref name="force"/> — в любом случае): сначала слить с файлом.</summary>
     public void Save(bool force = false)
+    {
+        lock (_lock)
+            SaveLocked(force);
+    }
+
+    private void SaveLocked(bool force)
     {
         // Нечего сохранять — и часы не трогаем: иначе «подтянуть чужие точки раз в минуту» не наступило бы никогда
         if (!_book.Changed && !force)
@@ -109,8 +142,12 @@ public sealed class SpotService
             return;
         }
 
-        var added = _book.Merge(spots);
-        Save(force: true);
+        int added;
+        lock (_lock)
+        {
+            added = _book.Merge(spots);
+            SaveLocked(force: true);
+        }
         try
         {
             File.Move(file, file + ".imported");
@@ -127,7 +164,7 @@ public sealed class SpotService
     {
         try
         {
-            _journal.Write(e, Server, Character);
+            _journal.Write(e, _book.Server, _character);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
