@@ -12,7 +12,8 @@ tests/BotCH.Tests/bin/Release/net48/BotCH.Tests.exe            # все тест
 tools/BotCH.Probe/bin/Release/net48/BotCH.Probe.exe            # без аргументов — список команд
 ```
 
-MSB3027 при сборке — `BotCH.exe` занят запущенным ботом, остальное собралось.
+MSB3027 при сборке — `BotCH.exe` занят запущенным ботом, остальное собралось. Тесты на файлах настоящего клиента
+пропускаются, пока не задана папка `element` клиента: `BOTCH_PWCLASSIC136_DIR`, `BOTCH_COMEBACK146_DIR`.
 
 ## Где что
 
