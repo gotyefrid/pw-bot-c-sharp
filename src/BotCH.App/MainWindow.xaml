@@ -234,7 +234,7 @@
             </DockPanel>
             <StackPanel Margin="0,8,0,0" Visibility="{Binding Route.HasSelectedRoutePoint, Converter={StaticResource Visible}}">
               <DockPanel>
-                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding Route.SelectedRouteMode}"
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Route.SelectedRouteMode}"
                           ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка (например, ресурс у агрессивного моба)">
                   <ComboBox.ItemTemplate>
                     <DataTemplate>
@@ -273,7 +273,7 @@
                          ToolTip="Зона моба — его радиус агра (из игры) плюс запас, вокруг и по высоте. Не меньше 1 м" />
                 <Grid />
               </DockPanel>
-              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.DangerNames}" Options="{Binding MobOptions}"
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.DangerNames}" Options="{Binding Farm.MobOptions}"
                              Placeholder="Боссы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
                              ToolTip="Эти агрессивные мобы опасны при любом уровне: боссы, которых не убить, хотя уровень как у персонажа" />
             </StackPanel>
@@ -335,20 +335,20 @@
               <TextBlock Text="Центр фарма" VerticalAlignment="Center"
                          ToolTip="Откуда считать радиус: место, где стоял персонаж при «Старт», или сохранённая точка — тогда «Старт» можно жать где угодно" />
               <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE74D;"
-                      Command="{Binding RemoveFarmPointCommand}" ToolTip="Удалить выбранную точку" />
+                      Command="{Binding Farm.RemoveFarmPointCommand}" ToolTip="Удалить выбранную точку" />
               <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
-                      Command="{Binding AddFarmPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как новую точку фарма" />
-              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding FarmCenters}" SelectedItem="{Binding SelectedFarmCenter}" />
+                      Command="{Binding Farm.AddFarmPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как новую точку фарма" />
+              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.FarmCenters}" SelectedItem="{Binding Farm.SelectedFarmCenter}" />
             </DockPanel>
-            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding HasFarmPoint, Converter={StaticResource Visible}}">
-              <TextBlock Text="{Binding FarmPointInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Width="170" Margin="0,0,64,0" Text="{Binding FarmPointName}" ToolTip="Название точки — можно поменять" />
+            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.HasFarmPoint, Converter={StaticResource Visible}}">
+              <TextBlock Text="{Binding Farm.FarmPointInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Width="170" Margin="0,0,64,0" Text="{Binding Farm.FarmPointName}" ToolTip="Название точки — можно поменять" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр" IsChecked="{Binding Settings.Target.ReturnToCenter}"
                         VerticalAlignment="Center"
                         ToolTip="Персонаж оказался за радиусом фарма (погнался за мобом), а целей нет 2 с — бежит в центр и ждёт там. Внутри радиуса стоит на месте" />
-              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
+              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding Farm.ApproachPaths}" DisplayMemberPath="Title"
                         SelectedValuePath="Path" SelectedValue="{Binding Settings.Target.ReturnPath}"
                         Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
@@ -357,7 +357,7 @@
                       ToolTip="Сначала все ресурсы, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше. Сбор лута с мобов (вкладка «Общее») на это не влияет" />
             <StackPanel Margin="0,4,0,8" Visibility="{Binding Settings.Loot.PickResources, Converter={StaticResource Visible}}">
               <DockPanel>
-                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding Settings.Loot.ResourceMode}"
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Settings.Loot.ResourceMode}"
                           ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка">
                   <ComboBox.ItemTemplate>
                     <DataTemplate>
@@ -367,13 +367,13 @@
                 </ComboBox>
                 <TextBlock Text="Что копать" VerticalAlignment="Center" />
               </DockPanel>
-              <app:TagPicker Margin="0,4,0,0" Selected="{Binding FarmResourceNames}" Options="{Binding Route.RouteOptions}"
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.FarmResourceNames}" Options="{Binding Route.RouteOptions}"
                              Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
                              ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
             </StackPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Только мобы из списка" IsChecked="{Binding Settings.Target.UseMobList}" />
             <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.Target.UseMobList}"
-                           Selected="{Binding MobNames}" Options="{Binding MobOptions}"
+                           Selected="{Binding Farm.MobNames}" Options="{Binding Farm.MobOptions}"
                            Placeholder="Мобы не выбраны" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
                            ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
           </StackPanel>
@@ -392,14 +392,14 @@
             <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
-              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding AttackSkills}" DisplayMemberPath="Title"
+              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Farm.AttackSkills}" DisplayMemberPath="Title"
                         SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}" />
             </DockPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Подходить к мобу ближе, м" IsChecked="{Binding Settings.Combat.ComeCloser}" VerticalAlignment="Center"
                         ToolTip="Сначала подойти к мобу на это расстояние, потом бить. Пока бежим — не бьём, пока бьём — не бежим" />
-              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding ApproachPaths}" DisplayMemberPath="Title"
+              <ComboBox DockPanel.Dock="Right" Width="90" Margin="6,0,0,0" ItemsSource="{Binding Farm.ApproachPaths}" DisplayMemberPath="Title"
                         SelectedValuePath="Path" SelectedValue="{Binding Settings.Combat.ApproachPath}"
                         Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
@@ -433,7 +433,7 @@
             </WrapPanel>
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Что собирать" VerticalAlignment="Center" />
-              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding LootModes}" SelectedItem="{Binding Settings.Loot.ListMode}">
+              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Settings.Loot.ListMode}">
                 <ComboBox.ItemTemplate>
                   <DataTemplate>
                     <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
@@ -441,7 +441,7 @@
                 </ComboBox.ItemTemplate>
               </ComboBox>
             </DockPanel>
-            <app:TagPicker Margin="0,4,0,0" Selected="{Binding LootNames}" Options="{Binding LootOptions}"
+            <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.LootNames}" Options="{Binding Farm.LootOptions}"
                            Placeholder="Предметы не выбраны" EmptyOptionsText="На земле ничего нет — дождитесь лута"
                            ToolTip="Только лут с мобов. Варианты — предметы на земле вокруг и те, что встречались за сессию. Ресурсы — в режиме фарма, под «Копать ресурсы»" />
           </StackPanel>
@@ -467,28 +467,28 @@
             <CheckBox Style="{StaticResource Switch}" Content="Использовать пета" IsChecked="{Binding Settings.Pet.Enabled}"
                       ToolTip="Выключено или пета нет (не друид) — всё про пета пропускается" />
             <TextBlock Text="У персонажа нет петов — эти настройки не используются" Style="{StaticResource Muted}" Margin="0,2,0,4"
-                       Visibility="{Binding HasPets, Converter={StaticResource Hidden}}" />
+                       Visibility="{Binding Pets.HasPets, Converter={StaticResource Hidden}}" />
             <StackPanel IsEnabled="{Binding Settings.Pet.Enabled}">
-              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Hidden}}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Hidden}}">
                 <TextBlock Text="Клетка" VerticalAlignment="Center" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Pet.Cage, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
-              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
                 <TextBlock Text="Пет на земле" VerticalAlignment="Center" />
-                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding GroundPets}" DisplayMemberPath="Title"
-                          SelectedValuePath="Value" SelectedValue="{Binding GroundPet}"
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.GroundPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Pets.GroundPet}"
                           ToolTip="Кого звать, когда персонаж на земле. Авто — первого, кто живёт на земле" />
               </DockPanel>
-              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
                 <TextBlock Text="Пет в воде" VerticalAlignment="Center" />
-                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding WaterPets}" DisplayMemberPath="Title"
-                          SelectedValuePath="Value" SelectedValue="{Binding WaterPet}"
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.WaterPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Pets.WaterPet}"
                           ToolTip="Кого звать, когда персонаж в воде. Авто — первого, кто живёт в воде" />
               </DockPanel>
-              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding KnowsPetHabitats, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
                 <TextBlock Text="Пет в воздухе" VerticalAlignment="Center" />
-                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding AirPets}" DisplayMemberPath="Title"
-                          SelectedValuePath="Value" SelectedValue="{Binding AirPet}"
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.AirPets}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Pets.AirPet}"
                           ToolTip="Кого звать, когда персонаж летит (наземного сервер в воздухе не призовёт). Авто — первого, кто летает" />
               </DockPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Пет только на время боя" IsChecked="{Binding Settings.Pet.OnlyForFight}"

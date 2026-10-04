@@ -26,8 +26,10 @@ using BotCH.Core.World;
 namespace BotCH.App;
 
 /// <summary>
-/// Модель главного окна. Окно только показывает её свойства и вызывает команды.
-/// Снимок мира читается в фоне (<see cref="WorldMonitor"/>) и переносится в поток окна.
+/// Модель главного окна: подключение к клиенту, запуск и остановка бота, режим, настройки персонажа (сохранение через 0,5 с).
+/// Вкладки — свои маленькие классы (<see cref="Status"/>, <see cref="Farm"/>, <see cref="Pets"/>, <see cref="Route"/>,
+/// <see cref="Log"/>): новая вкладка (кликер) — ещё один такой класс, а не поля здесь. Снимок мира читается в фоне
+/// (<see cref="WorldMonitor"/>), в поток окна переносится только последний.
 /// </summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
@@ -71,21 +73,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
 
+        Pets = new PetsPanel(() => Settings, SettingsEdited);
+        Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, _log, SettingsEdited, () =>
+        {
+            // Список скиллов пересобран — выбор в окне перечитать заново
+            OnPropertyChanged(nameof(Settings));
+            Pets.Rebind();
+        });
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
-        LoadNameLists();
-        LoadFarmCenters();
+        Farm.Load();
         Route.Load();
-        MobNames.CollectionChanged += (_, _) => NameListsEdited();
-        LootNames.CollectionChanged += (_, _) => NameListsEdited();
-        FarmResourceNames.CollectionChanged += (_, _) => NameListsEdited();
 
         RefreshCommand = new RelayCommand(RefreshClients);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
-
-        AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _lastWorld is not null);
-        RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
 
         _log.Info("BotCH запущен");
         RefreshClients();
@@ -284,297 +286,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Настройки окна. Поля привязаны напрямую; о правке сообщают сами (<see cref="BotSettings.Edited"/>).</summary>
     public BotSettings Settings => _config.Current;
 
-    public sealed record SkillChoice(int Id, string Title);
+    /// <summary>Центр фарма, списки мобов, лута и ресурсов, атакующий скилл — вкладки «Мобы» и «Общее».</summary>
+    public FarmPanel Farm { get; }
 
-    /// <summary>Атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры.</summary>
-    public ObservableCollection<SkillChoice> AttackSkills { get; } = new();
-
-    /// <summary>Мобы для белого списка — выбираются из списка (TagPicker), не вводятся руками.</summary>
-    public ObservableCollection<string> MobNames { get; } = new();
-
-    /// <summary>Предметы для белого/чёрного списка лута.</summary>
-    public ObservableCollection<string> LootNames { get; } = new();
-
-    /// <summary>Ресурсы для белого/чёрного списка копания в радиусе фарма (варианты — <see cref="RouteOptions"/>).</summary>
-    public ObservableCollection<string> FarmResourceNames { get; } = new();
-
-    // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
-    private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
-    private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
-    private bool _syncingLists;
-
-    public Func<IReadOnlyList<PickOption>> MobOptions
-        => () => PickOptions(_lastWorld is null ? [] : NearbyNames.Mobs(_lastWorld), _seenMobs.Values);
-
-    public Func<IReadOnlyList<PickOption>> LootOptions
-        => () => PickOptions(_lastWorld is null ? [] : NearbyNames.GroundItems(_lastWorld), _seenItems.Select(n => new NameCount(n, 0, 0)));
-
-    // Сначала то, что вокруг сейчас, потом — встреченное за сессию (с пометкой «не рядом»)
-    private static IReadOnlyList<PickOption> PickOptions(IReadOnlyList<NameCount> nearby, IEnumerable<NameCount> seen)
-    {
-        var options = nearby.Select(n => new PickOption(n.Name, n.ToString())).ToList();
-        var near = new HashSet<string>(nearby.Select(n => n.Name), StringComparer.OrdinalIgnoreCase);
-        options.AddRange(seen.Where(n => !near.Contains(n.Name)).OrderBy(n => n.Name).Select(n => new PickOption(n.Name, $"{n} — не рядом")));
-        return options;
-    }
-
-    /// <summary>Списки в окне ← настройки персонажа (при загрузке/смене персонажа).</summary>
-    private void LoadNameLists()
-    {
-        _syncingLists = true;
-        try
-        {
-            MobNames.Clear();
-            foreach (var name in Settings.Target.MobNames)
-                MobNames.Add(name);
-            LootNames.Clear();
-            foreach (var name in Settings.Loot.ItemNames)
-                LootNames.Add(name);
-            FarmResourceNames.Clear();
-            foreach (var name in Settings.Loot.ResourceNames)
-                FarmResourceNames.Add(name);
-        }
-        finally
-        {
-            _syncingLists = false;
-        }
-    }
-
-    /// <summary>Выбрали/убрали название в окне → в настройки персонажа.</summary>
-    private void NameListsEdited()
-    {
-        if (_syncingLists)
-            return;
-
-        Settings.Target.MobNames = MobNameFilter.Clean(MobNames);
-        Settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
-        Settings.Loot.ResourceNames = MobNameFilter.Clean(FarmResourceNames);
-        SettingsEdited();
-    }
-
-    public IReadOnlyList<LootListMode> LootModes { get; } = [LootListMode.All, LootListMode.OnlyListed, LootListMode.ExceptListed];
-
-    // ── Центр фарма ─────────────────────────────────────────────────────────
-
-    /// <summary>Пункт списка «центр фарма» вместо сохранённой точки.</summary>
-    public const string StartCenter = "Точка старта";
-
-    /// <summary>«Точка старта» и сохранённые точки персонажа.</summary>
-    public ObservableCollection<string> FarmCenters { get; } = new();
-
-    public ICommand AddFarmPointCommand { get; }
-    public ICommand RemoveFarmPointCommand { get; }
-
-    private bool _syncingCenters;
-
-    public string SelectedFarmCenter
-    {
-        get => Settings.Target.SelectedFarmPoint?.Name ?? StartCenter;
-        set
-        {
-            // Пересборка списка сбрасывает выбор — это не выбор пользователя
-            if (_syncingCenters || value is null)
-                return;
-
-            Settings.Target.FarmCenter = value == StartCenter ? "" : value;
-            FarmCenterChanged();
-        }
-    }
-
-    /// <summary>Выбрана сохранённая точка (а не точка старта).</summary>
-    public bool HasFarmPoint => Settings.Target.SelectedFarmPoint is not null;
-
-    /// <summary>Название выбранной точки; правка — переименование.</summary>
-    public string FarmPointName
-    {
-        get => Settings.Target.SelectedFarmPoint?.Name ?? "";
-        set
-        {
-            var point = Settings.Target.SelectedFarmPoint;
-            var name = value?.Trim() ?? "";
-            if (point is null || name.Length == 0 || name == point.Name)
-                return;
-            if (name.Equals(StartCenter, StringComparison.OrdinalIgnoreCase)
-                || Settings.Target.FarmPoints.Any(p => p != point && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            {
-                _log.Warning($"Точка «{name}» уже есть — название не меняю");
-                OnPropertyChanged();
-                return;
-            }
-
-            point.Name = name;
-            Settings.Target.FarmCenter = name;
-            LoadFarmCenters();
-            SettingsEdited();
-        }
-    }
-
-    private string _farmPointInfo = "";
-
-    /// <summary>Сколько до выбранной точки отсюда.</summary>
-    public string FarmPointInfo { get => _farmPointInfo; private set => SetProperty(ref _farmPointInfo, value); }
-
-    /// <summary>Запомнить, где стоит персонаж, как новую точку фарма, и сделать её центром.</summary>
-    private void AddFarmPoint()
-    {
-        if (_lastWorld is not { } w)
-            return;
-
-        var points = Settings.Target.FarmPoints;
-        var n = 1;
-        while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
-            n++;
-        var point = FarmPoint.At($"Точка {n}", w.Host.Position);
-        points.Add(point);
-        Settings.Target.FarmCenter = point.Name;
-        _log.Info($"Точка фарма «{point.Name}» сохранена: {point.Position}");
-        LoadFarmCenters();
-        SettingsEdited();
-    }
-
-    private void RemoveFarmPoint()
-    {
-        if (Settings.Target.SelectedFarmPoint is not { } point)
-            return;
-
-        Settings.Target.FarmPoints.Remove(point);
-        Settings.Target.FarmCenter = "";
-        _log.Info($"Точка фарма «{point.Name}» удалена — центр: точка старта");
-        LoadFarmCenters();
-        SettingsEdited();
-    }
-
-    /// <summary>Список в окне ← точки персонажа.</summary>
-    private void LoadFarmCenters()
-    {
-        _syncingCenters = true;
-        try
-        {
-            FarmCenters.Clear();
-            FarmCenters.Add(StartCenter);
-            foreach (var point in Settings.Target.FarmPoints)
-                FarmCenters.Add(point.Name);
-        }
-        finally
-        {
-            _syncingCenters = false;
-        }
-
-        FarmCenterChanged();
-    }
-
-    private void FarmCenterChanged()
-    {
-        OnPropertyChanged(nameof(SelectedFarmCenter));
-        OnPropertyChanged(nameof(HasFarmPoint));
-        OnPropertyChanged(nameof(FarmPointName));
-        UpdateFarmPointInfo();
-    }
-
-    private void UpdateFarmPointInfo()
-        => FarmPointInfo = Settings.Target.SelectedFarmPoint is { } p && _lastWorld is { } w
-            ? $"{w.Host.Position.HorizontalDistanceTo(p.Position):0} м отсюда"
-            : "";
+    /// <summary>Кого звать петом по среде.</summary>
+    public PetsPanel Pets { get; }
 
     // ── Маршрут обхода (режим «Собирать ресурсы») ─────────────────────────────
 
     /// <summary>Вкладка «Ресы»: точки маршрута, что копать, опасные мобы.</summary>
     public RoutePanel Route { get; }
-
-    // ── Пет по среде ─────────────────────────────────────────────────────────
-
-    /// <summary>Пункт списка «кого звать»: значение — название питомца, пусто — «авто».</summary>
-    public sealed record PetChoice(string Value, string Title);
-
-    /// <summary>Кого звать на земле: «авто» и питомцы, которые живут на земле.</summary>
-    public ObservableCollection<PetChoice> GroundPets { get; } = new();
-
-    /// <summary>Кого звать в воздухе: «авто» и питомцы, которые летают.</summary>
-    public ObservableCollection<PetChoice> AirPets { get; } = new();
-
-    /// <summary>Кого звать в воде: «авто» и питомцы, которые живут в воде.</summary>
-    public ObservableCollection<PetChoice> WaterPets { get; } = new();
-
-    private bool _knowsPetHabitats;
-    private bool _syncingPets;
-
-    /// <summary>Сервер говорит, где питомцы живут: выбор питомцами; иначе — номер клетки, как раньше.</summary>
-    public bool KnowsPetHabitats { get => _knowsPetHabitats; private set => SetProperty(ref _knowsPetHabitats, value); }
-
-    public string GroundPet
-    {
-        get => Settings.Pet.GroundPet;
-        set => SetPet(value, () => Settings.Pet.GroundPet, v => Settings.Pet.GroundPet = v);
-    }
-
-    public string AirPet
-    {
-        get => Settings.Pet.AirPet;
-        set => SetPet(value, () => Settings.Pet.AirPet, v => Settings.Pet.AirPet = v);
-    }
-
-    public string WaterPet
-    {
-        get => Settings.Pet.WaterPet;
-        set => SetPet(value, () => Settings.Pet.WaterPet, v => Settings.Pet.WaterPet = v);
-    }
-
-    // Пересборка списка сбрасывает выбор — это не выбор пользователя
-    private void SetPet(string? value, Func<string> get, Action<string> set)
-    {
-        if (_syncingPets || value is null || value == get())
-            return;
-        set(value);
-        SettingsEdited();
-    }
-
-    /// <summary>Списки питомцев ← клетки (пересобираются, только когда что-то поменялось: питомцы, названия, «авто»).</summary>
-    private void UpdatePetChoices(WorldState w)
-    {
-        var cages = w.Pet?.Cages ?? [];
-        KnowsPetHabitats = cages.Any(p => p.Habitat is not null);
-        if (!KnowsPetHabitats)
-            return;
-
-        Sync(GroundPets, Choices(cages, PetHabitat.Ground, Settings.Pet.GroundPet), nameof(GroundPet));
-        Sync(AirPets, Choices(cages, PetHabitat.Air, Settings.Pet.AirPet), nameof(AirPet));
-        Sync(WaterPets, Choices(cages, PetHabitat.Water, Settings.Pet.WaterPet), nameof(WaterPet));
-    }
-
-    private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, PetHabitat where, string chosen)
-    {
-        var fit = cages.Where(p => p.Lives(where) && p.Name is not null).OrderBy(p => p.Cage).ToList();
-        var auto = fit.FirstOrDefault() is { } first ? $"авто — {first.Name} (клетка {first.Cage})" : "авто — подходящего нет";
-        var list = new List<PetChoice> { new("", auto) };
-        list.AddRange(fit.Select(p => new PetChoice(p.Name!, $"{p.Name} (клетка {p.Cage})")));
-        if (chosen.Length > 0 && !list.Any(c => string.Equals(c.Value, chosen, StringComparison.OrdinalIgnoreCase)))
-            list.Add(new PetChoice(chosen, $"{chosen} — нет в клетках"));
-        return list;
-    }
-
-    private void Sync(ObservableCollection<PetChoice> target, List<PetChoice> choices, string property)
-    {
-        if (choices.SequenceEqual(target))
-            return;
-
-        _syncingPets = true;
-        try
-        {
-            target.Clear();
-            foreach (var choice in choices)
-                target.Add(choice);
-        }
-        finally
-        {
-            _syncingPets = false;
-        }
-
-        OnPropertyChanged(property);
-    }
-
-    public sealed record PathChoice(ApproachPath Path, string Title);
-
-    public IReadOnlyList<PathChoice> ApproachPaths { get; } = [new(ApproachPath.Smart, "Умно"), new(ApproachPath.Direct, "Прямо")];
 
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
     public bool CanRecallPet => _profile.Capabilities.Has(Capability.RecallPet);
@@ -602,34 +323,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _saveTimer.Stop();
         SaveCharacter();
         _connection?.Bot?.UpdateSettings(Settings);
-    }
-
-    private void UpdateAttackSkills(WorldState w)
-    {
-        // Названия скиллов догружаются в фоне — список пересобирается, когда изменились ID или названия
-        var choices = w.Skills
-            .Where(s => !_profile.Data.Skills.NotAttack.Contains(s.Id))
-            .Select(s => new SkillChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})"))
-            .ToList();
-        if (choices.SequenceEqual(AttackSkills))
-            return;
-
-        AttackSkills.Clear();
-        foreach (var choice in choices)
-            AttackSkills.Add(choice);
-
-        // Выбранного нет среди изученных — атакующий скилл класса по умолчанию, иначе первый
-        var ids = choices.Select(c => c.Id).ToList();
-        if (ids.Count > 0 && !ids.Contains(Settings.Combat.AttackSkillId))
-        {
-            Settings.Combat.AttackSkillId = ids.Contains(_profile.Data.Skills.DefaultAttack) ? _profile.Data.Skills.DefaultAttack : ids[0];
-            SettingsEdited();
-        }
-
-        OnPropertyChanged(nameof(Settings));
-        OnPropertyChanged(nameof(GroundPet));
-        OnPropertyChanged(nameof(AirPet));
-        OnPropertyChanged(nameof(WaterPet));
     }
 
     public void Dispose()
@@ -757,24 +450,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         _lastWorld = w;
-        HasPets = w.Pet is not null;
-        UpdatePetChoices(w);
-        foreach (var kind in NearbyNames.Mobs(w))
-        {
-            // Уровни вида копятся за сессию: «Волк (ур. 10–12)», даже если сейчас рядом только один
-            _seenMobs[kind.Name] = _seenMobs.TryGetValue(kind.Name, out var seen) && seen.MaxLevel > 0
-                ? kind with { MinLevel = Math.Min(seen.MinLevel, kind.MinLevel), MaxLevel = Math.Max(seen.MaxLevel, kind.MaxLevel) }
-                : kind;
-        }
-        foreach (var item in w.GroundItems.Where(NearbyNames.IsLootItem))
-            _seenItems.Add(item.Name.Trim());
+        Pets.Observe(w);
+        Farm.Observe(w);
         var h = w.Host;
         if (h.Name.Length > 0)
             SwitchCharacter(h.Name);
         ConnectionText = h.Name;
         Status.Show(w);
-        UpdateAttackSkills(w);
-        UpdateFarmPointInfo();
+        Farm.ShowFor(w);
         Route.ShowDistances(w);
     }
 
@@ -820,27 +503,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
-        OnPropertyChanged(nameof(GroundPet));
-        OnPropertyChanged(nameof(AirPet));
-        OnPropertyChanged(nameof(WaterPet));
-        LoadNameLists();
-        LoadFarmCenters();
+        Pets.Rebind();
+        Farm.Load();
         Route.Load();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
-        AttackSkills.Clear(); // пересоберётся по снимку с учётом скилла этого персонажа
     }
 
     private WorldState? _lastWorld;
-
-    private bool _hasPets = true;
-
-    /// <summary>Есть ли у персонажа петы вообще (не друид — нет). Пока неизвестно — считаем, что есть.</summary>
-    public bool HasPets
-    {
-        get => _hasPets;
-        private set => SetProperty(ref _hasPets, value);
-    }
 
     public sealed record ModeChoice(BotMode Mode, string Title);
 
