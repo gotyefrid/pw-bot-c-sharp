@@ -64,13 +64,23 @@ public static class ClientList
 /// <summary>Настоящие процессы и память. Ник читается отдельным дескриптором только на чтение.</summary>
 public sealed class SystemClientSource(ProfileData profile) : IClientSource
 {
+    /// <summary>
+    /// Имя процесса клиента подходит, если начинается с имени из профиля: у Comeback есть и ElementClient.exe,
+    /// и ElementClient_test.exe — игроки запускают любой из них.
+    /// </summary>
+    public static bool IsClientProcess(string actualName, string profileName)
+        => actualName.StartsWith(profileName, StringComparison.OrdinalIgnoreCase);
+
     public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses(string processName)
     {
         var result = new List<(int, IntPtr)>();
-        foreach (var process in Process.GetProcessesByName(processName))
+        foreach (var process in Process.GetProcesses())
         {
             using (process)
-                result.Add((process.Id, NativeWindows.FindMainWindow(process.Id)));
+            {
+                if (IsClientProcess(process.ProcessName, processName))
+                    result.Add((process.Id, NativeWindows.FindMainWindow(process.Id)));
+            }
         }
 
         return result;

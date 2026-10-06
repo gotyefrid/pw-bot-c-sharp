@@ -364,7 +364,7 @@ internal static class Program
     internal static GameProcess OpenClient(string[] args, GameProcessRights rights = GameProcessRights.Read)
     {
         // Число среди аргументов — PID, только если это запущенный клиент (у scanint числа — искомые значения)
-        var clients = Process.GetProcessesByName("elementclient").Select(p => p.Id).ToList();
+        var clients = Process.GetProcesses().Where(p => SystemClientSource.IsClientProcess(p.ProcessName, "elementclient")).Select(p => p.Id).ToList();
         var pidArg = args.TakeWhile(a => a != "--server").Select(a => int.TryParse(a, out var n) ? n : -1).FirstOrDefault(clients.Contains);
         var pid = pidArg > 0
             ? pidArg

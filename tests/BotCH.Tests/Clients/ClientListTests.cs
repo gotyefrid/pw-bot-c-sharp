@@ -28,6 +28,16 @@ public class ClientListTests
     }
 
     [Theory]
+    [InlineData("ElementClient", true)]
+    [InlineData("ElementClient_test", true)]
+    [InlineData("elementclient", true)]
+    [InlineData("explorer", false)]
+    public void ClientProcessNameMatchesByPrefix(string actual, bool expected)
+    {
+        Assert.Equal(expected, SystemClientSource.IsClientProcess(actual, "elementclient"));
+    }
+
+    [Theory]
     [InlineData("Персонаж", 13840, "Персонаж 13840")]
     [InlineData(null, 13840, "13840")]
     [InlineData("", 13840, "13840")]
