@@ -5,7 +5,7 @@
 
 ![Windows](https://img.shields.io/badge/Windows-x86-0078D6) ![.NET Framework](https://img.shields.io/badge/.NET_Framework-4.8-512BD4) ![WPF](https://img.shields.io/badge/UI-WPF-68217A)
 
-> 💬 **Вопросы по боту — в Telegram-чате: https://t.me/+Hdq5bWQm4_diZGNi**
+> 💬 **Вопросы по боту — в Telegram-чате: https://t.me/botch_pw**
 
 ## Что умеет
 
