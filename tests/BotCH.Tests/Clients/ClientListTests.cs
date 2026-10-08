@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using BotCH.Core.Clients;
 using Xunit;
@@ -10,7 +11,7 @@ public class ClientListTests
 {
     private sealed class FakeSource(params (int Pid, string? Nick)[] clients) : IClientSource
     {
-        public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses(string processName)
+        public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses()
             => clients.Select(c => (c.Pid, new IntPtr(c.Pid * 10))).ToList();
 
         public string? ReadNick(int pid) => clients.First(c => c.Pid == pid).Nick;
@@ -19,7 +20,7 @@ public class ClientListTests
     [Fact]
     public void ClientsAreSortedByPidWithNicks()
     {
-        var list = ClientList.Build(new FakeSource((300, "Персонаж"), (100, null), (200, "Лучница")), "elementclient");
+        var list = ClientList.Build(new FakeSource((300, "Персонаж"), (100, null), (200, "Лучница")));
 
         Assert.Equal([100, 200, 300], list.Select(c => c.Pid));
         Assert.Equal("PID 100 — персонаж не в мире", list[0].Display);
@@ -28,13 +29,20 @@ public class ClientListTests
     }
 
     [Theory]
-    [InlineData("ElementClient", true)]
-    [InlineData("ElementClient_test", true)]
-    [InlineData("elementclient", true)]
-    [InlineData("explorer", false)]
-    public void ClientProcessNameMatchesByPrefix(string actual, bool expected)
+    [InlineData("ElementClient Window", true)]
+    // Другие окна процесса игры и окно самого бота (WPF)
+    [InlineData("GDI+ Hook Window Class", false)]
+    [InlineData("HwndWrapper[BotCH.exe;;4f0c]", false)]
+    [InlineData("", false)]
+    public void ClientIsFoundByGameWindowClass(string className, bool expected)
     {
-        Assert.Equal(expected, SystemClientSource.IsClientProcess(actual, "elementclient"));
+        Assert.Equal(expected, NativeWindows.IsClientWindowClass(className));
+    }
+
+    [Fact]
+    public void ProcessWithoutGameWindowIsNotClient()
+    {
+        Assert.DoesNotContain(Process.GetCurrentProcess().Id, NativeWindows.FindClientProcesses());
     }
 
     [Theory]
@@ -49,7 +57,7 @@ public class ClientListTests
     [Fact]
     public void RefreshKeepsSelectedClient()
     {
-        var list = ClientList.Build(new FakeSource((100, "А"), (200, "Б")), "elementclient");
+        var list = ClientList.Build(new FakeSource((100, "А"), (200, "Б")));
 
         Assert.Equal(200, ClientList.KeepSelection(list, 200)!.Pid);
     }
@@ -57,7 +65,7 @@ public class ClientListTests
     [Fact]
     public void ClosedClientFallsBackToFirst()
     {
-        var list = ClientList.Build(new FakeSource((100, "А"), (300, "В")), "elementclient");
+        var list = ClientList.Build(new FakeSource((100, "А"), (300, "В")));
 
         Assert.Equal(100, ClientList.KeepSelection(list, 200)!.Pid);
         Assert.Equal(100, ClientList.KeepSelection(list, null)!.Pid);
@@ -68,7 +76,7 @@ public class ClientListTests
     public void OnStartLastCharacterThenReadableNickAmongFreeClients()
     {
         // 100 — клиент другого сервера (ник не читается этим профилем), 200 — занят другим окном BotCH
-        var list = ClientList.Build(new FakeSource((100, null), (200, "Персонаж"), (300, "Воин"), (400, "Лучница")), "elementclient");
+        var list = ClientList.Build(new FakeSource((100, null), (200, "Персонаж"), (300, "Воин"), (400, "Лучница")));
         bool Taken(int pid) => pid == 200;
 
         Assert.Equal(400, ClientList.KeepSelection(list, null, "Лучница", Taken)!.Pid);

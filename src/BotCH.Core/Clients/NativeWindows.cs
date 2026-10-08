@@ -1,12 +1,36 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace BotCH.Core.Clients;
 
-/// <summary>Окна игры через WinAPI: найти главное окно процесса, прочитать и сменить заголовок. В память игры не лезет.</summary>
+/// <summary>Окна игры через WinAPI: найти клиентов и главное окно процесса, прочитать и сменить заголовок. В память игры не лезет.</summary>
 public static class NativeWindows
 {
+    // Класс окна игры — «ElementClient Window»: его заводит движок игры, и он один у всех клиентов, как бы ни назывался exe
+    // (проверено в ElementClient.exe и ElementClient_test.exe Comeback, Client.exe и ElementClient.exe PW Classic)
+    private const string ClientClassPrefix = "ElementClient";
+
+    /// <summary>PID всех клиентов игры по возрастанию: процессы, у которых есть окно игры (видимое или скрытое в трее).</summary>
+    public static List<int> FindClientProcesses()
+    {
+        var pids = new HashSet<int>();
+        EnumWindows((window, _) =>
+        {
+            if (IsClientWindowClass(ClassName(window)))
+            {
+                GetWindowThreadProcessId(window, out var pid);
+                pids.Add(pid);
+            }
+            return true;
+        }, IntPtr.Zero);
+        return pids.OrderBy(pid => pid).ToList();
+    }
+
+    public static bool IsClientWindowClass(string className) => className.StartsWith(ClientClassPrefix, StringComparison.Ordinal);
+
     /// <summary>
     /// Видимое окно верхнего уровня без владельца, принадлежащее процессу. Надёжнее Process.MainWindowHandle,
     /// который бывает 0 у свёрнутого окна или пока клиент грузится.
@@ -32,7 +56,7 @@ public static class NativeWindows
                 return false;
             }
 
-            if (hidden == IntPtr.Zero && ClassName(window).StartsWith("ElementClient", StringComparison.Ordinal))
+            if (hidden == IntPtr.Zero && IsClientWindowClass(ClassName(window)))
                 hidden = window;
             return true;
         }, IntPtr.Zero);

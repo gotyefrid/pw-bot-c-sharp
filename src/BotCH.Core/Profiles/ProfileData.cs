@@ -12,7 +12,6 @@ public sealed class ProfileData
 {
     public string Id { get; init; } = "";
     public string Name { get; init; } = "";
-    public string ClientProcessName { get; init; } = "elementclient";
 
     public BaseOffsets Base { get; init; } = new();
     public HostOffsets Host { get; init; } = new();

@@ -36,7 +36,6 @@
 {
   "id": "pwclassic136",
   "name": "PW Classic 1.3.6",
-  "clientProcessName": "elementclient",
 
   // Архивы .pck (configs.pck → названия скиллов) — со стандартными ключами Angelica, поэтому gameFiles.pck здесь не задан
   // (на 1.4.6 ключи свои). Проверено: Probe snapshot показывает названия скиллов

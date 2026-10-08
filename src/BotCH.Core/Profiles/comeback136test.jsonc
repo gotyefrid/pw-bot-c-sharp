@@ -28,7 +28,6 @@
 {
   "id": "comeback136test",
   "name": "Comeback 1.3.6 (ElementClient_test)",
-  "clientProcessName": "elementclient",
 
   // Ключи .pck те же, что в 1.4.6: все три числа есть в .data нового exe ровно по одному разу (как и в 1.4.6)
   "gameFiles": {

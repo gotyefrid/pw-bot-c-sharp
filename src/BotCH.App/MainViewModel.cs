@@ -352,7 +352,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void RefreshClients(bool reconnect)
     {
         var keep = _selectedClient?.Pid;
-        var clients = ClientList.Build(new SystemClientSource(_profile.Data), _profile.Data.ClientProcessName);
+        var clients = ClientList.Build(new SystemClientSource(_profile.Data));
 
         _refreshing = true;
         try

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
@@ -26,8 +25,8 @@ public static class WindowTitles
 /// <summary>Откуда берутся процессы и ники. Подменяется в тестах.</summary>
 public interface IClientSource
 {
-    /// <summary>PID и главное окно всех процессов с таким именем.</summary>
-    IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses(string processName);
+    /// <summary>PID и главное окно всех запущенных клиентов игры.</summary>
+    IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses();
 
     /// <summary>Ник персонажа в клиенте или null (экран выбора, нет доступа).</summary>
     string? ReadNick(int pid);
@@ -36,8 +35,8 @@ public interface IClientSource
 public static class ClientList
 {
     /// <summary>Клиенты по возрастанию PID — порядок не прыгает при обновлении списка.</summary>
-    public static List<GameClient> Build(IClientSource source, string processName)
-        => source.FindProcesses(processName)
+    public static List<GameClient> Build(IClientSource source)
+        => source.FindProcesses()
             .OrderBy(p => p.Pid)
             .Select(p => new GameClient(p.Pid, source.ReadNick(p.Pid), p.Window))
             .ToList();
@@ -65,26 +64,11 @@ public static class ClientList
 public sealed class SystemClientSource(ProfileData profile) : IClientSource
 {
     /// <summary>
-    /// Имя процесса клиента подходит, если начинается с имени из профиля: у Comeback есть и ElementClient.exe,
-    /// и ElementClient_test.exe — игроки запускают любой из них.
+    /// Клиент — процесс с окном игры, имя exe не важно: у Comeback есть ElementClient.exe и ElementClient_test.exe,
+    /// у PW Classic — ElementClient.exe и Client.exe, игроки запускают любой.
     /// </summary>
-    public static bool IsClientProcess(string actualName, string profileName)
-        => actualName.StartsWith(profileName, StringComparison.OrdinalIgnoreCase);
-
-    public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses(string processName)
-    {
-        var result = new List<(int, IntPtr)>();
-        foreach (var process in Process.GetProcesses())
-        {
-            using (process)
-            {
-                if (IsClientProcess(process.ProcessName, processName))
-                    result.Add((process.Id, NativeWindows.FindMainWindow(process.Id)));
-            }
-        }
-
-        return result;
-    }
+    public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses()
+        => NativeWindows.FindClientProcesses().Select(pid => (pid, NativeWindows.FindMainWindow(pid))).ToList();
 
     public string? ReadNick(int pid)
     {
