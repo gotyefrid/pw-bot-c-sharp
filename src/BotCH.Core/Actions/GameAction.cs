@@ -412,7 +412,7 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 }
 
 /// <summary>Идти в точку: по прямой или <paramref name="smart"/> — с автопутём. Подтверждение — дошли ближе <see cref="Tolerance"/>.</summary>
-public sealed class MoveAction(Position point, float tolerance = 2f, bool smart = false, bool fly = false) : GameAction
+public sealed class MoveAction(Position point, float tolerance = 2f, bool smart = false, bool fly = false, bool swim = false) : GameAction
 {
     public Position Point { get; } = point;
     public float Tolerance { get; } = tolerance;
@@ -421,7 +421,13 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
     /// <summary>Лететь в точку вместе с её высотой (только в воздухе).</summary>
     public bool Fly { get; } = fly;
 
-    public override string Name => Fly ? $"лететь в {Point}" : $"идти в {Point}";
+    /// <summary>
+    /// Плыть в точку вместе с её высотой (только в воде). Обычный ход в воде держит глубину: игра ведёт перса в воде той же
+    /// функцией, что в воздухе, и у точки «по земле» обнуляет подъём — поэтому та же точка с высотой, что в полёте.
+    /// </summary>
+    public bool Swim { get; } = swim;
+
+    public override string Name => Fly ? $"лететь в {Point}" : Swim ? $"плыть в {Point}" : $"идти в {Point}";
     public override ActionSlot Slot => ActionSlot.Movement;
     public override ActionResource Resource => ActionResource.Body;
 
@@ -430,10 +436,12 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
     public override TimeSpan Timeout => TimeSpan.FromMinutes(5);
 
     public override string? Precondition(WorldState now)
-        => Fly && now.Host.Flying != true ? "лететь в точку можно только в воздухе" : null;
+        => Fly && now.Host.Flying != true ? "лететь в точку можно только в воздухе"
+            : Swim && now.Host.InWater != true ? "плыть в точку можно только в воде"
+            : null;
 
     public override CallResult Send(GameControl control, WorldState now)
-        => Fly ? control.Calls.FlyTo(Point) : control.Calls.MoveTo(Point, Smart);
+        => Fly || Swim ? control.Calls.FlyTo(Point) : control.Calls.MoveTo(Point, Smart);
 
     // Перс встал, не дойдя (упёрся, бег сбился) — не ждём конца времени на дорогу
     private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(2.5);
@@ -447,10 +455,13 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
             return Verdict.Confirmed($"дошли, {left:0.0} м до точки");
         if (Fly && now.Host.Flying == false)
             return Verdict.Rejected($"оказались на земле, не долетев {left:0.0} м");
+        // Выплыли на берег — дальше обычным ходом, его пошлёт тот, кто просил
+        if (Swim && now.Host.InWater == false)
+            return Verdict.Rejected($"вышли из воды, не доплыв {left:0.0} м");
 
         if (_lastPosition is null)
             (_lastPosition, _movedAt) = (start.Host.Position, start.Time);
-        // С высотой: в полёте можно подниматься на месте
+        // С высотой: в полёте и в воде можно подниматься на месте
         if (now.Host.Position.DistanceTo(_lastPosition.Value) > 0.1f)
             (_lastPosition, _movedAt) = (now.Host.Position, now.Time);
         else if (now.Time - _movedAt >= StandPatience)

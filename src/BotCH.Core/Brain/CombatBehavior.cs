@@ -258,9 +258,10 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var distance = c.Settings.Combat.ComeCloserDistance;
         // Только свой подход: фоновый бег в центр фарма — не «уже бежим к мобу», его вытеснит подход или удар
         var running = c.Mine.OfType<MoveAction>().FirstOrDefault();
-        // В воздухе — по прямой, с высотой: моб прямо под нами на 40 м — не «рядом» (иначе ждали, пока скилл «как кнопкой»
-        // сам спустит перса, 5–9 с). На земле — по горизонтали: моб на склоне или под обрывом не заставляет бегать зря
-        var gap = w.Host.Flying == true ? mob.Offset.Direct : mob.Offset.Horizontal;
+        // В воздухе и в воде — по прямой, с высотой: моб прямо под нами на 40 м — не «рядом» (иначе ждали, пока скилл «как кнопкой»
+        // сам спустит перса, 5–9 с; черепаху на дне ждали, пока сама подплывёт). На земле — по горизонтали: моб на склоне или
+        // под обрывом не заставляет бегать зря
+        var gap = w.Host.Flying == true || c.Swimming ? mob.Offset.Direct : mob.Offset.Horizontal;
         if (gap <= distance)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
@@ -276,7 +277,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         if (running is null)
         {
             // Тело занято (скилл ещё ждёт, каст) — бежать позже; в лог только когда бег правда начался
-            if (c.Send(Approach(w, point, smart)) == SubmitStatus.Sent)
+            if (c.Send(Approach(c, point, smart)) == SubmitStatus.Sent)
             {
                 c.Log.Info($"Подхожу к {mob.Name}: {mob.Offset} > {distance:0} м");
                 _lastApproach = c.Now;
@@ -290,15 +291,17 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         {
             c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Offset}");
             _lastApproach = c.Now;
-            c.Replace(Approach(w, point, smart));
+            c.Replace(Approach(c, point, smart));
         }
 
         return true;
     }
 
-    // В воздухе обычный ход ведёт только по горизонтали — летим в точку вместе с высотой моба
-    private static MoveAction Approach(WorldState w, Position point, bool smart)
-        => w.Host.Flying == true ? new MoveAction(point, ApproachTolerance, fly: true) : new MoveAction(point, ApproachTolerance, smart);
+    // В воздухе и в воде обычный ход ведёт только по горизонтали — летим или плывём в точку вместе с высотой моба
+    private static MoveAction Approach(BrainContext c, Position point, bool smart)
+        => c.World.Host.Flying == true ? new MoveAction(point, ApproachTolerance, fly: true)
+            : c.Swimming ? new MoveAction(point, ApproachTolerance, swim: true)
+            : new MoveAction(point, ApproachTolerance, smart);
 
     // Точка на линии «моб → перс» на расстоянии distance от моба
     private static Position PointNear(Position from, Position mob, float distance)

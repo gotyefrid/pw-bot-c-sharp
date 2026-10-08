@@ -519,6 +519,41 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void ComeCloserInWaterSwimsDownToMob()
+    {
+        // Как в игре 08.10: черепаха на дне, 6 м в сторону и 8 м ниже. Обычный ход в воде держит глубину — перс висел над ней;
+        // плывём в точку с высотой, а «рядом» считаем по прямой
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _settings.Combat.ApproachPath = ApproachPath.Smart;
+        _world.InWater = true;
+        _world.Position = new Position(0, 8, 0);
+        _world.TargetWid = _world.AddMob(0x80000001, "Горная черепаха", 6).Wid;
+
+        Tick();
+
+        Assert.Equal("fly (2,4; 0,0; h 4,8)", LastCall); // 6 м до моба по прямой, с высотой
+    }
+
+    [Fact]
+    public void ComeCloserInWaterWithoutPointMoveKeepsOldWay()
+    {
+        // Сервер не умеет ход в точку с высотой — в воде как раньше: по горизонтали моб рядом, не плывём
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        _actions.Capabilities = Capabilities.All.Without(Capability.FlyTo, "тест");
+        _world.InWater = true;
+        _world.Position = new Position(0, 8, 0);
+        _world.TargetWid = _world.AddMob(0x80000001, "Горная черепаха", 6).Wid;
+
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, call => call.StartsWith("fly") || call.StartsWith("move"));
+    }
+
+    [Fact]
     public void ComeCloserOnGroundIgnoresHeight()
     {
         // На земле моб на уступе (3 м в сторону, 20 м выше) — рядом, не бежим: подойти по прямой всё равно нельзя
@@ -1462,6 +1497,20 @@ public class BrainScenarioTests
             Tick();
 
         Assert.Equal(["fly (30,0; 0,0; h 25,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ReturnInWaterSwimsToCenterWithItsHeight()
+    {
+        // В воде к центру — с его высотой: обычный ход держит глубину и до центра не доводит
+        FarmAt(30, radius: 60);
+        _world.InWater = true;
+        _world.Position = new Position(0, -6, 0);
+
+        for (var i = 0; i < 44; i++)
+            Tick();
+
+        Assert.Equal(["fly (30,0; 0,0; h 0,0)"], _actions.Calls);
     }
 
     [Fact]

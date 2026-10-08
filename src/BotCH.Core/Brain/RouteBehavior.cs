@@ -145,8 +145,10 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             return c.Submit(new FlyAction(up: true));
         }
 
+        // В воде — плывём в точку с её высотой: обычный ход держит глубину
         var move = _inAir == true
             ? new MoveAction(point.Position, MoveTolerance, fly: true) { Priority = ActionPriority.Background }
+            : c.Swimming ? new MoveAction(point.Position, MoveTolerance, swim: true) { Priority = ActionPriority.Background }
             : new MoveAction(point.Position, MoveTolerance, smart: true) { Priority = ActionPriority.Background };
         // Ещё долетаем до прошлой точки — сразу к новой
         var sent = pending is null ? c.Send(move) : c.Replace(move);

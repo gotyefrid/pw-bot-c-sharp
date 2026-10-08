@@ -72,9 +72,11 @@ public sealed class ReturnBehavior : IBehavior
         }
 
         var smart = c.Settings.Target.ReturnPath == ApproachPath.Smart;
-        // В воздухе — летим к центру на своей высоте (обычный ход в полёте высоту не держит, а к земле на перелёте — в склон)
+        // В воздухе — летим к центру на своей высоте (обычный ход в полёте высоту не держит, а к земле на перелёте — в склон);
+        // в воде — плывём прямо в центр: обычный ход держит глубину и до центра не доводит
         var move = w.Host.Flying == true
             ? new MoveAction(center with { Height = w.Host.Position.Height }, tolerance: 2f, fly: true) { Priority = ActionPriority.Background }
+            : c.Swimming ? new MoveAction(center, tolerance: 2f, swim: true) { Priority = ActionPriority.Background }
             : new MoveAction(center, tolerance: 2f, smart) { Priority = ActionPriority.Background };
         var sent = c.Send(move);
         if (sent == SubmitStatus.Sent)

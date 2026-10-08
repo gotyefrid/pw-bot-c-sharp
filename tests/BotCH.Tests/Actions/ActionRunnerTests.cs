@@ -215,6 +215,29 @@ public class ActionRunnerTests
         Assert.Equal([$"fly {point}"], _actions.Calls);
     }
 
+    [Fact]
+    public void SwimToPointOnlyInWaterAndStopsOnShore()
+    {
+        var point = new Position(10, -5, 0);
+        Assert.False(_runner.Submit(Bot, new MoveAction(point, swim: true), _world.Snapshot()).Sent);
+
+        _world.InWater = true;
+        Assert.True(_runner.Submit(Bot, new MoveAction(point, swim: true), _world.Snapshot()).Sent);
+        Assert.Equal([$"fly {point}"], _actions.Calls);
+        // Погружаемся на месте — это движение, а не «стоим»
+        for (var h = -1; h >= -4; h--)
+        {
+            _world.Position = new Position(0, h, 0);
+            Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        }
+
+        // Вышли на берег, не доплыв, — отказ: дальше обычным ходом
+        _world.InWater = false;
+        var outcome = Single(_runner.Update(_world.Wait(1).Snapshot()));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.StartsWith("вышли из воды", outcome.Details);
+    }
+
     // ── Важность: кто кого перебивает ──────────────────────────────────────────
 
     private SkillAction UrgentHeal() => new(330, FakeWorld.PetWid, approach: true, "лечение пета") { Priority = ActionPriority.Urgent };

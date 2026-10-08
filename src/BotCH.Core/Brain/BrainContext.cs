@@ -82,6 +82,9 @@ public sealed class BrainContext
 
     public DateTime Now => World.Time;
 
+    /// <summary>Перс в воде, и сервер умеет ход в точку с высотой — ходить «плыть в» (<see cref="MoveAction.Swim"/>), иначе глубина не меняется.</summary>
+    public bool Swimming => World.Host.InWater == true && Runner.Capabilities.Has(Capability.FlyTo);
+
     /// <summary>Поведение просит остановить бота (маршрут пуст, нет кирки…); мозг остановит после этого шага.</summary>
     public string? StopReason { get; internal set; }
 
