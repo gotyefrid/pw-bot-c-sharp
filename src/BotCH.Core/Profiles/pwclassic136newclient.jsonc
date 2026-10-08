@@ -1,0 +1,227 @@
+/*
+  PW Classic 1.3.6 — новый клиент client.exe (сборка мая 2026)
+
+  Сервер тот же, что pwclassic136.jsonc, но клиент новый — ветки Comeback, не старого PW Classic: из 16 сигнатур
+  pwclassic136 не нашлась ни одна, из 15 функций comeback136 9 нашлись ровно в одном месте. Поэтому образец —
+  comeback136.jsonc (там подробно, что каждое поле значит). Старый elementclient.exe — профиль pwclassic136.
+
+  Как переносили (08.10.2026):
+    1) функции — по сигнатурам comeback136 (Probe sigcheck --server comeback136);
+    2) поля — сопоставлением кода с ElementClient.exe Comeback 1.3.6: функции, одинаковые с точностью до чисел, дают пары
+       «старое смещение → новое» (1348 пар функций). В комментарии — «было» в comeback136 и сколько инструкций за это;
+    3) каждое поле проверяет Probe port --server pwclassic136newclient: читает живой клиент, где нужно — просит сделать
+       действие в игре и смотрит, что изменилось. Что ещё не проверено — помечено «не проверено».
+
+  exe грузится всегда с 0x400000 (без ASLR), флаг LAA (4 ГБ) стоит. Архивы .pck — стандартные ключи (раздел gameFiles
+  не нужен). Античита в процессе нет.
+*/
+{
+  "id": "pwclassic136newclient",
+  "name": "PW Classic 1.3.6 (client.exe)",
+
+  "base": {
+    // В comeback136 0x8AE5CC: 249 инструкций [0xCAE5CC] → [0xE45740] (база exe 0x400000); его же читает «выход» (0x510550)
+    "basePointer": "0xA45740",
+    "game": "0x1C",
+    // Как у Comeback: работа в фоне своя
+    "unfreeze": "0x0",
+    // Связь с сервером: «выход» берёт ecx = [[база] + 0x20] перед SendGameData
+    "session": "0x20"
+  },
+
+  "host": {
+    // 0x28 → 0x2C (112 инструкций; 0x28 — 215, но там не перс: vtable 0x100). Ник, уровень 22, HP/MP читаются
+    "struct": "0x2C",
+    // Не проверено: 0x780 → 0x6C0 (5 инструкций)
+    "namePointer": "0x6C0",
+    // Не проверено
+    "castFlag": "0xB8",
+    // Не проверено: 0x4AC → 0x49C (25), весь блок уровень/HP/MP сдвинут на -0x10
+    "wid": "0x49C",
+    "level": "0x4A8",
+    "hp": "0x4B0",
+    "mp": "0x4B4",
+    // Не проверено: 0x524 → 0x4FC (2)
+    "maxHp": "0x4FC",
+    "maxMp": "0x500",
+    // Не проверено: 0x5A8 → 0x580 (9)
+    "targetId": "0x580",
+    // Не найдено
+    "petFoodCooldown": "0x0",
+    "location": "0x3C",
+    // Не проверено: 0x878 → 0x7AC (2)
+    "castingSkill": "0x7AC",
+    // Не проверено: 0x894 → 0x7C8 (1); полоска — по одной инструкции
+    "gatherTarget": "0x7C8",
+    "gatherElapsed": "0xBDC",
+    "gatherTotal": "0xBE0",
+    // Не проверено: 0x1948 → 0x14F0 (4)
+    "petManager": "0x14F0",
+    // Не проверено: 0x1930 → 0x14D8 (24)
+    "workMan": "0x14D8",
+    // Не проверено: 0x1090 → 0x1078 (33)
+    "inventory": "0x1078",
+    // Не проверено: сопоставление не дало; у comeback136 скиллы на +0x14 от менеджера петов — так же и здесь
+    "skills": "0x1504",
+    "skillsCount": "0x1508",
+    // Не проверено: 0x790 → 0x6D0 (6)
+    "moveEnv": "0x6D0"
+  },
+
+  // Как в comeback136 (сопоставление: те же смещения), не проверено
+  "petManager": {
+    "activeCage": "0x8",
+    "cages": "0x10",
+    "cageCount": 20,
+    "activePetWid": "0x64"
+  },
+
+  "pet": {
+    "hpRatio": "0x1C",
+    "hunger": "0x8",
+    "tid": "0xC",
+    "essence": "0x190",
+    "essenceName": "0x8",
+    "essenceInhabit": "0x1E8"
+  },
+
+  "world": {
+    "world": "0x14",
+    "slotCount": 769,
+    "objectInSlot": "0x4",
+    "npcs": { "manager": "0x20", "slotArray": "0x20", "count": "0x18" },
+    "groundItems": { "manager": "0x24", "slotArray": "0x1C", "count": "0x14" }
+  },
+
+  // Не проверено. Сдвинутые по сопоставлению: state 0x2DC → 0x31C (4), castTarget 0x2FC → 0x33C (3),
+  // attackTarget 0x2F8 → 0x338 (3), distance 0x294 → 0x29C (4), namePointer 0x26C → 0x274 (13), returning 0x22C → 0x2B0 (1)
+  "npc": {
+    "wid": "0x114",
+    "type": "0xB4",
+    "state": "0x31C",
+    "hp": "0x128",
+    "target": "0x210",
+    "castTarget": "0x33C",
+    "attackTarget": "0x338",
+    "level": "0x120",
+    "distance": "0x29C",
+    "namePointer": "0x274",
+    "location": "0x3C",
+    "essence": "0x3A4",
+    "returning": "0x2B0",
+    "returningFlag": "0x20000"
+  },
+
+  // Как в comeback136, не проверено
+  "inventory": {
+    "items": "0xC",
+    "size": "0x10",
+    "itemCategory": "0x8",
+    "itemTid": "0xC",
+    "itemCount": "0x14",
+    "itemMaxCount": "0x18",
+    "itemEssence": "0x70",
+    "foodEssence": "0x68",
+    "categoryPotion": 9,
+    "categoryPetFood": 27
+  },
+
+  "potion": {
+    "requiredLevel": "0x14C",
+    "hp": "0x154",
+    "hpSeconds": "0x158",
+    "mp": "0x15C",
+    "mpSeconds": "0x160"
+  },
+
+  "petFood": {
+    "loyalty": "0x148"
+  },
+
+  "skill": {
+    "id": "0x8",
+    "level": "0xC",
+    "cooldownLeft": "0x10",
+    "cooldownFull": "0x14",
+    "flags": "0x18"
+  },
+
+  // Данные сервера — те же у pwclassic136 и comeback136
+  "gatherTools": [ 3073 ],
+
+  "moveTypes": { "direct": 0, "smart": 5, "fly": 1 },
+
+  "skills": {
+    "healPet": 330,
+    "revivePet": 329,
+    "defaultAttack": 299,
+    "notAttack": [ 167, 329, 330 ]
+  },
+
+  // Не проверено. namePointer 0x168 → 0x1A8 (10)
+  "groundItem": {
+    "id": "0x110",
+    "tid": "0x114",
+    "kind": "0x150",
+    "distance": "0x158",
+    "namePointer": "0x1A8",
+    "location": "0x3C"
+  },
+
+  // Не проверено. size 0x1C0 → 0x200 (2), quest 0x1B8 → 0x1B0 (3)
+  "mineEssence": {
+    "nameInRecord": "0x8",
+    "size": "0x200",
+    "id": "0x0",
+    "tool": "0x50",
+    "materials": "0xE8",
+    "materialSlots": 16,
+    "amounts": "0x1A8",
+    "quest": "0x1B0",
+    "levelRequired": "0x4C"
+  },
+
+  // Не проверено. aggroRadius 0x260 → 0x268 (17)
+  "monsterEssence": {
+    "aggressive": "0x2B8",
+    "aggroRadius": "0x268"
+  },
+
+  // НИКОГДА не вызывать. Найдено по коду отправки «mov eax, N … mov word [esi], ax» (как в comeback136, только SendGameData
+  // здесь rva 0x109480 и с лишними push 0xAF / 0xA9): других мест с 0x01 и 0x66 в exe нет
+  "forbiddenFunctions": {
+    // c2s 0x01 — выход из игры (в comeback136 0x419D30); читает [0xE45740] — тот же basePointer
+    "logout": "0x110550",
+    // c2s 0x66 — отпустить пета навсегда (в comeback136 0x2B8810)
+    "releasePet": "0x375310"
+  },
+
+  // Функции — сигнатуры comeback136 (совпали ровно в одном месте). В скобках — адрес в comeback136
+  "functions": {
+    // (0x31FB40)
+    "selectTarget": { "rva": "0x3EA9B0", "convention": "thiscall", "this": "host", "args": [ "wid" ],
+                      "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
+    "unselect": { "rva": "0x3EA9B0", "convention": "thiscall", "this": "host", "args": [ "0" ],
+                  "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
+    // (0x311630)
+    "hostApplySkill": { "rva": "0x3DBB90", "convention": "thiscall", "this": "host",
+                        "signature": "55 8B EC 83 EC 0C 53 56 57 68 ?? ?? ?? ?? 8B F9" },
+    // (0x30A9E0) c2s 0x29
+    "castSkill": { "rva": "0x317170", "convention": "thiscall", "this": "session",
+                   "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
+    // (0x1200E0) c2s 0x2A
+    "cancelAction": { "rva": "0x14D540", "convention": "thiscall", "this": "session",
+                      "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 2A 00 00 00" },
+    // (0x1CDFD0) c2s 0x67
+    "petCtrl": { "rva": "0x234BC0", "convention": "thiscall", "this": "session",
+                 "signature": "55 8B EC 51 53 56 57 8D 45 FC C7 45" },
+    // (0x325F70)
+    "workCreate": { "rva": "0x3F0DF0", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 13" },
+    // (0x32C070)
+    "workMoveSetDestination": { "rva": "0x3F7970", "convention": "thiscall", "args": [ "type", "data" ],
+                                "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
+    // (0x326850)
+    "workStart": { "rva": "0x3F1980", "convention": "thiscall", "args": [ "1", "work", "0" ],
+                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
+  }
+}
