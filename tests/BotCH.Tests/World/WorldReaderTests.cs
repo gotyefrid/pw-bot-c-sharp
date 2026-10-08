@@ -364,6 +364,32 @@ public class WorldReaderTests
     }
 
     [Fact]
+    public void PwClassicGatherIsCurrentGatherWork()
+    {
+        // Как игра (rva 0x60710): копает, пока текущая работа — «сбор» с байтом не 0. В воде старый байт был 0 и без копания
+        const uint workMan = 0x2300_0000, work = 0x2301_0000;
+        var host = BuildWorld();
+        _memory.WriteUInt32(host + Profile.Host.MoveEnv, 1);
+        _memory.WriteUInt32(host + Profile.Host.GatherElapsed, 1000);
+        _memory.WriteUInt32(host + Profile.Host.GatherTotal, 1000);
+        _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
+        _memory.Map(workMan, 0x40);
+        _memory.Map(work, 0x40);
+        _memory.WriteUInt32(workMan + Profile.GatherWork.Current, work);
+
+        // Стоит в воде: работа «стоять» (тип 0)
+        Assert.False(Reader().Read().Host.Gather?.Active);
+
+        _memory.WriteUInt32(work + Profile.GatherWork.Type, Profile.GatherWork.Gather);
+        _memory.WriteBytes(work + Profile.GatherWork.Flag, [1]);
+        Assert.True(Reader().Read().Host.Gather?.Active);
+
+        // Копание кончилось — работы «сбор» больше нет
+        _memory.WriteUInt32(workMan + Profile.GatherWork.Current, 0);
+        Assert.False(Reader().Read().Host.Gather?.Active);
+    }
+
+    [Fact]
     public void ComebackInWaterIsNotGathering()
     {
         // Как в игре 08.10: в воде старый байт «копаю» (+0x28C) — 0 без всякого копания, полоска 1000 из 1000

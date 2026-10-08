@@ -31,6 +31,7 @@ public sealed class ProfileData
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
+    public GatherWorkOffsets GatherWork { get; init; } = new();
     public MoveTypes MoveTypes { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
 
@@ -55,6 +56,23 @@ public sealed class MoveTypes
     public uint Smart { get; init; }
     /// <summary>Точка в пространстве (с высотой) — для полёта. 0 — не найдена (в полёте летим только по прямой на своей высоте).</summary>
     public uint Fly { get; init; }
+}
+
+/// <summary>
+/// Копает ли — по текущей «работе» перса, как сама игра (где нет <see cref="HostOffsets.GatherTarget"/>): работа
+/// [[перс + <see cref="HostOffsets.WorkMan"/>] + <see cref="Current"/>] типа <see cref="Gather"/> с байтом <see cref="Flag"/> не 0.
+/// <see cref="Current"/> 0 — не так на этом сервере.
+/// </summary>
+public sealed class GatherWorkOffsets
+{
+    /// <summary>[менеджер работ + Current] — работа, которая идёт сейчас (0 — никакой).</summary>
+    public uint Current { get; init; }
+    /// <summary>[работа + Type] — её тип.</summary>
+    public uint Type { get; init; }
+    /// <summary>Тип работы «сбор».</summary>
+    public uint Gather { get; init; }
+    /// <summary>Байт работы «сбор»: не 0 — идёт копание.</summary>
+    public uint Flag { get; init; }
 }
 
 /// <summary>Файлы клиента (configs.pck и др.).</summary>
@@ -98,9 +116,7 @@ public sealed class HostOffsets
     public uint Location { get; init; }
     /// <summary>Указатель на объект скилла, который кастуется сейчас (0 — не кастует); номер — по <see cref="SkillOffsets.Id"/>.</summary>
     public uint CastingSkill { get; init; }
-    /// <summary>Байт: 0 — идёт полоска копания, иначе нет (0 в профиле — поле не найдено). Не нужен, если есть <see cref="GatherTarget"/>.</summary>
-    public uint GatherIdle { get; init; }
-    /// <summary>Id ресурса, который копается: не 0 — идёт копание (0 в профиле — поле не найдено, смотрим <see cref="GatherIdle"/>).</summary>
+    /// <summary>Id ресурса, который копается: не 0 — идёт копание (0 в профиле — поле не найдено, смотрим <see cref="ProfileData.GatherWork"/>).</summary>
     public uint GatherTarget { get; init; }
     /// <summary>Полоска копания: сколько мс прошло.</summary>
     public uint GatherElapsed { get; init; }
