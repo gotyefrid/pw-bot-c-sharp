@@ -114,6 +114,9 @@ public abstract class GameAction
     /// <summary>Что занимает, пока ждёт подтверждения: тело — одновременно только одно такое действие.</summary>
     public virtual ActionResource Resource => ActionResource.None;
 
+    /// <summary>Удачный итог — в подробный лог: действие шлётся часто (обычная атака — раз в секунду), строка на каждое забила бы лог.</summary>
+    public virtual bool Quiet => false;
+
     /// <summary>Важность за тело. По умолчанию обычное; задаётся при создании (<c>{ Priority = ActionPriority.Urgent }</c>).</summary>
     public virtual ActionPriority Priority { get; init; } = ActionPriority.Normal;
 
@@ -176,31 +179,25 @@ public sealed class CancelAction(string what) : GameAction
         => !now.Host.IsCasting && now.Host.Gather is not { Active: true } ? Verdict.Confirmed() : Verdict.Pending;
 }
 
-/// <summary>Обычная атака текущей цели. Подтверждение: моб переключился на перса, у него убыло HP или он умер.</summary>
+/// <summary>
+/// Обычная атака текущей цели — команда серверу, дальше перс бьёт сам, пока его не собьют (ход, каст). Итог не ждём: раньше
+/// тело стояло до 6 с, пока моб не повернётся или не потеряет HP, — ни подойти, ни скилл. Ушла команда — сделано, тело
+/// свободно на ближайшем снимке; сбили — бой повторит через секунду. Тело всё же занимает на миг: копание и каст ради
+/// удара прерываются по общим правилам, а не командой в обход них.
+/// </summary>
 public sealed class NormalAttackAction : GameAction
 {
     public override string Name => "обычная атака";
     public override ActionSlot Slot => ActionSlot.Attack;
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(6);
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override ActionResource Resource => ActionResource.Body;
+    public override bool Quiet => true;
 
     public override string? Precondition(WorldState now) => now.Target is null ? "нет цели" : null;
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.NormalAttack();
 
-    public override Verdict Check(WorldState start, WorldState now)
-    {
-        var before = start.Target;
-        if (before is null || now.Host.TargetWid != before.Wid)
-            return Verdict.Rejected("цель сменилась");
-
-        var mob = now.Npcs.FirstOrDefault(n => n.Wid == before.Wid);
-        if (mob is null || mob.IsDead)
-            return Verdict.Confirmed("цель умерла");
-        if (mob.TargetWid == now.Host.Wid)
-            return Verdict.Confirmed("моб бьёт перса");
-        return mob.Hp < before.Hp ? Verdict.Confirmed($"HP цели {before.Hp} → {mob.Hp}") : Verdict.Pending;
-    }
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
 /// <summary>

@@ -25,6 +25,11 @@ public class ActionRunnerTests
 
     private ActionOutcome Single(IReadOnlyList<ActionOutcome> outcomes) => Assert.Single(outcomes);
 
+    private sealed class ListSink(List<LogEntry> entries) : ILogSink
+    {
+        public void Write(LogEntry entry) => entries.Add(entry);
+    }
+
     [Fact]
     public void SkillConfirmedByCooldown()
     {
@@ -476,27 +481,31 @@ public class ActionRunnerTests
     }
 
     [Fact]
-    public void AttackConfirmedWhenMobTurnsOnHost()
+    public void AttackDoneOnceSentAndFreesBody()
     {
+        // Моб не повернулся и HP не убыло — всё равно сделано: тело свободно на следующем снимке, можно идти
         var mob = _world.AddMob(0x80104298, "Волк", 10, hp: 500);
         _world.TargetWid = mob.Wid;
 
-        _runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot());
-        _world.Replace(mob, m => m with { TargetWid = FakeWorld.HostWid });
+        Assert.True(_runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot()).Sent);
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.25).Snapshot())).Status);
 
-        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(1).Snapshot())).Status);
+        Assert.True(_runner.Submit(Bot, new MoveAction(new Position(5, 0, 0)), _world.Snapshot()).Sent);
     }
 
     [Fact]
-    public void AttackConfirmedByHpWhenMobBeatsPet()
+    public void AttackSuccessGoesToDetailedLogOnly()
     {
-        var mob = _world.AddMob(0x80104298, "Волк", 10, targetWid: FakeWorld.PetWid, hp: 500);
-        _world.TargetWid = mob.Wid;
+        // Удар раз в секунду — «✓» только в подробный лог, иначе строка на каждый удар
+        var log = new List<LogEntry>();
+        var runner = new ActionRunner(new GameControl(_actions), new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(log)).For("действия"));
+        _world.TargetWid = _world.AddMob(0x80104298, "Волк", 10, hp: 500).Wid;
 
-        _runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot());
-        _world.Replace(mob, m => m with { Hp = 470 });
+        runner.Submit(Bot, new NormalAttackAction(), _world.Snapshot());
+        runner.Update(_world.Wait(0.25).Snapshot());
 
-        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(1).Snapshot())).Status);
+        Assert.Single(log, e => e.Message.StartsWith("обычная атака: ✓") && e.Level == LogLevel.Debug);
+        Assert.DoesNotContain(log, e => e.Level != LogLevel.Debug);
     }
 
     [Fact]

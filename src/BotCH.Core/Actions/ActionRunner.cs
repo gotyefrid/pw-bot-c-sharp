@@ -298,7 +298,13 @@ public sealed class ActionRunner(GameControl control, ILogger log) : IPendingAct
 
     private void Report(ActionOutcome outcome)
     {
-        log.Log(outcome.Status is ActionStatus.Confirmed or ActionStatus.Cancelled ? LogLevel.Info : LogLevel.Warning, outcome.ToString());
+        var level = outcome.Status switch
+        {
+            ActionStatus.Confirmed => outcome.Action.Quiet ? LogLevel.Debug : LogLevel.Info,
+            ActionStatus.Cancelled => LogLevel.Info,
+            _ => LogLevel.Warning,
+        };
+        log.Log(level, outcome.ToString());
         Completed?.Invoke(outcome);
     }
 }
