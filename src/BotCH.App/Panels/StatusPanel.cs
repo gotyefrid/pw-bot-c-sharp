@@ -73,7 +73,7 @@ public sealed class StatusPanel : ObservableObject
         var pet = w.Pet;
         var active = pet?.ActiveCage is int cage ? pet.InCage(cage) : null;
         HasPet = active is not null;
-        PetTitle = pet is null ? "Пета нет" : active is null ? "Пет не призван" : $"Пет · клетка {active.Cage}";
+        PetTitle = pet is null ? "Пета нет" : active is null ? "Пет не призван" : $"Пет · {active.Name ?? $"клетка {active.Cage}"}";
         PetHpPercent = active?.HpPercent ?? 0;
         PetHpText = active is null ? "" : $"{active.HpPercent} %";
         PetDetails = active is null ? "" : active.IsHungry ? "голоден" : "сыт";
