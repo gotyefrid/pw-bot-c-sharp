@@ -269,8 +269,9 @@ internal sealed class PortContext
         return Ask($"{steps.Length + 1}. Нажмите Enter") is not null;
     }
 
-    /// <summary>Записывает блок памяти раз в <paramref name="periodMs"/> мс, <paramref name="seconds"/> секунд.</summary>
-    public List<(double Ms, byte[] Data)> Record(Func<byte[]> read, double seconds, int periodMs = 100)
+    /// <summary>Записывает блок памяти раз в <paramref name="periodMs"/> мс, <paramref name="seconds"/> секунд.
+    /// Запись сохраняется в port-&lt;сервер&gt;-&lt;name&gt;.rec рядом с Probe — разобрать потом без повтора в игре.</summary>
+    public List<(double Ms, byte[] Data)> Record(Func<byte[]> read, double seconds, int periodMs, string name)
     {
         var samples = new List<(double, byte[])>();
         var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -289,8 +290,26 @@ internal sealed class PortContext
         }
 
         Console.WriteLine(" готово");
+        // Формат: число записей, размер блока; потом у каждой — мс от начала (double) и блок
+        using (var file = new BinaryWriter(new FileStream(FilePath(name, ".rec"), FileMode.Create, FileAccess.Write, FileShare.ReadWrite)))
+        {
+            file.Write(samples.Count);
+            file.Write(samples.Count > 0 ? samples[0].Item2.Length : 0);
+            foreach (var (ms, data) in samples)
+            {
+                file.Write(ms);
+                file.Write(data);
+            }
+        }
+
         return samples;
     }
+
+    /// <summary>Что было в игре во время записи (ресурсы рядом, скиллы) — рядом с записью, в .txt.</summary>
+    public void Note(string name, string text) => PortProgress.WriteShared(FilePath(name, ".txt"), text);
+
+    private string FilePath(string name, string extension)
+        => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, $"port-{Data.Id}-{name}{extension}");
 
     /// <summary>Строка UTF-16 по адресу, если похожа на текст (ник, название); иначе null.</summary>
     public string? Text(uint address) => ScanCommands.TryString(Game, address);

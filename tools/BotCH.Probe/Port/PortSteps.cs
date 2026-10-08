@@ -595,15 +595,16 @@ internal static class PortSteps
     {
         if (!c.Do("Выберите моба", "Будьте готовы скастовать атакующий скилл: после Enter у вас 6 секунд"))
             return PortResult.Skip("каст не проверен");
-        var rec = c.Record(c.HostBlock, 6, 50);
         var skillIds = c.Reader().Read().Skills.Select(s => (uint)s.Id).ToHashSet();
+        var rec = c.Record(c.HostBlock, 6, 50, "cast");
+        c.Note("cast", "скиллы: " + string.Join(" ", skillIds));
 
-        // Байт «кастует»: был 0, один отрезок не-нуля 0,3..5 с, потом снова 0
+        // Байт «кастует»: был 0, на время каста (0,3..5 с, кастов 1..3) не 0, в конце снова 0
         var flags = Enumerable.Range(0, PortContext.HostSize).Select(i => (uint)i)
-            .Where(o => OneRun(rec, s => s[o] != 0, 300, 5000)).ToList();
-        // Указатель на кастуемый скилл: был 0, потом объект с id изученного скилла, потом 0
+            .Where(o => Runs(rec, s => s[o] != 0, 300, 5000)).ToList();
+        // Указатель на кастуемый скилл: так же, и указывает на объект с id изученного скилла
         var skill = Offsets(rec[0].Data, o => BitConverter.ToUInt32(rec[0].Data, (int)o) == 0)
-            .Where(o => OneRun(rec, s => BitConverter.ToUInt32(s, (int)o) != 0, 300, 5000)
+            .Where(o => Runs(rec, s => BitConverter.ToUInt32(s, (int)o) != 0, 300, 5000)
                         && rec.Select(s => BitConverter.ToUInt32(s.Data, (int)o)).Where(p => p != 0).Distinct().All(p =>
                             c.Game.TryReadUInt32(p + c.Data.Skill.Id, out var id) && skillIds.Contains(id)))
             .ToList();
@@ -618,21 +619,33 @@ internal static class PortSteps
     {
         if (!c.Do("Подойдите к ресурсу (для руды — кирка в сумке)", "После Enter сразу начните копать — запись 15 секунд"))
             return PortResult.Skip("копание не проверено");
-        var rec = c.Record(c.HostBlock, 15, 100);
-        var world = c.Reader().Read();
-        var ids = world.GroundItems.SelectMany(i => new[] { i.Id, i.Tid }).ToHashSet();
+        // Ресурс читаем до записи: выкопанный исчезает
+        var before = c.Reader().Read();
+        var rec = c.Record(c.HostBlock, 15, 100, "gather");
+        var items = before.GroundItems.Concat(c.Reader().Read().GroundItems).ToList();
+        c.Note("gather", string.Join(Environment.NewLine, items.Select(i => $"id 0x{i.Id:X} tid {i.Tid} {i.Name}").Distinct()));
+        var ids = items.SelectMany(i => new[] { i.Id, i.Tid }).ToHashSet();
         uint At(int sample, uint o) => BitConverter.ToUInt32(rec[sample].Data, (int)o);
 
-        // Прошло мс: растёт примерно со скоростью часов, от 0..1 с
-        var elapsed = Offsets(rec[0].Data, _ => true).Where(o => Clock(rec, o, rising: true)).ToList();
-        var results = new List<PortResult> { Choose(c, "host.gatherElapsed", c.Data.Host.GatherElapsed, elapsed, "мс копания растут как часы") };
-        if (c.Data.Host.GatherElapsed != 0)
+        // Полоска: «прошло» растёт как часы и в конце равно «всего», а «всего» с начала хода не меняется (1..120 с)
+        var pairs = new List<(uint Elapsed, uint Total)>();
+        foreach (var e in Offsets(rec[0].Data, _ => true).Where(o => Clock(rec, o, rising: true)))
         {
-            var max = rec.Max(s => BitConverter.ToUInt32(s.Data, (int)c.Data.Host.GatherElapsed));
-            var total = Offsets(rec[0].Data, o => Math.Abs((long)At(rec.Count - 1, o) - max) <= 300 && At(rec.Count - 1, o) is >= 1000 and <= 120000
-                                                   && At(rec.Count - 1, o) == At(rec.Count / 2, o) && o != c.Data.Host.GatherElapsed).ToList();
-            results.Add(Choose(c, "host.gatherTotal", c.Data.Host.GatherTotal, total, $"всего мс = конец полоски ({max})"));
+            var end = At(rec.Count - 1, e);
+            var start = Enumerable.Range(1, rec.Count - 1).First(i => At(i, e) != At(i - 1, e));
+            foreach (var total in Offsets(rec[0].Data, o => o != e && Math.Abs((long)At(rec.Count - 1, o) - end) <= 300 && At(rec.Count - 1, o) is >= 1000 and <= 120000))
+            {
+                if (Enumerable.Range(start, rec.Count - start).All(i => At(i, total) == At(rec.Count - 1, total)))
+                    pairs.Add((e, total));
+            }
         }
+
+        var results = new List<PortResult>
+        {
+            Choose(c, "host.gatherElapsed", c.Data.Host.GatherElapsed, pairs.Select(x => x.Elapsed).Distinct().ToList(), "мс копания растут как часы и в конце = «всего»"),
+        };
+        if (pairs.Count > 0)
+            results.Add(Choose(c, "host.gatherTotal", c.Data.Host.GatherTotal, pairs.Where(x => x.Elapsed == c.Data.Host.GatherElapsed).Select(x => x.Total).ToList(), "всего мс, пока копает, не меняется"));
 
         var target = Offsets(rec[0].Data, o => At(0, o) == 0 && rec.Any(s => ids.Contains(BitConverter.ToUInt32(s.Data, (int)o)))).ToList();
         results.Add(Choose(c, "host.gatherTarget", c.Data.Host.GatherTarget, target, "0 → id ресурса"));
@@ -643,7 +656,7 @@ internal static class PortSteps
     {
         if (!c.Do("Призовите пета, корм — в сумке", "После Enter сразу покормите пета — запись 6 секунд"))
             return PortResult.Skip("корм не проверен");
-        var rec = c.Record(c.HostBlock, 6, 100);
+        var rec = c.Record(c.HostBlock, 6, 100, "petfood");
         var hits = Offsets(rec[0].Data, o => BitConverter.ToUInt32(rec[0].Data, (int)o) < 1000).Where(o => Clock(rec, o, rising: false)).ToList();
         return Choose(c, "host.petFoodCooldown", c.Data.Host.PetFoodCooldown, hits, "мс перезарядки: скачок вверх и убывает как часы");
     }
@@ -652,7 +665,7 @@ internal static class PortSteps
     {
         if (!c.Do("Стойте на земле", "После Enter взлетите, через пару секунд сядьте — запись 10 секунд (полёта нет — «с»)"))
             return PortResult.Skip("полёт не проверен: функции полёта (hostFly, moveTypes.fly) не тестировались");
-        var rec = c.Record(c.HostBlock, 10, 100);
+        var rec = c.Record(c.HostBlock, 10, 100, "fly");
         var hits = Offsets(rec[0].Data, o => BitConverter.ToUInt32(rec[0].Data, (int)o) == 0
                                              && rec.Any(s => BitConverter.ToUInt32(s.Data, (int)o) == 2)
                                              && rec.All(s => BitConverter.ToUInt32(s.Data, (int)o) is 0 or 1 or 2)).ToList();
@@ -665,6 +678,9 @@ internal static class PortSteps
     /// Профиль уже прав — подтвердить; одно место — записать; несколько — записать ближайшее к старому и сказать,
     /// что выбор не однозначный.
     /// </summary>
+    // Насколько поле может уехать от старого места, чтобы выбор из нескольких кандидатов ещё был осмысленным
+    private const long MaxShift = 0x100;
+
     private static PortResult Choose(PortContext c, string path, uint current, IList<uint> hits, string what)
     {
         if (current != 0 && hits.Contains(current))
@@ -674,8 +690,12 @@ internal static class PortSteps
         if (hits.Count > 1)
             Console.WriteLine($"  кандидаты {path}: {string.Join(", ", hits.Take(16).Select(h => $"+0x{h:X}"))}{(hits.Count > 16 ? " …" : "")}");
         var best = hits.OrderBy(h => Math.Abs((long)h - current)).First();
+        var list = string.Join(" ", hits.Take(16).Select(h => $"+0x{h:X}")) + (hits.Count > 16 ? " …" : "");
+        // Из нескольких — только рядом со старым: поля сдвигаются блоками; далеко — скорее случайное совпадение
+        if (hits.Count > 1 && (current == 0 || Math.Abs((long)best - current) > MaxShift))
+            return PortResult.Fail($"{path}: {hits.Count} кандидатов, рядом со старым 0x{current:X} нет — {list}");
         c.Set(path, best, hits.Count == 1 ? what : $"{what}; мест {hits.Count}, взято ближайшее к старому 0x{current:X}");
-        return hits.Count == 1 ? PortResult.Ok("") : PortResult.Likely($"{path}: выбор из {hits.Count}");
+        return hits.Count == 1 ? PortResult.Ok("") : PortResult.Likely($"{path}: выбор из {hits.Count}: {list}");
     }
 
     private static void SetIfChanged(PortContext c, string path, uint current, uint value, string why)
@@ -722,25 +742,29 @@ internal static class PortSteps
         return Enumerable.Range(0, size / 4).Select(i => (uint)i * 4).Where(o => blocks.Count > 0 && blocks.All(b => match(b, o))).ToList();
     }
 
-    /// <summary>Условие было ложно в начале и в конце записи и истинно ровно одним отрезком длиной minMs..maxMs.</summary>
-    private static bool OneRun(List<(double Ms, byte[] Data)> rec, Func<byte[], bool> on, double minMs, double maxMs)
+    /// <summary>
+    /// Условие было ложно в начале и в конце записи, а между ними истинно 1..3 отрезками по minMs..maxMs
+    /// (владелец мог скастовать не один раз).
+    /// </summary>
+    private static bool Runs(List<(double Ms, byte[] Data)> rec, Func<byte[], bool> on, double minMs, double maxMs)
     {
         if (on(rec[0].Data) || on(rec[rec.Count - 1].Data))
             return false;
-        int first = -1, last = -1;
-        for (var i = 0; i < rec.Count; i++)
+        var runs = 0;
+        for (var i = 1; i < rec.Count; i++)
         {
-            if (!on(rec[i].Data))
+            if (!on(rec[i].Data) || on(rec[i - 1].Data))
                 continue;
-            if (first < 0)
-                first = i;
-            else if (last != i - 1)
+            var end = i;
+            while (on(rec[end + 1].Data))
+                end++;
+            var ms = rec[end].Ms - rec[i].Ms;
+            if (ms < minMs || ms > maxMs || ++runs > 3)
                 return false;
-            last = i;
+            i = end;
         }
 
-        var ms = first < 0 ? 0 : rec[last].Ms - rec[first].Ms;
-        return first >= 0 && ms >= minMs && ms <= maxMs;
+        return runs > 0;
     }
 
     /// <summary>
