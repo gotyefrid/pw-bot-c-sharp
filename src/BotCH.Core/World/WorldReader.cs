@@ -46,7 +46,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
+            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherIdle, h.GatherTarget, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence,
@@ -131,8 +131,8 @@ public sealed class WorldReader
             h.PetFoodCooldown == 0 ? 0 : Math.Max(0, block.Int32(h.PetFoodCooldown)))
         {
             CastingSkillId = h.CastingSkill == 0 ? null : ReadCastingSkill(block.UInt32(h.CastingSkill)),
-            Gather = h.GatherIdle == 0 || h.GatherElapsed == 0 || h.GatherTotal == 0 ? null
-                : new GatherProgress(block.Byte(h.GatherIdle) == 0, block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
+            Gather = (h.GatherTarget == 0 && h.GatherIdle == 0) || h.GatherElapsed == 0 || h.GatherTotal == 0 ? null
+                : new GatherProgress(IsGathering(block, h), block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
             Flying = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvAir,
             InWater = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvWater,
         };
@@ -439,6 +439,9 @@ public sealed class WorldReader
     }
 
     private static Position ReadPosition(MemoryBlock b, uint offset) => new(b.Float(offset), b.Float(offset + 4), b.Float(offset + 8));
+
+    // Копает ли: по id ресурса, если он найден в профиле; иначе по байту (в Comeback он в воде занят другим числом — «копает» навсегда)
+    private static bool IsGathering(MemoryBlock b, HostOffsets h) => h.GatherTarget != 0 ? b.UInt32(h.GatherTarget) != 0 : b.Byte(h.GatherIdle) == 0;
 
     // Смещение 0 в профиле — «поле не найдено»: читать нечего (иначе прочиталось бы начало объекта, vtable)
     private static uint Field(MemoryBlock b, uint offset) => offset == 0 ? 0 : b.UInt32(offset);

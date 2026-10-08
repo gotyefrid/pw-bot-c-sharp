@@ -356,11 +356,29 @@ public class WorldReaderTests
         var p = new ProfileCatalog().Load("comeback146").Data;
         ComebackWorldWithMob(p);
         const uint host = 0x1002_0000;
-        _memory.WriteBytes(host + p.Host.GatherIdle, [0]);
+        _memory.WriteUInt32(host + p.Host.GatherTarget, 0xC01004E4);
         _memory.WriteUInt32(host + p.Host.GatherElapsed, 1800);
         _memory.WriteUInt32(host + p.Host.GatherTotal, 8000);
 
         Assert.Equal(new GatherProgress(true, 1800, 8000), new WorldReader(_memory, ModuleBase, p).Read().Host.Gather);
+    }
+
+    [Fact]
+    public void ComebackInWaterIsNotGathering()
+    {
+        // Как в игре 08.10: в воде на месте старого байта «копаю» (+0x28C) float −14,58 с младшим байтом 0, полоска 1000 из 1000
+        var p = new ProfileCatalog().Load("comeback136test").Data;
+        ComebackWorldWithMob(p);
+        const uint host = 0x1002_0000;
+        _memory.WriteBytes(host + 0x28C, [0x00, 0x4E, 0x69, 0xC1]);
+        _memory.WriteUInt32(host + p.Host.MoveEnv, 1);
+        _memory.WriteUInt32(host + p.Host.GatherElapsed, 1000);
+        _memory.WriteUInt32(host + p.Host.GatherTotal, 1000);
+
+        var me = new WorldReader(_memory, ModuleBase, p).Read().Host;
+
+        Assert.True(me.InWater);
+        Assert.False(me.Gather?.Active);
     }
 
     [Fact]

@@ -98,8 +98,10 @@ public sealed class HostOffsets
     public uint Location { get; init; }
     /// <summary>Указатель на объект скилла, который кастуется сейчас (0 — не кастует); номер — по <see cref="SkillOffsets.Id"/>.</summary>
     public uint CastingSkill { get; init; }
-    /// <summary>Байт: 0 — идёт полоска копания, иначе нет (0 в профиле — поле не найдено).</summary>
+    /// <summary>Байт: 0 — идёт полоска копания, иначе нет (0 в профиле — поле не найдено). Не нужен, если есть <see cref="GatherTarget"/>.</summary>
     public uint GatherIdle { get; init; }
+    /// <summary>Id ресурса, который копается: не 0 — идёт копание (0 в профиле — поле не найдено, смотрим <see cref="GatherIdle"/>).</summary>
+    public uint GatherTarget { get; init; }
     /// <summary>Полоска копания: сколько мс прошло.</summary>
     public uint GatherElapsed { get; init; }
     /// <summary>Полоска копания: сколько мс всего.</summary>
