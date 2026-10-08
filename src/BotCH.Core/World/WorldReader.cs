@@ -440,7 +440,7 @@ public sealed class WorldReader
 
     private static Position ReadPosition(MemoryBlock b, uint offset) => new(b.Float(offset), b.Float(offset + 4), b.Float(offset + 8));
 
-    // Копает ли: по id ресурса, если он найден в профиле; иначе по байту (в Comeback он в воде занят другим числом — «копает» навсегда)
+    // Копает ли: по id ресурса, если он найден в профиле; иначе по байту (в Comeback он в воде 0 и без копания — «копает» навсегда)
     private static bool IsGathering(MemoryBlock b, HostOffsets h) => h.GatherTarget != 0 ? b.UInt32(h.GatherTarget) != 0 : b.Byte(h.GatherIdle) == 0;
 
     // Смещение 0 в профиле — «поле не найдено»: читать нечего (иначе прочиталось бы начало объекта, vtable)

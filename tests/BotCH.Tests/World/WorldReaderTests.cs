@@ -366,7 +366,7 @@ public class WorldReaderTests
     [Fact]
     public void ComebackInWaterIsNotGathering()
     {
-        // Как в игре 08.10: в воде на месте старого байта «копаю» (+0x28C) float −14,58 с младшим байтом 0, полоска 1000 из 1000
+        // Как в игре 08.10: в воде старый байт «копаю» (+0x28C) — 0 без всякого копания, полоска 1000 из 1000
         var p = new ProfileCatalog().Load("comeback136test").Data;
         ComebackWorldWithMob(p);
         const uint host = 0x1002_0000;
