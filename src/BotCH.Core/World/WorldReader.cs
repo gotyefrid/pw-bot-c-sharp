@@ -49,7 +49,7 @@ public sealed class WorldReader
             h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
-        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.NamePointer, n.Location + 8, n.Essence,
+        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
             n.Returning);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
@@ -177,8 +177,10 @@ public sealed class WorldReader
     {
         var n = _p.Npc;
         var state = (NpcState)Field(b, n.State);
+        var kind = (NpcKind)b.Int32(n.Type);
 
-        // Кто атакован: обычное поле, а если оно пусто (0 или -1) — цель удара у бьющего, цель каста у кастующего
+        // Кто атакован: обычное поле, а если оно пусто (0 или -1) — цель удара у бьющего, цель каста у кастующего,
+        // у пета — на кого он идёт
         var target = Field(b, n.Target);
         if (target is 0 or uint.MaxValue)
         {
@@ -186,6 +188,7 @@ public sealed class WorldReader
             {
                 NpcState.Attacking when n.AttackTarget != 0 => Field(b, n.AttackTarget),
                 NpcState.Casting when n.CastTarget != 0 => Field(b, n.CastTarget),
+                _ when kind == NpcKind.Pet && n.PetTarget != 0 => Field(b, n.PetTarget),
                 _ => target,
             };
         }
@@ -194,7 +197,7 @@ public sealed class WorldReader
         var npc = new NpcInfo(
             b.Address,
             b.UInt32(n.Wid),
-            (NpcKind)b.Int32(n.Type),
+            kind,
             state,
             target,
             ReadPosition(b, n.Location),
@@ -450,8 +453,13 @@ public sealed class WorldReader
         var work = _p.GatherWork;
         if (work.Current == 0 || h.WorkMan == 0)
             return null;
-        // Не прочиталось (работа сменилась между чтениями) — «не копает»: на следующем снимке прочитается
-        return _memory.TryReadUInt32(b.UInt32(h.WorkMan) + work.Current, out var current) && current != 0
+        // Не прочиталось (работа сменилась между чтениями) — «не копает»: на следующем снимке прочитается.
+        // Работы списком — пустой список значит «не копает», а в массиве может лежать старая работа
+        var manager = b.UInt32(h.WorkMan);
+        if (work.CurrentCount != 0 && !(_memory.TryReadUInt32(manager + work.CurrentCount, out var count) && count != 0))
+            return false;
+        return _memory.TryReadUInt32(manager + work.Current, out var current) && current != 0
+            && (work.CurrentCount == 0 || _memory.TryReadUInt32(current, out current) && current != 0)
             && _memory.TryReadUInt32(current + work.Type, out var type) && type == work.Gather
             && _memory.TryReadUInt32(current + work.Flag, out var flag) && (flag & 0xFF) != 0;
     }

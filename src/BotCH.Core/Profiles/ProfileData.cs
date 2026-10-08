@@ -66,6 +66,11 @@ public sealed class GatherWorkOffsets
 {
     /// <summary>[менеджер работ + Current] — работа, которая идёт сейчас (0 — никакой).</summary>
     public uint Current { get; init; }
+    /// <summary>
+    /// Не 0 — работы лежат списком: [менеджер + Current] — массив работ, [менеджер + CurrentCount] — их число, копание — первая
+    /// в массиве (так у client.exe PW Classic: свой список у каждого уровня работ).
+    /// </summary>
+    public uint CurrentCount { get; init; }
     /// <summary>[работа + Type] — её тип.</summary>
     public uint Type { get; init; }
     /// <summary>Тип работы «сбор».</summary>
@@ -219,6 +224,11 @@ public sealed class NpcOffsets
     /// заагрившийся на перса, пока тот бил другого, — иначе бот не видит, что его бьют.
     /// </summary>
     public uint AttackTarget { get; init; }
+    /// <summary>
+    /// WID того, на кого идёт пет (0 — поля нет). Читается только у петов, если <see cref="Target"/> пуст: так у client.exe
+    /// PW Classic, где общего поля цели нет, а пет по приказу бежит к цели и бьёт — иначе бот не видит, что пет взял цель.
+    /// </summary>
+    public uint PetTarget { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }
     /// <summary>Указатель на запись моба в справочнике игры (MONSTER_ESSENCE, см. <see cref="MonsterEssenceOffsets"/>); 0 — не найден.</summary>

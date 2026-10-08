@@ -291,6 +291,20 @@ public class WorldReaderTests
     }
 
     [Theory]
+    [InlineData(9, 0x80100020u)] // пет — на кого идёт
+    [InlineData(6, 0u)]          // у моба в этом месте другое — не читаем
+    public void PetTargetIsReadOnlyForPets(int type, uint expected)
+    {
+        var p = new ProfileCatalog().Load("pwclassic136newclient").Data;
+        var npc = ComebackWorldWithMob(p);
+        _memory.WriteUInt32(npc + p.Npc.Type, (uint)type);
+        _memory.WriteUInt32(npc + p.Npc.State, (uint)NpcState.Moving);
+        _memory.WriteUInt32(npc + p.Npc.PetTarget, 0x80100020);
+
+        Assert.Equal(expected, Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs).TargetWid);
+    }
+
+    [Theory]
     [InlineData(1u, true)]
     [InlineData(0u, false)]
     public void MobAggroComesFromItsRecord(uint aggressive, bool expected)
@@ -361,6 +375,31 @@ public class WorldReaderTests
         _memory.WriteUInt32(host + p.Host.GatherTotal, 8000);
 
         Assert.Equal(new GatherProgress(true, 1800, 8000), new WorldReader(_memory, ModuleBase, p).Read().Host.Gather);
+    }
+
+    [Fact]
+    public void GatherWorkFromListCountsOnlyWhileListIsNotEmpty()
+    {
+        // client.exe PW Classic: [менеджер + 0x18] — массив работ уровня 1, [+0x24] — их число; копание — первая работа
+        var p = new ProfileCatalog().Load("pwclassic136newclient").Data;
+        ComebackWorldWithMob(p);
+        const uint host = 0x1002_0000, workMan = 0x2300_0000, array = 0x2302_0000, work = 0x2301_0000;
+        _memory.WriteUInt32(host + p.Host.GatherElapsed, 42);
+        _memory.WriteUInt32(host + p.Host.GatherTotal, 6000);
+        _memory.WriteUInt32(host + p.Host.WorkMan, workMan);
+        _memory.Map(workMan, 0x40);
+        _memory.Map(array, 0x10);
+        _memory.Map(work, 0x40);
+        _memory.WriteUInt32(workMan + p.GatherWork.Current, array);
+        _memory.WriteUInt32(array, work);
+        _memory.WriteUInt32(work + p.GatherWork.Type, p.GatherWork.Gather);
+        _memory.WriteBytes(work + p.GatherWork.Flag, [1]);
+
+        // Список пуст — в массиве осталась прошлая работа, но это не копание
+        Assert.False(new WorldReader(_memory, ModuleBase, p).Read().Host.Gather?.Active);
+
+        _memory.WriteUInt32(workMan + p.GatherWork.CurrentCount, 1);
+        Assert.True(new WorldReader(_memory, ModuleBase, p).Read().Host.Gather?.Active);
     }
 
     [Fact]
