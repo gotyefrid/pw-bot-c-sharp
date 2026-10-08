@@ -25,7 +25,8 @@ namespace BotCH.Core.Brain;
 /// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма).</param>
 public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 {
-    private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(5);
+    // Обычная атака: перс бьёт сам, пока не собьют; повтор раз в секунду — сбили (подход, каст) — снова бьёт почти сразу
+    private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan PetOrderPeriod = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);

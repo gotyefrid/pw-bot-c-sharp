@@ -459,7 +459,7 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void SwordEveryFiveSeconds()
+    public void SwordEverySecond()
     {
         _settings.Target.KillMobs = true;
         _settings.Combat.UseSword = true;
@@ -468,7 +468,7 @@ public class BrainScenarioTests
         for (var i = 0; i < 40; i++)
             Tick(0.25); // 10 с
 
-        Assert.Equal(2, _actions.Calls.Count(c => c == "attack"));
+        Assert.Equal(10, _actions.Calls.Count(c => c == "attack"));
     }
 
     [Fact]
