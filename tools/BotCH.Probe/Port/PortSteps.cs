@@ -31,6 +31,7 @@ internal static class PortSteps
         new("gather", "Копание ресурса", true, Gather),
         new("petfood", "Перезарядка корма пета", true, PetFood),
         new("fly", "Полёт", true, Fly),
+        new("fight", "Бой мобов: состояние, кого бьёт, отагр", true, Fight),
     ];
 
     // ───────────────────────── функции ─────────────────────────
@@ -593,10 +594,10 @@ internal static class PortSteps
 
     private static PortResult Cast(PortContext c)
     {
-        if (!c.Do("Выберите моба", "Будьте готовы скастовать атакующий скилл: после Enter у вас 6 секунд"))
+        if (!c.Do("Выберите моба", "После Enter скастуйте атакующий скилл ОДИН раз и ничего больше не нажимайте — запись 10 секунд"))
             return PortResult.Skip("каст не проверен");
         var skillIds = c.Reader().Read().Skills.Select(s => (uint)s.Id).ToHashSet();
-        var rec = c.Record(c.HostBlock, 6, 50, "cast");
+        var rec = c.Record(c.HostBlock, 10, 50, "cast");
         c.Note("cast", "скиллы: " + string.Join(" ", skillIds));
 
         // Байт «кастует»: был 0, на время каста (0,3..5 с, кастов 1..3) не 0, в конце снова 0
@@ -670,6 +671,63 @@ internal static class PortSteps
                                              && rec.Any(s => BitConverter.ToUInt32(s.Data, (int)o) == 2)
                                              && rec.All(s => BitConverter.ToUInt32(s.Data, (int)o) is 0 or 1 or 2)).ToList();
         return Choose(c, "host.moveEnv", c.Data.Host.MoveEnv, hits, "0 → 2 (воздух)");
+    }
+
+    /// <summary>
+    /// Запись всех мобов (тип 6), пока владелец дерётся и уводит моба полётом/бегом. Кого бьёт — поле, где чаще всего WID
+    /// перса; состояние — поле только из 1/2/4/5, где есть и 1 (стоит), и 2 (бьёт); «возвращается» — поле с флагом профиля,
+    /// который стоит только у мобов, бивших перса.
+    /// </summary>
+    private static PortResult Fight(PortContext c)
+    {
+        if (!c.Do("Подойдите к агрессивным мобам", "После Enter: дайте мобу напасть, убейте 1–2 мобов, одного уведите полётом или бегом, "
+                                                 + "пока не развернётся — запись 90 секунд"))
+            return PortResult.Skip("бой не проверен");
+        var hostWid = c.Reader().Read().Host.Wid;
+        const int size = 0x400;
+        var samples = new List<Dictionary<uint, byte[]>>();
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        Console.Write("  ⏺ запись 90 с ");
+        while (watch.Elapsed.TotalSeconds < 90)
+        {
+            var mobs = TryRead(c)?.Mobs.ToList() ?? new List<NpcInfo>();
+            var sample = new Dictionary<uint, byte[]>();
+            foreach (var mob in mobs)
+            {
+                var data = new byte[size];
+                if (c.Game.TryRead(mob.Address, data, size))
+                    sample[mob.Address] = data;
+            }
+
+            samples.Add(sample);
+            if (samples.Count % 40 == 0)
+                Console.Write('.');
+            System.Threading.Thread.Sleep(250);
+        }
+
+        Console.WriteLine(" готово");
+        uint At(byte[] b, uint o) => BitConverter.ToUInt32(b, (int)o);
+        var all = samples.SelectMany(s => s).ToList();
+        var offsets = Enumerable.Range(0x40, size / 4 - 0x40).Select(i => (uint)i * 4).ToList();
+
+        var attack = offsets.Select(o => (o, n: all.Count(x => At(x.Value, o) == hostWid))).Where(x => x.n > 0).OrderByDescending(x => x.n).ToList();
+        var results = new List<PortResult>();
+        if (hostWid == 0 || attack.Count == 0)
+            return PortResult.Fail("ни один моб не держал WID перса — на перса не нападали?");
+        Console.WriteLine($"  WID перса у мобов: {string.Join(", ", attack.Take(5).Select(x => $"+0x{x.o:X}×{x.n}"))}");
+        results.Add(Choose(c, "npc.attackTarget", c.Data.Npc.AttackTarget, attack.Where(x => x.n * 2 >= attack[0].n).Select(x => x.o).ToList(), "WID перса, пока моб бьёт"));
+
+        var states = offsets.Where(o => all.Select(x => At(x.Value, o)).Distinct().ToList() is var v && v.All(s => s is 1 or 2 or 4 or 5) && v.Contains(1u) && v.Contains(2u)).ToList();
+        results.Add(Choose(c, "npc.state", c.Data.Npc.State, states, "только 1/2/4/5: стоит, бьёт, мёртв, идёт"));
+
+        var fighters = all.Where(x => At(x.Value, c.Data.Npc.AttackTarget) == hostWid).Select(x => x.Key).ToHashSet();
+        var flag = c.Data.Npc.ReturningFlag;
+        var returning = offsets.Where(o => all.Any(x => fighters.Contains(x.Key) && (At(x.Value, o) & flag) != 0 && At(x.Value, o) < 0x1000000)
+                                           && all.All(x => fighters.Contains(x.Key) || (At(x.Value, o) & flag) == 0)).ToList();
+        results.Add(flag == 0
+            ? PortResult.Skip("returningFlag в профиле 0 — «возвращается» не искали")
+            : Choose(c, "npc.returning", c.Data.Npc.Returning, returning, $"флаг 0x{flag:X} только у бивших перса (отагр)"));
+        return Merge(results, "");
     }
 
     // ───────────────────────── помощники ─────────────────────────
@@ -779,8 +837,9 @@ internal static class PortSteps
         var changes = Enumerable.Range(1, v.Count - 1).Where(i => v[i] != v[i - 1]).ToList();
         if (changes.Count < 3)
             return false;
-        // Убывающие — с вершины скачка, растущие — с последнего значения до хода
-        var from = rising ? changes[0] - 1 : changes[0];
+        // Убывающие — с вершины скачка; растущие — с последнего значения до хода, а если ход начался сбросом
+        // (осталось прошлое значение → 0), то со сброса
+        var from = !rising || v[changes[0]] < v[changes[0] - 1] ? changes[0] : changes[0] - 1;
         var to = changes[changes.Count - 1];
         if (!rising && v[from] - v[from - 1] < 5000)
             return false;
