@@ -36,8 +36,7 @@ public sealed class ProfileCatalog
 
     public ServerProfile Load(string id)
     {
-        var json = ReadOverride(id) ?? ReadEmbedded(id)
-                   ?? throw new ArgumentException($"Неизвестный сервер «{id}». Есть: {string.Join(", ", Ids)}");
+        var json = ReadJson(id);
 
         ProfileData data;
         try
@@ -54,6 +53,10 @@ public sealed class ProfileCatalog
 
         return new ServerProfile(data);
     }
+
+    /// <summary>Текст профиля как есть, с комментариями (переопределённый или вшитый).</summary>
+    public string ReadJson(string id)
+        => ReadOverride(id) ?? ReadEmbedded(id) ?? throw new ArgumentException($"Неизвестный сервер «{id}». Есть: {string.Join(", ", Ids)}");
 
     private static Assembly Assembly => typeof(ProfileCatalog).Assembly;
 

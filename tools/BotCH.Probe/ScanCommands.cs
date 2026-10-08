@@ -114,7 +114,7 @@ internal static class ScanCommands
         return 0;
     }
 
-    private static string? TryString(IMemory memory, uint address)
+    internal static string? TryString(IMemory memory, uint address)
     {
         try
         {

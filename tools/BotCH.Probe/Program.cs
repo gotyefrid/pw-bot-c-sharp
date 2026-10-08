@@ -41,6 +41,8 @@ internal static class Program
                     return WithClient(rest, WorldCommands.SelfTest);
                 case "cdfind":
                     return CooldownFinder.Find(LoadProfile(rest), rest);
+                case "port":
+                    return Port.PortCommand.Run(LoadProfile(rest), rest);
                 case "act":
                     return ActCommands.Act(LoadProfile(rest), rest);
                 case "mem":
@@ -95,6 +97,10 @@ internal static class Program
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
         Console.WriteLine("  cdfind [pet-food|potion-hp|potion-mp]  использовать предмет и 15 с искать поле его перезарядки («до/после»)");
+        Console.WriteLine();
+        Console.WriteLine("ПЕРЕНОС НА НОВЫЙ КЛИЕНТ (только чтение; правит файл профиля):");
+        Console.Write(Port.PortCommand.Usage);
+        Console.WriteLine(Port.PortCommand.StepList);
     }
 
     private static int Memory(GameProcess game)
