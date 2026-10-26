@@ -19,7 +19,8 @@ internal static class WorldCommands
     {
         var reader = CreateReader(profile, game, out var names);
         Console.WriteLine(names.Count > 0 ? $"Названия скиллов: {names.Count} из {Path.GetFileName(names.Source)}" : "Названия скиллов не прочитаны");
-        Console.Write(Describe(reader.Read(), full: true));
+        var icons = LoadIcons(profile, game);
+        Console.Write(Describe(reader.Read(), full: true, icons));
         return 0;
     }
 
@@ -61,6 +62,7 @@ internal static class WorldCommands
     public static int SelfTest(ServerProfile profile, GameProcess game)
     {
         var reader = CreateReader(profile, game, out var names);
+        var icons = LoadIcons(profile, game);
         var world = reader.Read();
         var checks = new List<(bool Ok, string Text)>();
         void Check(bool ok, string text) => checks.Add((ok, text));
@@ -108,6 +110,11 @@ internal static class WorldCommands
         Check(names.Count > 0, $"названия скиллов прочитаны из файла игры: {names.Count}");
         var unnamed = world.Skills.Where(s => s.Name is null).Select(s => s.Id.ToString()).ToList();
         Check(unnamed.Count == 0, $"у всех скиллов есть название{Bad(unnamed)}");
+        if (data.SkillStub.Icon != 0)
+        {
+            var noIcon = world.Skills.Where(s => icons.Get(s.Id) is null).Select(s => s.Id.ToString()).ToList();
+            Check(icons.Count > 0 && noIcon.Count == 0, $"у всех скиллов есть иконка (всего иконок: {icons.Count}){Bad(noIcon)}");
+        }
 
         if (world.Pet is { } pet)
         {
@@ -166,6 +173,15 @@ internal static class WorldCommands
     private static string Height(Offset offset)
         => Math.Abs(offset.Vertical) < 5 ? "" : $"{(offset.Vertical > 0 ? "↑" : "↓")}{Math.Abs(offset.Vertical):0}";
 
+    private static SkillIcons LoadIcons(ServerProfile profile, GameProcess game)
+    {
+        var icons = SkillIcons.Load(game, profile.Data, out var problem);
+        Console.WriteLine(problem is not null ? "⚠️ Иконки скиллов: " + problem
+            : profile.Data.SkillStub.Icon == 0 ? "Иконки скиллов: в профиле нет skillStub"
+            : $"Иконки скиллов: {icons.Count}");
+        return icons;
+    }
+
     private static WorldReader CreateReader(ServerProfile profile, GameProcess game, out SkillNames names)
     {
         names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out var problem);
@@ -176,7 +192,7 @@ internal static class WorldCommands
         return new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data, loaded.Get);
     }
 
-    private static string Describe(WorldState w, bool full)
+    private static string Describe(WorldState w, bool full, SkillIcons? icons = null)
     {
         var s = new StringBuilder();
         var h = w.Host;
@@ -230,7 +246,8 @@ internal static class WorldCommands
 
         s.AppendLine($"Скиллы {w.Skills.Count}");
         foreach (var k in w.Skills)
-            s.AppendLine($"       {k.Id,5} ур. {k.Level,2}  {k.Name ?? "(нет названия)",-28} {(k.IsReady ? "готов" : $"перезарядка {k.CooldownLeftMs / 1000.0:0.0}/{k.CooldownFullMs / 1000.0:0.0} с")}");
+            s.AppendLine($"       {k.Id,5} ур. {k.Level,2}  {k.Name ?? "(нет названия)",-28} {(k.IsReady ? "готов" : $"перезарядка {k.CooldownLeftMs / 1000.0:0.0}/{k.CooldownFullMs / 1000.0:0.0} с")}"
+                         + (icons is null ? "" : icons.Get(k.Id) is null ? "  без иконки" : $"  {icons.FileOf(k.Id)}"));
 
         return s.ToString();
     }
