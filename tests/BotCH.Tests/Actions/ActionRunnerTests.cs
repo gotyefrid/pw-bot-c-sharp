@@ -413,7 +413,7 @@ public class ActionRunnerTests
         var coin = new GroundItem(1, 0xC0126480, 3044, GroundItemKind.Money, new Position(6, 0, 0), "Монета");
         _world.Ground.Add(coin);
 
-        _runner.Submit(Bot, new PickupAction(coin, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new PickupAction(coin), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         _world.Ground.Clear();
 
@@ -427,7 +427,7 @@ public class ActionRunnerTests
         var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(2, 0, 0), "Мех животных");
         _world.Ground.Add(fur);
 
-        _runner.Submit(Bot, new PickupAction(fur, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new PickupAction(fur), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
@@ -443,7 +443,7 @@ public class ActionRunnerTests
         var fur = new GroundItem(1, 0xC01040F7, 830, GroundItemKind.Item, new Position(8, 0, 0), "Мех животных");
         _world.Ground.Add(fur);
 
-        _runner.Submit(Bot, new PickupAction(fur, approach: true), _world.Snapshot());
+        _runner.Submit(Bot, new PickupAction(fur), _world.Snapshot());
         Assert.Empty(_runner.Update(_world.Wait(4).Snapshot())); // ещё идём — 8 м
         _world.Position = new Position(6, 0, 0);
         Assert.Empty(_runner.Update(_world.Wait(1).Snapshot())); // подошли
@@ -457,16 +457,8 @@ public class ActionRunnerTests
     {
         var ore = new GroundItem(1, 0xC0100AD9, 3089, GroundItemKind.Resource, new Position(5, 0, 0), "Шахта крупного угля");
 
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(ore, approach: true), _world.Snapshot()).Status);
+        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(ore), _world.Snapshot()).Status);
         Assert.Empty(_actions.Calls);
-    }
-
-    [Fact]
-    public void FarPacketPickupIsRefused()
-    {
-        var far = new GroundItem(1, 0xC0000001, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета");
-
-        Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new PickupAction(far, approach: false), _world.Snapshot()).Status);
     }
 
     [Fact]
@@ -748,7 +740,6 @@ public class ActionRunnerTests
         public CallResult PetAttack(uint targetWid) => Slow();
         public CallResult ApplyMacro(int macro) => Slow();
         public CallResult CancelAction() => Slow();
-        public CallResult Pickup(GroundItem item) => Slow();
         public CallResult PickupObject(GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();

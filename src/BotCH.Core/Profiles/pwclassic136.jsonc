@@ -325,11 +325,6 @@
     // Код: push esi; push 1; call 0x6AFC40; push 3; call alloc ... mov word [esi], 3. Персонаж сам подбегает к цели
     "normalAttack": { "rva": "0x1F0370", "convention": "cdecl", "signature": "56 6A 01 E8 ?? ?? ?? ?? 6A 03 E8 ?? ?? ?? ?? 8B F0 83 C4 08" },
 
-    // c2s_SendCmdPickup(int id, int tid), команда 0x06, пакет 10 байт.
-    // К предмету персонаж НЕ подходит: сервер поднимает только в радиусе ~10 м (проверено: 9.8 м да, 10.2 м нет).
-    // Единственный вызывающий в клиенте — 0x5CC050 (ограничитель частоты), его вызывает 0x46E930 (логика клиента)
-    "pickup": { "rva": "0x1F03B0", "convention": "cdecl", "signature": "56 6A 0A E8 ?? ?? ?? ?? 8B F0 83 C4 04 85 F6 74 2D 8B 44 24 08 8B 4C 24 0C 66 C7 06 06 00 89 46" },
-
     // c2s_SendCmdUseItem(byte where, byte index, int tid, byte count), команда 0x28, пакет 10 байт:
     // [0x28][where][count][index:2][tid:4]. where 0 = сумка, count 1. Работает и для банок, и для корма пета (пет должен быть призван)
     "useItem": { "rva": "0x1F03F0", "convention": "cdecl", "signature": "56 6A 0A E8 ?? ?? ?? ?? 8B F0 83 C4 04 85 F6 74 3E 8A 44 24 08 8B 54 24 10 66 0F B6 4C 24 0C 66 C7 06 28 00" },

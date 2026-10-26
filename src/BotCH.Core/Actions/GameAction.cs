@@ -318,25 +318,20 @@ public sealed class UseItemAction(InventoryItem item, ItemUse use, PotionKind? p
     }
 }
 
-/// <summary>Подобрать. Подтверждение — предмет пропал с земли.</summary>
-public sealed class PickupAction(GroundItem item, bool approach) : GameAction
+/// <summary>Подобрать «как мышкой»: персонаж бежит к предмету. Подтверждение — предмет пропал с земли.</summary>
+public sealed class PickupAction(GroundItem item) : GameAction
 {
     public GroundItem Item { get; } = item;
 
-    public override string Name => $"подобрать {Item.Name} ({Item.Offset}{(approach ? ", с подходом" : "")})";
+    public override string Name => $"подобрать {Item.Name} ({Item.Offset})";
     public override ActionSlot Slot => ActionSlot.Pickup;
     public override uint SlotId => Item.Id;
-    // Пакетом персонаж не двигается; «как мышкой» — бежит к предмету
-    public override ActionResource Resource => approach ? ActionResource.Body : ActionResource.None;
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(approach ? 10 : 3);
+    public override ActionResource Resource => ActionResource.Body;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(10);
 
-    public override string? Precondition(WorldState now)
-        => Item.Kind == GroundItemKind.Resource ? "ресурс не подбирается, а собирается"
-            : !approach && Item.Offset.Direct > 10 ? "дальше 10 м — сервер не поднимет без подхода"
-            : null;
+    public override string? Precondition(WorldState now) => Item.Kind == GroundItemKind.Resource ? "ресурс не подбирается, а собирается" : null;
 
-    public override CallResult Send(GameControl control, WorldState now)
-        => approach ? control.Calls.PickupObject(Item) : control.Calls.Pickup(Item);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.PickupObject(Item);
 
     // Стоим рядом, а предмет не исчезает — игра его не отдаёт (чужой лут, не дотянуться); 10 с ждать незачем
     private const float NearDistance = 3f;

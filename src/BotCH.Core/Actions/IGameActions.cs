@@ -39,9 +39,6 @@ public interface IGameActions
     /// <summary>Отменить текущее действие (каст, копание) — как Esc.</summary>
     CallResult CancelAction();
 
-    /// <summary>Подобрать пакетом (только в радиусе ~10 м).</summary>
-    CallResult Pickup(GroundItem item);
-
     /// <summary>Подобрать как кликом мыши: клиент подходит сам.</summary>
     CallResult PickupObject(GroundItem item);
 

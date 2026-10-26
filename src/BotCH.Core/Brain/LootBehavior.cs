@@ -97,7 +97,7 @@ public sealed class LootBehavior : IBehavior
 
         _attempts++;
         Status = $"лут: {item.Name} ({_attempts}/{loot.Attempts})";
-        return c.Submit(new PickupAction(item, approach: true));
+        return c.Submit(new PickupAction(item));
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)

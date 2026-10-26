@@ -153,7 +153,6 @@ internal sealed class FakeActions : IGameActions
     public CallResult PetAttack(uint targetWid) => Record($"pet-attack {targetWid:X}");
     public CallResult ApplyMacro(int macro) => Record($"macro {macro}");
     public CallResult CancelAction() => Record("cancel");
-    public CallResult Pickup(GroundItem item) => Record($"pickup {item.Id:X}");
     public CallResult PickupObject(GroundItem item) => Record($"pickup-approach {item.Id:X}");
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");

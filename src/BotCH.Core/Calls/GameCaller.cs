@@ -50,7 +50,6 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.SelectTarget] = ["wid"],
         [GameFunctions.Unselect] = [],
         [GameFunctions.NormalAttack] = ["pvpMask"],
-        [GameFunctions.Pickup] = ["id", "tid"],
         [GameFunctions.UseItem] = ["where", "slot", "tid", "count"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
@@ -122,9 +121,6 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Обычная атака текущей цели, pvpMask 0.</summary>
     public CallResult NormalAttack() => Call(GameFunctions.NormalAttack, null, ("pvpMask", 0));
-
-    /// <summary>Подобрать пакетом: сервер поднимает только в радиусе ~10 м, персонаж не подходит.</summary>
-    public CallResult Pickup(GroundItem item) => Call(GameFunctions.Pickup, null, ("id", item.Id), ("tid", item.Tid));
 
     /// <summary>Использовать 1 предмет из ячейки основной сумки (банка, корм пета).</summary>
     public CallResult UseItem(InventoryItem item)

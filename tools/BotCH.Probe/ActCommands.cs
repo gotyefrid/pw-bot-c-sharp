@@ -34,8 +34,7 @@ internal static class ActCommands
           act pet-heal          вылечить призванного пета
           act pet-revive [клетка]  воскресить мёртвого пета
           act pet-attack        приказать пету атаковать цель
-          act pickup            подобрать ближайший предмет в 10 м пакетом
-          act pickup-approach   подобрать ближайший предмет «как мышкой»
+          act pickup            подобрать ближайший предмет «как мышкой»
           act cancel            прервать каст или копание (как Esc)
           act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
@@ -178,12 +177,8 @@ internal static class ActCommands
                 return w.Host.TargetWid == 0 ? null : new PetAttackAction(w.Host.TargetWid);
 
             case "pickup":
-                problem = "рядом (до 10 м) нет предметов";
-                return nearestItem is { Offset.Direct: <= 10 } ? new PickupAction(nearestItem, approach: false) : null;
-
-            case "pickup-approach":
                 problem = "на земле нет предметов";
-                return nearestItem is null ? null : new PickupAction(nearestItem, approach: true);
+                return nearestItem is null ? null : new PickupAction(nearestItem);
 
             case "cancel":
                 // Что было до: без этого ✓ ничего не доказывает (нечего прерывать — тоже ✓)
