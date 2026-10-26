@@ -74,7 +74,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
 
         Pets = new PetsPanel(() => Settings, SettingsEdited);
-        Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, id => _connection?.SkillIcons.Get(id), _log, SettingsEdited, () =>
+        Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, id => _connection?.SkillIcons.Get(id),
+            macro => _connection?.MacroIcon(macro), _log, SettingsEdited, () =>
         {
             // Список скиллов пересобран — выбор в окне перечитать заново
             OnPropertyChanged(nameof(Settings));

@@ -16,8 +16,8 @@ namespace BotCH.App.Panels;
 
 /// <summary>
 /// Вкладки «Мобы» и «Общее» сверх простых полей настроек: центр фарма и сохранённые точки, списки мобов, лута и ресурсов
-/// (выбор из того, что вокруг и встречалось), атакующий скилл из изученных (с иконкой из игры). Всё — в настройках персонажа; о правке говорит
-/// модели окна.
+/// (выбор из того, что вокруг и встречалось), атакующий скилл из изученных или макрос персонажа (с иконками из игры). Всё — в
+/// настройках персонажа; о правке говорит модели окна.
 /// </summary>
 public sealed class FarmPanel : ObservableObject
 {
@@ -28,6 +28,7 @@ public sealed class FarmPanel : ObservableObject
     private readonly Func<WorldState?> _world;
     private readonly Func<ServerProfile> _profile;
     private readonly Func<int, IconImage?> _skillIcon;
+    private readonly Func<MacroInfo, IconImage?> _macroIcon;
     private readonly ILogger _log;
     private readonly Action _edited;
     private readonly Action _skillsRebuilt;
@@ -45,15 +46,17 @@ public sealed class FarmPanel : ObservableObject
     /// <param name="world">Последний снимок; null — мир не читается.</param>
     /// <param name="profile">Профиль сервера: какие скиллы не атакующие, какой атакующий по умолчанию.</param>
     /// <param name="skillIcon">Иконка скилла из игры; null — нет (ещё не загрузились или на этом сервере не найдены).</param>
+    /// <param name="macroIcon">Иконка макроса персонажа; null — нет.</param>
     /// <param name="edited">Правка настроек из этих вкладок.</param>
     /// <param name="skillsRebuilt">Список скиллов пересобран — окну перечитать выбор.</param>
     public FarmPanel(Func<BotSettings> settings, Func<WorldState?> world, Func<ServerProfile> profile, Func<int, IconImage?> skillIcon,
-        ILogger log, Action edited, Action skillsRebuilt)
+        Func<MacroInfo, IconImage?> macroIcon, ILogger log, Action edited, Action skillsRebuilt)
     {
         _settings = settings;
         _world = world;
         _profile = profile;
         _skillIcon = skillIcon;
+        _macroIcon = macroIcon;
         _log = log;
         _edited = edited;
         _skillsRebuilt = skillsRebuilt;
@@ -68,10 +71,33 @@ public sealed class FarmPanel : ObservableObject
 
     // ── Списки и скилл ───────────────────────────────────────────────────────
 
-    public sealed record SkillChoice(int Id, string Title, ImageSource? Icon);
+    /// <param name="Key">ID скилла; у макроса — минус его номер.</param>
+    public sealed record AttackChoice(int Key, string Title, ImageSource? Icon);
 
-    /// <summary>Атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры.</summary>
-    public ObservableCollection<SkillChoice> AttackSkills { get; } = new();
+    /// <summary>
+    /// Чем бить: атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры, за ними —
+    /// его макросы.
+    /// </summary>
+    public ObservableCollection<AttackChoice> AttackSkills { get; } = new();
+
+    /// <summary>Выбор в списке «Атакующий скилл»: ID скилла или минус номер макроса (<see cref="AttackChoice.Key"/>).</summary>
+    public int SelectedAttack
+    {
+        get => Settings.Combat.AttackMacro > 0 ? -Settings.Combat.AttackMacro : Settings.Combat.AttackSkillId;
+        set
+        {
+            // 0 — пересборка списка сбросила выбор: это не выбор пользователя
+            if (value < 0)
+            {
+                Settings.Combat.AttackMacro = -value;
+            }
+            else if (value > 0)
+            {
+                Settings.Combat.AttackMacro = 0;
+                Settings.Combat.AttackSkillId = value;
+            }
+        }
+    }
 
     public sealed record PathChoice(ApproachPath Path, string Title);
 
@@ -155,6 +181,7 @@ public sealed class FarmPanel : ObservableObject
         LoadNameLists();
         LoadFarmCenters();
         AttackSkills.Clear();
+        OnPropertyChanged(nameof(SelectedAttack));
     }
 
     /// <summary>Новый снимок: кого и что встречали, изученные скиллы, сколько до точки фарма.</summary>
@@ -185,11 +212,12 @@ public sealed class FarmPanel : ObservableObject
 
     private void UpdateAttackSkills(WorldState w)
     {
-        // Названия и иконки скиллов догружаются в фоне — список пересобирается, когда изменились ID, названия или иконки
+        // Названия и иконки догружаются в фоне — список пересобирается, когда изменились скиллы, макросы, названия или иконки
         var profile = _profile().Data;
         var choices = w.Skills
             .Where(s => !profile.Skills.NotAttack.Contains(s.Id))
-            .Select(s => new SkillChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})", Icon(s.Id)))
+            .Select(s => new AttackChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})", ToImage(_skillIcon(s.Id))))
+            .Concat(w.Macros.Select(m => new AttackChoice(-m.Number, $"Макрос {m.Number}", ToImage(_macroIcon(m)))))
             .ToList();
         if (choices.SequenceEqual(AttackSkills))
             return;
@@ -198,20 +226,27 @@ public sealed class FarmPanel : ObservableObject
         foreach (var choice in choices)
             AttackSkills.Add(choice);
 
-        // Выбранного нет среди изученных — атакующий скилл класса по умолчанию, иначе первый
-        var ids = choices.Select(c => c.Id).ToList();
+        // Выбранного нет среди изученных — атакующий скилл класса по умолчанию, иначе первый. Выбранного макроса больше нет — скилл
+        var ids = choices.Where(c => c.Key > 0).Select(c => c.Key).ToList();
         if (ids.Count > 0 && !ids.Contains(Settings.Combat.AttackSkillId))
         {
             Settings.Combat.AttackSkillId = ids.Contains(profile.Skills.DefaultAttack) ? profile.Skills.DefaultAttack : ids[0];
             _edited();
         }
 
+        if (Settings.Combat.AttackMacro > 0 && w.Macros.Count > 0 && w.Macros.All(m => m.Number != Settings.Combat.AttackMacro))
+        {
+            Settings.Combat.AttackMacro = 0;
+            _edited();
+        }
+
+        OnPropertyChanged(nameof(SelectedAttack));
         _skillsRebuilt();
     }
 
-    private ImageSource? Icon(int skillId)
+    private ImageSource? ToImage(IconImage? icon)
     {
-        if (_skillIcon(skillId) is not { } icon)
+        if (icon is null)
             return null;
 
         if (!_icons.TryGetValue(icon, out var image))

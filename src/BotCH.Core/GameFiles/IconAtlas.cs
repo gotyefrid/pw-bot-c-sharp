@@ -30,14 +30,16 @@ public sealed class IconAtlas
     private const uint Dxt1 = 0x31545844; // «DXT1»
 
     private readonly Dictionary<string, int> _cells;
+    private readonly int _listed;
     private readonly Dictionary<int, IconImage> _decoded = new();
     private readonly byte[] _dds;
     private readonly int _width;
     private readonly int _columns;
 
-    private IconAtlas(Dictionary<string, int> cells, byte[] dds, int width, int iconWidth, int iconHeight, int columns)
+    private IconAtlas(Dictionary<string, int> cells, int listed, byte[] dds, int width, int iconWidth, int iconHeight, int columns)
     {
         _cells = cells;
+        _listed = listed;
         _dds = dds;
         _width = width;
         IconWidth = iconWidth;
@@ -45,7 +47,7 @@ public sealed class IconAtlas
         _columns = columns;
     }
 
-    public static IconAtlas Empty { get; } = new(new Dictionary<string, int>(), [], 0, 0, 0, 0);
+    public static IconAtlas Empty { get; } = new(new Dictionary<string, int>(), 0, [], 0, 0, 0, 0);
 
     public int IconWidth { get; }
     public int IconHeight { get; }
@@ -56,9 +58,12 @@ public sealed class IconAtlas
     public bool Contains(string file) => _cells.ContainsKey(file);
 
     /// <summary>Иконка по имени файла («治疗宠物.dds»); null — такой в наборе нет.</summary>
-    public IconImage? Get(string file)
+    public IconImage? Get(string file) => _cells.TryGetValue(file, out var cell) ? GetAt(cell) : null;
+
+    /// <summary>Иконка по номеру клетки (с 0, как имена в списке); null — такой клетки нет.</summary>
+    public IconImage? GetAt(int cell)
     {
-        if (!_cells.TryGetValue(file, out var cell))
+        if (cell < 0 || cell >= _listed)
             return null;
 
         lock (_decoded)
@@ -130,7 +135,7 @@ public sealed class IconAtlas
                 cells[name] = i - 4;
         }
 
-        return new IconAtlas(cells, dds, width, iconWidth, iconHeight, columns);
+        return new IconAtlas(cells, Math.Min(lines.Length - 4, capacity), dds, width, iconWidth, iconHeight, columns);
     }
 
     private IconImage Decode(int cell)

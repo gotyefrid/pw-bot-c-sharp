@@ -410,7 +410,8 @@
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
               <ComboBox DockPanel.Dock="Right" Width="220" ItemsSource="{Binding Farm.AttackSkills}"
-                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}">
+                        SelectedValuePath="Key" SelectedValue="{Binding Farm.SelectedAttack}"
+                        ToolTip="Скилл — бот кастует его и ждёт, что каст начался. Макрос — бот только запускает его, дальше игра крутит его сама">
                 <ComboBox.ItemTemplate>
                   <DataTemplate>
                     <StackPanel Orientation="Horizontal">

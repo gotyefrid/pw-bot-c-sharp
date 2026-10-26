@@ -54,6 +54,7 @@ public sealed class ClientConnection : IDisposable
     private Unfreezer? _unfreezer;
     private volatile SkillNames _skillNames = SkillNames.Empty;
     private volatile SkillIcons _skillIcons = SkillIcons.Empty;
+    private volatile IconAtlas _macroIcons = IconAtlas.Empty;
     private RunningBot? _bot;
     private Task _stopping = Task.CompletedTask;
     private bool _disposed;
@@ -119,6 +120,9 @@ public sealed class ClientConnection : IDisposable
 
     /// <summary>Иконки скиллов клиента; пока не загрузились (или их нет) — пусто.</summary>
     public SkillIcons SkillIcons => _skillIcons;
+
+    /// <summary>Иконка макроса: номер иконки с 1 (0 — макроса нет) — клетка набора iconlist_skillgrp с 0; null — нет.</summary>
+    public IconImage? MacroIcon(MacroInfo macro) => _macroIcons.GetAt(macro.Icon - 1);
 
     /// <summary>Текущий бот; null — не запущен.</summary>
     public RunningBot? Bot
@@ -249,6 +253,13 @@ public sealed class ClientConnection : IDisposable
                 _log.Warning("Названия скиллов: " + problem);
             else
                 _log.Debug($"Названия скиллов: {names.Count}");
+
+            if (_profile.Macros.List != 0)
+            {
+                _macroIcons = IconAtlas.LoadFromGameDirectory(directory, "skillgrp", pck, out problem);
+                if (problem is not null)
+                    _log.Warning("Иконки макросов: " + problem);
+            }
 
             try
             {
