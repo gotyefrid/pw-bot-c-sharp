@@ -55,11 +55,11 @@ public class ProfileCatalogTests
     [InlineData("comeback146")]
     public void EveryServerCanDoTheSame(string id)
     {
-        // Бот на всех серверах умеет одно и то же
+        // Бот на всех серверах умеет одно и то же: одинаковые функции, все возможности
         var profile = _catalog.Load(id);
 
-        Assert.All(new[] { Capability.Move, Capability.SmartMove, Capability.FlyTo, Capability.Cancel, Capability.RecallPet },
-            c => Assert.Null(profile.Capabilities.WhyNot(c)));
+        Assert.Equal(_catalog.Load("comeback136").Data.Functions.Keys.OrderBy(k => k), profile.Data.Functions.Keys.OrderBy(k => k));
+        Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>(), c => Assert.Null(profile.Capabilities.WhyNot(c)));
     }
 
     [Fact]

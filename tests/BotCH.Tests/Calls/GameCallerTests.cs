@@ -110,20 +110,14 @@ public class GameCallerTests
     public void MacroIsStartedLikePanelButton()
     {
         // Как кнопка макроса на панели: у персонажа, номер с 0, повтор не пропускать, «атаковать силой» — как в настройках (-1)
-        var comeback = new ProfileCatalog().Load("comeback136").Data;
-        foreach (var function in comeback.Functions.Values)
-            _memory.WriteBytes(ModuleBase + function.Rva, CodeFor(function.Signature!));
-        const uint basePtr = 0x1000_0000, game = 0x1001_0000, host = 0x1FA1F868;
-        _memory.WriteUInt32(BasePointer, basePtr);
-        _memory.WriteUInt32(basePtr + comeback.Base.Game, game);
-        _memory.WriteUInt32(game + comeback.Host.Struct, host);
-        var caller = Caller(comeback);
+        PutHost();
+        var caller = Caller();
 
         var result = caller.ApplyMacro(1);
 
         Assert.True(result.Ok, result.Details);
-        var address = ModuleBase + comeback.Functions[GameFunctions.HostApplyComboSkill].Rva;
-        Assert.Equal(StubBuilder.Call(address, CallingConvention.Thiscall, host, [0, 0, 0xFFFFFFFF]), _runner.Runs.Single().Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.HostApplyComboSkill), CallingConvention.Thiscall, Host, [0, 0, 0xFFFFFFFF]),
+            _runner.Runs.Single().Stub);
         Assert.Contains("вне 1..8", caller.ApplyMacro(9).Details);
         Assert.Single(_runner.Runs);
     }
