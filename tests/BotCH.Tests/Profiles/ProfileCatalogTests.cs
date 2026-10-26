@@ -89,7 +89,8 @@ public class ProfileCatalogTests
         Assert.Equal(0x5A8u, p136.Host.TargetId);
         Assert.Equal(0x790u, p136.Host.MoveEnv);
         Assert.Equal(p146.Npc.State, p136.Npc.State);
-        Assert.Equal(p146.Functions.Keys.OrderBy(k => k), p136.Functions.Keys.OrderBy(k => k));
+        // Все функции 1.4.6 есть и в 1.3.6 (у 1.3.6 есть и свои: запуск макроса)
+        Assert.Empty(p146.Functions.Keys.Except(p136.Functions.Keys));
         Assert.All(p136.Functions, f =>
         {
             Assert.NotNull(f.Value.Signature);

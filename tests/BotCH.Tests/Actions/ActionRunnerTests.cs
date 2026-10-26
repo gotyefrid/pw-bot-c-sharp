@@ -746,6 +746,7 @@ public class ActionRunnerTests
         public CallResult CastSkill(int skillId, uint targetWid) => Slow();
         public CallResult ApplySkill(int skillId, uint targetWid) => Slow();
         public CallResult PetAttack(uint targetWid) => Slow();
+        public CallResult ApplyMacro(int macro) => Slow();
         public CallResult CancelAction() => Slow();
         public CallResult Pickup(GroundItem item) => Slow();
         public CallResult PickupObject(GroundItem item) => Slow();

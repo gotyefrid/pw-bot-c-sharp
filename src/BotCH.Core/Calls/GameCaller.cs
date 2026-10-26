@@ -58,6 +58,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.CancelAction] = [],
         [GameFunctions.PetCtrl] = ["target", "command", DataArg, "size"],
         [GameFunctions.HostApplySkill] = ["skill", "force", "target", "pvp"],
+        // Как кнопка макроса на панели: номер с 0, повтор не пропускать, «атаковать силой» — как в настройках игры
+        [GameFunctions.HostApplyComboSkill] = ["group", "0", "0xFFFFFFFF"],
         [GameFunctions.HostPickupObject] = ["id", "gather"],
         [GameFunctions.HostFly] = ["force"],
         // 1.3.6: SetDestination(type, &point), StartWork(1, work, 1, 0)
@@ -154,6 +156,15 @@ public sealed class GameCaller : IGameActions
     /// <summary>Скилл как нажатием кнопки: клиент сам подходит на дальность. target 0 — текущая цель.</summary>
     public CallResult ApplySkill(int skillId, uint targetWid)
         => Call(GameFunctions.HostApplySkill, null, ("skill", (uint)skillId), ("force", 0), ("target", targetWid), ("pvp", 0xFFFFFFFF));
+
+    /// <summary>Запустить макрос 1..N, как кнопкой на панели: дальше игра крутит его сама. Запуск поверх идущего начинает его сначала.</summary>
+    public CallResult ApplyMacro(int macro)
+    {
+        var count = _profile.Macros.Count;
+        return macro < 1 || macro > count
+            ? CallResult.Refused($"макрос {macro} вне 1..{count}")
+            : Call(GameFunctions.HostApplyComboSkill, null, ("group", (uint)(macro - 1)));
+    }
 
     /// <summary>Подобрать как кликом мыши: клиент подводит персонажа и сам отправляет подбор.</summary>
     public CallResult PickupObject(GroundItem item) => PickupObject(item.Id, gather: false);

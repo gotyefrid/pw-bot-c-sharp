@@ -33,6 +33,7 @@ internal sealed class FakeWorld
     public List<GroundItem> Ground { get; } = [];
     public List<InventoryItem> Bag { get; } = [];
     public List<SkillInfo> Skills { get; } = [];
+    public List<MacroInfo> Macros { get; } = [];
 
     /// <summary>Полоска копания (null — сервер её не показывает).</summary>
     public GatherProgress? Gather { get; set; }
@@ -60,7 +61,7 @@ internal sealed class FakeWorld
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, Casting, PetFoodCooldownMs)
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater },
-        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots };
+        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Macros = Macros.ToList() };
 
     /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, NpcState? state = null, int hp = 0)
@@ -150,6 +151,7 @@ internal sealed class FakeActions : IGameActions
     public CallResult CastSkill(int skillId, uint targetWid) => Record($"cast {skillId} {targetWid:X}");
     public CallResult ApplySkill(int skillId, uint targetWid) => Record($"apply {skillId} {targetWid:X}");
     public CallResult PetAttack(uint targetWid) => Record($"pet-attack {targetWid:X}");
+    public CallResult ApplyMacro(int macro) => Record($"macro {macro}");
     public CallResult CancelAction() => Record("cancel");
     public CallResult Pickup(GroundItem item) => Record($"pickup {item.Id:X}");
     public CallResult PickupObject(GroundItem item) => Record($"pickup-approach {item.Id:X}");

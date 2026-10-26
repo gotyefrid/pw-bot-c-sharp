@@ -33,6 +33,9 @@ public interface IGameActions
 
     CallResult PetAttack(uint targetWid);
 
+    /// <summary>Запустить макрос персонажа 1..N, как кнопкой на панели.</summary>
+    CallResult ApplyMacro(int macro);
+
     /// <summary>Отменить текущее действие (каст, копание) — как Esc.</summary>
     CallResult CancelAction();
 

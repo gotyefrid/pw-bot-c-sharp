@@ -46,6 +46,8 @@ public enum ActionSlot
     Attack,
     /// <summary>Скилл; в ключе — его ID.</summary>
     Skill,
+    /// <summary>Макрос персонажа; в ключе — его номер.</summary>
+    Macro,
     /// <summary>Банка или корм; в ключе — ячейка сумки.</summary>
     Item,
     /// <summary>Подбор с земли; в ключе — ID предмета.</summary>
@@ -196,6 +198,28 @@ public sealed class NormalAttackAction : GameAction
     public override string? Precondition(WorldState now) => now.Target is null ? "нет цели" : null;
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.NormalAttack();
+
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
+/// <summary>
+/// Макрос персонажа — как кнопкой на панели, дальше игра крутит его сама. Что внутри и сработал ли, бот не смотрит: ушла
+/// команда — сделано (так решил владелец). Тело занимает на миг, как обычная атака: во время каста не жмётся.
+/// </summary>
+public sealed class MacroAction(int macro) : GameAction
+{
+    public int Macro { get; } = macro;
+    public override string Name => $"макрос {Macro}";
+    public override ActionSlot Slot => ActionSlot.Macro;
+    public override uint SlotId => (uint)Macro;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override ActionResource Resource => ActionResource.Body;
+    public override bool Quiet => true;
+
+    public override string? Precondition(WorldState now)
+        => now.Target is null ? "нет цели" : now.Macros.Any(m => m.Number == Macro) ? null : $"макроса {Macro} нет";
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ApplyMacro(Macro);
 
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }

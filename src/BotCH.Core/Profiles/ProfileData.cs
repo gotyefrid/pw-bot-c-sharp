@@ -28,6 +28,7 @@ public sealed class ProfileData
     public PetFoodOffsets PetFood { get; init; } = new();
     public SkillOffsets Skill { get; init; } = new();
     public SkillStubOffsets SkillStub { get; init; } = new();
+    public MacroOffsets Macros { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
@@ -90,6 +91,8 @@ public sealed class BaseOffsets
     public uint Unfreeze { get; init; }
     /// <summary>[база + Session] — объект связи с сервером (в нём SendGameData); this для функций с "this": "session".</summary>
     public uint Session { get; init; }
+    /// <summary>[база + Configs] — настройки игры: в них макросы персонажа (<see cref="MacroOffsets"/>).</summary>
+    public uint Configs { get; init; }
 }
 
 /// <summary>Персонаж (CECHostPlayer): [game + Struct].</summary>
@@ -361,6 +364,18 @@ public sealed class SkillStubOffsets
     public uint Icon { get; init; }
 }
 
+/// <summary>
+/// Макросы персонажа (собирает игрок в окне скиллов) — в настройках игры: [[база + <see cref="BaseOffsets.Configs"/>] + <see cref="List"/>],
+/// <see cref="Count"/> подряд по <see cref="Size"/> байт. Первый байт макроса — номер иконки, 0 — макроса нет. Бот только
+/// запускает макрос (<see cref="GameFunctions.HostApplyComboSkill"/>), что внутри — не читает. <see cref="List"/> 0 — не найдено.
+/// </summary>
+public sealed class MacroOffsets
+{
+    public uint List { get; init; }
+    public uint Size { get; init; }
+    public int Count { get; init; }
+}
+
 /// <summary>ID скиллов класса (пока друид).</summary>
 public sealed class ClassSkills
 {
@@ -421,6 +436,7 @@ public static class GameFunctions
     public const string RecallPet = "recallPet";
     public const string PetCtrl = "petCtrl";
     public const string HostApplySkill = "hostApplySkill";
+    public const string HostApplyComboSkill = "hostApplyComboSkill";
     public const string HostPickupObject = "hostPickupObject";
     public const string HostFly = "hostFly";
     public const string WorkCreate = "workCreate";

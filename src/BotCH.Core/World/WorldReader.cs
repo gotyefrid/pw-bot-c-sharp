@@ -77,6 +77,7 @@ public sealed class WorldReader
             NpcCountInGame = npcCount,
             GroundItemCountInGame = itemCount,
             InventorySlots = slots,
+            Macros = ReadMacros(),
         };
     }
 
@@ -392,6 +393,28 @@ public sealed class WorldReader
         if (address == 0 || !_memory.TryReadUInt32(address, out var id) || id != tid || !_memory.TryReadUInt32(address + p.EssenceInhabit, out var inhabit))
             return (null, null);
         return _petEssences[tid] = (ReadName(address + p.EssenceName), PetHabitats.FromGame(unchecked((int)inhabit)));
+    }
+
+    // Макросы — в настройках игры, а не у персонажа; читаем только, какие есть и их иконки
+    private List<MacroInfo> ReadMacros()
+    {
+        var m = _p.Macros;
+        var macros = new List<MacroInfo>();
+        var size = (int)m.Size;
+        var bytes = new byte[size * m.Count];
+        if (m.List == 0 || bytes.Length == 0 || _p.Base.Configs == 0 || !_roots.TryBase(out var basePointer)
+            || !_memory.TryReadUInt32(basePointer + _p.Base.Configs, out var configs) || configs == 0
+            || !_memory.TryRead(configs + m.List, bytes, bytes.Length))
+            return macros;
+
+        for (var i = 0; i < m.Count; i++)
+        {
+            var icon = bytes[i * size];
+            if (icon != 0)
+                macros.Add(new MacroInfo(i + 1, icon));
+        }
+
+        return macros;
     }
 
     // Запись-описание по id — как клиент (get_data_ptr): ячейка id % число ячеек, по цепочке узлов до своего id, дальше

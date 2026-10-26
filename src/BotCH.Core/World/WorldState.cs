@@ -91,6 +91,9 @@ public sealed record WorldState(
 
     public SkillInfo? Skill(int id) => Skills.FirstOrDefault(s => s.Id == id);
 
+    /// <summary>Макросы персонажа (только непустые); пусто — нет или на этом сервере не найдены.</summary>
+    public IReadOnlyList<MacroInfo> Macros { get; init; } = [];
+
     /// <summary>Сколько ячеек в сумке (0 — неизвестно).</summary>
     public int InventorySlots { get; init; }
 
@@ -276,6 +279,9 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
 }
 
 public sealed record PotionInfo(int RequiredLevel, int Hp, int HpSeconds, int Mp, int MpSeconds);
+
+/// <summary>Макрос персонажа: номер 1..N и номер иконки (набор iconlist_skillgrp).</summary>
+public sealed record MacroInfo(int Number, int Icon);
 
 public sealed record SkillInfo(int Id, int Level, int CooldownLeftMs, int CooldownFullMs, uint Flags, string? Name)
 {

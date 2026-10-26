@@ -36,6 +36,27 @@ public class WorldReaderTests
     private WorldReader Reader(ProfileData? profile = null) => new(_memory, new GameRoots(_memory, BasePointer, profile ?? Profile), profile ?? Profile);
 
     [Fact]
+    public void MacrosAreTheNonEmptyOnes()
+    {
+        // Макросы — в настройках игры: [база + configs] + list, по size байт, первый — иконка (0 — макроса нет)
+        var comeback = new ProfileCatalog().Load("comeback136").Data;
+        var host = BuildWorld(profile: comeback);
+        _memory.Map(host, 0x2000);
+        const uint configs = 0x1005_0000;
+        _memory.WriteUInt32(0x1000_0000 + comeback.Base.Configs, configs);
+        _memory.Map(configs, 0x1000);
+        var m = comeback.Macros;
+        // 1-й: иконка 1, «Жалящий рой» и обычная атака; 2-й пустой, хоть в нём и мусор; 3-й: иконка 5
+        _memory.WriteBytes(configs + m.List, [1, 0x2B, 0x01, 0xFF, 0xFF]);
+        _memory.WriteBytes(configs + m.List + m.Size + 1, [0xCE, 0xC3]);
+        _memory.WriteBytes(configs + m.List + 2 * m.Size, [5]);
+
+        var macros = Reader(comeback).Read().Macros;
+
+        Assert.Equal([new MacroInfo(1, 1), new MacroInfo(3, 5)], macros);
+    }
+
+    [Fact]
     public void NoPetIsNormal()
     {
         BuildWorld(petManager: 0);
