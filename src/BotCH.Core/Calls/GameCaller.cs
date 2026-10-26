@@ -81,11 +81,11 @@ public sealed class GameCaller : IGameActions
     private readonly Dictionary<string, FunctionLocation> _functions;
     private readonly Dictionary<string, Prepared> _prepared;
 
-    public GameCaller(IMemory memory, IRemoteRunner runner, uint moduleBase, ProfileData profile, FunctionResolver? resolver = null)
+    public GameCaller(IMemory memory, IRemoteRunner runner, uint moduleBase, GameRoots roots, ProfileData profile, FunctionResolver? resolver = null)
     {
         _memory = memory;
         _runner = runner;
-        _roots = new GameRoots(memory, moduleBase, profile);
+        _roots = roots;
         _profile = profile;
         resolver ??= new FunctionResolver(memory, moduleBase);
         _functions = profile.Functions.ToDictionary(f => f.Key, f => resolver.Resolve(f.Key, f.Value));

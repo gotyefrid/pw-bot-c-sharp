@@ -75,7 +75,7 @@ public sealed class SystemClientSource(ProfileData profile) : IClientSource
         try
         {
             using var game = GameProcess.Open(pid);
-            var name = new WorldReader(game, game.MainModuleBase, profile).TryReadHostName();
+            var name = new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile), profile).TryReadHostName();
             return string.IsNullOrEmpty(name) ? null : name;
         }
         catch (Exception e) when (e is not OutOfMemoryException)

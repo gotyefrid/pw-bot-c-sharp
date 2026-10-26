@@ -146,7 +146,9 @@ internal static class WorldCommands
         var path = args.FirstOrDefault(a => a.EndsWith(".dump", StringComparison.OrdinalIgnoreCase)) ?? $"world-{profile.Id}.dump";
         var names = SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles.Pck, out _);
         var recording = new RecordingMemory(game);
-        var world = new WorldReader(recording, game.MainModuleBase, profile.Data, names.Get).Read();
+        // Базу ищем по живому клиенту: через запись прочитался бы в дамп весь код
+        var pointer = GameRoots.Find(game, game.MainModuleBase, profile.Data).Pointer;
+        var world = new WorldReader(recording, new GameRoots(recording, pointer, profile.Data), profile.Data, names.Get).Read();
 
         new MemoryDump(profile.Id, game.MainModuleBase, recording.Image).Save(path);
         File.WriteAllText(Path.ChangeExtension(path, ".txt"), Describe(world, full: true), new UTF8Encoding(true));
@@ -171,7 +173,7 @@ internal static class WorldCommands
             Console.WriteLine("⚠️ " + problem);
 
         var loaded = names;
-        return new WorldReader(game, game.MainModuleBase, profile.Data, loaded.Get);
+        return new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data, loaded.Get);
     }
 
     private static string Describe(WorldState w, bool full)

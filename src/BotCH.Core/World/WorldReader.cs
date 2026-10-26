@@ -37,10 +37,10 @@ public sealed class WorldReader
     private const int MoveEnvWater = 1;
     private const int MoveEnvAir = 2;
 
-    public WorldReader(IMemory memory, uint moduleBase, ProfileData profile, Func<int, string?>? skillName = null)
+    public WorldReader(IMemory memory, GameRoots roots, ProfileData profile, Func<int, string?>? skillName = null)
     {
         _memory = memory;
-        _roots = new GameRoots(memory, moduleBase, profile);
+        _roots = roots;
         _p = profile;
         _skillName = skillName ?? (_ => null);
 

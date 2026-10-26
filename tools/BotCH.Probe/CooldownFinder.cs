@@ -25,7 +25,8 @@ internal static class CooldownFinder
     {
         using var game = Program.OpenClient(args, GameProcessRights.Execute);
         var data = profile.Data;
-        var reader = new WorldReader(game, game.MainModuleBase, data);
+        var roots = GameRoots.Find(game, game.MainModuleBase, data);
+        var reader = new WorldReader(game, roots, data);
         var world = reader.Read();
 
         // Что использовать: pet-food (по умолчанию), potion-hp, potion-mp
@@ -72,7 +73,7 @@ internal static class CooldownFinder
         Sample();
         Console.WriteLine($"Использую ({what}): tid {food.Tid} из ячейки {food.Slot} (×{food.Count})");
         // Как бот: в главном потоке игры через её окно (отдельным потоком клиент 1.4.6 падал)
-        using var calls = GameCalls.Open(game, data, CallTransport.Window, out var callsProblem);
+        using var calls = GameCalls.Open(game, roots, data, CallTransport.Window, out var callsProblem);
         if (calls is null)
         {
             Console.WriteLine($"❌ вызовы не подключились: {callsProblem}");

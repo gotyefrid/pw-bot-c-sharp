@@ -22,7 +22,6 @@ public class ProfileCatalogTests
         var data = _catalog.Load("pwclassic136").Data;
 
         Assert.Equal("PW Classic 1.3.6", data.Name);
-        Assert.Equal(0x5B3EECu, data.Base.BasePointer);
         Assert.Equal(0x1Cu, data.Base.Game);
         Assert.Equal(0x20u, data.Host.Struct);
         Assert.Equal(0x2B8u, data.Npc.State);
@@ -69,7 +68,6 @@ public class ProfileCatalogTests
         var profile = _catalog.Load("comeback146");
 
         Assert.Equal("Comeback 1.4.6", profile.Name);
-        Assert.Equal(0x8EBC1Cu, profile.Data.Base.BasePointer);
         Assert.Equal(0x20u, profile.Data.World.Npcs.SlotArray);
         // Выбор цели — метод персонажа: this берётся из памяти, «снять цель» — он же с нулём
         var select = profile.Data.Functions[GameFunctions.SelectTarget];
@@ -88,7 +86,6 @@ public class ProfileCatalogTests
         var p146 = _catalog.Load("comeback146").Data;
 
         Assert.Equal("Comeback 1.3.6", _catalog.Load("comeback136").Name);
-        Assert.Equal(0x8B366Cu, p136.Base.BasePointer); // сборка 26.10.2026
         Assert.Equal(0x5A8u, p136.Host.TargetId);
         Assert.Equal(0x790u, p136.Host.MoveEnv);
         Assert.Equal(p146.Npc.State, p136.Npc.State);
@@ -117,13 +114,13 @@ public class ProfileCatalogTests
             File.WriteAllText(Path.Combine(directory, "pwclassic136.jsonc"),
                 """
                 // переопределённый профиль
-                { "id": "pwclassic136", "name": "Тест", "base": { "basePointer": "0x123" } }
+                { "id": "pwclassic136", "name": "Тест", "base": { "game": "0x123" } }
                 """);
 
             var data = new ProfileCatalog(directory).Load("pwclassic136").Data;
 
             Assert.Equal("Тест", data.Name);
-            Assert.Equal(0x123u, data.Base.BasePointer);
+            Assert.Equal(0x123u, data.Base.Game);
         }
         finally
         {

@@ -19,7 +19,8 @@ public class WorldReaderDumpTests
         var dump = MemoryDump.Load(Path.Combine(AppContext.BaseDirectory, "Fixtures", "world-pwclassic136.dump"));
         var profile = new ProfileCatalog().Load(dump.ServerId).Data;
         string? Name(int id) => id == 299 ? "Жалящий рой" : null;
-        return new WorldReader(dump.Image, dump.ModuleBase, profile, Name).Read();
+        // Указатель на базу у этого клиента (exe без ASLR, база модуля 0x400000) — [0x9B3EEC]: так его нашёл BasePointerSearch
+        return new WorldReader(dump.Image, new GameRoots(dump.Image, 0x9B3EEC, profile), profile, Name).Read();
     });
 
     private static WorldState W => World.Value;

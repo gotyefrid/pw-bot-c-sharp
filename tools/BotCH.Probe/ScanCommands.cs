@@ -29,7 +29,7 @@ internal static class ScanCommands
         }
         else
         {
-            var world = new WorldReader(game, game.MainModuleBase, profile.Data).Read();
+            var world = new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data).Read();
             objects = what switch
             {
                 "item" => world.GroundItems.OrderBy(i => i.Offset.Direct).Take(3).Select(i => i.Address).ToArray(),
@@ -73,7 +73,7 @@ internal static class ScanCommands
     public static int ScanInt(ServerProfile profile, GameProcess game, string[] args)
     {
         var values = args.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
-        var world = new WorldReader(game, game.MainModuleBase, profile.Data).Read();
+        var world = new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data).Read();
         var host = world.Host.Address;
         var block = game.ReadBytes(host, 0x2000);
         Console.WriteLine($"Перс 0x{host:X8}: HP {world.Host.Hp}/{world.Host.MaxHp}, MP {world.Host.Mp}");
@@ -94,7 +94,7 @@ internal static class ScanCommands
     {
         var numbers = args.Where(a => int.TryParse(a, out _)).Select(int.Parse).ToList();
         int min = numbers.Count > 0 ? numbers[0] : 1, max = numbers.Count > 1 ? numbers[1] : 150;
-        var mobs = new WorldReader(game, game.MainModuleBase, profile.Data).Read().Mobs.Where(m => m.Name.Length > 0).ToList();
+        var mobs = new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data).Read().Mobs.Where(m => m.Name.Length > 0).ToList();
         var blocks = mobs.Select(m => (m.Name, Bytes: game.ReadBytes(m.Address, 0x800))).ToList();
         var kinds = mobs.Select(m => m.Name).Distinct().ToList();
         Console.WriteLine($"Мобов {mobs.Count}, видов {kinds.Count}: {string.Join(", ", kinds)}");

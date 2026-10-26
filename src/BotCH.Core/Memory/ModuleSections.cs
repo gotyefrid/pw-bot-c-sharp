@@ -5,7 +5,8 @@ using System.Text;
 namespace BotCH.Core.Memory;
 
 /// <summary>Секция загруженного exe (из PE-заголовка).</summary>
-public sealed record ModuleSection(string Name, uint Address, int Size, bool IsCode);
+/// <param name="IsWritable">Данные, куда игра пишет (.data): там её глобальные переменные.</param>
+public sealed record ModuleSection(string Name, uint Address, int Size, bool IsCode, bool IsWritable);
 
 /// <summary>
 /// Разбор PE-заголовка загруженного модуля прямо в памяти процесса — чтобы знать, где лежит код (.text)
@@ -15,6 +16,7 @@ public static class ModuleSections
 {
     private const uint ImageScnCntCode = 0x00000020;
     private const uint ImageScnMemExecute = 0x20000000;
+    private const uint ImageScnMemWrite = 0x80000000;
 
     public static IReadOnlyList<ModuleSection> Read(IMemory memory, uint moduleBase)
     {
@@ -39,7 +41,7 @@ public static class ModuleSections
             var characteristics = BitConverter.ToUInt32(header, 36);
             var isCode = (characteristics & (ImageScnCntCode | ImageScnMemExecute)) != 0;
 
-            sections.Add(new ModuleSection(name, moduleBase + virtualAddress, virtualSize, isCode));
+            sections.Add(new ModuleSection(name, moduleBase + virtualAddress, virtualSize, isCode, (characteristics & ImageScnMemWrite) != 0));
         }
 
         return sections;

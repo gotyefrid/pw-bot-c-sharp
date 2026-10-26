@@ -82,7 +82,7 @@ internal static class PortSteps
 
         var nick = c.Ask("Ник персонажа, как в игре");
         if (string.IsNullOrEmpty(nick))
-            return PortResult.Fail(c.HostAddress() == 0 ? "персонаж не читается (база/game/struct)" : "ник не читается (host.namePointer)");
+            return PortResult.Fail(c.HostAddress() == 0 ? "персонаж не читается (game/struct)" : "ник не читается (host.namePointer)");
 
         // 1) game верный: перебрать указатели в нём и поля ника в каждом
         var game = c.GameObject();
@@ -105,24 +105,7 @@ internal static class PortSteps
             }
         }
 
-        // 2) базовый указатель: [модуль + X] → game → перс → ник, с теми же game/struct/namePointer
-        foreach (var section in ModuleSections.Read(c.Game, c.Module).Where(s => !s.IsCode && s.Size > 0))
-        {
-            var data = ModuleSections.ReadRegion(c.Game, section.Address, section.Size);
-            for (var i = 0; i + 4 <= data.Length; i += 4)
-            {
-                var b = BitConverter.ToUInt32(data, i);
-                if (b < 0x10000 || !c.Game.TryReadUInt32(b + c.Data.Base.Game, out var g) || g < 0x10000)
-                    continue;
-                if (HostName(c, c.Data.Host.Struct, c.Data.Host.NamePointer, g) == nick)
-                {
-                    c.Set("base.basePointer", section.Address + (uint)i - c.Module, $"ник «{nick}» через game +0x{c.Data.Base.Game:X}");
-                    return PortResult.Ok("");
-                }
-            }
-        }
-
-        return PortResult.Fail($"ник «{nick}» не найден ни в game, ни через другой базовый указатель — нужно сопоставление кода");
+        return PortResult.Fail($"ник «{nick}» не найден в game — нужно сопоставление кода");
     }
 
     private static string? HostName(PortContext c, uint structOffset, uint nameOffset, uint game)

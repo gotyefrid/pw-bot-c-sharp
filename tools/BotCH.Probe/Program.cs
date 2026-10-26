@@ -248,7 +248,10 @@ internal static class Program
         Console.WriteLine($"Сервер:   {profile.Name}");
         Console.WriteLine($"Процесс:  {game.ProcessName} PID {game.Pid}, модуль 0x{game.MainModuleBase:X8} ({game.MainModuleSize / 1024} КБ)");
 
-        var gameAddress = new GameRoots(game, game.MainModuleBase, data).Game();
+        var found = BasePointerSearch.Find(game, game.MainModuleBase);
+        Console.WriteLine($"база      = [модуль + 0x{found.Address - game.MainModuleBase:X}] — код читает её {found.Reads} раз "
+                          + $"(следующая переменная [модуль + 0x{found.Second - game.MainModuleBase:X}] — {found.SecondReads})");
+        var gameAddress = new GameRoots(game, found.Address, data).Game();
         Console.WriteLine($"game      = 0x{gameAddress:X8}");
 
         var pers = game.ReadUInt32(gameAddress + data.Host.Struct);

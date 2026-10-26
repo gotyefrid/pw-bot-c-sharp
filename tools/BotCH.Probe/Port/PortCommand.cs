@@ -196,6 +196,7 @@ internal sealed class PortContext
 {
     private readonly string _path;
     private SkillNames? _names;
+    private uint? _basePointer;
 
     public PortContext(GameProcess game, string path)
     {
@@ -212,14 +213,17 @@ internal sealed class PortContext
 
     public SkillNames Names => _names ??= SkillNames.LoadFromGameDirectory(Path.GetDirectoryName(Game.MainModulePath)!, Data.GameFiles.Pck, out _);
 
-    public WorldReader Reader() => new(Game, Game.MainModuleBase, Data, Names.Get);
+    public WorldReader Reader() => new(Game, Roots, Data, Names.Get);
 
     public uint Module => Game.MainModuleBase;
     public bool InModule(uint address) => address >= Module && address < Module + (uint)Game.MainModuleSize;
 
-    /// <summary>[[модуль + база] + game]; 0 — не читается.</summary>
+    /// <summary>Корни игры по текущему профилю; указатель на базу ищется один раз.</summary>
+    public GameRoots Roots => new(Game, _basePointer ??= BasePointerSearch.Find(Game, Module).Address, Data);
+
+    /// <summary>[база + game]; 0 — не читается.</summary>
     public uint GameObject()
-        => Game.TryReadUInt32(Module + Data.Base.BasePointer, out var b) && b != 0 && Game.TryReadUInt32(b + Data.Base.Game, out var g) ? g : 0;
+        => Roots.TryBase(out var b) && b != 0 && Game.TryReadUInt32(b + Data.Base.Game, out var g) ? g : 0;
 
     public uint HostAddress() => GameObject() is var g and not 0 && Game.TryReadUInt32(g + Data.Host.Struct, out var h) ? h : 0;
 

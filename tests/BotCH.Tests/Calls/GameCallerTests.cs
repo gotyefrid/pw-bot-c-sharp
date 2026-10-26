@@ -12,6 +12,8 @@ namespace BotCH.Tests.Calls;
 public class GameCallerTests
 {
     private const uint ModuleBase = 0x400000;
+    // Где лежит указатель на базу — в тестах любой адрес
+    private const uint BasePointer = ModuleBase + 0x100;
     private const uint DataAddress = 0x7000_0100;
     private static readonly ProfileData Profile = new ProfileCatalog().Load("pwclassic136").Data;
 
@@ -40,7 +42,7 @@ public class GameCallerTests
     private static byte[] CodeFor(Signature signature)
         => signature.ToString().Split(' ').Select(b => b == "??" ? (byte)0 : Convert.ToByte(b, 16)).ToArray();
 
-    private GameCaller Caller(ProfileData? profile = null) => new(_memory, _runner, ModuleBase, profile ?? Profile);
+    private GameCaller Caller(ProfileData? profile = null) => new(_memory, _runner, ModuleBase, new GameRoots(_memory, BasePointer, profile ?? Profile), profile ?? Profile);
 
     private static uint Address(string name) => ModuleBase + Profile.Functions[name].Rva;
 
@@ -48,7 +50,7 @@ public class GameCallerTests
     private void PutHost(uint host)
     {
         const uint basePtr = 0x1000_0000, game = 0x1001_0000;
-        _memory.WriteUInt32(ModuleBase + Profile.Base.BasePointer, basePtr);
+        _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + Profile.Base.Game, game);
         _memory.WriteUInt32(game + Profile.Host.Struct, host);
     }
@@ -245,7 +247,7 @@ public class GameCallerTests
     private ProfileData HostMethodProfile(uint host)
     {
         const uint basePtr = 0x1000_0000, game = 0x1001_0000;
-        _memory.WriteUInt32(ModuleBase + 0x100, basePtr);
+        _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + 0x1C, game);
         _memory.WriteUInt32(game + 0x28, host);
         var select = Profile.Functions[GameFunctions.SelectTarget];
@@ -253,7 +255,7 @@ public class GameCallerTests
             This = FunctionThis.Host, Args = [.. args] };
         return new ProfileData
         {
-            Base = new BaseOffsets { BasePointer = 0x100, Game = 0x1C },
+            Base = new BaseOffsets { Game = 0x1C },
             Host = new HostOffsets { Struct = 0x28 },
             Functions = new() { [GameFunctions.SelectTarget] = Method("wid"), [GameFunctions.Unselect] = Method("0") },
         };
@@ -302,7 +304,7 @@ public class GameCallerTests
         foreach (var function in profile.Functions.Values)
             memory.WriteBytes(ModuleBase + function.Rva, CodeFor(function.Signature!));
 
-        Assert.Empty(new GameCaller(memory, _runner, ModuleBase, profile).Problems);
+        Assert.Empty(new GameCaller(memory, _runner, ModuleBase, new GameRoots(memory, BasePointer, profile), profile).Problems);
     }
 
     [Fact]
@@ -383,12 +385,12 @@ public class GameCallerTests
     public void SessionMethodGetsSessionFromMemory()
     {
         const uint basePtr = 0x1000_0000, session = 0x3300_0000;
-        _memory.WriteUInt32(ModuleBase + 0x100, basePtr);
+        _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + 0x20, session);
         var cast = Profile.Functions[GameFunctions.CastSkill];
         var profile = new ProfileData
         {
-            Base = new BaseOffsets { BasePointer = 0x100, Session = 0x20 },
+            Base = new BaseOffsets { Session = 0x20 },
             Functions = new()
             {
                 [GameFunctions.CastSkill] = new GameFunction

@@ -47,6 +47,7 @@ public sealed class ClientConnection : IDisposable
     private readonly Logger _logger;
     private readonly ILogger _log;
     private readonly GameProcess _game;
+    private readonly GameRoots _roots;
     private readonly ClientLock? _clientLock;
     private readonly WorldMonitor _monitor;
     private Unfreezer? _unfreezer;
@@ -65,7 +66,17 @@ public sealed class ClientConnection : IDisposable
         if (clientLock is null)
             _log.Warning($"PID {game.Pid} уже подключён в другом окне BotCH — не запускайте двух ботов на один клиент");
 
-        var reader = new WorldReader(game, game.MainModuleBase, profile, id => _skillNames.Get(id));
+        // База ищется в коде клиента — сразу, один раз на подключение
+        _roots = GameRoots.Find(game, game.MainModuleBase, profile);
+        try
+        {
+            _log.Info($"База: [модуль + 0x{_roots.Pointer - game.MainModuleBase:X}]");
+        }
+        catch (MemoryAccessException e)
+        {
+            _log.Warning(e.Message);
+        }
+        var reader = new WorldReader(game, _roots, profile, id => _skillNames.Get(id));
         // Читатель — факты из памяти, трекер — то, что требует истории (застрявшая цель, «идёт к нам»)
         var tracker = new NpcTracker();
         _monitor = new WorldMonitor(() => tracker.Track(reader.Read()), SnapshotPeriod);
@@ -144,7 +155,7 @@ public sealed class ClientConnection : IDisposable
                 return new StartResult(StartStatus.Failed, "бот уже работает или ещё останавливается");
         }
 
-        var calls = GameCalls.Open(_game, _profile, transport, out var problem);
+        var calls = GameCalls.Open(_game, _roots, _profile, transport, out var problem);
         if (calls is null)
             return new StartResult(transport == CallTransport.Window ? StartStatus.WindowFailed : StartStatus.Failed, problem);
 
@@ -203,7 +214,7 @@ public sealed class ClientConnection : IDisposable
 
         try
         {
-            var unfreezer = new Unfreezer(_game.Pid, _profile, _log);
+            var unfreezer = new Unfreezer(_game.Pid, _roots.Pointer, _profile, _log);
             if (!unfreezer.IsSupported)
             {
                 unfreezer.Dispose();

@@ -13,15 +13,18 @@ namespace BotCH.Core.Clients;
 public sealed class Unfreezer : IDisposable
 {
     private readonly int _pid;
+    private readonly uint _basePointer;
     private readonly ProfileData _profile;
     private readonly ILogger _log;
     private Timer? _timer;
     private GameProcess? _game;
     private bool _warned;
 
-    public Unfreezer(int pid, ProfileData profile, ILogger log)
+    /// <param name="basePointer">Где лежит указатель на базу (<see cref="GameRoots.Pointer"/>).</param>
+    public Unfreezer(int pid, uint basePointer, ProfileData profile, ILogger log)
     {
         _pid = pid;
+        _basePointer = basePointer;
         _profile = profile;
         _log = log;
     }
@@ -55,7 +58,7 @@ public sealed class Unfreezer : IDisposable
 
         try
         {
-            var baseAddress = new GameRoots(game, game.MainModuleBase, _profile).Base();
+            var baseAddress = new GameRoots(game, _basePointer, _profile).Base();
             game.WriteUInt32(baseAddress + _profile.Base.Unfreeze, 1);
             _warned = false;
         }

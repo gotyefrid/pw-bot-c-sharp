@@ -50,7 +50,7 @@ public sealed class GameCalls : IDisposable
 
     /// <summary>Подключить вызовы. null — не вышло, причина для пользователя — в <paramref name="problem"/>.</summary>
     /// <param name="game">Дескриптор чтения: им же читается память при вызовах.</param>
-    public static GameCalls? Open(GameProcess game, ProfileData profile, CallTransport transport, out string problem)
+    public static GameCalls? Open(GameProcess game, GameRoots roots, ProfileData profile, CallTransport transport, out string problem)
     {
         GameProcess exec;
         try
@@ -76,7 +76,7 @@ public sealed class GameCalls : IDisposable
 
         problem = "";
         var watch = window is null ? null : new WindowLossWatch(window);
-        var caller = new GameCaller(game, watch ?? (IRemoteRunner)new ThreadCallRunner(exec), game.MainModuleBase, profile);
+        var caller = new GameCaller(game, watch ?? (IRemoteRunner)new ThreadCallRunner(exec), game.MainModuleBase, roots, profile);
         return new GameCalls(exec, window, watch, caller, transport);
     }
 

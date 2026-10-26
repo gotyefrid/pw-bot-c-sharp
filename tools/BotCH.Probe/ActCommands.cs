@@ -56,11 +56,12 @@ internal static class ActCommands
         var rest = args.Skip(1).ToArray();
         using var game = Program.OpenClient(rest, GameProcessRights.Execute);
         var data = profile.Data;
-        var reader = new WorldReader(game, game.MainModuleBase, data);
+        var roots = GameRoots.Find(game, game.MainModuleBase, data);
+        var reader = new WorldReader(game, roots, data);
 
         // Вызовы — в главном потоке игры через её окно; --thread — по-старому, отдельным потоком
         var transport = rest.Contains("--thread") ? CallTransport.Thread : CallTransport.Window;
-        using var calls = GameCalls.Open(game, data, transport, out var callsProblem);
+        using var calls = GameCalls.Open(game, roots, data, transport, out var callsProblem);
         if (calls is null)
         {
             Console.WriteLine($"❌ вызовы не подключились: {callsProblem}");

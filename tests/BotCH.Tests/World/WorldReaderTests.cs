@@ -9,7 +9,8 @@ namespace BotCH.Tests.World;
 /// <summary>Особые случаи чтения снимка на «бумажной» памяти: то, чего нет в дампе.</summary>
 public class WorldReaderTests
 {
-    private const uint ModuleBase = 0x400000;
+    // Где лежит указатель на базу — в тестах любой адрес (в клиенте его находит BasePointerSearch)
+    private const uint BasePointer = 0x009B_3EEC;
     private static readonly ProfileData Profile = new ProfileCatalog().Load("pwclassic136").Data;
 
     private readonly MemoryImage _memory = new();
@@ -19,7 +20,7 @@ public class WorldReaderTests
     {
         var Profile = profile ?? WorldReaderTests.Profile;
         const uint basePtr = 0x1000_0000, game = 0x1001_0000, host = 0x1002_0000, world = 0x1003_0000, name = 0x1004_0000;
-        _memory.WriteUInt32(ModuleBase + Profile.Base.BasePointer, basePtr);
+        _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + Profile.Base.Game, game);
         _memory.WriteUInt32(game + Profile.Host.Struct, host);
         _memory.WriteUInt32(game + Profile.World.World, world);
@@ -32,7 +33,7 @@ public class WorldReaderTests
         return host;
     }
 
-    private WorldReader Reader(ProfileData? profile = null) => new(_memory, ModuleBase, profile ?? Profile);
+    private WorldReader Reader(ProfileData? profile = null) => new(_memory, new GameRoots(_memory, BasePointer, profile ?? Profile), profile ?? Profile);
 
     [Fact]
     public void NoPetIsNormal()
@@ -156,7 +157,7 @@ public class WorldReaderTests
     public void CharacterSelectScreenIsNotReady()
     {
         // game есть, персонажа нет
-        _memory.WriteUInt32(ModuleBase + Profile.Base.BasePointer, 0x1000_0000);
+        _memory.WriteUInt32(BasePointer, 0x1000_0000);
         _memory.WriteUInt32(0x1000_0000 + Profile.Base.Game, 0x1001_0000);
         _memory.Map(0x1001_0000, 0x100);
 
@@ -285,7 +286,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(mob + p.Npc.CastTarget, 0xA0126CE5);
         _memory.WriteUInt32(mob + p.Npc.AttackTarget, 0x0130ECE0);
 
-        var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
+        var npc = Assert.Single(Reader(p).Read().Npcs);
 
         Assert.Equal(expected, npc.TargetWid);
     }
@@ -301,7 +302,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(npc + p.Npc.State, (uint)NpcState.Moving);
         _memory.WriteUInt32(npc + p.Npc.PetTarget, 0x80100020);
 
-        Assert.Equal(expected, Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs).TargetWid);
+        Assert.Equal(expected, Assert.Single(Reader(p).Read().Npcs).TargetWid);
     }
 
     [Theory]
@@ -317,7 +318,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(record + p.MonsterEssence.Aggressive, aggressive);
         _memory.WriteUInt32(record + p.MonsterEssence.AggroRadius, 7);
 
-        var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
+        var npc = Assert.Single(Reader(p).Read().Npcs);
 
         Assert.Equal((expected, 7), (npc.Aggressive, npc.AggroRadius));
     }
@@ -329,9 +330,9 @@ public class WorldReaderTests
         var mob = ComebackWorldWithMob(p);
         _memory.WriteUInt32(mob + p.Npc.Returning, 0x20000 | 0x1);
 
-        Assert.True(Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs).Returning);
+        Assert.True(Assert.Single(Reader(p).Read().Npcs).Returning);
         _memory.WriteUInt32(mob + p.Npc.Returning, 0x1);
-        Assert.False(Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs).Returning);
+        Assert.False(Assert.Single(Reader(p).Read().Npcs).Returning);
     }
 
     [Fact]
@@ -340,7 +341,7 @@ public class WorldReaderTests
         // Только факты: застрявшую после отагра цель снимает NpcTracker (нужна история), читатель отдаёт её как есть
         var p = new ProfileCatalog().Load("comeback146").Data;
         var mob = ComebackWorldWithMob(p);
-        var reader = new WorldReader(_memory, ModuleBase, p);
+        var reader = Reader(p);
         _memory.WriteUInt32(mob + p.Npc.Target, FakeHost);
         _memory.WriteUInt32(mob + p.Npc.Returning, 0x20000);
         reader.Read();
@@ -359,7 +360,7 @@ public class WorldReaderTests
         var p = new ProfileCatalog().Load("comeback146").Data;
         ComebackWorldWithMob(p);
 
-        var npc = Assert.Single(new WorldReader(_memory, ModuleBase, p).Read().Npcs);
+        var npc = Assert.Single(Reader(p).Read().Npcs);
 
         Assert.Null(npc.Aggressive);
     }
@@ -374,7 +375,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(host + p.Host.GatherElapsed, 1800);
         _memory.WriteUInt32(host + p.Host.GatherTotal, 8000);
 
-        Assert.Equal(new GatherProgress(true, 1800, 8000), new WorldReader(_memory, ModuleBase, p).Read().Host.Gather);
+        Assert.Equal(new GatherProgress(true, 1800, 8000), Reader(p).Read().Host.Gather);
     }
 
     [Fact]
@@ -396,10 +397,10 @@ public class WorldReaderTests
         _memory.WriteBytes(work + p.GatherWork.Flag, [1]);
 
         // Список пуст — в массиве осталась прошлая работа, но это не копание
-        Assert.False(new WorldReader(_memory, ModuleBase, p).Read().Host.Gather?.Active);
+        Assert.False(Reader(p).Read().Host.Gather?.Active);
 
         _memory.WriteUInt32(workMan + p.GatherWork.CurrentCount, 1);
-        Assert.True(new WorldReader(_memory, ModuleBase, p).Read().Host.Gather?.Active);
+        Assert.True(Reader(p).Read().Host.Gather?.Active);
     }
 
     [Fact]
@@ -440,7 +441,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(host + p.Host.GatherElapsed, 1000);
         _memory.WriteUInt32(host + p.Host.GatherTotal, 1000);
 
-        var me = new WorldReader(_memory, ModuleBase, p).Read().Host;
+        var me = Reader(p).Read().Host;
 
         Assert.True(me.InWater);
         Assert.False(me.Gather?.Active);
@@ -456,9 +457,9 @@ public class WorldReaderTests
         _memory.WriteUInt32(skill + p.Skill.Id, 330);
         _memory.WriteUInt32(host + p.Host.CastingSkill, skill);
 
-        Assert.Equal(330, new WorldReader(_memory, ModuleBase, p).Read().Host.CastingSkillId);
+        Assert.Equal(330, Reader(p).Read().Host.CastingSkillId);
         _memory.WriteUInt32(host + p.Host.CastingSkill, 0);
-        Assert.Equal(0, new WorldReader(_memory, ModuleBase, p).Read().Host.CastingSkillId);
+        Assert.Equal(0, Reader(p).Read().Host.CastingSkillId);
     }
 
     // Мир Comeback 1.4.6 с одним мобом; возвращает адрес моба
@@ -466,7 +467,7 @@ public class WorldReaderTests
     {
         const uint basePtr = 0x1000_0000, game = 0x1001_0000, host = 0x1002_0000, world = 0x1003_0000, name = 0x1004_0000;
         const uint manager = 0x3000_0000, slots = 0x3001_0000, node = 0x3002_0000, mob = 0x3003_0000;
-        _memory.WriteUInt32(ModuleBase + p.Base.BasePointer, basePtr);
+        _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + p.Base.Game, game);
         _memory.WriteUInt32(game + p.Host.Struct, host);
         _memory.WriteUInt32(game + p.World.World, world);
@@ -494,7 +495,7 @@ public class WorldReaderTests
         var p = new ProfileCatalog().Load("comeback146").Data;
         const uint basePtr = 0x1000_0000, game = 0x1001_0000, host = 0x1002_0000, world = 0x1003_0000, name = 0x1004_0000;
         const uint manager = 0x3000_0000, slots = 0x3001_0000, node = 0x3002_0000, mob = 0x3003_0000;
-        _memory.WriteUInt32(ModuleBase + p.Base.BasePointer, basePtr);
+        _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + p.Base.Game, game);
         _memory.WriteUInt32(game + p.Host.Struct, host);
         _memory.WriteUInt32(game + p.World.World, world);
@@ -516,7 +517,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(mob + p.Npc.Wid, 0x80100018);
         _memory.WriteUInt32(mob + p.Npc.Type, 6);
 
-        var state = new WorldReader(_memory, ModuleBase, p).Read();
+        var state = Reader(p).Read();
 
         Assert.Equal("Кот", state.Host.Name);
         Assert.Equal(84, state.Host.Hp);

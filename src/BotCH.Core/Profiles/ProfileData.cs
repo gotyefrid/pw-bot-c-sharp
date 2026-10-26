@@ -80,10 +80,9 @@ public sealed class GameFilesData
     public PckFormat Pck { get; init; } = new();
 }
 
+/// <summary>От базы. Где она сама, бот находит в коде клиента (<see cref="BasePointerSearch"/>) — в профиле её нет.</summary>
 public sealed class BaseOffsets
 {
-    /// <summary>Статический указатель от начала модуля: [модуль + BasePointer] = база.</summary>
-    public uint BasePointer { get; init; }
     /// <summary>[база + Game] = game.</summary>
     public uint Game { get; init; }
     /// <summary>[база + Unfreeze] — сюда пишется 1 (unfreeze).</summary>
@@ -263,7 +262,7 @@ public sealed class GroundItemOffsets
 /// </summary>
 public sealed class ElementDataOffsets
 {
-    /// <summary>[база + Manager] — справочник; база — [модуль + <see cref="BaseOffsets.BasePointer"/>].</summary>
+    /// <summary>[база + Manager] — справочник; база — как у <see cref="BaseOffsets.Game"/>.</summary>
     public uint Manager { get; init; }
     /// <summary>Справочник + EssenceMap — хэш-таблица «id → (вид данных, номер записи)».</summary>
     public uint EssenceMap { get; init; }
