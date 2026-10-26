@@ -16,7 +16,7 @@ namespace BotCH.Core.Brain;
 /// <item>Поиск: самый опасный моб (<see cref="Threat"/>: бьёт меня → бьёт меня или пета; белый список не важен) →
 /// текущая цель, если подходит → ближайший разрешённый.</item>
 /// <item>Бой: другой моб опаснее текущего — переходим на него. Приказ пету; «подойти ближе» — сначала подходим, потом бьём;
-/// скилл «как кнопкой»; меч раз в ~5 с. Через N с (120) моба бросаем, а если его HP не падает 15 с — раньше. Убит — лут (ход переходит к <see cref="LootBehavior"/>
+/// скилл «как кнопкой»; меч раз в ~5 с. Через N с (120) моба бросаем, а если его HP не падает 30 с — раньше. Убит — лут (ход переходит к <see cref="LootBehavior"/>
 /// на том же снимке).</item>
 /// <item>Лут: бой важнее — напали во время лута, лут бросаем и бьём напавшего.</item>
 /// </list>
@@ -31,7 +31,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
     // HP цели не падает столько — бьём впустую (не достаём: моб в воде или в текстурах), бросаем раньше общего лимита
-    private static readonly TimeSpan NoDamageLimit = TimeSpan.FromSeconds(15);
+    private static readonly TimeSpan NoDamageLimit = TimeSpan.FromSeconds(30);
     // Подход: моб ушёл от точки, к которой бежим, дальше этого — бежим к его новому месту (не чаще RetargetPeriod)
     private const float RetargetDistance = 3f;
     // Подход: «дошли» — ближе этого к точке; точку берём ещё на 0.5 м ближе к мобу, чтобы и в худшем случае оказаться

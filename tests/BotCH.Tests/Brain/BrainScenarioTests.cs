@@ -689,7 +689,7 @@ public class BrainScenarioTests
     [Fact]
     public void MobGivenUpWhenHpDoesNotDrop()
     {
-        // Бьём, а HP не падает (не достаём: моб в воде, в текстурах) — бросаем через 15 с, не ждём общий лимит
+        // Бьём, а HP не падает (не достаём: моб в воде, в текстурах) — бросаем через 30 с, не ждём общий лимит
         _settings.Target.KillMobs = true;
         _settings.Target.MobTimeoutSeconds = 120;
         _settings.Combat.UseSword = true;
@@ -700,7 +700,7 @@ public class BrainScenarioTests
         Tick();
         // Отхил моба не сбивает счёт: важно, что HP не стало ниже, чем было
         _world.Replace(stuck, m => m with { Hp = 520 });
-        Tick(14);
+        Tick(29);
         Assert.DoesNotContain("unselect", _actions.Calls);
 
         Tick(1.5);
