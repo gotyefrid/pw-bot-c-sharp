@@ -26,6 +26,7 @@ internal static class ActCommands
           act attack            обычная атака текущей цели
           act skill [id]        скилл пакетом по текущей цели (по умолчанию атакующий)
           act skill-approach [id]  скилл «как кнопкой»: подойти и скастовать
+          act macro [номер]     запустить макрос персонажа по текущей цели (по умолчанию 1) — как кнопкой на панели
           act skill-self [id]   скилл пакетом без цели (по умолчанию воскрешение пета, без проверки «пет мёртв»)
           act potion-hp / potion-mp   выпить самую слабую подходящую банку
           act pet-food          покормить пета (если сыт — отказ, это нормально)
@@ -133,6 +134,17 @@ internal static class ActCommands
                 }
 
                 return new SkillAction(number ?? skills.DefaultAttack, w.Host.TargetWid, approach: false);
+
+            case "macro":
+                if (w.Host.TargetWid == 0)
+                {
+                    problem = "сначала выберите цель (act target)";
+                    return null;
+                }
+
+                // Итог не ждём, как и бот: смотреть в игре, пошёл ли макрос
+                Console.WriteLine($"Макросы: {(w.Macros.Count == 0 ? "нет" : string.Join(", ", w.Macros.Select(m => $"{m.Number} (иконка {m.Icon})")))}");
+                return new MacroAction(number ?? 1);
 
             case "skill-self":
                 return new SkillAction(number ?? skills.RevivePet, 0, approach: false);
