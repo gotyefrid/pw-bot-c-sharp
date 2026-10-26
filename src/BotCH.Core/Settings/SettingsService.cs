@@ -57,13 +57,9 @@ public sealed class SettingsService
         if (problem is not null)
             _log.Warning($"{nick}: {problem}");
 
-        // Unfreeze пишет в игру — у нового персонажа (и на другом сервере персонажи свои) выключен, пока не включат;
-        // у персонажа из старого файла — как было общее
-        if (isNew || Current.Unfreeze is null)
-        {
-            Current.Unfreeze = !isNew && App.Connection.Unfreeze;
+        // Новый — сразу в свой файл: дальше он уже не копия общих
+        if (isNew)
             SaveCurrent();
-        }
 
         _log.Info(isNew ? $"Персонаж {nick}: новые настройки (копия общих)" : $"Персонаж {nick}: его настройки загружены");
         return true;

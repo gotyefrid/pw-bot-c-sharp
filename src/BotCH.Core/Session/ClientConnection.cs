@@ -31,10 +31,10 @@ public enum StartStatus
 public sealed record StartResult(StartStatus Status, string Problem = "");
 
 /// <summary>
-/// Подключение к одному клиенту игры: дескриптор чтения, метка клиента, снимки мира, unfreeze, названия и иконки скиллов — и текущий
+/// Подключение к одному клиенту игры: дескриптор чтения, метка клиента, снимки мира, названия и иконки скиллов — и текущий
 /// бот. Бот принадлежит подключению: запускает и останавливает его только оно (<see cref="StartBot"/>,
 /// <see cref="StopBotAsync"/>), окно лишь просит. Закрывается по порядку: бот (дождавшись его хода) → обработчик окна игры →
-/// снимки → unfreeze → дескриптор → метка.
+/// снимки → дескриптор → метка.
 /// </summary>
 public sealed class ClientConnection : IDisposable
 {
@@ -51,7 +51,6 @@ public sealed class ClientConnection : IDisposable
     private readonly GameRoots _roots;
     private readonly ClientLock? _clientLock;
     private readonly WorldMonitor _monitor;
-    private Unfreezer? _unfreezer;
     private volatile SkillNames _skillNames = SkillNames.Empty;
     private volatile SkillIcons _skillIcons = SkillIcons.Empty;
     private volatile IconAtlas _macroIcons = IconAtlas.Empty;
@@ -213,34 +212,6 @@ public sealed class ClientConnection : IDisposable
         }
     }
 
-    /// <summary>Включить или выключить unfreeze (работа клиента в фоне); что вышло — в лог.</summary>
-    public void SetUnfreeze(bool on)
-    {
-        _unfreezer?.Dispose();
-        _unfreezer = null;
-        if (!on)
-            return;
-
-        try
-        {
-            var unfreezer = new Unfreezer(_game.Pid, _roots.Pointer, _profile, _log);
-            if (!unfreezer.IsSupported)
-            {
-                unfreezer.Dispose();
-                _log.Info("Unfreeze на этом сервере не нужен — включите в настройках клиента работу в фоне");
-                return;
-            }
-
-            unfreezer.Start();
-            _unfreezer = unfreezer;
-            _log.Info("Unfreeze включён");
-        }
-        catch (Exception e) when (e is not OutOfMemoryException)
-        {
-            _log.Error("Unfreeze: " + e.Message);
-        }
-    }
-
     private void LoadSkillsInBackground()
     {
         var directory = Path.GetDirectoryName(_game.MainModulePath)!;
@@ -317,8 +288,6 @@ public sealed class ClientConnection : IDisposable
         else
             _log.Warning($"Бот не остановился за {StopWait.TotalSeconds:0} с — отключаюсь, он закроет вызовы сам, когда закончит ход");
         _monitor.Dispose();
-        _unfreezer?.Dispose();
-        _unfreezer = null;
         _game.Dispose();
         _clientLock?.Dispose();
     }

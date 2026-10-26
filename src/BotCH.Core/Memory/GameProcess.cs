@@ -12,7 +12,7 @@ namespace BotCH.Core.Memory;
 public enum GameProcessRights
 {
     Read = 0,
-    /// <summary>Запись в память (unfreeze, данные для вызовов).</summary>
+    /// <summary>Запись в память (данные для вызовов).</summary>
     Write = 1,
     /// <summary>Вызов функций игры: выделение памяти и создание потока (часть 4).</summary>
     Execute = 2,

@@ -87,8 +87,6 @@ public sealed class BaseOffsets
 {
     /// <summary>[база + Game] = game.</summary>
     public uint Game { get; init; }
-    /// <summary>[база + Unfreeze] — сюда пишется 1 (unfreeze).</summary>
-    public uint Unfreeze { get; init; }
     /// <summary>[база + Session] — объект связи с сервером (в нём SendGameData); this для функций с "this": "session".</summary>
     public uint Session { get; init; }
     /// <summary>[база + Configs] — настройки игры: в них макросы персонажа (<see cref="MacroOffsets"/>).</summary>

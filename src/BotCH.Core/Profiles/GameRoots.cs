@@ -4,7 +4,7 @@ using BotCH.Core.Memory;
 namespace BotCH.Core.Profiles;
 
 /// <summary>
-/// Корни игры в памяти клиента — одна цепочка на всех (чтение мира, вызовы функций, unfreeze, Probe):
+/// Корни игры в памяти клиента — одна цепочка на всех (чтение мира, вызовы функций, Probe):
 /// база = [<see cref="Pointer"/>], game = [база + <see cref="BaseOffsets.Game"/>],
 /// персонаж = [game + <see cref="HostOffsets.Struct"/>], связь с сервером = [база + <see cref="BaseOffsets.Session"/>].
 /// </summary>

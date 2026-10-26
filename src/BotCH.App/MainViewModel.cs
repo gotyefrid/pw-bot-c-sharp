@@ -41,7 +41,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly ILogger _connectionLog;
     private readonly Logger _logger;
 
-    // Подключение к клиенту: снимки, unfreeze и бот (он принадлежит подключению — окно только просит запустить и остановить)
+    // Подключение к клиенту: снимки и бот (он принадлежит подключению — окно только просит запустить и остановить)
     private ClientConnection? _connection;
     private ServerProfile _profile;
     private bool _refreshing;
@@ -147,31 +147,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 RenameAll();
         }
     }
-
-    /// <summary>
-    /// Unfreeze текущего персонажа (у нового — выключен). В игру пишет, только когда персонаж уже прочитан на этом клиенте:
-    /// раз прочитан — профиль сервера к клиенту подходит, и флаг ляжет туда, куда надо.
-    /// </summary>
-    public bool Unfreeze
-    {
-        get => Settings.Unfreeze == true;
-        set
-        {
-            if (Unfreeze == value)
-                return;
-
-            Settings.Unfreeze = value;
-            OnPropertyChanged();
-            if (_unfreezeFor is not null)
-                ApplyUnfreeze();
-        }
-    }
-
-    /// <summary>Персонаж известен — его галки (unfreeze) можно менять.</summary>
-    public bool HasCharacter => _config.Character is not null;
-
-    // Для кого на этом подключении уже применён unfreeze; null — персонаж ещё не прочитан (в игру не пишем)
-    private string? _unfreezeFor;
 
     private bool _isConnected;
 
@@ -432,7 +407,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsRunning = false;
         _connection?.Dispose();
         _connection = null;
-        _unfreezeFor = null;
         Interlocked.Exchange(ref _latest, null);
         if (wasRunning)
             _log.Info("Стоп");
@@ -440,18 +414,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         BotState = "Ожидание";
         IsConnected = false;
         ClearWorld();
-    }
-
-    private void ApplyUnfreeze() => _connection?.SetUnfreeze(Unfreeze);
-
-    // Персонаж прочитан на этом подключении (или сменился) — теперь его unfreeze, раньше в игру не пишем
-    private void UnfreezeFor(string nick)
-    {
-        if (_unfreezeFor == nick)
-            return;
-
-        _unfreezeFor = nick;
-        ApplyUnfreeze();
     }
 
     // Снимок, который окно ещё не показало. Окно не успевает (4 снимка в секунду) — промежуточные пропускаем: очередь
@@ -478,10 +440,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Farm.Observe(w);
         var h = w.Host;
         if (h.Name.Length > 0)
-        {
             SwitchCharacter(h.Name);
-            UnfreezeFor(h.Name);
-        }
         ConnectionText = h.Name;
         Status.Show(w);
         Farm.ShowFor(w);
@@ -535,8 +494,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Route.Load();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
-        OnPropertyChanged(nameof(Unfreeze));
-        OnPropertyChanged(nameof(HasCharacter));
     }
 
     private WorldState? _lastWorld;
