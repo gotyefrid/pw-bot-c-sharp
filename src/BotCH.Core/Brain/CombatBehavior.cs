@@ -16,7 +16,7 @@ namespace BotCH.Core.Brain;
 /// <item>Поиск: самый опасный моб (<see cref="Threat"/>: бьёт меня → бьёт меня или пета; белый список не важен) →
 /// текущая цель, если подходит → ближайший разрешённый.</item>
 /// <item>Бой: другой моб опаснее текущего — переходим на него. Приказ пету; «подойти ближе» — сначала подходим, потом бьём;
-/// скилл «как кнопкой»; меч раз в ~5 с. Через N с (120) моба бросаем. Убит — лут (ход переходит к <see cref="LootBehavior"/>
+/// скилл «как кнопкой»; меч раз в ~5 с. Через N с (120) моба бросаем, а если его HP не падает 15 с — раньше. Убит — лут (ход переходит к <see cref="LootBehavior"/>
 /// на том же снимке).</item>
 /// <item>Лут: бой важнее — напали во время лута, лут бросаем и бьём напавшего.</item>
 /// </list>
@@ -30,6 +30,8 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     private static readonly TimeSpan PetOrderPeriod = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
+    // HP цели не падает столько — бьём впустую (не достаём: моб в воде или в текстурах), бросаем раньше общего лимита
+    private static readonly TimeSpan NoDamageLimit = TimeSpan.FromSeconds(15);
     // Подход: моб ушёл от точки, к которой бежим, дальше этого — бежим к его новому месту (не чаще RetargetPeriod)
     private const float RetargetDistance = 3f;
     // Подход: «дошли» — ближе этого к точке; точку берём ещё на 0.5 м ближе к мобу, чтобы и в худшем случае оказаться
@@ -41,6 +43,9 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     private readonly Dictionary<uint, DateTime> _gaveUp = [];
 
     private DateTime _fightStarted;
+    // Самое низкое HP цели за бой и когда оно было; 0 — HP не читается (на сервере не найдено) — проверки нет
+    private int _lowestHp;
+    private DateTime _lowestHpAt;
     private DateTime? _targetLostAt;
     private DateTime _lastSword = DateTime.MinValue;
     private DateTime _lastPetOrder = DateTime.MinValue;
@@ -121,6 +126,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     {
         c.Fight.Start(mob);
         _fightStarted = c.Now;
+        _lowestHp = 0;
         _targetLostAt = null;
         _lastSword = DateTime.MinValue;
         _lastPetOrder = DateTime.MinValue;
@@ -166,12 +172,16 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 
         _targetLostAt = null;
         if (elapsed.TotalSeconds > c.Settings.Target.MobTimeoutSeconds)
+            return GiveUp(c, mob, $"не убит за {c.Settings.Target.MobTimeoutSeconds} с");
+
+        // Время — от последнего падения HP (отхил моба не в счёт), а с начала боя — от первого HP: туда входит и подход
+        if (mob.Hp > 0 && (_lowestHp == 0 || mob.Hp < _lowestHp))
         {
-            c.Log.Warning($"{name}: не убит за {c.Settings.Target.MobTimeoutSeconds} с — бросаю на {GiveUpFor.TotalSeconds:0} с");
-            _gaveUp[mob.Wid] = c.Now + GiveUpFor;
-            c.Submit(new UnselectAction());
-            return BackToSearch(c);
+            _lowestHp = mob.Hp;
+            _lowestHpAt = c.Now;
         }
+        if (_lowestHp > 0 && c.Now - _lowestHpAt > NoDamageLimit)
+            return GiveUp(c, mob, $"HP не падает {NoDamageLimit.TotalSeconds:0} с");
 
         // Другой моб опаснее текущего — бой (и пет) переходят на него. Бьёт меня, а текущий — пета: пет прочнее, пусть держит обоих
         if (MostDangerous(c, out var threat) is { } danger && danger.Wid != mob.Wid && threat > ThreatOf(c, mob))
@@ -323,6 +333,15 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     {
         c.Fight.Abort();
         return Search(c);
+    }
+
+    // Моба бросаем на время: снимаем цель и ищем другого
+    private bool GiveUp(BrainContext c, NpcInfo mob, string why)
+    {
+        c.Log.Warning($"{c.Fight.MobName}: {why} — бросаю на {GiveUpFor.TotalSeconds:0} с");
+        _gaveUp[mob.Wid] = c.Now + GiveUpFor;
+        c.Submit(new UnselectAction());
+        return BackToSearch(c);
     }
 
     public void Reset()

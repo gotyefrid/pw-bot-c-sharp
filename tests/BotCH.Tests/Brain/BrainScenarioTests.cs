@@ -686,6 +686,51 @@ public class BrainScenarioTests
         Assert.Equal($"select {other.Wid:X}", LastCall);
     }
 
+    [Fact]
+    public void MobGivenUpWhenHpDoesNotDrop()
+    {
+        // Бьём, а HP не падает (не достаём: моб в воде, в текстурах) — бросаем через 15 с, не ждём общий лимит
+        _settings.Target.KillMobs = true;
+        _settings.Target.MobTimeoutSeconds = 120;
+        _settings.Combat.UseSword = true;
+        var stuck = _world.AddMob(0x80000001, "Черепаха", 3, hp: 500);
+        var other = _world.AddMob(0x80000002, "Волк", 8);
+        _world.TargetWid = stuck.Wid;
+
+        Tick();
+        // Отхил моба не сбивает счёт: важно, что HP не стало ниже, чем было
+        _world.Replace(stuck, m => m with { Hp = 520 });
+        Tick(14);
+        Assert.DoesNotContain("unselect", _actions.Calls);
+
+        Tick(1.5);
+        Assert.Contains("unselect", _actions.Calls);
+        Assert.Contains(_log, e => e.Message.Contains("HP не падает"));
+        _world.TargetWid = 0;
+        Tick(2.5);
+        Assert.Equal($"select {other.Wid:X}", LastCall);
+    }
+
+    [Fact]
+    public void SlowlyDroppingHpKeepsFight()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.MobTimeoutSeconds = 120;
+        _settings.Combat.UseSword = true;
+        var mob = _world.AddMob(0x80000001, "Медведь", 3, hp: 500);
+        _world.TargetWid = mob.Wid;
+
+        Tick();
+        for (var hp = 490; hp > 400; hp -= 10)
+        {
+            _world.Replace(mob, m => m with { Hp = hp });
+            Tick(10);
+        }
+
+        Assert.DoesNotContain("unselect", _actions.Calls);
+        Assert.DoesNotContain(_log, e => e.Message.Contains("HP не падает"));
+    }
+
     // ── Лут ─────────────────────────────────────────────────────────────────
 
     [Fact]
