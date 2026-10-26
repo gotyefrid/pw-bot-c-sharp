@@ -370,8 +370,7 @@ public sealed class WorldReader
             if (!MemoryBlock.TryRead(_memory, address, BlockSize(pet.HpRatio, pet.Hunger, pet.Tid, pet.Essence), out var petBlock))
                 continue;
             var tid = petBlock.UInt32(pet.Tid);
-            var (name, habitat) = pet.EssenceInhabit == 0 ? (null, null)
-                : ReadPetEssence(tid, () => pet.Essence != 0 ? petBlock.UInt32(pet.Essence) : FindEssence(tid));
+            var (name, habitat) = pet.EssenceInhabit == 0 || pet.Essence == 0 ? (null, null) : ReadPetEssence(tid, petBlock.UInt32(pet.Essence));
             cages.Add(new PetInCage(cage, petBlock.Float(pet.HpRatio), petBlock.Int32(pet.Hunger)) { Name = name, Habitat = habitat });
         }
 
@@ -383,13 +382,12 @@ public sealed class WorldReader
     }
 
     // Запись питомца в справочнике не меняется, пока клиент запущен, — по tid читаем один раз (не нашли — попробуем в другой раз)
-    private (string? Name, PetHabitat? Habitat) ReadPetEssence(uint tid, Func<uint> record)
+    private (string? Name, PetHabitat? Habitat) ReadPetEssence(uint tid, uint address)
     {
         if (_petEssences.TryGetValue(tid, out var known))
             return known;
 
         var p = _p.Pet;
-        var address = record();
         if (address == 0 || !_memory.TryReadUInt32(address, out var id) || id != tid || !_memory.TryReadUInt32(address + p.EssenceInhabit, out var inhabit))
             return (null, null);
         return _petEssences[tid] = (ReadName(address + p.EssenceName), PetHabitats.FromGame(unchecked((int)inhabit)));
@@ -415,39 +413,6 @@ public sealed class WorldReader
         }
 
         return macros;
-    }
-
-    // Запись-описание по id — как клиент (get_data_ptr): ячейка id % число ячеек, по цепочке узлов до своего id, дальше
-    // начало таблицы вида данных + размер записи × номер. 0 — справочника нет в профиле или id не нашёлся
-    private uint FindEssence(uint id)
-    {
-        var d = _p.ElementData;
-        if (d.Manager == 0 || id == 0
-            || !_roots.TryBase(out var basePointer)
-            || !_memory.TryReadUInt32(basePointer + d.Manager, out var manager) || manager == 0
-            || !_memory.TryReadUInt32(manager + d.EssenceMap + d.MapBuckets, out var buckets)
-            || !_memory.TryReadUInt32(manager + d.EssenceMap + d.MapBucketCount, out var count) || count == 0
-            || !_memory.TryReadUInt32(buckets + id % count * 4, out var node))
-            return 0;
-
-        for (var depth = 0; node != 0 && depth < MaxChain; depth++)
-        {
-            if (!_memory.TryReadUInt32(node + d.NodeKey, out var key))
-                return 0;
-            if (key == id)
-            {
-                return _memory.TryReadUInt32(node + d.NodeType, out var type) && _memory.TryReadUInt32(node + d.NodeIndex, out var index)
-                       && _memory.TryReadUInt32(manager + d.TypeBases, out var bases) && _memory.TryReadUInt32(manager + d.TypeSizes, out var sizes)
-                       && _memory.TryReadUInt32(bases + type * 4, out var start) && _memory.TryReadUInt32(sizes + type * 4, out var size)
-                    ? start + size * index
-                    : 0;
-            }
-
-            if (!_memory.TryReadUInt32(node + NextNode, out node))
-                return 0;
-        }
-
-        return 0;
     }
 
     private string ReadName(uint pointer)

@@ -15,6 +15,8 @@ public class GameCallerTests
     // Где лежит указатель на базу — в тестах любой адрес
     private const uint BasePointer = ModuleBase + 0x100;
     private const uint DataAddress = 0x7000_0100;
+    private const uint Host = 0x1FA1F868;
+    private const uint Session = 0x3300_0000;
     private static readonly ProfileData Profile = new ProfileCatalog().Load("pwclassic136").Data;
 
     private readonly MemoryImage _memory = new();
@@ -46,24 +48,27 @@ public class GameCallerTests
 
     private static uint Address(string name) => ModuleBase + Profile.Functions[name].Rva;
 
-    // Персонаж в мире: цепочка «база → game → персонаж» профиля 1.3.6 ведёт к нему
-    private void PutHost(uint host)
+    // Персонаж в мире: цепочки профиля «база → game → персонаж» и «база → связь с сервером» ведут к ним
+    private void PutHost(uint host = Host)
     {
         const uint basePtr = 0x1000_0000, game = 0x1001_0000;
         _memory.WriteUInt32(BasePointer, basePtr);
         _memory.WriteUInt32(basePtr + Profile.Base.Game, game);
+        _memory.WriteUInt32(basePtr + Profile.Base.Session, Session);
         _memory.WriteUInt32(game + Profile.Host.Struct, host);
     }
 
     [Fact]
-    public void SelectTargetRunsCdeclStubAtFunctionAddress()
+    public void SelectTargetRunsStubAtFunctionAddress()
     {
+        PutHost();
+
         var result = Caller().SelectTarget(0x80104298);
 
         Assert.True(result.Ok, result.Details);
         var run = Assert.Single(_runner.Runs);
         Assert.Null(run.Data);
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SelectTarget), CallingConvention.Cdecl, 0, [0x80104298]), run.Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SelectTarget), CallingConvention.Thiscall, Host, [0x80104298]), run.Stub);
     }
 
     [Fact]
@@ -152,29 +157,36 @@ public class GameCallerTests
     [Fact]
     public void CastSkillPassesTargetsThroughData()
     {
+        PutHost();
+
         Caller().CastSkill(330, 0x80116200);
 
         var run = _runner.Runs.Single();
         Assert.Equal(BitConverter.GetBytes(0x80116200u), run.Data);
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Cdecl, 0, [330, 0, 1, DataAddress]), run.Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, Session, [330, 0, 1, DataAddress]), run.Stub);
     }
 
     [Fact]
     public void CastSkillWithoutTargetHasZeroCount()
     {
+        PutHost();
+
         Caller().CastSkill(329, 0);
 
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Cdecl, 0, [329, 0, 0, DataAddress]), _runner.Runs.Single().Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, Session, [329, 0, 0, DataAddress]),
+            _runner.Runs.Single().Stub);
     }
 
     [Fact]
     public void PetAttackSendsCommandOneWithPvpByte()
     {
+        PutHost();
+
         Caller().PetAttack(0x8010429C);
 
         var run = _runner.Runs.Single();
         Assert.Equal([0], run.Data);
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.PetCtrl), CallingConvention.Cdecl, 0, [0x8010429C, 1, DataAddress, 1]), run.Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.PetCtrl), CallingConvention.Thiscall, Session, [0x8010429C, 1, DataAddress, 1]), run.Stub);
     }
 
     [Theory]
@@ -182,14 +194,16 @@ public class GameCallerTests
     [InlineData(10, 9u)]
     public void SummonPetUsesZeroBasedCage(int cage, uint index)
     {
+        PutHost();
+
         Caller().SummonPet(cage);
 
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SummonPet), CallingConvention.Cdecl, 0, [index]), _runner.Runs.Single().Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SummonPet), CallingConvention.Thiscall, Host, [index]), _runner.Runs.Single().Stub);
     }
 
     [Theory]
     [InlineData(0)]
-    [InlineData(11)]
+    [InlineData(21)]
     public void SummonPetOutsideCagesIsRefused(int cage)
     {
         Assert.False(Caller().SummonPet(cage).Ok);
@@ -201,7 +215,8 @@ public class GameCallerTests
     {
         Caller().UseItem(new InventoryItem(2, 8618, 0, 1, null, null));
 
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.UseItem), CallingConvention.Cdecl, 0, [0, 2, 8618, 1]), _runner.Runs.Single().Stub);
+        // Где (0 — сумка) и ячейка — в регистрах, как у клиента
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.UseItem), CallingConvention.Cdecl, 0, [8618, 1], ecx: 0, edx: 2), _runner.Runs.Single().Stub);
     }
 
     [Fact]
@@ -217,7 +232,7 @@ public class GameCallerTests
         var run = _runner.Runs.Single();
         Assert.Equal(BitConverter.GetBytes(-1800f).Concat(BitConverter.GetBytes(220f)).Concat(BitConverter.GetBytes(-110.5f)), run.Data!);
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
-            [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 1, 0]), run.Stub);
+            [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 0]), run.Stub);
     }
 
     [Fact]
@@ -253,16 +268,17 @@ public class GameCallerTests
     [Fact]
     public void MoveToWithoutSmartPathGoesDirect()
     {
-        // У 1.3.6 автопуть не найден — просьба «умно» бежит по прямой (тип 0)
+        // Автопуть у сервера не найден — просьба «умно» бежит по прямой (тип 0)
         const uint host = 0x1FA1F868, workMan = 0x2222_0000;
         PutHost(host);
         _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
+        var profile = new ProfileData { Base = Profile.Base, Host = Profile.Host, Functions = Profile.Functions, MoveTypes = new MoveTypes() };
 
-        Assert.Equal("у сервера нет автопути", Caller().Capabilities.WhyNot(Capability.SmartMove));
-        Caller().MoveTo(new Position(1f, 2f, 3f), smart: true);
+        Assert.Equal("у сервера нет автопути", Caller(profile).Capabilities.WhyNot(Capability.SmartMove));
+        Caller(profile).MoveTo(new Position(1f, 2f, 3f), smart: true);
 
         Assert.Equal(StubBuilder.MoveTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkMoveSetDestination),
-            [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 1, 0]), _runner.Runs.Single().Stub);
+            [0, DataAddress], Address(GameFunctions.WorkStart), [1, null, 0]), _runner.Runs.Single().Stub);
     }
 
     // Comeback 1.4.6: «выбрать цель» — метод персонажа (this = перс, stdcall-очистка как у thiscall), «снять цель» — он же с 0
@@ -445,6 +461,7 @@ public class GameCallerTests
     public void RunnerTimeoutIsReported()
     {
         _runner.Result = new RemoteRunResult(RemoteRunStatus.Timeout, "поток в игре не закончился за 5 с");
+        PutHost();
 
         var result = Caller().Unselect();
 

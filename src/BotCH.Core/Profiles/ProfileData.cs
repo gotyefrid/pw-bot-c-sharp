@@ -22,7 +22,6 @@ public sealed class ProfileData
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
     public MonsterEssenceOffsets MonsterEssence { get; init; } = new();
-    public ElementDataOffsets ElementData { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
     public PotionOffsets Potion { get; init; } = new();
     public PetFoodOffsets PetFood { get; init; } = new();
@@ -154,10 +153,7 @@ public sealed class PetOffsets
     public uint Hunger { get; init; }
     /// <summary>tid питомца (номер записи в справочнике) — для проверки, что указатель привёл в его запись.</summary>
     public uint Tid { get; init; }
-    /// <summary>
-    /// Указатель на запись питомца в справочнике игры (PET_ESSENCE); 0 — указателя нет: запись ищем по <see cref="Tid"/>
-    /// через <see cref="ElementDataOffsets"/>.
-    /// </summary>
+    /// <summary>Указатель на запись питомца в справочнике игры (PET_ESSENCE); 0 — не найдено: название и среда не читаются.</summary>
     public uint Essence { get; init; }
     /// <summary>Название в записи (UTF-16).</summary>
     public uint EssenceName { get; init; }
@@ -255,30 +251,6 @@ public sealed class GroundItemOffsets
     public uint Distance { get; init; }
     public uint NamePointer { get; init; }
     public uint Location { get; init; }
-}
-
-/// <summary>
-/// Справочник игры (elementdataman, данные из elements.data): найти запись-описание по id так же, как клиент
-/// (get_data_ptr, пространство ID_SPACE_ESSENCE). Нужен, когда у объекта нет указателя на свою запись. 0 в <see cref="Manager"/> —
-/// не используется.
-/// </summary>
-public sealed class ElementDataOffsets
-{
-    /// <summary>[база + Manager] — справочник; база — как у <see cref="BaseOffsets.Game"/>.</summary>
-    public uint Manager { get; init; }
-    /// <summary>Справочник + EssenceMap — хэш-таблица «id → (вид данных, номер записи)».</summary>
-    public uint EssenceMap { get; init; }
-    /// <summary>[таблица + MapBuckets] — массив ячеек (указатели на первый узел цепочки).</summary>
-    public uint MapBuckets { get; init; }
-    /// <summary>[таблица + MapBucketCount] — число ячеек; ячейка = id % число.</summary>
-    public uint MapBucketCount { get; init; }
-    /// <summary>Узел: +0 следующий в ячейке, +NodeKey id, +NodeType вид данных, +NodeIndex номер записи в таблице вида.</summary>
-    public uint NodeKey { get; init; }
-    public uint NodeType { get; init; }
-    public uint NodeIndex { get; init; }
-    /// <summary>[справочник + TypeBases] — массив начал таблиц по виду данных; [справочник + TypeSizes] — размеры их записей.</summary>
-    public uint TypeBases { get; init; }
-    public uint TypeSizes { get; init; }
 }
 
 /// <summary>

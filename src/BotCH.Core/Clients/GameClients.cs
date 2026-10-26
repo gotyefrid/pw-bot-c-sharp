@@ -65,7 +65,7 @@ public sealed class SystemClientSource(ProfileData profile) : IClientSource
 {
     /// <summary>
     /// Клиент — процесс с окном игры, имя exe не важно: у Comeback есть ElementClient.exe и ElementClient_test.exe,
-    /// у PW Classic — ElementClient.exe и Client.exe, игроки запускают любой.
+    /// игроки запускают любой; у PW Classic — client.exe (старый elementclient.exe бот не поддерживает).
     /// </summary>
     public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses()
         => NativeWindows.FindClientProcesses().Select(pid => (pid, NativeWindows.FindMainWindow(pid))).ToList();

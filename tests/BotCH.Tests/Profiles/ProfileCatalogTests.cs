@@ -17,49 +17,49 @@ public class ProfileCatalogTests
     }
 
     [Fact]
-    public void PwClassicKeyFactsMatchOldBot()
+    public void PwClassicKeyFacts()
     {
+        // Клиент client.exe — ветки Comeback: перс +0x2C от game (у Comeback +0x28)
         var data = _catalog.Load("pwclassic136").Data;
 
         Assert.Equal("PW Classic 1.3.6", data.Name);
         Assert.Equal(0x1Cu, data.Base.Game);
-        Assert.Equal(0x20u, data.Host.Struct);
+        Assert.Equal(0x2Cu, data.Host.Struct);
         Assert.Equal(0x2B8u, data.Npc.State);
-        Assert.Equal(0x2D4u, data.Npc.Target);
         Assert.Equal(769, data.World.SlotCount);
         Assert.Equal(0x10u, data.Skill.CooldownLeft);
-        Assert.Equal(10, data.PetManager.CageCount);
+        Assert.Equal(20, data.PetManager.CageCount);
         Assert.Equal(299, data.Skills.DefaultAttack);
         Assert.Equal([167, 329, 330], data.Skills.NotAttack);
     }
 
-    [Fact]
-    public void AllPwClassicFunctionsHaveAddressAndLongSignature()
+    [Theory]
+    [InlineData("pwclassic136")]
+    [InlineData("comeback136")]
+    [InlineData("comeback146")]
+    public void AllFunctionsHaveAddressAndLongSignature(string id)
     {
-        var functions = _catalog.Load("pwclassic136").Data.Functions;
+        var functions = _catalog.Load(id).Data.Functions;
 
-        Assert.Equal(15, functions.Count);
         Assert.All(functions, f =>
         {
             Assert.NotEqual(0u, f.Value.Rva);
             Assert.NotNull(f.Value.Signature);
             Assert.True(f.Value.Signature!.FixedCount >= 10, $"{f.Key}: слишком короткая сигнатура");
         });
-        Assert.Equal(CallingConvention.Thiscall, functions[GameFunctions.HostApplySkill].Convention);
-        Assert.Equal(CallingConvention.Cdecl, functions[GameFunctions.SelectTarget].Convention);
     }
 
-    [Fact]
-    public void PwClassicHasAllCapabilities()
+    [Theory]
+    [InlineData("pwclassic136")]
+    [InlineData("comeback136")]
+    [InlineData("comeback146")]
+    public void EveryServerCanDoTheSame(string id)
     {
-        var capabilities = _catalog.Load("pwclassic136").Capabilities;
+        // Бот на всех серверах умеет одно и то же
+        var profile = _catalog.Load(id);
 
-        Assert.True(capabilities.Has(Capability.Move));
-        Assert.True(capabilities.Has(Capability.FlyTo));
-        Assert.True(capabilities.Has(Capability.Cancel));
-        Assert.True(capabilities.Has(Capability.RecallPet));
-        // Автопути у этого клиента нет — с причиной для окна
-        Assert.Equal("у сервера нет автопути", capabilities.WhyNot(Capability.SmartMove));
+        Assert.All(new[] { Capability.Move, Capability.SmartMove, Capability.FlyTo, Capability.Cancel, Capability.RecallPet },
+            c => Assert.Null(profile.Capabilities.WhyNot(c)));
     }
 
     [Fact]
@@ -89,13 +89,6 @@ public class ProfileCatalogTests
         Assert.Equal(0x5A8u, p136.Host.TargetId);
         Assert.Equal(0x790u, p136.Host.MoveEnv);
         Assert.Equal(p146.Npc.State, p136.Npc.State);
-        // Все функции 1.4.6 есть и в 1.3.6 (у 1.3.6 есть и свои: запуск макроса)
-        Assert.Empty(p146.Functions.Keys.Except(p136.Functions.Keys));
-        Assert.All(p136.Functions, f =>
-        {
-            Assert.NotNull(f.Value.Signature);
-            Assert.True(f.Value.Signature!.FixedCount >= 10, $"{f.Key}: слишком короткая сигнатура");
-        });
     }
 
     [Fact]
