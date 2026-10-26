@@ -89,6 +89,14 @@ public sealed record WorldState(
     public bool TargetsUs(NpcInfo mob)
         => !mob.IsDead && !mob.Returning && mob.TargetWid != 0 && (mob.TargetWid == Host.Wid || mob.TargetWid == Pet?.ActiveWid);
 
+    /// <summary>
+    /// Пет бьёт моба: моб у него в цели, и пет не стоит (бьёт, кастует или бежит к нему). Цель у пета после боя остаётся, а
+    /// возродившийся моб бывает с тем же WID — стоящий пет с такой целью не дерётся. Состояние не найдено для сервера — верим цели.
+    /// </summary>
+    public bool PetFights(uint mobWid)
+        => Pet is { IsSummoned: true } pet && Npcs.FirstOrDefault(n => n.Wid == pet.ActiveWid) is { } p
+           && p.TargetWid == mobWid && p.State != NpcState.Standing;
+
     public SkillInfo? Skill(int id) => Skills.FirstOrDefault(s => s.Id == id);
 
     /// <summary>Макросы персонажа (только непустые); пусто — нет или на этом сервере не найдены.</summary>

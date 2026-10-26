@@ -594,9 +594,6 @@ public sealed class PetAttackAction(uint targetWid) : GameAction
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.PetAttack(TargetWid);
 
-    public override Verdict Check(WorldState start, WorldState now)
-    {
-        var pet = now.Npcs.FirstOrDefault(n => n.Wid == now.Pet?.ActiveWid);
-        return pet?.TargetWid == TargetWid ? Verdict.Confirmed() : Verdict.Pending;
-    }
+    // Цель у пета могла остаться от прошлого боя — пока он стоит, приказ не принят
+    public override Verdict Check(WorldState start, WorldState now) => now.PetFights(TargetWid) ? Verdict.Confirmed() : Verdict.Pending;
 }

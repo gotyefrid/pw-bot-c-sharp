@@ -711,6 +711,27 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void StandingPetWithLeftoverTargetIsOrdered()
+    {
+        // Цель у пета осталась от прошлого боя, а возродившийся моб — с тем же WID: пет стоит «с целью», но не бьёт
+        _settings.Target.KillMobs = true;
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1);
+        var pet = _world.Npcs.Single(n => n.Kind == NpcKind.Pet);
+        _world.Replace(pet, p => p with { TargetWid = 0x80000001 });
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 10).Wid;
+
+        Tick();
+        Assert.Equal("pet-attack 80000001", LastCall);
+
+        // Побежал к мобу — приказ принят, больше не повторяем
+        _world.Replace(pet, p => p with { State = NpcState.Moving });
+        Tick(1);
+        Tick(6);
+        Assert.Single(_actions.Calls, c => c.StartsWith("pet-attack"));
+    }
+
+    [Fact]
     public void MobGivenUpAfterTimeout()
     {
         _settings.Target.KillMobs = true;

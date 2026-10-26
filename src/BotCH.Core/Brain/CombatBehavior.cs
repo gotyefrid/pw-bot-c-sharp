@@ -233,8 +233,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var combat = c.Settings.Combat;
 
         // Приказ пету — пока он не бьёт эту цель, не чаще раза в 5 с
-        if (c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true } pet && c.Now - _lastPetOrder >= PetOrderPeriod
-            && w.Npcs.FirstOrDefault(n => n.Wid == pet.ActiveWid)?.TargetWid != mob.Wid)
+        if (c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true } && c.Now - _lastPetOrder >= PetOrderPeriod && !w.PetFights(mob.Wid))
         {
             _lastPetOrder = c.Now;
             // Прошлый приказ ещё ждёт подтверждения, но на другого моба (бой переключился) — заменяем, не ждём 6 с
