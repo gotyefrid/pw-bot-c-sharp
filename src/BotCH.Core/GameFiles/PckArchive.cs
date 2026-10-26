@@ -38,20 +38,25 @@ public static class PckArchive
     }
 
     /// <summary>Содержимое первого файла, путь которого заканчивается на <paramref name="suffix"/>, или null.</summary>
-    public static byte[]? ReadFile(string pckFile, string suffix, PckFormat format)
+    public static byte[]? ReadFile(string pckFile, string suffix, PckFormat format) => ReadFiles(pckFile, format, suffix)[0];
+
+    /// <summary>Несколько файлов за один разбор оглавления: для каждого окончания пути — первый такой файл или null.</summary>
+    public static byte[]?[] ReadFiles(string pckFile, PckFormat format, params string[] suffixes)
     {
+        var files = new byte[]?[suffixes.Length];
         using var stream = Open(pckFile);
         foreach (var entry in ReadEntries(stream, format))
         {
-            if (!entry.Path.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            var i = Array.FindIndex(suffixes, s => entry.Path.EndsWith(s, StringComparison.OrdinalIgnoreCase));
+            if (i < 0 || files[i] is not null)
                 continue;
 
             stream.Position = entry.Offset;
             var data = ReadExactly(stream, entry.PackedSize);
-            return entry.PackedSize < entry.Size ? Inflate(data) : data;
+            files[i] = entry.PackedSize < entry.Size ? Inflate(data) : data;
         }
 
-        return null;
+        return files;
     }
 
     private static FileStream Open(string pckFile)

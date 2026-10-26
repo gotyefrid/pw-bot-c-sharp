@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -30,7 +31,7 @@ public enum StartStatus
 public sealed record StartResult(StartStatus Status, string Problem = "");
 
 /// <summary>
-/// Подключение к одному клиенту игры: дескриптор чтения, метка клиента, снимки мира, unfreeze, названия скиллов — и текущий
+/// Подключение к одному клиенту игры: дескриптор чтения, метка клиента, снимки мира, unfreeze, названия и иконки скиллов — и текущий
 /// бот. Бот принадлежит подключению: запускает и останавливает его только оно (<see cref="StartBot"/>,
 /// <see cref="StopBotAsync"/>), окно лишь просит. Закрывается по порядку: бот (дождавшись его хода) → обработчик окна игры →
 /// снимки → unfreeze → дескриптор → метка.
@@ -52,6 +53,7 @@ public sealed class ClientConnection : IDisposable
     private readonly WorldMonitor _monitor;
     private Unfreezer? _unfreezer;
     private volatile SkillNames _skillNames = SkillNames.Empty;
+    private volatile SkillIcons _skillIcons = SkillIcons.Empty;
     private RunningBot? _bot;
     private Task _stopping = Task.CompletedTask;
     private bool _disposed;
@@ -115,6 +117,9 @@ public sealed class ClientConnection : IDisposable
     /// <summary>Бот сам просит остановку (погиб, у игры кончается память) — из потока снимков, посреди хода: остановить не здесь.</summary>
     public event Action<string>? BotStopRequested;
 
+    /// <summary>Иконки скиллов клиента; пока не загрузились (или их нет) — пусто.</summary>
+    public SkillIcons SkillIcons => _skillIcons;
+
     /// <summary>Текущий бот; null — не запущен.</summary>
     public RunningBot? Bot
     {
@@ -135,11 +140,11 @@ public sealed class ClientConnection : IDisposable
         }
     }
 
-    /// <summary>Начать читать мир и грузить названия скиллов.</summary>
+    /// <summary>Начать читать мир и грузить названия и иконки скиллов.</summary>
     public void Start()
     {
         _monitor.Start();
-        LoadSkillNamesInBackground();
+        LoadSkillsInBackground();
     }
 
     /// <summary>
@@ -232,7 +237,7 @@ public sealed class ClientConnection : IDisposable
         }
     }
 
-    private void LoadSkillNamesInBackground()
+    private void LoadSkillsInBackground()
     {
         var directory = Path.GetDirectoryName(_game.MainModulePath)!;
         var pck = _profile.GameFiles.Pck;
@@ -244,6 +249,21 @@ public sealed class ClientConnection : IDisposable
                 _log.Warning("Названия скиллов: " + problem);
             else
                 _log.Debug($"Названия скиллов: {names.Count}");
+
+            try
+            {
+                var icons = SkillIcons.Load(_game, _profile, out problem);
+                _skillIcons = icons;
+                if (problem is not null)
+                    _log.Warning("Иконки скиллов: " + problem);
+                else
+                    _log.Debug($"Иконки скиллов: {icons.Count}");
+            }
+            // Клиент закрылся посреди чтения — не беда, иконки не нужны
+            catch (Exception e) when (e is MemoryAccessException or InvalidOperationException or Win32Exception)
+            {
+                _log.Debug("Иконки скиллов: " + e.Message);
+            }
         });
     }
 

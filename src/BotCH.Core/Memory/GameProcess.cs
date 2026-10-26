@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -107,14 +108,29 @@ public sealed class GameProcess : IMemory, IDisposable
     /// <summary>Где у игры загружена системная библиотека (например user32.dll); null — не загружена.</summary>
     public uint? ModuleBase(string name)
     {
-        _process.Refresh();
-        foreach (ProcessModule module in _process.Modules)
-        {
-            if (string.Equals(module.ModuleName, name, StringComparison.OrdinalIgnoreCase))
-                return unchecked((uint)module.BaseAddress.ToInt32());
-        }
+        var found = ModuleBases(m => string.Equals(m, name, StringComparison.OrdinalIgnoreCase));
+        return found.Count > 0 ? found[0] : null;
+    }
 
-        return null;
+    /// <summary>Где загружены библиотеки, чьё имя начинается с <paramref name="prefix"/> (elementskill.dll, ElementSkill_test.dll).</summary>
+    public IReadOnlyList<uint> ModuleBasesStartingWith(string prefix)
+        => ModuleBases(m => m.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+
+    // Список модулей спрашивают из разных потоков (вызовы, фоновая загрузка иконок), а Process не потокобезопасен
+    private List<uint> ModuleBases(Func<string, bool> match)
+    {
+        lock (_process)
+        {
+            _process.Refresh();
+            var found = new List<uint>();
+            foreach (ProcessModule module in _process.Modules)
+            {
+                if (match(module.ModuleName))
+                    found.Add(unchecked((uint)module.BaseAddress.ToInt32()));
+            }
+
+            return found;
+        }
     }
 
     /// <summary>Дескриптор процесса — для страниц под вызовы, потока и диагностики (<see cref="Calls.RemotePages"/>, <see cref="ProcessInspector"/>).</summary>
