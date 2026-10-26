@@ -110,11 +110,8 @@ internal static class WorldCommands
         Check(names.Count > 0, $"названия скиллов прочитаны из файла игры: {names.Count}");
         var unnamed = world.Skills.Where(s => s.Name is null).Select(s => s.Id.ToString()).ToList();
         Check(unnamed.Count == 0, $"у всех скиллов есть название{Bad(unnamed)}");
-        if (data.SkillStub.Icon != 0)
-        {
-            var noIcon = world.Skills.Where(s => icons.Get(s.Id) is null).Select(s => s.Id.ToString()).ToList();
-            Check(icons.Count > 0 && noIcon.Count == 0, $"у всех скиллов есть иконка (всего иконок: {icons.Count}){Bad(noIcon)}");
-        }
+        var noIcon = world.Skills.Where(s => icons.Get(s.Id) is null).Select(s => s.Id.ToString()).ToList();
+        Check(icons.Count > 0 && noIcon.Count == 0, $"у всех скиллов есть иконка (всего иконок: {icons.Count}){Bad(noIcon)}");
 
         if (world.Pet is { } pet)
         {
@@ -176,9 +173,7 @@ internal static class WorldCommands
     private static SkillIcons LoadIcons(ServerProfile profile, GameProcess game)
     {
         var icons = SkillIcons.Load(game, profile.Data, out var problem);
-        Console.WriteLine(problem is not null ? "⚠️ Иконки скиллов: " + problem
-            : profile.Data.SkillStub.Icon == 0 ? "Иконки скиллов: в профиле нет skillStub"
-            : $"Иконки скиллов: {icons.Count}");
+        Console.WriteLine(problem is not null ? "⚠️ Иконки скиллов: " + problem : $"Иконки скиллов: {icons.Count}");
         return icons;
     }
 

@@ -26,7 +26,6 @@ public sealed class ProfileData
     public PotionOffsets Potion { get; init; } = new();
     public PetFoodOffsets PetFood { get; init; } = new();
     public SkillOffsets Skill { get; init; } = new();
-    public SkillStubOffsets SkillStub { get; init; } = new();
     public MacroOffsets Macros { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
@@ -320,18 +319,6 @@ public sealed class SkillOffsets
     public uint CooldownFull { get; init; }
     /// <summary>Младший бит — «на перезарядке».</summary>
     public uint Flags { get; init; }
-}
-
-/// <summary>
-/// Описание скилла в библиотеке скиллов клиента (elementskill*.dll, в её данных) — по нему иконка скилла
-/// (<see cref="GameFiles.SkillIcons"/>). +0 — таблица методов. <see cref="Icon"/> 0 — не найдено, иконок нет.
-/// </summary>
-public sealed class SkillStubOffsets
-{
-    /// <summary>Номер скилла (int).</summary>
-    public uint Id { get; init; }
-    /// <summary>Указатель на имя файла иконки «….dds» (GBK) из surfaces.pck → iconlist_skill.</summary>
-    public uint Icon { get; init; }
 }
 
 /// <summary>
