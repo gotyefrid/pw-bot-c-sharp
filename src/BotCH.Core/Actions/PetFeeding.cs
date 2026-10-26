@@ -31,9 +31,10 @@ public sealed class PetFeeding(TimeSpan? pauseAfterSuccess = null, TimeSpan? pau
 
     /// <summary>
     /// Корм, которым кормить сейчас, или null (причина в <paramref name="why"/>; пустая — кормить не нужно).
-    /// Самый малый по верности из тех, что пет ест или ещё не пробовал.
+    /// Выбранный (<paramref name="chosen"/> — название, пусто — любой), если он в сумке и пет его ест; иначе — самый малый по
+    /// верности из тех, что пет ест или ещё не пробовал, а в <paramref name="why"/> — почему не выбранный.
     /// </summary>
-    public InventoryItem? Choose(WorldState world, out string why)
+    public InventoryItem? Choose(WorldState world, string chosen, out string why)
     {
         why = "";
         var pet = world.Pet;
@@ -53,14 +54,26 @@ public sealed class PetFeeding(TimeSpan? pauseAfterSuccess = null, TimeSpan? pau
             return null;
         }
 
-        var food = world.Inventory
+        var edible = world.Inventory
             .Where(i => i.IsPetFood && i.Count > 0 && !_notEaten.Contains(i.Tid))
             .OrderBy(i => i.FoodLoyalty)
-            .FirstOrDefault();
-        if (food is null)
+            .ToList();
+        if (edible.Count == 0)
+        {
             why = _notEaten.Count > 0 ? "нет корма, который ест пет" : "нет корма в сумке";
-        return food;
+            return null;
+        }
+
+        if (chosen.Length == 0)
+            return edible[0];
+        if (edible.FirstOrDefault(i => IsNamed(i, chosen)) is { } food)
+            return food;
+
+        why = world.Inventory.Any(i => i.IsPetFood && i.Count > 0 && IsNamed(i, chosen)) ? $"пет не ест «{chosen}»" : $"корма «{chosen}» нет в сумке";
+        return edible[0];
     }
+
+    private static bool IsNamed(InventoryItem item, string name) => string.Equals(item.Name?.Trim(), name, StringComparison.OrdinalIgnoreCase);
 
     /// <summary>Итог кормления (по <see cref="UseItemAction"/>): съел — стопка уменьшилась, иначе отказ.</summary>
     public string Report(uint tid, bool eaten, DateTime time)

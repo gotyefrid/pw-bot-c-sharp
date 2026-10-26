@@ -222,6 +222,49 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void ChosenFoodIsFed()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.Food = "Зеленая трава";
+        _world.SetPet(1, hunger: 1);
+        _world.AddFood(0, 8796, 150, loyalty: 10, "Чистая вода");
+        _world.AddFood(4, 9757, 3, loyalty: 20, "Зеленая трава");
+
+        Tick();
+
+        Assert.Equal(["use 4"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ChosenFoodMissingIsReplacedAndSaid()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.Food = "Зеленая трава";
+        _world.SetPet(1, hunger: 1);
+        _world.AddFood(0, 8796, 150, loyalty: 10, "Чистая вода");
+
+        Tick();
+
+        Assert.Equal(["use 0"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Корма «Зеленая трава» нет в сумке — кормлю «Чистая вода»");
+    }
+
+    [Fact]
+    public void FeedingOffMeansNoFood()
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.Feed = false;
+        _world.SetPet(1, hunger: 1);
+        _world.AddFood(0, 8796, 150, loyalty: 10, "Чистая вода");
+
+        for (var i = 0; i < 10; i++)
+            Tick(1);
+
+        Assert.Empty(_actions.Calls);
+        Assert.DoesNotContain(_log, e => e.Message.Contains("корм"));
+    }
+
+    [Fact]
     public void RefusedFoodIsNotNoFood()
     {
         _settings.Pet.Enabled = true;

@@ -98,6 +98,7 @@ public sealed class BotSettings
         Pet.GroundPet = Pet.GroundPet?.Trim() ?? "";
         Pet.AirPet = Pet.AirPet?.Trim() ?? "";
         Pet.WaterPet = Pet.WaterPet?.Trim() ?? "";
+        Pet.Food = Pet.Food?.Trim() ?? "";
         Route.Points = RoutePoint.Clean(Route.Points);
         Route.Radius = Clamp(Route.Radius, 5, 500);
         Route.DangerLevel = Clamp(Route.DangerLevel, 0, 150);
@@ -425,6 +426,17 @@ public sealed class PetSettings : SettingsPart
     private int _healPercent = 70;
     /// <summary>Лечить пета, когда его HP ниже этого процента.</summary>
     public int HealPercent { get => _healPercent; set => Set(ref _healPercent, value); }
+
+    private bool _feed = true;
+    /// <summary>Кормить голодного пета. Выключено — не кормим совсем.</summary>
+    public bool Feed { get => _feed; set => Set(ref _feed, value); }
+
+    private string _food = "";
+    /// <summary>
+    /// Чем кормить — название корма; пусто — любым. Выбранного нет в сумке или пет его не ест — любым другим, сначала самым
+    /// простым (меньше верности).
+    /// </summary>
+    public string Food { get => _food; set => Set(ref _food, value); }
 }
 
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>

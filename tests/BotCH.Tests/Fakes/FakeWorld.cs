@@ -85,9 +85,9 @@ internal sealed class FakeWorld
         return item;
     }
 
-    public InventoryItem AddFood(int slot, uint tid, int count, int loyalty)
+    public InventoryItem AddFood(int slot, uint tid, int count, int loyalty, string? name = null)
     {
-        var item = new InventoryItem(slot, tid, 27, count, null, loyalty);
+        var item = new InventoryItem(slot, tid, 27, count, null, loyalty) { Name = name };
         Bag.Add(item);
         return item;
     }

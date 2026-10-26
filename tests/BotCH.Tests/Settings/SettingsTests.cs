@@ -17,6 +17,8 @@ public class SettingsTests
         Assert.Equal(100, s.Potions.MpBelow);
         Assert.Equal(70, s.Pet.HealPercent);
         Assert.Equal(1, s.Pet.Cage);
+        Assert.True(s.Pet.Feed);
+        Assert.Equal("", s.Pet.Food);
         Assert.Equal(8f, s.Combat.ComeCloserDistance);
         Assert.Equal(4, s.Loot.Attempts);
         Assert.Equal(299, s.Combat.AttackSkillId);

@@ -7,7 +7,7 @@ namespace BotCH.Core.Brain;
 
 /// <summary>
 /// Пет для среды, где персонаж (<see cref="PetPicker"/>: в воздухе — летающий, на земле — наземный): не призван — призвать
-/// (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить.
+/// (мёртв — воскресить), HP ниже порога — вылечить, голоден — покормить (если включено; чем — <see cref="Settings.PetSettings.Food"/>).
 /// Выключен в настройках или петов нет (не друид) — поведение молча пропускается. «Только на время боя»
 /// (<see cref="Settings.PetSettings.OnlyForFight"/>): без боя не призываем и не кормим, а через <see cref="CalmBeforeRecall"/>
 /// после боя (вылечив) отзываем. Идёт ли бой — из <see cref="FightState"/>, как и у копания.
@@ -131,7 +131,10 @@ public sealed class PetBehavior : IBehavior
             }
         }
 
-        var food = _feeding.Choose(c.World, out var why);
+        if (!settings.Feed)
+            return false;
+
+        var food = _feeding.Choose(c.World, settings.Food, out var why);
         if (food is null)
         {
             if (why.StartsWith("нет"))
@@ -143,6 +146,9 @@ public sealed class PetBehavior : IBehavior
         if (c.Runner.IsPending(feed.Key))
             return false;
 
+        // Выбранного корма нет или пет его не ест — кормим другим
+        if (why.Length > 0)
+            c.Say("pet-food-other", $"{char.ToUpper(why[0])}{why.Substring(1)} — кормлю {(food.Name is { } name ? $"«{name}»" : "другим")}", seconds: 300);
         Status = "кормлю пета";
         return c.Submit(feed);
     }
