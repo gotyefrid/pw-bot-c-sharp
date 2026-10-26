@@ -85,9 +85,11 @@ internal static class PortSteps
                 var store = Enumerable.Range(i + 5, 24).Any(j => code[j] == 0x66 && code[j + 1] == 0x89 && code[j + 2] is 0x06 or 0x07);
                 if (!store)
                     continue;
-                for (var j = i & ~0xF; j > i - 0x200 && j > 1; j -= 0x10)
+                for (var j = i & ~0xF; j > i - 0x200 && j > 3; j -= 0x10)
                 {
-                    if (code[j - 1] == 0xCC && code[j - 2] == 0xCC)
+                    // Заполнитель бывает и в один int3 — сразу после ret / ret N (comeback136test 26.10: «отпустить пета»
+                    // 0x2BB450 стоит за «ret 4; int3» — по двум int3 брали функцию двумя выше, с другим пакетом)
+                    if (code[j - 1] == 0xCC && (code[j - 2] is 0xCC or 0xC3 || code[j - 4] == 0xC2))
                     {
                         starts.Add(section.Address + (uint)j - c.Module);
                         break;
