@@ -784,6 +784,55 @@ public class BrainScenarioTests
         Assert.DoesNotContain("cancel", _actions.Calls);
     }
 
+    // ── Макрос ──────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void MacroIsPressedWithoutWaitingAtMostOncePerSecond()
+    {
+        // Макрос только запускаем: дальше игра крутит его сама, бот ничего не ждёт. Запуск поверх идущего начинает его
+        // сначала — поэтому не чаще раза в секунду и не во время каста
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackMacro = 2;
+        _world.AddSkill(299);
+        _world.Macros.Add(new MacroInfo(2, 7));
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 2, hp: 100).Wid;
+        int Pressed() => _actions.Calls.Count(c => c == "macro 2");
+
+        Tick();
+        Tick();
+        Assert.Equal(1, Pressed());
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
+
+        Tick(0.5);
+        Assert.Equal(1, Pressed());
+        Tick(0.6);
+        Assert.Equal(2, Pressed());
+
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+        Tick(1.5);
+        Tick(1.5);
+        Assert.Equal(2, Pressed());
+    }
+
+    [Fact]
+    public void MissingMacroIsNotPressed()
+    {
+        // Макрос удалили в игре: пустой не жмём (в нём мусор), в лог — выбрать другой
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackMacro = 3;
+        _world.Macros.Add(new MacroInfo(1, 1));
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 2, hp: 100).Wid;
+
+        Tick();
+        Tick(1);
+        Tick(1);
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("macro"));
+    }
+
     // ── Лут ─────────────────────────────────────────────────────────────────
 
     [Fact]

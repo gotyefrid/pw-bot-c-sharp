@@ -322,6 +322,10 @@ public sealed class CombatSettings : SettingsPart
     /// <summary>ID атакующего скилла. 299 — по умолчанию в старом боте.</summary>
     public int AttackSkillId { get => _attackSkillId; set => Set(ref _attackSkillId, value); }
 
+    private int _attackMacro;
+    /// <summary>Макрос персонажа 1..N вместо атакующего скилла; 0 — бьём скиллом <see cref="AttackSkillId"/>.</summary>
+    public int AttackMacro { get => _attackMacro; set => Set(ref _attackMacro, value); }
+
     private bool _useSword;
     /// <summary>Обычная атака (раз в ~5 с).</summary>
     public bool UseSword { get => _useSword; set => Set(ref _useSword, value); }

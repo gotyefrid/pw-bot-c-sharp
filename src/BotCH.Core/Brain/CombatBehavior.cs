@@ -16,7 +16,7 @@ namespace BotCH.Core.Brain;
 /// <item>Поиск: самый опасный моб (<see cref="Threat"/>: бьёт меня → бьёт меня или пета; белый список не важен) →
 /// текущая цель, если подходит → ближайший разрешённый.</item>
 /// <item>Бой: другой моб опаснее текущего — переходим на него. Приказ пету; «подойти ближе» — сначала подходим, потом бьём;
-/// скилл «как кнопкой»; меч раз в ~5 с. Через N с (120) моба бросаем, а если его HP не падает 30 с — раньше. Убит — лут (ход переходит к <see cref="LootBehavior"/>
+/// скилл «как кнопкой» или макрос персонажа; меч раз в ~5 с. Через N с (120) моба бросаем, а если его HP не падает 30 с — раньше. Убит — лут (ход переходит к <see cref="LootBehavior"/>
 /// на том же снимке).</item>
 /// <item>Лут: бой важнее — напали во время лута, лут бросаем и бьём напавшего.</item>
 /// </list>
@@ -27,6 +27,8 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 {
     // Обычная атака: перс бьёт сам, пока не собьют; повтор раз в секунду — сбили (подход, каст) — снова бьёт почти сразу
     private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(1);
+    // Макрос: только запускаем, дальше игра крутит его сама; запуск поверх идущего начинает его сначала — не чаще раза в секунду
+    private static readonly TimeSpan MacroPeriod = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan PetOrderPeriod = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
@@ -48,6 +50,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     private DateTime _lowestHpAt;
     private DateTime? _targetLostAt;
     private DateTime _lastSword = DateTime.MinValue;
+    private DateTime _lastMacro = DateTime.MinValue;
     private DateTime _lastPetOrder = DateTime.MinValue;
     private DateTime _lastApproach;
 
@@ -129,6 +132,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         _lowestHp = 0;
         _targetLostAt = null;
         _lastSword = DateTime.MinValue;
+        _lastMacro = DateTime.MinValue;
         _lastPetOrder = DateTime.MinValue;
         c.Log.Info($"Бой: {mob.Name} 0x{mob.Wid:X8}, {mob.Offset}{(why.Length > 0 ? " — " + why : "")}");
     }
@@ -245,9 +249,16 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         if (combat.ComeCloser && c.Runner.Capabilities.Has(Capability.Move) && ComeCloser(c, mob))
             return true;
 
-        if (combat.UseSkill && w.Skill(combat.AttackSkillId) is { IsReady: true }
-            && c.Submit(new SkillAction(combat.AttackSkillId, 0, approach: true, $"атака скиллом {combat.AttackSkillId}")))
+        if (combat.UseSkill && combat.AttackMacro > 0)
+        {
+            if (Macro(c, combat.AttackMacro))
+                return true;
+        }
+        else if (combat.UseSkill && w.Skill(combat.AttackSkillId) is { IsReady: true }
+                 && c.Submit(new SkillAction(combat.AttackSkillId, 0, approach: true, $"атака скиллом {combat.AttackSkillId}")))
+        {
             return true;
+        }
 
         // Таймер сдвигаем, только когда удар действительно ушёл (а не «занято» или «прошлый ещё ждёт подтверждения»)
         if (combat.UseSword && c.Now - _lastSword >= SwordPeriod && c.Send(new NormalAttackAction()) == SubmitStatus.Sent)
@@ -259,6 +270,28 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         if (!combat.UseSkill && !combat.UseSword && !(c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true }))
             c.Say("nothing-to-attack", "Нечем бить: включите скилл или меч (или пета)", LogLevel.Warning, 60);
 
+        return true;
+    }
+
+    /// <summary>Запустить макрос и идти дальше, ничего не ждать: что в нём и сработал ли, решает игрок. true — запущен сейчас.</summary>
+    private bool Macro(BrainContext c, int macro)
+    {
+        if (c.Runner.Capabilities.WhyNot(Capability.Macro) is { } why)
+        {
+            c.Say("no-macro", $"Макросы недоступны ({why}) — выберите атакующий скилл", LogLevel.Warning, 60);
+            return false;
+        }
+
+        if (c.World.Macros.All(m => m.Number != macro))
+        {
+            c.Say("no-macro", $"Макроса {macro} у персонажа нет — выберите другой", LogLevel.Warning, 60);
+            return false;
+        }
+
+        if (c.Now - _lastMacro < MacroPeriod || c.Send(new MacroAction(macro)) != SubmitStatus.Sent)
+            return false;
+
+        _lastMacro = c.Now;
         return true;
     }
 
