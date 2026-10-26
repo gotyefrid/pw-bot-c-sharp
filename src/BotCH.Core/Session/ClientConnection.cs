@@ -120,8 +120,11 @@ public sealed class ClientConnection : IDisposable
     /// <summary>Иконки скиллов клиента; пока не загрузились (или их нет) — пусто.</summary>
     public SkillIcons SkillIcons => _skillIcons;
 
-    /// <summary>Иконка макроса: номер иконки с 1 (0 — макроса нет) — клетка набора iconlist_skillgrp с 0; null — нет.</summary>
-    public IconImage? MacroIcon(MacroInfo macro) => _macroIcons.GetAt(macro.Icon - 1);
+    /// <summary>
+    /// Иконка макроса: клетка набора iconlist_skillgrp = номер иконки + 1, как в окне макросов игры (клетки 0 и 1 — значки
+    /// «обычная атака» и «повтор» для шагов макроса); null — нет. Проверено: PW Classic, номер 13 — череп на огне, клетка 14.
+    /// </summary>
+    public IconImage? MacroIcon(MacroInfo macro) => _macroIcons.GetAt(macro.Icon + 1);
 
     /// <summary>Текущий бот; null — не запущен.</summary>
     public RunningBot? Bot

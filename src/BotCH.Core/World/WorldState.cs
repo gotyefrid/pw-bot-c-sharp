@@ -280,7 +280,7 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
 
 public sealed record PotionInfo(int RequiredLevel, int Hp, int HpSeconds, int Mp, int MpSeconds);
 
-/// <summary>Макрос персонажа: номер 1..N и номер иконки (набор iconlist_skillgrp).</summary>
+/// <summary>Макрос персонажа: номер 1..N и номер иконки (в наборе iconlist_skillgrp — клетка номер + 1).</summary>
 public sealed record MacroInfo(int Number, int Icon);
 
 public sealed record SkillInfo(int Id, int Level, int CooldownLeftMs, int CooldownFullMs, uint Flags, string? Name)
