@@ -10,7 +10,7 @@ namespace BotCH.App.Panels;
 
 /// <summary>
 /// Кого звать петом — по среде (земля, воздух, вода), если сервер говорит, где питомцы живут; иначе — номер клетки, как раньше.
-/// Выбор — в настройках персонажа; о правке говорит модели окна.
+/// И чем кормить — корм из сумки. Выбор — в настройках персонажа; о правке говорит модели окна.
 /// </summary>
 public sealed class PetsPanel : ObservableObject
 {
@@ -30,7 +30,7 @@ public sealed class PetsPanel : ObservableObject
 
     private BotSettings Settings => _settings();
 
-    /// <summary>Пункт списка «кого звать»: значение — название питомца, пусто — «авто».</summary>
+    /// <summary>Пункт списка: значение — название питомца или корма, пусто — «авто» («любой»).</summary>
     public sealed record PetChoice(string Value, string Title);
 
     /// <summary>Есть ли у персонажа петы вообще (не друид — нет). Пока неизвестно — считаем, что есть.</summary>
@@ -47,6 +47,9 @@ public sealed class PetsPanel : ObservableObject
 
     /// <summary>Кого звать в воде: «авто» и питомцы, которые живут в воде.</summary>
     public ObservableCollection<PetChoice> WaterPets { get; } = new();
+
+    /// <summary>Чем кормить: «любой» и корм из сумки.</summary>
+    public ObservableCollection<PetChoice> Foods { get; } = new();
 
     public string GroundPet
     {
@@ -66,18 +69,29 @@ public sealed class PetsPanel : ObservableObject
         set => SetPet(value, () => Settings.Pet.WaterPet, v => Settings.Pet.WaterPet = v);
     }
 
+    public string Food
+    {
+        get => Settings.Pet.Food;
+        set => SetPet(value, () => Settings.Pet.Food, v => Settings.Pet.Food = v);
+    }
+
     /// <summary>Выбор в окне ← настройки (сменился персонаж, пересобрались списки).</summary>
     public void Rebind()
     {
         OnPropertyChanged(nameof(GroundPet));
         OnPropertyChanged(nameof(AirPet));
         OnPropertyChanged(nameof(WaterPet));
+        OnPropertyChanged(nameof(Food));
     }
 
-    /// <summary>Списки питомцев ← клетки (пересобираются, только когда что-то поменялось: питомцы, названия, «авто»).</summary>
+    /// <summary>
+    /// Списки питомцев ← клетки, корма ← сумка (пересобираются, только когда что-то поменялось: питомцы, названия, «авто»,
+    /// корм и сколько его).
+    /// </summary>
     public void Observe(WorldState w)
     {
         HasPets = w.Pet is not null;
+        Sync(Foods, FoodChoices(w.Inventory, Settings.Pet.Food), nameof(Food));
         var cages = w.Pet?.Cages ?? [];
         KnowsPetHabitats = cages.Any(p => p.Habitat is not null);
         if (!KnowsPetHabitats)
@@ -105,6 +119,19 @@ public sealed class PetsPanel : ObservableObject
         list.AddRange(fit.Select(p => new PetChoice(p.Name!, $"{p.Name} (клетка {p.Cage})")));
         if (chosen.Length > 0 && !list.Any(c => string.Equals(c.Value, chosen, StringComparison.OrdinalIgnoreCase)))
             list.Add(new PetChoice(chosen, $"{chosen} — нет в клетках"));
+        return list;
+    }
+
+    // Корм из сумки по названию (стопки складываем), сначала самый простой; выбранный, которого в сумке нет, — с пометкой
+    private static List<PetChoice> FoodChoices(IEnumerable<InventoryItem> bag, string chosen)
+    {
+        var list = new List<PetChoice> { new("", "любой — сначала самый простой") };
+        list.AddRange(bag.Where(i => i.IsPetFood && i.Name is not null)
+            .GroupBy(i => i.Name!, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Min(i => i.FoodLoyalty))
+            .Select(g => new PetChoice(g.Key, $"{g.Key} ×{g.Sum(i => i.Count)}")));
+        if (chosen.Length > 0 && !list.Any(c => string.Equals(c.Value, chosen, StringComparison.OrdinalIgnoreCase)))
+            list.Add(new PetChoice(chosen, $"{chosen} — нет в сумке"));
         return list;
     }
 
