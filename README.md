@@ -26,8 +26,7 @@
 |------------------|-------------------------------------------------|
 | `pwclassic136`   | PW Classic 1.3.6                                |
 | `pwclassic136newclient` | PW Classic 1.3.6, новый клиент (`client.exe`) |
-| `comeback136`    | Comeback 1.3.6 (`ElementClient.exe`)            |
-| `comeback136test`| Comeback 1.3.6 (`ElementClient_test.exe`)       |
+| `comeback136`    | Comeback 1.3.6 (`ElementClient.exe`, `ElementClient_test.exe`) |
 | `comeback146`    | Comeback 1.4.6                                  |
 
 Сервер для бота — это файл профиля `.jsonc`: адреса, смещения и функции игры с сигнатурами. Новый сервер — новый профиль,

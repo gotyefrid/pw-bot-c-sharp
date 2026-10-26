@@ -433,7 +433,7 @@ public class WorldReaderTests
     public void ComebackInWaterIsNotGathering()
     {
         // Как в игре 08.10: в воде старый байт «копаю» (+0x28C) — 0 без всякого копания, полоска 1000 из 1000
-        var p = new ProfileCatalog().Load("comeback136test").Data;
+        var p = new ProfileCatalog().Load("comeback136").Data;
         ComebackWorldWithMob(p);
         const uint host = 0x1002_0000;
         _memory.WriteBytes(host + 0x28C, [0x00, 0x4E, 0x69, 0xC1]);
