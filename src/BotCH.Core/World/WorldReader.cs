@@ -31,6 +31,7 @@ public sealed class WorldReader
     private readonly int _itemSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
+    private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
 
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
@@ -304,20 +305,35 @@ public sealed class WorldReader
                 continue;
 
             var category = item.Int32(inv.ItemCategory);
+            var tid = item.UInt32(inv.ItemTid);
             PotionInfo? potion = null;
-            int? loyalty = null;
+            (int Loyalty, string? Name)? food = null;
             if (category == inv.CategoryPotion)
                 potion = ReadPotion(item.UInt32(inv.ItemEssence));
-            else if (category == inv.CategoryPetFood && _memory.TryReadUInt32(item.UInt32(inv.FoodEssence) + _p.PetFood.Loyalty, out var value))
-                loyalty = (int)value;
+            else if (category == inv.CategoryPetFood)
+                food = ReadFood(tid, item.UInt32(inv.FoodEssence));
 
-            result.Add(new InventoryItem(slot, item.UInt32(inv.ItemTid), category, item.Int32(inv.ItemCount), potion, loyalty)
+            result.Add(new InventoryItem(slot, tid, category, item.Int32(inv.ItemCount), potion, food?.Loyalty)
             {
                 MaxCount = inv.ItemMaxCount == 0 ? 0 : item.Int32(inv.ItemMaxCount),
+                Name = food?.Name,
             });
         }
 
         return result;
+    }
+
+    // Описание корма в справочнике не меняется, пока клиент запущен, — по tid читаем один раз (не прочли — попробуем в другой раз)
+    private (int Loyalty, string? Name)? ReadFood(uint tid, uint address)
+    {
+        if (_foods.TryGetValue(tid, out var known))
+            return known;
+
+        var f = _p.PetFood;
+        if (address == 0 || !_memory.TryReadUInt32(address, out var id) || id != tid || !_memory.TryReadUInt32(address + f.Loyalty, out var loyalty))
+            return null;
+        var name = f.Name == 0 ? "" : ReadName(address + f.Name);
+        return _foods[tid] = ((int)loyalty, name.Length > 0 ? name : null);
     }
 
     private PotionInfo? ReadPotion(uint essence)

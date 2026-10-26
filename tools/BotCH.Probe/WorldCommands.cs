@@ -105,6 +105,9 @@ internal static class WorldCommands
         Check(world.Inventory.All(i => i.Count > 0), "у всех предметов в сумке количество > 0");
         var badPotions = world.Inventory.Where(i => i.Potion is { } p && p.Hp <= 0 && p.Mp <= 0).ToList();
         Check(badPotions.Count == 0, $"у банок HP или MP > 0 (банок: {world.Inventory.Count(i => i.Potion is not null)})");
+        var food = world.Inventory.Where(i => i.IsPetFood).ToList();
+        if (food.Count > 0)
+            Check(food.All(i => i.Name is not null), $"у корма пета есть название{Bad(food.Where(i => i.Name is null).Select(i => i.Tid.ToString()))}");
 
         Check(world.Skills.Count > 0, $"скиллов изучено: {world.Skills.Count}");
         Check(names.Count > 0, $"названия скиллов прочитаны из файла игры: {names.Count}");
@@ -235,7 +238,7 @@ internal static class WorldCommands
         }
 
         foreach (var i in w.Inventory.Where(i => i.IsPetFood))
-            s.AppendLine($"       корм   ячейка {i.Slot,2}: tid {i.Tid} ×{i.Count}, верность {i.FoodLoyalty}");
+            s.AppendLine($"       корм   ячейка {i.Slot,2}: {i.Name ?? "?"} (tid {i.Tid}) ×{i.Count}, верность {i.FoodLoyalty}");
 
         s.AppendLine($"       прочее: {string.Join(", ", w.Inventory.Where(i => i.Potion is null && !i.IsPetFood).Select(i => $"{i.Tid}×{i.Count}"))}");
 

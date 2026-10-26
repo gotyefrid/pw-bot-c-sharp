@@ -303,10 +303,12 @@ public sealed class PotionOffsets
     public uint MpSeconds { get; init; }
 }
 
-/// <summary>Описание корма.</summary>
+/// <summary>Описание корма (+0 — tid корма).</summary>
 public sealed class PetFoodOffsets
 {
     public uint Loyalty { get; init; }
+    /// <summary>Название (UTF-16); 0 — не читаем.</summary>
+    public uint Name { get; init; }
 }
 
 /// <summary>Объект скилла.</summary>

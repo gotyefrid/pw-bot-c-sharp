@@ -85,8 +85,8 @@ public class WorldReaderDumpTests
         Assert.Equal((5, 30, 410, 10), (hp410.Count, hp410.Potion!.RequiredLevel, hp410.Potion.Hp, hp410.Potion.HpSeconds));
         var mp = Assert.Single(potions, p => p.Tid == 8650);
         Assert.Equal((0, 330), (mp.Potion!.Hp, mp.Potion.Mp));
-        Assert.Equal([(1, 8796u, 76, 10), (11, 9757u, 3, 20)],
-            W.Inventory.Where(i => i.IsPetFood).Select(f => (f.Slot, f.Tid, f.Count, f.FoodLoyalty!.Value)));
+        Assert.Equal([(1, 8796u, "Чистая вода", 76, 10), (11, 9757u, "Зеленая трава", 3, 20)],
+            W.Inventory.Where(i => i.IsPetFood).Select(f => (f.Slot, f.Tid, f.Name, f.Count, f.FoodLoyalty!.Value)));
     }
 
     [Fact]
