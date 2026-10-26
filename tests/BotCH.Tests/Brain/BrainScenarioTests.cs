@@ -822,6 +822,39 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void PickupInterruptedByPetHealIsRepeated()
+    {
+        // Лечение пета срочное — сбивает начатый подбор. Это не неудача: попытка не тратится, предмет не бросаем,
+        // «сумка полна?» не думаем — после лечения подбираем тот же предмет
+        _settings.Pet.Enabled = true;
+        _settings.Pet.HealPercent = 70;
+        _settings.Loot.Attempts = 1;
+        _world.SetPet(1);
+        _world.AddSkill(330);
+        KillMobForLoot();
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 8094, GroundItemKind.Item, new Position(3, 0, 0), "Мягкий мех"));
+
+        for (var i = 0; i < 2; i++)
+        {
+            Tick();
+            Assert.Equal("pickup-approach C0000002", LastCall);
+
+            _world.SetPet(1, hpRatio: 0.5f);
+            _world.SetCooldown(330, 0);
+            Tick();
+            Assert.Equal($"apply 330 {FakeWorld.PetWid:X}", LastCall);
+
+            // Вылечили: пошла перезарядка, HP пета в норме
+            _world.SetPet(1);
+            _world.SetCooldown(330, 10000);
+        }
+
+        Tick();
+        Assert.Equal("pickup-approach C0000002", LastCall);
+        Assert.DoesNotContain(_log, e => e.Message.Contains("только монеты"));
+    }
+
+    [Fact]
     public void LootFilterBlackList()
     {
         _settings.Target.KillMobs = true;

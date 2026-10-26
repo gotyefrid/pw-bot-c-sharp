@@ -105,6 +105,13 @@ public sealed class LootBehavior : IBehavior
         if (outcome.Action is not PickupAction pickup)
             return;
 
+        // Подбор отменило более важное (лечение пета) — не неудача: попытку возвращаем, предмет поднимем следом
+        if (outcome.Status == ActionStatus.Cancelled)
+        {
+            _attempts = Math.Max(0, _attempts - 1);
+            return;
+        }
+
         if (outcome.Status != ActionStatus.Confirmed)
             _skipped.Add(pickup.Item.Id);
 
