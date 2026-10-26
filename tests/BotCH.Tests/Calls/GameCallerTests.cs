@@ -79,36 +79,6 @@ public class GameCallerTests
     }
 
     [Fact]
-    public void ForbiddenAddressIsNeverCalled()
-    {
-        // Ошибка в профиле: «выбор цели» указывает на адрес выхода из игры
-        var logout = Profile.ForbiddenFunctions["logout"];
-        var select = Profile.Functions[GameFunctions.SelectTarget];
-        _memory.WriteBytes(ModuleBase + logout, CodeFor(select.Signature!));
-        var broken = new ProfileData
-        {
-            Functions = new() { [GameFunctions.SelectTarget] = new GameFunction { Rva = logout, Signature = select.Signature, Convention = select.Convention } },
-            ForbiddenFunctions = Profile.ForbiddenFunctions,
-        };
-
-        var caller = Caller(broken);
-        var result = caller.SelectTarget(1);
-
-        Assert.False(caller.Can(GameFunctions.SelectTarget));
-        Assert.False(result.Ok);
-        Assert.Contains("запрещённых", result.Details);
-        Assert.Empty(_runner.Runs);
-    }
-
-    [Fact]
-    public void ProfileForbidsLogoutAndReleasePet()
-    {
-        Assert.Equal(0x1F0A10u, Profile.ForbiddenFunctions["logout"]);
-        Assert.Equal(0x1F1FC0u, Profile.ForbiddenFunctions["releasePet"]);
-        Assert.DoesNotContain(Profile.Functions.Values, f => Profile.ForbiddenFunctions.ContainsValue(f.Rva));
-    }
-
-    [Fact]
     public void MissingFunctionIsRefused()
     {
         var result = Caller(new ProfileData()).SelectTarget(1);

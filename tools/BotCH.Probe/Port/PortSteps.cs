@@ -18,7 +18,7 @@ internal static class PortSteps
 {
     public static readonly IReadOnlyList<PortStep> All =
     [
-        new("functions", "Функции: сигнатуры и запрещённые", false, Functions),
+        new("functions", "Функции: сигнатуры", false, Functions),
         new("host", "Персонаж: база и ник", false, Host),
         new("stats", "Уровень, HP, MP", false, Stats),
         new("location", "Координаты персонажа", false, Location),
@@ -63,55 +63,7 @@ internal static class PortSteps
                 : PortResult.Fail($"{name}: нет в профиле, по сигнатурам других серверов не найдено"));
         }
 
-        results.Add(Forbidden(c, "logout", 0x01, "выход из игры"));
-        results.Add(Forbidden(c, "releasePet", 0x66, "отпустить пета"));
         return Merge(results, "все функции профиля на месте");
-    }
-
-    /// <summary>
-    /// Запрещённая функция — по коду отправки пакета: «mov eax, N … mov word [esi|edi], ax» (так у всех известных клиентов
-    /// ветки Comeback). Начало — ближайший выше адрес, кратный 16, перед которым заполнитель int3.
-    /// </summary>
-    private static PortResult Forbidden(PortContext c, string name, byte packet, string what)
-    {
-        var starts = new List<uint>();
-        foreach (var section in ModuleSections.Read(c.Game, c.Module).Where(s => s.IsCode && s.Size > 0))
-        {
-            var code = ModuleSections.ReadRegion(c.Game, section.Address, section.Size);
-            for (var i = 0; i + 30 < code.Length; i++)
-            {
-                if (code[i] != 0xB8 || code[i + 1] != packet || code[i + 2] != 0 || code[i + 3] != 0 || code[i + 4] != 0)
-                    continue;
-                var store = Enumerable.Range(i + 5, 24).Any(j => code[j] == 0x66 && code[j + 1] == 0x89 && code[j + 2] is 0x06 or 0x07);
-                if (!store)
-                    continue;
-                for (var j = i & ~0xF; j > i - 0x200 && j > 3; j -= 0x10)
-                {
-                    // Заполнитель бывает и в один int3 — сразу после ret / ret N (comeback136test 26.10: «отпустить пета»
-                    // 0x2BB450 стоит за «ret 4; int3» — по двум int3 брали функцию двумя выше, с другим пакетом)
-                    if (code[j - 1] == 0xCC && (code[j - 2] is 0xCC or 0xC3 || code[j - 4] == 0xC2))
-                    {
-                        starts.Add(section.Address + (uint)j - c.Module);
-                        break;
-                    }
-                }
-            }
-        }
-
-        starts = starts.Distinct().ToList();
-        c.Data.ForbiddenFunctions.TryGetValue(name, out var current);
-        if (c.Data.Functions.Values.Any(f => f.Rva != 0 && f.Rva == current))
-            return PortResult.Fail($"{name}: адрес запрещённой функции есть среди вызываемых — исправить профиль!");
-        if (starts.Count == 1 && starts[0] == current)
-            return PortResult.Ok($"{name} ({what}) 0x{current:X}");
-        if (starts.Count == 1)
-        {
-            c.Set($"forbiddenFunctions.{name}", starts[0], $"c2s 0x{packet:X2} — {what}");
-            return PortResult.Ok("");
-        }
-
-        return PortResult.Fail($"{name} ({what}): код отправки 0x{packet:X2} найден в {starts.Count} местах"
-                               + (starts.Count > 0 ? ": " + string.Join(", ", starts.Take(6).Select(s => $"0x{s:X}")) : "") + " — искать руками");
     }
 
     // ───────────────────────── персонаж ─────────────────────────

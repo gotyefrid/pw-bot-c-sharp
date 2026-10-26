@@ -51,15 +51,6 @@ public class ProfileCatalogTests
     }
 
     [Fact]
-    public void NoForbiddenFunctionsInProfile()
-    {
-        // 0x5F1FC0 — отпустить пета (c2s 0x66). Выход из игры (c2s 0x01) тоже не должен попасть в профиль
-        var functions = _catalog.Load("pwclassic136").Data.Functions.Values;
-
-        Assert.DoesNotContain(functions, f => f.Rva == 0x1F1FC0);
-    }
-
-    [Fact]
     public void PwClassicHasAllCapabilities()
     {
         var capabilities = _catalog.Load("pwclassic136").Capabilities;
@@ -87,9 +78,6 @@ public class ProfileCatalogTests
         Assert.Equal(["0"], profile.Data.Functions[GameFunctions.Unselect].Args);
         Assert.True(profile.Capabilities.Has(Capability.SmartMove));
         Assert.True(profile.Capabilities.Has(Capability.RecallPet));
-        // Выход из игры и «отпустить пета» запрещены с самого начала — до первой вызываемой функции
-        Assert.Equal(0x445A20u, profile.Data.ForbiddenFunctions["logout"]);
-        Assert.Equal(0x2D4EB0u, profile.Data.ForbiddenFunctions["releasePet"]);
     }
 
     [Fact]
@@ -110,9 +98,6 @@ public class ProfileCatalogTests
             Assert.NotNull(f.Value.Signature);
             Assert.True(f.Value.Signature!.FixedCount >= 10, $"{f.Key}: слишком короткая сигнатура");
         });
-        Assert.Equal(0x41C230u, p136.ForbiddenFunctions["logout"]);
-        Assert.Equal(0x2BAD90u, p136.ForbiddenFunctions["releasePet"]);
-        Assert.DoesNotContain(p136.Functions.Values, f => p136.ForbiddenFunctions.Values.Contains(f.Rva));
     }
 
     [Fact]

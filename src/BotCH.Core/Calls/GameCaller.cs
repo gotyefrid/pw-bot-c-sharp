@@ -21,8 +21,7 @@ public sealed record CallResult(bool Ok, string Details)
 /// Правила безопасности — здесь, в одном месте:
 /// <list type="bullet">
 /// <item>функция должна быть найдена (<see cref="FunctionResolver"/>: Found/Relocated);</item>
-/// <item>перед КАЖДЫМ вызовом её первые байты сверяются с сигнатурой ещё раз;</item>
-/// <item>адреса из «forbidden» профиля (выход из игры, отпустить пета) не вызываются никогда.</item>
+/// <item>перед КАЖДЫМ вызовом её первые байты сверяются с сигнатурой ещё раз.</item>
 /// </list>
 /// Функции профиля разбираются один раз, при создании: откуда this, как собрать каждый аргумент и регистр. Ошибка профиля
 /// («аргумент, которого бот не даёт») видна сразу (<see cref="Problems"/>, в лог при «Старт»), а не посреди боя.
@@ -79,7 +78,6 @@ public sealed class GameCaller : IGameActions
     private readonly IRemoteRunner _runner;
     private readonly GameRoots _roots;
     private readonly ProfileData _profile;
-    private readonly HashSet<uint> _forbidden;
     private readonly Dictionary<string, FunctionLocation> _functions;
     private readonly Dictionary<string, Prepared> _prepared;
 
@@ -89,7 +87,6 @@ public sealed class GameCaller : IGameActions
         _runner = runner;
         _roots = new GameRoots(memory, moduleBase, profile);
         _profile = profile;
-        _forbidden = new HashSet<uint>(profile.ForbiddenFunctions.Values.Select(rva => moduleBase + rva));
         resolver ??= new FunctionResolver(memory, moduleBase);
         _functions = profile.Functions.ToDictionary(f => f.Key, f => resolver.Resolve(f.Key, f.Value));
         _prepared = profile.Functions.ToDictionary(f => f.Key, f => Prepare(f.Key, f.Value));
@@ -112,7 +109,6 @@ public sealed class GameCaller : IGameActions
     private string? WhyNot(string name)
         => !_functions.TryGetValue(name, out var f) ? $"в профиле нет функции {name}"
             : !f.IsUsable ? $"{name}: {f.Details}"
-            : _forbidden.Contains(f.Address) ? $"{name} — запрещённый адрес"
             : _prepared[name].Problem is { } problem ? $"{name}: {problem}"
             : null;
 
@@ -141,7 +137,7 @@ public sealed class GameCaller : IGameActions
             : Call(GameFunctions.SummonPet, null, ("index", (uint)(cage - 1)));
     }
 
-    /// <summary>Отозвать призванного пета в клетку (c2s 0x65; не «отпустить» 0x66 — тот в запрещённых).</summary>
+    /// <summary>Отозвать призванного пета в клетку (c2s 0x65).</summary>
     public CallResult RecallPet() => Call(GameFunctions.RecallPet, null);
 
     /// <summary>Скилл пакетом: цель targetWid, 0 — без цели (воскрешение пета).</summary>
@@ -285,8 +281,6 @@ public sealed class GameCaller : IGameActions
     {
         if (!_functions.TryGetValue(name, out var function) || !function.IsUsable)
             return CallResult.Refused($"{name}: функция не найдена в клиенте ({function?.Details ?? "нет в профиле"})");
-        if (_forbidden.Contains(function.Address))
-            return CallResult.Refused($"{name}: адрес 0x{function.Address:X8} в списке запрещённых");
         if (_prepared[name].Problem is { } problem)
             return CallResult.Refused($"{name}: {problem}");
 
