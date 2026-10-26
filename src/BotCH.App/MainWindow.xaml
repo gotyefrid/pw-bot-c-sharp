@@ -409,8 +409,28 @@
             <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
-              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Farm.AttackSkills}" DisplayMemberPath="Title"
-                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}" />
+              <ComboBox DockPanel.Dock="Right" Width="220" ItemsSource="{Binding Farm.AttackSkills}"
+                        SelectedValuePath="Id" SelectedValue="{Binding Settings.Combat.AttackSkillId}">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                      <Image Source="{Binding Icon}" Width="20" Height="20" Margin="0,0,6,0" VerticalAlignment="Center"
+                             RenderOptions.BitmapScalingMode="HighQuality">
+                        <Image.Style>
+                          <Style TargetType="Image">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Image.Style>
+                      </Image>
+                      <TextBlock Text="{Binding Title}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
             </DockPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Обычная атака (раз в 5 с)" IsChecked="{Binding Settings.Combat.UseSword}" />
             <DockPanel Style="{StaticResource SettingRow}">

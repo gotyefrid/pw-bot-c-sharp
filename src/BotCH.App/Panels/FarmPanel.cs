@@ -3,7 +3,10 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using BotCH.App.Mvvm;
+using BotCH.Core.GameFiles;
 using BotCH.Core.Logging;
 using BotCH.Core.Profiles;
 using BotCH.Core.Settings;
@@ -13,7 +16,7 @@ namespace BotCH.App.Panels;
 
 /// <summary>
 /// Вкладки «Мобы» и «Общее» сверх простых полей настроек: центр фарма и сохранённые точки, списки мобов, лута и ресурсов
-/// (выбор из того, что вокруг и встречалось), атакующий скилл из изученных. Всё — в настройках персонажа; о правке говорит
+/// (выбор из того, что вокруг и встречалось), атакующий скилл из изученных (с иконкой из игры). Всё — в настройках персонажа; о правке говорит
 /// модели окна.
 /// </summary>
 public sealed class FarmPanel : ObservableObject
@@ -24,6 +27,7 @@ public sealed class FarmPanel : ObservableObject
     private readonly Func<BotSettings> _settings;
     private readonly Func<WorldState?> _world;
     private readonly Func<ServerProfile> _profile;
+    private readonly Func<int, IconImage?> _skillIcon;
     private readonly ILogger _log;
     private readonly Action _edited;
     private readonly Action _skillsRebuilt;
@@ -31,6 +35,8 @@ public sealed class FarmPanel : ObservableObject
     // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
     private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
+    // Одна картинка окна на иконку: список скиллов пересобирается, только когда что-то в нём правда поменялось
+    private readonly Dictionary<IconImage, ImageSource> _icons = new();
     private bool _syncingLists;
     private bool _syncingCenters;
     private string _farmPointInfo = "";
@@ -38,14 +44,16 @@ public sealed class FarmPanel : ObservableObject
     /// <param name="settings">Настройки текущего персонажа.</param>
     /// <param name="world">Последний снимок; null — мир не читается.</param>
     /// <param name="profile">Профиль сервера: какие скиллы не атакующие, какой атакующий по умолчанию.</param>
+    /// <param name="skillIcon">Иконка скилла из игры; null — нет (ещё не загрузились или на этом сервере не найдены).</param>
     /// <param name="edited">Правка настроек из этих вкладок.</param>
     /// <param name="skillsRebuilt">Список скиллов пересобран — окну перечитать выбор.</param>
-    public FarmPanel(Func<BotSettings> settings, Func<WorldState?> world, Func<ServerProfile> profile, ILogger log, Action edited,
-        Action skillsRebuilt)
+    public FarmPanel(Func<BotSettings> settings, Func<WorldState?> world, Func<ServerProfile> profile, Func<int, IconImage?> skillIcon,
+        ILogger log, Action edited, Action skillsRebuilt)
     {
         _settings = settings;
         _world = world;
         _profile = profile;
+        _skillIcon = skillIcon;
         _log = log;
         _edited = edited;
         _skillsRebuilt = skillsRebuilt;
@@ -60,7 +68,7 @@ public sealed class FarmPanel : ObservableObject
 
     // ── Списки и скилл ───────────────────────────────────────────────────────
 
-    public sealed record SkillChoice(int Id, string Title);
+    public sealed record SkillChoice(int Id, string Title, ImageSource? Icon);
 
     /// <summary>Атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры.</summary>
     public ObservableCollection<SkillChoice> AttackSkills { get; } = new();
@@ -177,11 +185,11 @@ public sealed class FarmPanel : ObservableObject
 
     private void UpdateAttackSkills(WorldState w)
     {
-        // Названия скиллов догружаются в фоне — список пересобирается, когда изменились ID или названия
+        // Названия и иконки скиллов догружаются в фоне — список пересобирается, когда изменились ID, названия или иконки
         var profile = _profile().Data;
         var choices = w.Skills
             .Where(s => !profile.Skills.NotAttack.Contains(s.Id))
-            .Select(s => new SkillChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})"))
+            .Select(s => new SkillChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})", Icon(s.Id)))
             .ToList();
         if (choices.SequenceEqual(AttackSkills))
             return;
@@ -199,6 +207,21 @@ public sealed class FarmPanel : ObservableObject
         }
 
         _skillsRebuilt();
+    }
+
+    private ImageSource? Icon(int skillId)
+    {
+        if (_skillIcon(skillId) is not { } icon)
+            return null;
+
+        if (!_icons.TryGetValue(icon, out var image))
+        {
+            var bitmap = BitmapSource.Create(icon.Width, icon.Height, 96, 96, PixelFormats.Bgra32, null, icon.Pixels, icon.Width * 4);
+            bitmap.Freeze();
+            _icons[icon] = image = bitmap;
+        }
+
+        return image;
     }
 
     /// <summary>Списки в окне ← настройки персонажа.</summary>
