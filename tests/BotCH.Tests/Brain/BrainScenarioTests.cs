@@ -731,6 +731,59 @@ public class BrainScenarioTests
         Assert.DoesNotContain(_log, e => e.Message.Contains("HP не падает"));
     }
 
+    // ── Каст без цели ───────────────────────────────────────────────────────
+
+    [Fact]
+    public void AttackCastAfterMobDeathIsCancelledOncePerCast()
+    {
+        // Каст атаки ещё идёт, а моб умер — бить некого: прерываем один раз, даже если прерывание не подтвердилось
+        KillMobForLoot();
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+        Tick();
+        Tick();
+        Tick(3);
+        Assert.Single(_actions.Calls, c => c == "cancel");
+        Assert.Contains(_log, e => e.Message.Contains("Живой цели нет"));
+
+        // Следующий такой каст — снова
+        _world.Casting = false;
+        _world.CastingSkillId = 0;
+        Tick();
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+        Tick();
+        Assert.Equal(2, _actions.Calls.Count(c => c == "cancel"));
+    }
+
+    [Fact]
+    public void AttackCastAtLiveTargetIsKept()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 2, hp: 100).Wid;
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("cancel", _actions.Calls);
+    }
+
+    [Theory]
+    [InlineData(330)] // лечение пета — цель ему не нужна
+    [InlineData(null)] // какой скилл кастуется, не видно
+    public void OtherCastWithoutTargetIsKept(int? skill)
+    {
+        _world.Casting = true;
+        _world.CastingSkillId = skill;
+
+        Tick();
+
+        Assert.DoesNotContain("cancel", _actions.Calls);
+    }
+
     // ── Лут ─────────────────────────────────────────────────────────────────
 
     [Fact]

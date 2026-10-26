@@ -63,27 +63,29 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Фарм мобов: выжить → пет → копать ресурсы в радиусе фарма → бой → лут → вернуться в центр фарма. Первым — запись центра
-    /// фарма в лог (хода не занимает).
+    /// Фарм мобов: выжить → (прервать каст без цели) → пет → копать ресурсы в радиусе фарма → бой → лут → вернуться в центр фарма.
+    /// Первым — запись центра фарма в лог; ни она, ни прерывание каста хода не занимают.
     /// </summary>
     private static BotBrain FarmMobs(BrainContext context, IReadOnlyCollection<uint> tools)
     {
         var combat = new CombatBehavior();
         return new BotBrain(context,
-            [new FarmCenterLog(), new SurvivalBehavior(), new PetBehavior(), new GatherBehavior(tools), combat, new LootBehavior(), new ReturnBehavior()],
+            [new FarmCenterLog(), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new GatherBehavior(tools), combat,
+             new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }
 
     /// <summary>
-    /// Обход ресурсов: выжить → уйти вверх от опасного моба → пет → копать у текущей точки → защита (бьём только напавших) →
-    /// лут → к следующей точке.
+    /// Обход ресурсов: выжить → (прервать каст без цели) → уйти вверх от опасного моба → пет → копать у текущей точки → защита
+    /// (бьём только напавших) → лут → к следующей точке.
     /// </summary>
     private static BotBrain GatherResources(BrainContext context, IReadOnlyCollection<uint> tools, int routeStart)
     {
         var combat = new CombatBehavior(defendOnly: true);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
-            [new SurvivalBehavior(), new EscapeBehavior(route), new PetBehavior(), new GatherBehavior(tools, route), combat, new LootBehavior(), route],
+            [new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(), new GatherBehavior(tools, route), combat,
+             new LootBehavior(), route],
             main: combat);
     }
 }
