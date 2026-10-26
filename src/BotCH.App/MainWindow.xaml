@@ -536,7 +536,7 @@
               </DockPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Кормить пета" IsChecked="{Binding Settings.Pet.Feed}"
                         ToolTip="Выключено — бот пета не кормит" />
-              <DockPanel Style="{StaticResource SettingRow}" IsEnabled="{Binding Settings.Pet.Feed}">
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Settings.Pet.Feed, Converter={StaticResource Visible}}">
                 <TextBlock Text="Корм" VerticalAlignment="Center" />
                 <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.Foods}" DisplayMemberPath="Title"
                           SelectedValuePath="Value" SelectedValue="{Binding Pets.Food}"
