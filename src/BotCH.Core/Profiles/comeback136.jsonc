@@ -10,6 +10,10 @@
     3) проверено чтением живого клиента и записью памяти 5 раз/с, пока владелец делал действия (взлёт, пет, копание, корм, цель, каст).
   Не путать с PW Classic 1.3.6 (pwclassic136.jsonc) — там другой клиент, общего кода почти нет.
 
+  Сборка 26.10.2026 (владелец обновил клиент вместе со своим сервером): база, функции и запрещённые переехали — найдены
+  по файлу exe (сигнатуры — каждая в одном месте; база — та, что читает «выход»). Поля — как в ElementClient_test той же
+  сборки (там проверены на живом клиенте); на живом ElementClient.exe эта сборка не проверялась.
+
   Как обновить после новой сборки клиента: тот же путь — сигнатуры ниже, затем сопоставление кода со старым exe.
   exe с ASLR (видели 0x120000) — все адреса от начала модуля; флаг LAA (4 ГБ) уже стоит.
 */
@@ -25,11 +29,12 @@
   "base": {
     // В 1.4.6 — 0x8EBC1C. Здесь: в 1082 сопоставленных функциях на месте [0xCEBC1C] стоит [0xCAE5CC] (база exe 0x400000).
     // Проверено: [модуль + P] → +0x1C → +0x28 — персонаж с ником и координатами. Его же читает «выход» (0x419D30)
-    "basePointer": "0x8AE5CC",
+    // Сборка 26.10.2026 — 0x8B366C: «выход» (0x41C230) первой инструкцией читает [0xCB366C]
+    "basePointer": "0x8B366C",
     "game": "0x1C",
     // Не нужен: как в 1.4.6, в клиенте своя «работа в фоне»
     "unfreeze": "0x0",
-    // Объект связи с сервером, SendGameData здесь — rva 0x412BC0 (ecx = [[база]+0x20])
+    // Объект связи с сервером, SendGameData здесь — rva 0x414F00 (сборка 26.10; её зовёт «выход») (ecx = [[база]+0x20])
     "session": "0x20"
   },
 
@@ -177,9 +182,9 @@
   // НИКОГДА не вызывать. Найдено по коду отправки «mov eax, N … mov word [esi], ax»: других мест с 0x01 и 0x66 в exe нет
   "forbiddenFunctions": {
     // c2s 0x01 — выход из игры (в 1.4.6 0x445A20)
-    "logout": "0x419D30",
+    "logout": "0x41C230",
     // c2s 0x66 — отпустить пета навсегда (в 1.4.6 0x2D4EB0)
-    "releasePet": "0x2B8810"
+    "releasePet": "0x2BAD90"
   },
 
   // Как в 1.4.6: «Шахта крупного угля», «Высохший древесный корень» — вид 2, дистанция = расчёт
@@ -217,48 +222,48 @@
   // В скобках — адрес в 1.4.6
   "functions": {
     // (0x3411F0) — сигнатура из 1.4.6 подошла как есть
-    "selectTarget": { "rva": "0x31FB40", "convention": "thiscall", "this": "host", "args": [ "wid" ],
+    "selectTarget": { "rva": "0x321E10", "convention": "thiscall", "this": "host", "args": [ "wid" ],
                       "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
-    "unselect": { "rva": "0x31FB40", "convention": "thiscall", "this": "host", "args": [ "0" ],
+    "unselect": { "rva": "0x321E10", "convention": "thiscall", "this": "host", "args": [ "0" ],
                   "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
     // (0x351D30) c2s 0x03
-    "normalAttack": { "rva": "0x330000", "convention": "stdcall",
+    "normalAttack": { "rva": "0x3322C0", "convention": "stdcall",
                       "signature": "55 8B EC 83 EC 08 56 68 ?? ?? ?? ?? FF 15 ?? ??" },
     // (0x33BE00) — по сопоставлению кода; первым читает флаги перса +0x80C (в 1.4.6 +0x814), поэтому старая сигнатура не подошла
-    "hostPickupObject": { "rva": "0x31A720", "convention": "thiscall", "this": "host",
+    "hostPickupObject": { "rva": "0x31CA00", "convention": "thiscall", "this": "host",
                           "signature": "55 8B EC 51 53 56 57 8B F9 8B 87 0C" },
     // (0x3324F0)
-    "hostApplySkill": { "rva": "0x311630", "convention": "thiscall", "this": "host",
+    "hostApplySkill": { "rva": "0x313910", "convention": "thiscall", "this": "host",
                         "signature": "55 8B EC 83 EC 0C 53 56 57 68 ?? ?? ?? ?? 8B F9" },
     // (0x3F6FD0) c2s 0x28, cl = где, dl = ячейка
-    "useItem": { "rva": "0x3CD940", "convention": "cdecl", "args": [ "tid", "count" ],
+    "useItem": { "rva": "0x3CFC20", "convention": "cdecl", "args": [ "tid", "count" ],
                  "registers": { "ecx": "where", "edx": "slot" },
                  "signature": "55 8B EC 53 56 6A 0A 8A DA 8A F9 FF" },
     // (0x32B160) c2s 0x29
-    "castSkill": { "rva": "0x30A9E0", "convention": "thiscall", "this": "session",
+    "castSkill": { "rva": "0x30CC20", "convention": "thiscall", "this": "session",
                    "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
     // (0x12FC90) c2s 0x2A
-    "cancelAction": { "rva": "0x1200E0", "convention": "thiscall", "this": "session",
+    "cancelAction": { "rva": "0x120670", "convention": "thiscall", "this": "session",
                       "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 2A 00 00 00" },
     // (0x1E3820) c2s 0x67
-    "petCtrl": { "rva": "0x1CDFD0", "convention": "thiscall", "this": "session",
+    "petCtrl": { "rva": "0x1CEDE0", "convention": "thiscall", "this": "session",
                  "signature": "55 8B EC 51 53 56 57 8D 45 FC C7 45" },
     // (0x33FD20) c2s 0x64 — функция прямо перед recallPet; берёт менеджер петов [перс + 0x1948]
-    "summonPet": { "rva": "0x31E670", "convention": "thiscall", "this": "host",
+    "summonPet": { "rva": "0x320940", "convention": "thiscall", "this": "host",
                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E 04 1C 00" },
     // (0x33FED0) c2s 0x65. Ещё одна отправка 0x65 — 0x2F5EA0 (без проверок окна), её не используем
-    "recallPet": { "rva": "0x31E820", "convention": "thiscall", "this": "host",
+    "recallPet": { "rva": "0x320AF0", "convention": "thiscall", "this": "host",
                    "signature": "56 8B F1 8B 8E 04 1C 00 00 85 C9 74" },
     // (0x347A70) — вызов из PickupObject в той же позиции; типов работ здесь 0..0x13 (в 1.4.6 0..0x14)
-    "workCreate": { "rva": "0x325F70", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 13" },
+    "workCreate": { "rva": "0x328240", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 13" },
     // (0x34DDF0)
-    "workMoveSetDestination": { "rva": "0x32C070", "convention": "thiscall", "args": [ "type", "data" ],
+    "workMoveSetDestination": { "rva": "0x32E350", "convention": "thiscall", "args": [ "type", "data" ],
                                 "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
     // (0x30E340) кнопка «Полёт»
-    "hostFly": { "rva": "0x2EF6F0", "convention": "thiscall", "this": "host", "args": [ "force" ],
+    "hostFly": { "rva": "0x2F1F80", "convention": "thiscall", "this": "host", "args": [ "force" ],
                  "signature": "56 8B F1 57 8B 8E 04 1C 00 00 85 C9" },
     // (0x3484D0)
-    "workStart": { "rva": "0x326850", "convention": "thiscall", "args": [ "1", "work", "0" ],
+    "workStart": { "rva": "0x328B20", "convention": "thiscall", "args": [ "1", "work", "0" ],
                    "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
   }
 }

@@ -100,7 +100,7 @@ public class ProfileCatalogTests
         var p146 = _catalog.Load("comeback146").Data;
 
         Assert.Equal("Comeback 1.3.6", _catalog.Load("comeback136").Name);
-        Assert.Equal(0x8AE5CCu, p136.Base.BasePointer);
+        Assert.Equal(0x8B366Cu, p136.Base.BasePointer); // сборка 26.10.2026
         Assert.Equal(0x5A8u, p136.Host.TargetId);
         Assert.Equal(0x790u, p136.Host.MoveEnv);
         Assert.Equal(p146.Npc.State, p136.Npc.State);
@@ -110,8 +110,8 @@ public class ProfileCatalogTests
             Assert.NotNull(f.Value.Signature);
             Assert.True(f.Value.Signature!.FixedCount >= 10, $"{f.Key}: слишком короткая сигнатура");
         });
-        Assert.Equal(0x419D30u, p136.ForbiddenFunctions["logout"]);
-        Assert.Equal(0x2B8810u, p136.ForbiddenFunctions["releasePet"]);
+        Assert.Equal(0x41C230u, p136.ForbiddenFunctions["logout"]);
+        Assert.Equal(0x2BAD90u, p136.ForbiddenFunctions["releasePet"]);
         Assert.DoesNotContain(p136.Functions.Values, f => p136.ForbiddenFunctions.Values.Contains(f.Rva));
     }
 
