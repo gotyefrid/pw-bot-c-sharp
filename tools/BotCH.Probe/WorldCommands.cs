@@ -58,6 +58,99 @@ internal static class WorldCommands
         return 0;
     }
 
+    /// <summary>
+    /// Запись для поиска полей по ходу игры («в бою» и т. п.): раз в 250 мс — что видит снимок (перс; мобы и петы: состояние,
+    /// цель, место) и сырые байты их структур. Разбирается вне Probe. Формат (little-endian): «BREC», int версия 1, uint WID
+    /// перса; дальше снимки: long мс с начала, uint адрес перса, uint цель перса, byte каст, int длина + байты перса,
+    /// int число мобов; у каждого: uint адрес, uint WID, int вид, int состояние, uint цель, float x, h, y, float расстояние,
+    /// string название (BinaryWriter), int длина + байты. Не прочиталось — длина 0.
+    /// </summary>
+    public static int Record(ServerProfile profile, GameProcess game, string[] args)
+    {
+        const int hostSize = 0x2000, npcSize = 0x800;
+        var path = args.FirstOrDefault(a => a.EndsWith(".rec", StringComparison.OrdinalIgnoreCase)) ?? $"record-{profile.Id}.rec";
+        var seconds = args.Select(a => int.TryParse(a, out var n) && n != game.Pid ? n : 0).FirstOrDefault(n => n is > 0 and <= 3600);
+        if (seconds == 0)
+            seconds = 180;
+
+        var reader = CreateReader(profile, game, out _);
+        var stop = false;
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            stop = true;
+        };
+
+        byte[] Block(uint address, int size)
+        {
+            var data = new byte[size];
+            return game.TryRead(address, data, size) ? data : [];
+        }
+
+        using var file = new BinaryWriter(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite), Encoding.UTF8);
+        file.Write(Encoding.ASCII.GetBytes("BREC"));
+        file.Write(1);
+        file.Write(reader.Read().Host.Wid);
+        Console.WriteLine($"Запись {seconds} с в {Path.GetFullPath(path)}, Ctrl+C — раньше");
+
+        var watch = Stopwatch.StartNew();
+        var count = 0;
+        while (!stop && !game.HasExited && watch.Elapsed.TotalSeconds < seconds)
+        {
+            var started = watch.ElapsedMilliseconds;
+            WorldState w;
+            try
+            {
+                w = reader.Read();
+            }
+            catch (WorldNotReadyException e)
+            {
+                Console.WriteLine($"{started / 1000,4} с  ⏳ {e.Message}");
+                Thread.Sleep(250);
+                continue;
+            }
+
+            file.Write(started);
+            file.Write(w.Host.Address);
+            file.Write(w.Host.TargetWid);
+            file.Write(w.Host.IsCasting);
+            var host = Block(w.Host.Address, hostSize);
+            file.Write(host.Length);
+            file.Write(host);
+            file.Write(w.Npcs.Count);
+            foreach (var n in w.Npcs)
+            {
+                file.Write(n.Address);
+                file.Write(n.Wid);
+                file.Write((int)n.Kind);
+                file.Write((int)n.State);
+                file.Write(n.TargetWid);
+                file.Write(n.Position.X);
+                file.Write(n.Position.Height);
+                file.Write(n.Position.Y);
+                file.Write(n.Offset.Horizontal);
+                file.Write(n.Name);
+                var data = Block(n.Address, npcSize);
+                file.Write(data.Length);
+                file.Write(data);
+            }
+
+            file.Flush();
+            // Раз в секунду — кто дерётся, чтобы по выводу видеть, что запись идёт и бой в ней есть
+            if (count++ % 4 == 0)
+            {
+                var busy = w.Npcs.Where(n => n.State is NpcState.Attacking or NpcState.Casting)
+                    .Select(n => $"{n.Name} {n.State.Text()}{(n.TargetWid != 0 ? $" →0x{n.TargetWid:X8}" : "")}");
+                Console.WriteLine($"{started / 1000,4} с  цель перса 0x{w.Host.TargetWid:X8}{(w.Host.IsCasting ? ", каст" : "")}  {string.Join("; ", busy)}");
+            }
+
+            Thread.Sleep((int)Math.Max(0, 250 - (watch.ElapsedMilliseconds - started)));
+        }
+
+        Console.WriteLine($"Готово: {count} снимков, {new FileInfo(path).Length / 1024} КБ");
+        return 0;
+    }
+
     /// <summary>Читает снимок и проверяет, что значения разумные. Плюс замер скорости.</summary>
     public static int SelfTest(ServerProfile profile, GameProcess game)
     {
