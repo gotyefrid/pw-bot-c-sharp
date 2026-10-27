@@ -10,4 +10,10 @@
     <Company>gotyefrid</Company>
     <Product>BotCH</Product>
   </PropertyGroup>
+
+  <!-- Релиз без отладочных данных: в готовом exe (и во вшитой в него BotCH.Core.dll) не остаётся пути к папке сборки -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
 </Project>

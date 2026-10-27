@@ -4,6 +4,9 @@
     <OutputType>Exe</OutputType>
     <RootNamespace>BotCH.Tests</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- Тесты не раздаются: номера строк в падениях нужны -->
+    <DebugType>portable</DebugType>
+    <DebugSymbols>true</DebugSymbols>
     <!--
       xUnit1031, xUnit1051: тесты остановки бота нарочно ждут задачи с таймаутом в самом тесте — проверяют «не закончилось
       за 200 мс» и «закончилось вовремя»; асинхронное ожидание с таймаутом в .NET Framework 4.8 — лишний код без пользы
