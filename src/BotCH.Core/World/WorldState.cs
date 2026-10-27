@@ -83,6 +83,13 @@ public sealed record WorldState(
     public IEnumerable<NpcInfo> Mobs => Npcs.Where(n => n.Kind == NpcKind.Mob);
 
     /// <summary>
+    /// Кого можно взять в цель кликом: живые мобы, NPC и чужие петы. Свой пет — нет: он всегда рядом, и «ближайшей целью»
+    /// всегда был бы он. Других игроков снимок не читает.
+    /// </summary>
+    public IEnumerable<NpcInfo> Targetable
+        => Npcs.Where(n => (n.Kind is NpcKind.Mob or NpcKind.Npc or NpcKind.Pet) && !n.IsDead && n.Wid != Pet?.ActiveWid);
+
+    /// <summary>
     /// Моб нацелен на перса или пета: жив, не возвращается (возвращающийся неуязвим и уже не наш, хотя цель может ещё
     /// показывать нас) и его цель — мы. Напал ли он на самом деле, а не просто стоит с нашей целью, — <see cref="NpcInfo.Engaging"/>.
     /// </summary>

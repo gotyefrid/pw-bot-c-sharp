@@ -14,9 +14,14 @@ public sealed record NameCount(string Name, int Count, float Nearest, int MinLev
 public static class NearbyNames
 {
     /// <summary>Живые мобы вокруг по названиям: сначала самые частые, при равенстве — ближайшие.</summary>
-    public static IReadOnlyList<NameCount> Mobs(WorldState world)
-        => world.Mobs
-            .Where(m => !m.IsDead && m.Name.Length > 0)
+    public static IReadOnlyList<NameCount> Mobs(WorldState world) => ByName(world.Mobs.Where(m => !m.IsDead));
+
+    /// <summary>Кого можно взять в цель (<see cref="WorldState.Targetable"/>) по названиям — для кликера; порядок — как у <see cref="Mobs"/>.</summary>
+    public static IReadOnlyList<NameCount> Targets(WorldState world) => ByName(world.Targetable);
+
+    private static IReadOnlyList<NameCount> ByName(IEnumerable<NpcInfo> npcs)
+        => npcs
+            .Where(m => m.Name.Length > 0)
             .GroupBy(m => m.Name.Trim())
             .Select(g => new NameCount(g.Key, g.Count(), g.Min(m => m.Offset.Horizontal),
                 g.Where(m => m.Level > 0).Select(m => m.Level).DefaultIfEmpty().Min(),

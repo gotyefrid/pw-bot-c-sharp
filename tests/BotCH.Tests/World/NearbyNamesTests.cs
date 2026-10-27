@@ -28,6 +28,18 @@ public class NearbyNamesTests
     }
 
     [Fact]
+    public void TargetsAreMobsNpcsAndOtherPets()
+    {
+        _world.SetPet(1); // свой пет «Пет» — не цель
+        _world.AddMob(1, "Сидящий волк", 30);
+        _world.AddMob(2, "Горный варвар", 5, state: NpcState.Dead);
+        _world.Npcs.Add(new NpcInfo(0, 3, NpcKind.Npc, NpcState.Standing, 0, new Position(3, 0, 0), "Отшельник", 0));
+        _world.Npcs.Add(new NpcInfo(0, 4, NpcKind.Pet, NpcState.Standing, 0, new Position(8, 0, 0), "Пет игрока", 0));
+
+        Assert.Equal(["Отшельник", "Пет игрока", "Сидящий волк"], NearbyNames.Targets(_world.Snapshot()).Select(n => n.ToString()));
+    }
+
+    [Fact]
     public void GroundItemsWithoutResources()
     {
         _world.Ground.Add(new GroundItem(0, 1, 3044, GroundItemKind.Money, new Position(5, 0, 0), "Монета"));
