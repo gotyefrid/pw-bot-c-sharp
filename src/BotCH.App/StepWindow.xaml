@@ -15,8 +15,8 @@
     <StackPanel>
       <DockPanel Margin="0,0,0,6">
         <TextBlock Text="Что сделать" VerticalAlignment="Center" />
-        <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding ActionKinds}" DisplayMemberPath="Title"
-                  SelectedValuePath="Id" SelectedValue="{Binding SelectedActionKind}" ToolTip="Что бот делает на этом шаге" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="200" Options="{Binding ActionKinds}" Value="{Binding SelectedActionKind}"
+                          ToolTip="Что бот делает на этом шаге. Можно начать печатать — список найдёт по части названия" />
         <Grid />
       </DockPanel>
       <ContentControl Content="{Binding SelectedAction}" Focusable="False" />

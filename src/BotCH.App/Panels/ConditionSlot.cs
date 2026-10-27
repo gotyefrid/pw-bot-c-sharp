@@ -14,7 +14,10 @@ public sealed class ConditionSlot(ConditionList list, ClickerCondition condition
 {
     private ClickerCondition _condition = condition;
 
-    public IReadOnlyList<ClickerKind> Kinds => ClickerKinds.Conditions.All;
+    private static readonly IReadOnlyList<PickOption> AllKinds = PickLists.Kinds(ClickerKinds.Conditions);
+
+    /// <summary>Виды условий — для выбора с поиском (привязка окна видит только свойства экземпляра).</summary>
+    public IReadOnlyList<PickOption> Kinds => AllKinds;
 
     /// <summary>Варианты предметов — для условия «рядом лежит предмет».</summary>
     public Func<IReadOnlyList<PickOption>>? LootOptions { get; } = lootOptions;

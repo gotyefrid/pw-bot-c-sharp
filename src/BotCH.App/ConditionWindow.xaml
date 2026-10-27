@@ -1,6 +1,7 @@
 <Window x:Class="BotCH.App.ConditionWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:BotCH.App"
         Title="Условие" Width="400" SizeToContent="Height" ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         Style="{StaticResource AppWindow}">
@@ -14,8 +15,8 @@
     <StackPanel>
       <DockPanel Margin="0,0,0,6">
         <TextBlock Text="Условие" VerticalAlignment="Center" />
-        <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Kinds}" DisplayMemberPath="Title"
-                  SelectedValuePath="Id" SelectedValue="{Binding Kind}" ToolTip="Что проверять" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="200" Options="{Binding Kinds}" Value="{Binding Kind}"
+                          ToolTip="Что проверять. Можно начать печатать — список найдёт по части названия" />
         <Grid />
       </DockPanel>
       <CheckBox Content="Наоборот (НЕ)" IsChecked="{Binding Condition.Not}" Margin="0,0,0,8"

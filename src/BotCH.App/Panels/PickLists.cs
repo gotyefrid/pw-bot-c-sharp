@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using BotCH.Core.Clicker;
 using BotCH.Core.World;
 
 namespace BotCH.App.Panels;
@@ -19,4 +20,8 @@ public static class PickLists
         options.AddRange((groups ?? []).Select(g => new PickOption(g, $"{g} — все предметы группы")));
         return options;
     }
+
+    /// <summary>Виды действий или условий кликера — для выбора с поиском: имя — вид в файле, текст — название в окне.</summary>
+    public static IReadOnlyList<PickOption> Kinds<T>(ClickerKindList<T> kinds) where T : class
+        => kinds.All.Select(k => new PickOption(k.Id, k.Title)).ToList();
 }

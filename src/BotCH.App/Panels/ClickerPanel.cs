@@ -42,8 +42,8 @@ public sealed class ClickerPanel : ObservableObject
 
     private List<ClickerStep> Steps => _settings().Clicker.Steps;
 
-    /// <summary>Виды действий — для выпадающего списка.</summary>
-    public IReadOnlyList<ClickerKind> ActionKinds => ClickerKinds.Actions.All;
+    /// <summary>Виды действий — для выбора с поиском.</summary>
+    public IReadOnlyList<PickOption> ActionKinds { get; } = PickLists.Kinds(ClickerKinds.Actions);
 
     /// <summary>Варианты для условия «рядом лежит предмет».</summary>
     public Func<IReadOnlyList<PickOption>> LootOptions { get; }
