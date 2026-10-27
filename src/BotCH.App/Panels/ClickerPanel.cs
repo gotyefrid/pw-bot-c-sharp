@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Windows.Input;
 using BotCH.App.Mvvm;
@@ -38,6 +39,8 @@ public sealed class ClickerPanel : ObservableObject
         RemoveCommand = new RelayCommand(Remove, () => Selected is not null);
         UpCommand = new RelayCommand(() => Move(-1), () => Selected is { } r && Rows.IndexOf(r) > 0);
         DownCommand = new RelayCommand(() => Move(1), () => Selected is { } r && Rows.IndexOf(r) is var i && i >= 0 && i < Rows.Count - 1);
+        ExportCommand = new RelayCommand(Export, () => Rows.Count > 0);
+        ImportCommand = new RelayCommand(Import);
     }
 
     private List<ClickerStep> Steps => _settings().Clicker.Steps;
@@ -58,6 +61,20 @@ public sealed class ClickerPanel : ObservableObject
     public ICommand RemoveCommand { get; }
     public ICommand UpCommand { get; }
     public ICommand DownCommand { get; }
+    public ICommand ExportCommand { get; }
+    public ICommand ImportCommand { get; }
+
+    /// <summary>Куда сохранить сценарий — окно «Сохранить как»; null — передумали. Ставит окно бота.</summary>
+    public Func<string?> AskExportPath { get; set; } = () => null;
+
+    /// <summary>Откуда загрузить сценарий — окно «Открыть»; null — передумали. Ставит окно бота.</summary>
+    public Func<string?> AskImportPath { get; set; } = () => null;
+
+    /// <summary>Вопрос «да/нет» (заменить сценарий?).</summary>
+    public Func<string, bool> AskYesNo { get; set; } = _ => false;
+
+    /// <summary>Сообщить об ошибке (файл не записался, не читается).</summary>
+    public Action<string> Tell { get; set; } = _ => { };
 
     public ClickerRow? Selected
     {
@@ -158,6 +175,41 @@ public sealed class ClickerPanel : ObservableObject
         Load();
         Selected = Rows[to];
         OnPropertyChanged(nameof(SelectedTitle));
+        _edited();
+    }
+
+    private void Export()
+    {
+        if (AskExportPath() is not { } path)
+            return;
+
+        try
+        {
+            ClickerFile.Save(path, Steps);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Tell($"Сценарий не сохранён: {e.Message}");
+        }
+    }
+
+    // Сценарий из файла — вместо текущего; есть что терять — сначала спросить. Файл не годится — текущий не трогаем
+    private void Import()
+    {
+        if (AskImportPath() is not { } path)
+            return;
+
+        if (ClickerFile.Load(path, out var problem) is not { } steps)
+        {
+            Tell($"Сценарий не загружен: {problem}. Текущий сценарий не тронут.");
+            return;
+        }
+
+        if (Steps.Count > 0 && !AskYesNo($"Заменить текущий сценарий сценарием из файла?\n\nСейчас шагов: {Steps.Count}, в файле: {steps.Count}."))
+            return;
+
+        _settings().Clicker.Steps = steps;
+        Load();
         _edited();
     }
 

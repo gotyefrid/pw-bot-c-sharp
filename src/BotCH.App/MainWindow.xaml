@@ -312,6 +312,12 @@
             <Button Style="{StaticResource ButtonBase}" Content="Добавить" HorizontalAlignment="Left"
                     Command="{Binding Clicker.AddCommand}" ToolTip="Новый шаг в конец сценария — сразу откроются его настройки" />
           </DockPanel>
+          <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <Button Style="{StaticResource ButtonBase}" Content="Экспорт в файл" Command="{Binding Clicker.ExportCommand}"
+                    ToolTip="Сохранить сценарий в отдельный файл — чтобы не потерять, перенести на другого персонажа или переслать" />
+            <Button Style="{StaticResource ButtonBase}" Content="Импорт из файла" Margin="6,0,0,0" Command="{Binding Clicker.ImportCommand}"
+                    ToolTip="Загрузить сценарий из файла — вместо текущего (бот сначала спросит)" />
+          </StackPanel>
         </StackPanel>
       </Border>
     </ScrollViewer>
