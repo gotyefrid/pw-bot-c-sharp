@@ -233,7 +233,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             default:
                 _log.Error($"Бот не может управлять этим клиентом: {result.Problem}");
-                Tell($"Бот не может управлять этим клиентом:\n{result.Problem}");
+                Tell($"Не получается управлять этим клиентом:\n{result.Problem}");
                 break;
         }
     }
