@@ -155,6 +155,9 @@ public sealed record HostState(
     public bool? InWater { get; init; }
 
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
+
+    /// <summary>null — максимум MP неизвестен (поле не найдено для сервера).</summary>
+    public int? MpPercent => MaxMp > 0 ? Mp * 100 / MaxMp : null;
     public bool IsDead => Hp <= 0;
 }
 

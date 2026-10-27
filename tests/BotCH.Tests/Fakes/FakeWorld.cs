@@ -21,6 +21,9 @@ internal sealed class FakeWorld
     public int Hp { get; set; } = 400;
     public int MaxHp { get; set; } = 500;
     public int Mp { get; set; } = 300;
+
+    /// <summary>null — сервер не показывает максимум MP.</summary>
+    public int? MaxMp { get; set; } = 500;
     public int Level { get; set; } = 10;
     public Position Position { get; set; } = new(0, 0, 0);
     public uint TargetWid { get; set; }
@@ -59,7 +62,7 @@ internal sealed class FakeWorld
     /// <summary>Снимок. Расстояния до мобов и предметов снимок считает сам — из позиций, от того места, где сейчас персонаж.</summary>
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
-        new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, 500, Position, TargetWid, Casting, PetFoodCooldownMs)
+        new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Macros = Macros.ToList() };
 

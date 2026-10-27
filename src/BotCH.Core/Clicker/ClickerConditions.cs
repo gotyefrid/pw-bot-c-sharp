@@ -72,22 +72,44 @@ public sealed class AlwaysCondition : ClickerCondition
     protected override string? Holds(BrainContext c) => "всегда";
 }
 
-/// <summary>HP персонажа ниже порога в %.</summary>
-public sealed class HpBelowCondition : ClickerCondition
+/// <summary>
+/// Что-то в процентах ниже порога: HP или MP персонажа, HP пета. Наследник говорит, что сравнивается (<see cref="Subject"/>)
+/// и сколько сейчас (<see cref="Current"/>; не знаем — не выполнено).
+/// </summary>
+public abstract class PercentBelowCondition : ClickerCondition
 {
     private int _percent = 50;
 
     public int Percent { get => _percent; set => Set(ref _percent, value); }
 
-    protected override string What() => $"HP меньше {Percent} %";
+    /// <summary>Что сравнивается: «HP», «MP».</summary>
+    protected abstract string Subject { get; }
+
+    /// <summary>Сколько сейчас, %; null — неизвестно (поле не найдено для сервера).</summary>
+    protected abstract int? Current(WorldState world);
+
+    protected override string What() => $"{Subject} меньше {Percent} %";
 
     protected override string? Holds(BrainContext c)
-    {
-        var host = c.World.Host;
-        return host.MaxHp > 0 && host.HpPercent < Percent ? $"HP {host.HpPercent} % — меньше {Percent} %" : null;
-    }
+        => Current(c.World) is { } now && now < Percent ? $"{Subject} {now} % — меньше {Percent} %" : null;
 
     public override void Normalize() => Percent = Math.Min(100, Math.Max(1, Percent));
+}
+
+/// <summary>HP персонажа ниже порога в %.</summary>
+public sealed class HpBelowCondition : PercentBelowCondition
+{
+    protected override string Subject => "HP";
+
+    protected override int? Current(WorldState world) => world.Host.MaxHp > 0 ? world.Host.HpPercent : null;
+}
+
+/// <summary>MP персонажа ниже порога в %.</summary>
+public sealed class MpBelowCondition : PercentBelowCondition
+{
+    protected override string Subject => "MP";
+
+    protected override int? Current(WorldState world) => world.Host.MpPercent;
 }
 
 public enum TargetIs
