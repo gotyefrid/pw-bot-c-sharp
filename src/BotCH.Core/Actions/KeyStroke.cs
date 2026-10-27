@@ -13,9 +13,6 @@ public readonly record struct KeyStroke(int Key, bool Ctrl = false, bool Alt = f
     private static readonly Dictionary<int, string> Names = BuildNames();
     private static readonly Dictionary<string, int> Codes = Names.ToDictionary(n => n.Value, n => n.Key, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Клавиша с Ctrl/Alt/Shift одним числом — «то же нажатие» для исполнителя (<see cref="KeyAction.SlotId"/>).</summary>
-    public uint Code => (uint)Key | (Ctrl ? 0x100u : 0) | (Alt ? 0x200u : 0) | (Shift ? 0x400u : 0);
-
     /// <summary>
     /// Почему такое игре не жмём; null — можно. Alt+F4, Alt+Space и Alt+Esc разбирает сама Windows: закроет клиент, откроет
     /// меню окна (игра встанет, пока оно открыто) или переключит окна.

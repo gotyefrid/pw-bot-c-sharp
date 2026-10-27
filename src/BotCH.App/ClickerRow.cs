@@ -1,26 +1,28 @@
 using BotCH.App.Mvvm;
-using BotCH.Core.Settings;
+using BotCH.Core.Clicker;
 
 namespace BotCH.App;
 
-/// <summary>Строка списка правил кликера: номер, клавиша, когда жать, как часто.</summary>
-public sealed class ClickerRow(int number, ClickerRule rule) : ObservableObject
+/// <summary>Строка сценария кликера: номер, что сделать, при каком условии, отметка «сейчас этот шаг».</summary>
+public sealed class ClickerRow(int number, ClickerStep step) : ObservableObject
 {
-    public ClickerRule Rule { get; } = rule;
+    private bool _current;
+
+    public ClickerStep Step { get; } = step;
 
     public string Number { get; } = $"{number}.";
 
-    public string KeyText => Rule.Key.Length > 0 ? Rule.Key : "не задана";
+    public string What => Step.Action.Describe();
 
-    public string When => Rule.DescribeCondition();
+    public string When => Step.Condition.Describe();
 
-    public string RepeatText => $"раз в {Rule.RepeatSeconds:0.##} с";
+    /// <summary>Бот сейчас на этом шаге.</summary>
+    public bool Current { get => _current; set => SetProperty(ref _current, value); }
 
-    /// <summary>Поменяли что-то в правиле.</summary>
+    /// <summary>Поменяли действие или условие шага.</summary>
     public void Refresh()
     {
-        OnPropertyChanged(nameof(KeyText));
+        OnPropertyChanged(nameof(What));
         OnPropertyChanged(nameof(When));
-        OnPropertyChanged(nameof(RepeatText));
     }
 }

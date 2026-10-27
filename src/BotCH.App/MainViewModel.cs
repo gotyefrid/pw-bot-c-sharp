@@ -12,6 +12,7 @@ using BotCH.App.Mvvm;
 using BotCH.App.Panels;
 using BotCH.Core.Actions;
 using BotCH.Core.Brain;
+using BotCH.Core.Clicker;
 using BotCH.Core.Calls;
 using BotCH.Core.Clients;
 using BotCH.Core.GameFiles;
@@ -83,7 +84,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         });
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
-        Clicker = new ClickerPanel(() => Settings, SettingsEdited);
+        Clicker = new ClickerPanel(() => Settings,
+            () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null, SettingsEdited);
         Farm.Load();
         Route.Load();
         Clicker.Load();
@@ -285,7 +287,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Вкладка «Ресы»: точки маршрута, что копать, опасные мобы.</summary>
     public RoutePanel Route { get; }
 
-    /// <summary>Вкладка «Кликер»: правила — клавиша, когда жать, как часто.</summary>
+    /// <summary>Вкладка «Кликер»: сценарий — шаги по кругу, у каждого действие и условие.</summary>
     public ClickerPanel Clicker { get; }
 
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
@@ -450,6 +452,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Status.Show(w);
         Farm.ShowFor(w);
         Route.ShowDistances(w);
+        Clicker.ShowCurrent();
     }
 
     private void ShowFailure(string message)

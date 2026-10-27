@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Brain;
+using BotCH.Core.Clicker;
 using BotCH.Core.Logging;
 using BotCH.Core.Profiles;
 using BotCH.Core.Settings;
@@ -11,7 +12,7 @@ using Xunit;
 
 namespace BotCH.Tests.Brain;
 
-/// <summary>Кликер на подставном мире: какие клавиши и в каком порядке жмутся по правилам.</summary>
+/// <summary>Кликер на подставном мире: шаги сценария по кругу — что и когда уходит в игру.</summary>
 public class ClickerScenarioTests
 {
     private readonly FakeWorld _world = new();
@@ -19,18 +20,18 @@ public class ClickerScenarioTests
     private readonly BotSettings _settings = new() { Mode = BotMode.Clicker };
     private readonly List<LogEntry> _log = [];
     private string? _stopped;
+    private int _ticks;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
         public void Write(LogEntry entry) => entries.Add(entry);
     }
 
-    private ClickerRule Rule(string key, ClickerCondition condition = ClickerCondition.Always, double repeat = 1)
-    {
-        var rule = new ClickerRule { Key = key, Condition = condition, RepeatSeconds = repeat };
-        _settings.Clicker.Rules.Add(rule);
-        return rule;
-    }
+    private void Key(string key, ClickerCondition? when = null)
+        => _settings.Clicker.Steps.Add(new ClickerStep { Action = new PressKeyAction { Key = key }, Condition = when ?? new AlwaysCondition() });
+
+    private void Pause(int milliseconds, ClickerCondition? when = null)
+        => _settings.Clicker.Steps.Add(new ClickerStep { Action = new PauseAction { Milliseconds = milliseconds }, Condition = when ?? new AlwaysCondition() });
 
     private IBotRunner Start()
     {
@@ -41,68 +42,86 @@ public class ClickerScenarioTests
         return bot;
     }
 
-    // Снимки раз в 0,25 с, первый — сразу
-    private void Run(IBotRunner bot, int ticks)
+    // Снимки раз в 0,25 с, самый первый — сразу; что ушло в игру на каждом
+    private List<string> Run(IBotRunner bot, int ticks)
     {
+        var turns = new List<string>();
         for (var i = 0; i < ticks; i++)
-            bot.Tick((i == 0 ? _world : _world.Wait(0.25)).Snapshot());
+        {
+            var before = _actions.Calls.Count;
+            bot.Tick((_ticks++ == 0 ? _world : _world.Wait(0.25)).Snapshot());
+            turns.Add(string.Join(", ", _actions.Calls.Skip(before)));
+        }
+
+        return turns;
     }
 
-    private GroundItem Drop(uint id, string name, float distance, GroundItemKind kind = GroundItemKind.Item, string? group = null)
+    private void Drop(uint id, string name, float distance, GroundItemKind kind = GroundItemKind.Item, string? group = null)
+        => _world.Ground.Add(new GroundItem(0x1000 + id, id, 100 + id, kind, new Position(distance, 0, 0), name) { Group = group });
+
+    [Fact]
+    public void KeysGoInOrderAndCircleEveryTurn()
     {
-        var item = new GroundItem(0x1000 + id, id, 100 + id, kind, new Position(distance, 0, 0), name) { Group = group };
-        _world.Ground.Add(item);
-        return item;
+        // Без пауз круг — за снимок: каждая клавиша по разу, ни одна дважды
+        Key("1");
+        Key("2");
+        Key("1");
+
+        Assert.Equal(["key 1, key 2, key 1", "key 1, key 2, key 1"], Run(Start(), 2));
     }
 
     [Fact]
-    public void AlwaysRuleIsPressedByItsRepeatTime()
+    public void PauseHoldsTheNextStep()
     {
-        Rule("3", repeat: 1);
+        Key("F1");
+        Pause(1000);
+        Key("F2");
         var bot = Start();
 
-        Run(bot, 9);
+        var turns = Run(bot, 6);
 
-        // 0 с, 1 с, 2 с
-        Assert.Equal(["key 3", "key 3", "key 3"], _actions.Calls);
+        // 0 с: F1, пауза пошла; 1 с: пауза кончилась — F2, и снова F1 с новой паузой
+        Assert.Equal(["key F1", "", "", "", "key F2, key F1", ""], turns);
+        Assert.Contains("пауза 1000 мс", bot.Status);
     }
 
     [Fact]
-    public void TopRuleGoesFirstAndOnePressPerTurn()
+    public void StepWithFalseConditionIsSkipped()
     {
-        // HP 40 %: обе подходят — сначала верхняя, следующим ходом нижняя (верхняя ждёт своего повтора)
+        Key("F1", new HpBelowCondition { Percent = 50 });
+        Key("2");
+        var bot = Start();
+
+        Assert.Equal(["key 2", "key 2"], Run(bot, 2));
+
         _world.Hp = 200;
-        Rule("F1", ClickerCondition.HpBelow, repeat: 5).HpPercent = 50;
-        Rule("2", repeat: 0.25);
-        var bot = Start();
-
-        Run(bot, 3);
-
-        Assert.Equal(["key F1", "key 2", "key 2"], _actions.Calls);
+        Assert.Equal(["key F1, key 2"], Run(bot, 1));
     }
 
     [Fact]
-    public void HpRuleWaitsForLowHp()
+    public void ConditionOfPauseCountsToo()
     {
-        Rule("F1", ClickerCondition.HpBelow).HpPercent = 50;
+        // «Пауза 5000 мс, если HP меньше 50 %» — пока HP полное, пауза не держит
+        Key("F1");
+        Pause(5000, new HpBelowCondition { Percent = 50 });
+
+        Assert.Equal(["key F1", "key F1"], Run(Start(), 2));
+    }
+
+    [Fact]
+    public void NothingToDoWaitsForNextSnapshot()
+    {
+        Key("F1", new HpBelowCondition { Percent = 50 });
         var bot = Start();
 
-        Run(bot, 4);
-        Assert.Empty(_actions.Calls);
+        Assert.Equal(["", ""], Run(bot, 2));
         Assert.Contains("жду", bot.Status);
-
-        _world.Hp = 240;
-        Run(bot, 1);
-        Assert.Equal(["key F1"], _actions.Calls);
-        Assert.Contains("HP 48 %", bot.Status);
     }
 
     [Fact]
-    public void ItemRuleLooksAtNamesGroupsAndRadius()
+    public void ItemConditionLooksAtNamesGroupsAndRadius()
     {
-        var rule = Rule("4", ClickerCondition.ItemNearby, repeat: 0.25);
-        rule.Items = ["Мягкий мех", "Банки"];
-        rule.ItemRadius = 10;
+        Key("4", new ItemNearbyCondition { Items = ["Мягкий мех", "Банки"], Radius = 10 });
         Drop(1, "Мягкий мех", 12);
         Drop(2, "Железная руда", 2, GroundItemKind.Resource);
         Drop(3, "Мягкий мех", 5, GroundItemKind.Resource);
@@ -110,86 +129,98 @@ public class ClickerScenarioTests
         var bot = Start();
 
         // Далеко, ресурсы и чужое — не повод
-        Run(bot, 2);
-        Assert.Empty(_actions.Calls);
+        Assert.Equal(["", ""], Run(bot, 2));
 
         // Банка — по группе
         Drop(5, "Зелье здоровья", 6, group: "Банки");
-        Run(bot, 1);
-        Assert.Equal(["key 4"], _actions.Calls);
-        Assert.Contains("Зелье здоровья", bot.Status);
+        Assert.Equal(["key 4"], Run(bot, 1));
+        Assert.Contains(_log, e => e.Message.Contains("Зелье здоровья"));
     }
 
     [Fact]
     public void EmptyItemListMeansAnyItem()
     {
-        Rule("5", ClickerCondition.ItemNearby).Items = [];
+        Key("5", new ItemNearbyCondition());
         Drop(1, "Монеты", 3, GroundItemKind.Money);
-        var bot = Start();
 
-        Run(bot, 1);
-
-        Assert.Equal(["key 5"], _actions.Calls);
+        Assert.Equal(["key 5"], Run(Start(), 1));
     }
 
     [Fact]
-    public void RuleWithoutKeyIsSkipped()
+    public void UnreadyStepIsSkipped()
     {
-        Rule("");
-        Rule("F2");
-        var bot = Start();
+        Key("");
+        Key("F2");
 
-        Run(bot, 1);
-
-        Assert.Equal(["key F2"], _actions.Calls);
+        Assert.Equal(["key F2"], Run(Start(), 1));
         Assert.Null(_stopped);
     }
 
     [Fact]
-    public void NoRulesWithKeyStopsTheBot()
+    public void NothingReadyStopsTheBot()
     {
-        Rule("");
-        var bot = Start();
+        Key("");
+        Key("Alt+F4");
 
-        Run(bot, 1);
+        Run(Start(), 1);
 
         Assert.Empty(_actions.Calls);
-        Assert.Equal("у кликера нет правил с клавишей", _stopped);
+        Assert.Equal("в кликере нет ни одного готового действия", _stopped);
     }
 
     [Fact]
-    public void ConditionStartIsLoggedOncePressesQuietly()
+    public void FailedStepIsLoggedAndScriptGoesOn()
     {
-        // 4 нажатия F1 — в обычном логе одна строка «HP … — жму F1», остальное — подробный лог
-        _world.Hp = 100;
-        Rule("F1", ClickerCondition.HpBelow, repeat: 0.25).HpPercent = 50;
+        _actions.Refuse.Add("key F1");
+        Key("F1");
+        Key("F2");
+
+        Assert.Equal(["key F1, key F2", "key F1, key F2"], Run(Start(), 2));
+        Assert.Single(_log, e => e.Level == LogLevel.Warning && e.Message.StartsWith("Кликер: шаг 1"));
+    }
+
+    [Fact]
+    public void WindowSeesCurrentStep()
+    {
+        Key("F1");
+        Pause(1000);
         var bot = Start();
+        var progress = bot.Part<IClickerProgress>()!;
 
-        Run(bot, 4);
-
-        Assert.Equal(4, _actions.Calls.Count);
-        var info = _log.Where(e => e.Level >= LogLevel.Info).Select(e => e.Message).ToList();
-        Assert.Equal(["Кликер: HP 20 % — меньше 50 % — жму F1 раз в 0,25 с"], info);
-
-        // HP восстановилось и снова упало — снова строка
-        _world.Hp = 500;
-        Run(bot, 2);
-        _world.Hp = 100;
+        Assert.Null(progress.Current);
         Run(bot, 1);
-        Assert.Equal(2, _log.Count(e => e.Level >= LogLevel.Info));
+        Assert.Equal(1, progress.Current);
+
+        bot.Reset();
+        Assert.Null(progress.Current);
+    }
+
+    [Fact]
+    public void StepsChangedOnTheGo()
+    {
+        // Шаги убрали, пока шла пауза третьего: доделать её и начать с первого
+        Key("F1");
+        Key("F2");
+        Pause(500);
+        var bot = Start();
+        Run(bot, 1);
+
+        _settings.Clicker.Steps.RemoveAt(1);
+        bot.UpdateSettings(_settings);
+
+        Assert.Equal(["", "key F1", ""], Run(bot, 3));
     }
 
     [Fact]
     public void DoesNothingElse()
     {
-        // Ни банок, ни боя, ни пета: только правила
+        // Ни банок, ни боя, ни пета: только сценарий
         _world.Hp = 50;
         _world.AddPotion(1, 8617, 5, hp: 300);
         _world.AddMob(1, "Волк", 5);
-        Rule("F3", ClickerCondition.ItemNearby);
-        var bot = Start();
+        Key("F3", new ItemNearbyCondition());
 
-        Run(bot, 8);
+        Run(Start(), 8);
 
         Assert.Empty(_actions.Calls);
     }

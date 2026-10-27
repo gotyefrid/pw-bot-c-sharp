@@ -51,8 +51,18 @@ public class KeyStrokeTests
     }
 
     [Fact]
-    public void ModifiersMakeDifferentPresses()
-        => Assert.NotEqual(new KeyStroke(0x31).Code, new KeyStroke(0x31, Ctrl: true).Code);
+    public void SameKeyTwiceIsTwoPresses()
+    {
+        // Два шага кликера с одной клавишей подряд — два нажатия, а не «уже ждёт»
+        var world = new FakeWorld();
+        var keys = new FakeActions();
+        var runner = new ActionRunner(new GameControl(keys, keys), NullLogger.Instance);
+        var owner = new ActionOwner("тест");
+
+        Assert.True(runner.Submit(owner, new KeyAction(new KeyStroke(0x70)), world.Snapshot()).Sent);
+        Assert.True(runner.Submit(owner, new KeyAction(new KeyStroke(0x70)), world.Snapshot()).Sent);
+        Assert.Equal(["key F1", "key F1"], keys.Calls);
+    }
 
     [Fact]
     public void MessageCarriesScanCodeAndUpBits()

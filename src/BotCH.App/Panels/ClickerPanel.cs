@@ -1,54 +1,52 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows.Input;
 using BotCH.App.Mvvm;
+using BotCH.Core.Clicker;
 using BotCH.Core.Settings;
 
 namespace BotCH.App.Panels;
 
 /// <summary>
-/// Вкладка «Кликер» — правила по порядку: какую клавишу жать, когда и как часто. Правила — в настройках персонажа; о правке
-/// говорит модели окна (та сохраняет и отдаёт боту). Поля правки — у выбранного правила.
+/// Вкладка «Кликер» — сценарий: шаги по порядку, у каждого действие и условие. Шаги — в настройках персонажа; о правке
+/// говорит модели окна (та сохраняет и отдаёт боту). Поля действия и условия выбранного шага показывают их шаблоны в окне
+/// (по классу) и правят их напрямую — о правке поля говорят сами.
 /// </summary>
 public sealed class ClickerPanel : ObservableObject
 {
     private readonly Func<BotSettings> _settings;
+    private readonly Func<int?> _current;
     private readonly Action _edited;
     private ClickerRow? _selected;
-    private bool _syncing;
+    private ClickerAction? _watchedAction;
+    private ClickerCondition? _watchedCondition;
 
     /// <param name="settings">Настройки текущего персонажа (меняются при смене персонажа).</param>
+    /// <param name="current">Номер шага, который бот выполняет сейчас; null — бот не работает.</param>
     /// <param name="edited">Правка настроек из этой вкладки.</param>
-    public ClickerPanel(Func<BotSettings> settings, Action edited)
+    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, Action edited)
     {
         _settings = settings;
+        _current = current;
         _edited = edited;
-        ItemNames.CollectionChanged += (_, _) => ItemNamesEdited();
         AddCommand = new RelayCommand(Add);
         RemoveCommand = new RelayCommand(Remove, () => Selected is not null);
         UpCommand = new RelayCommand(() => Move(-1), () => Selected is { } r && Rows.IndexOf(r) > 0);
         DownCommand = new RelayCommand(() => Move(1), () => Selected is { } r && Rows.IndexOf(r) is var i && i >= 0 && i < Rows.Count - 1);
     }
 
-    private List<ClickerRule> Rules => _settings().Clicker.Rules;
+    private List<ClickerStep> Steps => _settings().Clicker.Steps;
 
-    public sealed record ConditionChoice(ClickerCondition Condition, string Title);
+    /// <summary>Виды действий и условий — для выпадающих списков.</summary>
+    public IReadOnlyList<ClickerKind> ActionKinds => ClickerKinds.Actions.All;
 
-    public IReadOnlyList<ConditionChoice> Conditions { get; } =
-    [
-        new(ClickerCondition.Always, "Всегда"),
-        new(ClickerCondition.HpBelow, "HP персонажа меньше, %"),
-        new(ClickerCondition.ItemNearby, "Рядом лежит предмет"),
-    ];
+    public IReadOnlyList<ClickerKind> ConditionKinds => ClickerKinds.Conditions.All;
 
-    /// <summary>Правила по порядку: верхние важнее.</summary>
+    /// <summary>Шаги по порядку: после последнего — снова первый.</summary>
     public ObservableCollection<ClickerRow> Rows { get; } = new();
-
-    /// <summary>Предметы выбранного правила «Рядом лежит предмет»: названия или группы, как у лута.</summary>
-    public ObservableCollection<string> ItemNames { get; } = new();
 
     public ICommand AddCommand { get; }
     public ICommand RemoveCommand { get; }
@@ -62,81 +60,70 @@ public sealed class ClickerPanel : ObservableObject
         {
             if (!SetProperty(ref _selected, value))
                 return;
-            Sync(ItemNames, value?.Rule.Items ?? []);
-            foreach (var name in new[]
-                     {
-                         nameof(HasSelected), nameof(SelectedTitle), nameof(SelectedKey), nameof(SelectedCondition), nameof(ShowHp),
-                         nameof(ShowItems), nameof(HpPercent), nameof(ItemRadius), nameof(RepeatText),
-                     })
-                OnPropertyChanged(name);
+            Watch();
+            OnPropertyChanged(nameof(HasSelected));
+            OnPropertyChanged(nameof(SelectedTitle));
+            OnPropertyChanged(nameof(SelectedActionKind));
+            OnPropertyChanged(nameof(SelectedConditionKind));
         }
     }
 
     public bool HasSelected => Selected is not null;
 
-    public string SelectedTitle => Selected is { } row ? $"Правило {Rows.IndexOf(row) + 1}" : "";
+    public string SelectedTitle => Selected is { } row ? $"Шаг {Rows.IndexOf(row) + 1}" : "";
 
-    /// <summary>Клавиша выбранного правила строкой («F1», «Ctrl+2») — её ставит поле «нажмите клавишу».</summary>
-    public string SelectedKey
+    /// <summary>Вид действия выбранного шага; сменили — действие нового вида с полями по умолчанию.</summary>
+    public string? SelectedActionKind
     {
-        get => Selected?.Rule.Key ?? "";
-        set => Edit(value ?? "", r => r.Key, (r, v) => r.Key = v);
-    }
-
-    public ClickerCondition SelectedCondition
-    {
-        get => Selected?.Rule.Condition ?? ClickerCondition.Always;
+        get => Selected?.Step.Action.Kind;
         set
         {
-            Edit(value, r => r.Condition, (r, v) => r.Condition = v);
-            OnPropertyChanged(nameof(ShowHp));
-            OnPropertyChanged(nameof(ShowItems));
+            if (Selected is not { } row || value is null || value == row.Step.Action.Kind || ClickerKinds.Actions.Create(value) is not { } action)
+                return;
+            row.Step.Action = action;
+            PartReplaced(row);
         }
     }
 
-    public bool ShowHp => Selected?.Rule.Condition == ClickerCondition.HpBelow;
+    /// <summary>Действие выбранного шага — его поля показывает шаблон окна для его класса.</summary>
+    public ClickerAction? SelectedAction => _watchedAction;
 
-    public bool ShowItems => Selected?.Rule.Condition == ClickerCondition.ItemNearby;
-
-    public int HpPercent
+    public string? SelectedConditionKind
     {
-        get => Selected?.Rule.HpPercent ?? 0;
-        set => Edit(value, r => r.HpPercent, (r, v) => r.HpPercent = v);
-    }
-
-    public int ItemRadius
-    {
-        get => Selected?.Rule.ItemRadius ?? 0;
-        set => Edit(value, r => r.ItemRadius, (r, v) => r.ItemRadius = v);
-    }
-
-    /// <summary>
-    /// Повтор, с — текстом: дробь пишут и через запятую, и через точку. Не число — правило не меняется. Поле не
-    /// переписывается на ходу (иначе «0,» по дороге к «0,5» стало бы «0»): пределы применяет копия для бота.
-    /// </summary>
-    public string RepeatText
-    {
-        get => Selected?.Rule.RepeatSeconds.ToString("0.##") ?? "";
+        get => Selected?.Step.Condition.Kind;
         set
         {
-            if (double.TryParse((value ?? "").Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds) && seconds > 0)
-                Edit(seconds, r => r.RepeatSeconds, (r, v) => r.RepeatSeconds = v);
+            if (Selected is not { } row || value is null || value == row.Step.Condition.Kind || ClickerKinds.Conditions.Create(value) is not { } condition)
+                return;
+            row.Step.Condition = condition;
+            PartReplaced(row);
         }
     }
 
-    /// <summary>Список в окне ← настройки персонажа (выбор сбрасывается, если правила больше нет).</summary>
+    public ClickerCondition? SelectedCondition => _watchedCondition;
+
+    /// <summary>Список в окне ← настройки персонажа (выбор сбрасывается, если шага больше нет).</summary>
     public void Load()
     {
-        var selected = Selected?.Rule;
+        var selected = Selected?.Step;
         Rows.Clear();
-        for (var i = 0; i < Rules.Count; i++)
-            Rows.Add(new ClickerRow(i + 1, Rules[i]));
-        Selected = Rows.FirstOrDefault(r => r.Rule == selected);
+        for (var i = 0; i < Steps.Count; i++)
+            Rows.Add(new ClickerRow(i + 1, Steps[i]));
+        Selected = Rows.FirstOrDefault(r => r.Step == selected);
+        ShowCurrent();
+    }
+
+    /// <summary>Выделить шаг, который бот выполняет сейчас.</summary>
+    public void ShowCurrent()
+    {
+        var current = _current();
+        for (var i = 0; i < Rows.Count; i++)
+            Rows[i].Current = current == i;
     }
 
     private void Add()
     {
-        Rules.Add(new ClickerRule());
+        Steps.Add(new ClickerStep());
         Load();
         Selected = Rows.LastOrDefault();
         _edited();
@@ -147,7 +134,7 @@ public sealed class ClickerPanel : ObservableObject
         if (Selected is not { } row)
             return;
 
-        Rules.Remove(row.Rule);
+        Steps.Remove(row.Step);
         Load();
         Selected = null;
         _edited();
@@ -158,52 +145,47 @@ public sealed class ClickerPanel : ObservableObject
         if (Selected is not { } row)
             return;
 
-        var at = Rules.IndexOf(row.Rule);
+        var at = Steps.IndexOf(row.Step);
         var to = at + step;
-        if (at < 0 || to < 0 || to >= Rules.Count)
+        if (at < 0 || to < 0 || to >= Steps.Count)
             return;
 
-        (Rules[at], Rules[to]) = (Rules[to], Rules[at]);
+        (Steps[at], Steps[to]) = (Steps[to], Steps[at]);
         Load();
         Selected = Rows[to];
         OnPropertyChanged(nameof(SelectedTitle));
         _edited();
     }
 
-    // Правка выбранного правила; то же значение — не правка (окно перечитывает поля при смене выбора)
-    private void Edit<T>(T value, Func<ClickerRule, T> get, Action<ClickerRule, T> set)
+    // Действие или условие шага заменили новым видом
+    private void PartReplaced(ClickerRow row)
     {
-        if (Selected is not { } row || EqualityComparer<T>.Default.Equals(get(row.Rule), value))
-            return;
-
-        set(row.Rule, value);
+        Watch();
         row.Refresh();
         _edited();
     }
 
-    // Список в окне ← настройки (это не правка пользователя)
-    private void Sync(ObservableCollection<string> target, IEnumerable<string> names)
+    // Слушать поля действия и условия выбранного шага: правка поля — строка в списке и сохранение
+    private void Watch()
     {
-        _syncing = true;
-        try
-        {
-            target.Clear();
-            foreach (var name in names)
-                target.Add(name);
-        }
-        finally
-        {
-            _syncing = false;
-        }
+        if (_watchedAction is not null)
+            _watchedAction.PropertyChanged -= PartEdited;
+        if (_watchedCondition is not null)
+            _watchedCondition.PropertyChanged -= PartEdited;
+
+        _watchedAction = Selected?.Step.Action;
+        _watchedCondition = Selected?.Step.Condition;
+        if (_watchedAction is not null)
+            _watchedAction.PropertyChanged += PartEdited;
+        if (_watchedCondition is not null)
+            _watchedCondition.PropertyChanged += PartEdited;
+        OnPropertyChanged(nameof(SelectedAction));
+        OnPropertyChanged(nameof(SelectedCondition));
     }
 
-    private void ItemNamesEdited()
+    private void PartEdited(object? sender, PropertyChangedEventArgs e)
     {
-        if (_syncing || Selected is not { } row)
-            return;
-
-        row.Rule.Items = MobNameFilter.Clean(ItemNames);
-        row.Refresh();
+        Selected?.Refresh();
         _edited();
     }
 }

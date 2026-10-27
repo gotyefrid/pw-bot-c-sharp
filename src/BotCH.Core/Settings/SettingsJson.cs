@@ -1,3 +1,4 @@
+using BotCH.Core.Clicker;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
@@ -17,8 +18,9 @@ public static class SettingsJson
         // Иначе список названий из файла добавится к списку по умолчанию, а не заменит его
         ObjectCreationHandling = ObjectCreationHandling.Replace,
         Formatting = Formatting.Indented,
-        // Режимы пишутся словом («ExceptListed»), а не числом — файл можно читать и править руками
-        Converters = { new StringEnumConverter() },
+        // Режимы пишутся словом («ExceptListed»), а не числом — файл можно читать и править руками; действия и условия
+        // кликера читаются по своему виду («kind»)
+        Converters = { new StringEnumConverter(), ClickerJson.Actions, ClickerJson.Conditions },
     };
 
     public static BotSettings Parse(string json)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using BotCH.Core.Actions;
+using BotCH.Core.Clicker;
 using BotCH.Core.Logging;
 using BotCH.Core.Profiles;
 using BotCH.Core.Settings;
@@ -61,7 +62,7 @@ public static class BotModes
         };
     }
 
-    /// <summary>Кликер: только правила из списка — без банок, пета и боя (банка — правилом «HP меньше %»).</summary>
+    /// <summary>Кликер: только сценарий из списка — без банок, пета и боя (банка — шагом с условием «HP меньше %»).</summary>
     private static BotBrain Clicker(BrainContext context)
     {
         var clicker = new ClickerBehavior();

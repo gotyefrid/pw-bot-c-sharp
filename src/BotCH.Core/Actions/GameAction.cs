@@ -64,7 +64,7 @@ public enum ActionSlot
     PetOrder,
     /// <summary>Прервать каст или копание.</summary>
     Cancel,
-    /// <summary>Нажатие клавиши (кликер); в ключе — клавиша с Ctrl/Alt/Shift.</summary>
+    /// <summary>Нажатие клавиши (кликер); в ключе — номер нажатия: каждое своё, когда жать снова, решает кликер.</summary>
     Key,
 }
 
@@ -228,14 +228,18 @@ public sealed class MacroAction(int macro) : GameAction
 
 /// <summary>
 /// Нажать клавишу в окне игры (кликер). Что она делает, бот не знает, проверить нечего: ушло нажатие — сделано. Тела не
-/// занимает: игра сама решит, что делать с клавишей посреди каста или бега.
+/// занимает: игра сама решит, что делать с клавишей посреди каста или бега. Каждое нажатие — своё действие: два шага
+/// кликера с одной клавишей подряд — два нажатия, а не «уже ждёт».
 /// </summary>
 public sealed class KeyAction(KeyStroke stroke) : GameAction
 {
+    private static int _presses;
+    private readonly uint _press = unchecked((uint)System.Threading.Interlocked.Increment(ref _presses));
+
     public KeyStroke Stroke { get; } = stroke;
     public override string Name => $"клавиша {Stroke}";
     public override ActionSlot Slot => ActionSlot.Key;
-    public override uint SlotId => Stroke.Code;
+    public override uint SlotId => _press;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override bool Quiet => true;
 

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using BotCH.Core.Actions;
+using BotCH.Core.Clicker;
 using BotCH.Core.World;
 using Newtonsoft.Json;
 
@@ -108,7 +108,7 @@ public sealed class BotSettings
         Route.DangerLevel = Clamp(Route.DangerLevel, 0, 150);
         Route.DangerMobs = MobNameFilter.Clean(Route.DangerMobs);
         Route.DangerMargin = Clamp(Route.DangerMargin, 1, 50);
-        Clicker.Rules = ClickerRule.Clean(Clicker.Rules);
+        Clicker.Steps = ClickerStep.Clean(Clicker.Steps);
         return this;
     }
 
@@ -122,7 +122,7 @@ public enum BotMode
     FarmMobs,
     /// <summary>Собирать ресурсы: обход точек маршрута (<see cref="RouteSettings"/>).</summary>
     GatherResources,
-    /// <summary>Кликер: жать клавиши по правилам (<see cref="ClickerSettings"/>).</summary>
+    /// <summary>Кликер: шаги сценария по кругу (<see cref="ClickerSettings"/>).</summary>
     Clicker,
 }
 
@@ -273,81 +273,11 @@ public sealed class RoutePoint
             .ToList();
 }
 
-/// <summary>
-/// Кликер: правила по порядку, верхние важнее. На каждом снимке жмётся клавиша первого правила, у которого выполнено условие
-/// и прошло время повтора, — одно нажатие за раз.
-/// </summary>
+/// <summary>Кликер: сценарий — шаги по порядку, по кругу (<see cref="ClickerBehavior"/>).</summary>
 public sealed class ClickerSettings : SettingsPart
 {
-    private List<ClickerRule> _rules = [];
-    public List<ClickerRule> Rules { get => _rules; set => Set(ref _rules, value); }
-}
-
-public enum ClickerCondition
-{
-    /// <summary>Всегда — по времени повтора (бафф раз в 30 с).</summary>
-    Always,
-    /// <summary>HP персонажа ниже <see cref="ClickerRule.HpPercent"/>.</summary>
-    HpBelow,
-    /// <summary>
-    /// Рядом с персонажем (до <see cref="ClickerRule.ItemRadius"/>) лежит предмет из <see cref="ClickerRule.Items"/> — название или
-    /// группа, как у лута; список пуст — любой предмет или монеты.
-    /// </summary>
-    ItemNearby,
-}
-
-/// <summary>Правило кликера: какую клавишу жать, при каком условии и не чаще, чем раз во сколько секунд.</summary>
-public sealed class ClickerRule
-{
-    public const double MinRepeat = 0.25, MaxRepeat = 3600;
-
-    /// <summary>Клавиша, как на клавиатуре: «F1», «Ctrl+2» (<see cref="KeyStroke"/>). Пусто — правило ещё не настроено и не жмётся.</summary>
-    public string Key { get; set; } = "";
-
-    public ClickerCondition Condition { get; set; } = ClickerCondition.Always;
-
-    /// <summary>Для <see cref="ClickerCondition.HpBelow"/>: жать, когда HP ниже этого процента.</summary>
-    public int HpPercent { get; set; } = 50;
-
-    /// <summary>Для <see cref="ClickerCondition.ItemNearby"/>: названия или группы предметов; пусто — любой.</summary>
-    public List<string> Items { get; set; } = [];
-
-    /// <summary>Для <see cref="ClickerCondition.ItemNearby"/>: на каком расстоянии от персонажа, м.</summary>
-    public int ItemRadius { get; set; } = 10;
-
-    /// <summary>Не чаще, чем раз во столько секунд (условие держится — жмём с этим шагом).</summary>
-    public double RepeatSeconds { get; set; } = 1;
-
-    /// <summary>Клавиша правила; null — не задана, не разобрать или её нельзя жать (<see cref="KeyStroke.Forbidden"/>).</summary>
-    [JsonIgnore]
-    public KeyStroke? Stroke => KeyStroke.TryParse(Key, out var stroke) && stroke.Forbidden is null ? stroke : null;
-
-    /// <summary>Условие для лога и окна: «всегда», «HP меньше 50 %», «лежит: Мягкий мех (до 10 м)».</summary>
-    public string DescribeCondition() => Condition switch
-    {
-        ClickerCondition.HpBelow => $"HP меньше {HpPercent} %",
-        ClickerCondition.ItemNearby when Items.Count == 0 => $"лежит любой предмет (до {ItemRadius} м)",
-        ClickerCondition.ItemNearby => $"лежит: {string.Join(", ", Items)} (до {ItemRadius} м)",
-        _ => "всегда",
-    };
-
-    /// <summary>
-    /// Значения — в допустимые пределы; клавишу, которую не разобрать или нельзя жать, — убрать (правило останется, но не
-    /// жмётся, пока не выбрать новую). Правила без клавиши не выкидываются: только что добавленное ещё не настроено.
-    /// </summary>
-    public static List<ClickerRule> Clean(IEnumerable<ClickerRule?>? rules)
-        => (rules ?? [])
-            .Where(r => r is not null)
-            .Select(r =>
-            {
-                r!.Key = r.Stroke?.ToString() ?? "";
-                r.HpPercent = Math.Min(100, Math.Max(1, r.HpPercent));
-                r.Items = MobNameFilter.Clean(r.Items);
-                r.ItemRadius = Math.Min(200, Math.Max(1, r.ItemRadius));
-                r.RepeatSeconds = double.IsNaN(r.RepeatSeconds) ? 1 : Math.Min(MaxRepeat, Math.Max(MinRepeat, r.RepeatSeconds));
-                return r;
-            })
-            .ToList();
+    private List<ClickerStep> _steps = [];
+    public List<ClickerStep> Steps { get => _steps; set => Set(ref _steps, value); }
 }
 
 /// <summary>Сохранённая точка фарма: название и где (координаты как в снимке).</summary>
