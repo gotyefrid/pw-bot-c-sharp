@@ -78,6 +78,10 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PetHungryCondition}">
+    <TextBlock Text="Выполнено, когда призванный пет голоден. Пет не призван — не выполнено." TextWrapping="Wrap"
+               Style="{StaticResource Muted}" Margin="0,0,0,6" />
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:TargetCondition}">
     <DockPanel Margin="0,0,0,6">
       <TextBlock Text="Равно" VerticalAlignment="Center" />

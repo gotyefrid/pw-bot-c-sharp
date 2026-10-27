@@ -121,6 +121,18 @@ public sealed class PetHpBelowCondition : PercentBelowCondition
         => world.Pet is { IsSummoned: true, ActiveCage: int cage } pet && pet.InCage(cage) is { } summoned ? summoned.HpPercent : null;
 }
 
+/// <summary>
+/// Призванный пет голоден — то же правило, по которому бот кормит пета сам (<see cref="PetInCage.IsHungry"/>). Уровней голода
+/// нет: что значит каждое число сытости, в игре не сверено. Пет не призван — не выполнено.
+/// </summary>
+public sealed class PetHungryCondition : ClickerCondition
+{
+    protected override string What() => "пет голоден";
+
+    protected override string? Holds(BrainContext c)
+        => c.World.Pet is { IsSummoned: true, ActiveCage: int cage } pet && pet.InCage(cage) is { IsHungry: true } ? "пет голоден" : null;
+}
+
 public enum TargetIs
 {
     /// <summary>Цели нет.</summary>
