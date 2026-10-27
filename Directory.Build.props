@@ -9,7 +9,8 @@
     <Deterministic>true</Deterministic>
     <!-- Версия продукта без «+<коммит>»: по номеру коммита находится открытый репозиторий -->
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Company></Company>
+    <!-- Поле «Компания» пустое. Пустой <Company> не годится: сборка подставит туда имя сборки -->
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <Product>Notes</Product>
   </PropertyGroup>
 
