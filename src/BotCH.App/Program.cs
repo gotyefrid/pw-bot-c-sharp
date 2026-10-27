@@ -22,12 +22,14 @@ internal static class Program
     private static void Run()
     {
         // Из одной папки — один бот: у копии свои настройки и персонажи. Второй клиент — копия папки с ботом
-        var folder = Path.GetDirectoryName(typeof(Program).Assembly.Location)!.ToLowerInvariant().Replace('\\', '/');
+        var exe = typeof(Program).Assembly.Location;
+        var folder = Path.GetDirectoryName(exe)!.ToLowerInvariant().Replace('\\', '/');
         using var single = new Mutex(initiallyOwned: false, MutexNames.For("app", folder), out var first);
         if (!first)
         {
+            // Имя exe — как у запущенного файла: его могли переименовать
             MessageBox.Show(
-                "Программа из этой папки уже запущена.\n\nДля второго клиента скопируйте папку с программой и запустите Notes.exe из копии — у неё будут свои настройки.",
+                $"Программа из этой папки уже запущена.\n\nДля второго клиента скопируйте папку с программой и запустите {Path.GetFileName(exe)} из копии — у неё будут свои настройки.",
                 "Заметки", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
