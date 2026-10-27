@@ -26,6 +26,12 @@
                    Placeholder="Ближайший любой" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
                    ToolTip="Какие предметы поднимать: названия или группы, как у лута. Ничего не выбрано — ближайший любой предмет или монеты. Как далеко — задайте условием «Рядом лежит предмет»" />
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:GatherResourceAction}">
+    <app:TagPicker Margin="0,0,0,6" Selected="{Binding Resources}"
+                   Options="{Binding DataContext.Choices.Resources, RelativeSource={RelativeSource AncestorType=Window}}"
+                   Placeholder="Ближайший любой" EmptyOptionsText="Рядом копать нечего, и в блокноте ресурсов пусто"
+                   ToolTip="Что копать: ресурсы и «нересурсы» (квестовые, ящики) — бот не проверяет кирку, уровень и квест, нельзя — откажет игра. Ничего не выбрано — ближайшее, что копается. Как далеко — задайте условием «Рядом можно копать»" />
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />

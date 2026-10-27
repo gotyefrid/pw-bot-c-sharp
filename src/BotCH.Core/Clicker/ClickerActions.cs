@@ -148,6 +148,47 @@ public sealed class PickUpItemAction : ConfirmableAction
 }
 
 /// <summary>
+/// Копать ближайшее из <see cref="Resources"/> (пусто — что угодно копаемое) — «как мышкой» (<see cref="GatherAction"/>): подбежит
+/// и накопает игра сама. Ресурсы и «нересурсы» (квестовые, ящики) — без проверки кирки, уровня и квеста: что выбрано, то и
+/// копает, нельзя — откажет игра. Подтверждение — в сумке прибавилось или ресурс пропал с земли. Копать нечего — сделано, без
+/// предупреждения. Радиуса нет: как далеко — задаёт условие «Рядом можно копать».
+/// </summary>
+public sealed class GatherResourceAction : ConfirmableAction
+{
+    private ObservableCollection<string> _resources = [];
+
+    public GatherResourceAction() => _resources.CollectionChanged += ResourcesChanged;
+
+    /// <summary>Названия ресурсов. Меняют на месте (выбор в окне) — о правке говорит сам.</summary>
+    public ObservableCollection<string> Resources
+    {
+        get => _resources;
+        set
+        {
+            _resources.CollectionChanged -= ResourcesChanged;
+            _resources = value ?? [];
+            _resources.CollectionChanged += ResourcesChanged;
+            Changed(nameof(Resources));
+        }
+    }
+
+    private void ResourcesChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Resources));
+
+    protected override string What() => Resources.Count == 0 ? "копать ближайший ресурс" : $"копать: {string.Join(", ", Resources)}";
+
+    public override IClickerRun Start(BrainContext c)
+        => GroundItemChoice.NearestResource(c.World, Resources) is { } resource
+            ? Send(new GatherAction(resource))
+            : ClickerRuns.Skipped("копать нечего");
+
+    public override void Normalize()
+    {
+        if (!Resources.SequenceEqual(MobNameFilter.Clean(Resources)))
+            Resources = new ObservableCollection<string>(MobNameFilter.Clean(Resources));
+    }
+}
+
+/// <summary>
 /// Действие вида, которого эта версия бота не знает (файл от более новой копии): не выполняется, но и не теряется — в файл
 /// пишется как было (<see cref="Fields"/>).
 /// </summary>
