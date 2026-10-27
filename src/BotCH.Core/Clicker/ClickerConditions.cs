@@ -152,7 +152,7 @@ public sealed class TargetCondition : ClickerCondition
 
 /// <summary>
 /// Рядом с персонажем (не дальше <see cref="Radius"/>) лежит предмет из <see cref="Items"/> — название или группа, как у лута;
-/// список пуст — любой предмет или монеты. Ресурсы не в счёт: их копают, а не подбирают.
+/// список пуст — любой предмет или монеты (<see cref="GroundItemChoice"/>).
 /// </summary>
 public sealed class ItemNearbyCondition : ClickerCondition
 {
@@ -184,21 +184,13 @@ public sealed class ItemNearbyCondition : ClickerCondition
 
     protected override string? Holds(BrainContext c)
     {
-        var item = Find(c.World);
+        var item = GroundItemChoice.Nearest(c.World, Items, Radius);
         return item is null ? null : $"лежит «{item.Name}» в {item.Offset}";
     }
 
-    /// <summary>Ближайший подходящий предмет; null — нет.</summary>
-    public GroundItem? Find(WorldState world)
-        => world.GroundItems
-            .Where(i => i.Kind != GroundItemKind.Resource && i.Offset.Direct <= Radius)
-            .Where(i => Items.Count == 0 || MobNameFilter.Contains(Items, i.Name) || MobNameFilter.Contains(Items, i.Group))
-            .OrderBy(i => i.Offset.Direct)
-            .FirstOrDefault();
-
     public override void Normalize()
     {
-        Radius = Math.Min(200, Math.Max(1, Radius));
+        Radius = GroundItemChoice.CleanRadius(Radius);
         if (!Items.SequenceEqual(MobNameFilter.Clean(Items)))
             Items = new ObservableCollection<string>(MobNameFilter.Clean(Items));
     }
