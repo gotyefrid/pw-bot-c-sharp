@@ -35,6 +35,7 @@ public sealed class FarmPanel : ObservableObject
 
     // Всё, что бот видел за сессию: можно выбрать моба, который сейчас ушёл из виду
     private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, NameCount> _seenTargets = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
     // Одна картинка окна на иконку: список скиллов пересобирается, только когда что-то в нём правда поменялось
     private readonly Dictionary<IconImage, ImageSource> _icons = new();
@@ -117,6 +118,10 @@ public sealed class FarmPanel : ObservableObject
     public Func<IReadOnlyList<PickOption>> MobOptions
         => () => PickLists.Options(_world() is { } w ? NearbyNames.Mobs(w) : [], _seenMobs.Values);
 
+    /// <summary>Кого можно взять в цель (мобы, NPC, чужие петы) — для кликера.</summary>
+    public Func<IReadOnlyList<PickOption>> TargetOptions
+        => () => PickLists.Options(_world() is { } w ? NearbyNames.Targets(w) : [], _seenTargets.Values);
+
     public Func<IReadOnlyList<PickOption>> LootOptions
         => () => PickLists.Options(_world() is { } w ? NearbyNames.GroundItems(w) : [], _seenItems.Select(n => new NameCount(n, 0, 0)),
             _profile().Data.LootGroups.Select(g => g.Name));
@@ -189,15 +194,18 @@ public sealed class FarmPanel : ObservableObject
     public void Observe(WorldState w)
     {
         foreach (var kind in NearbyNames.Mobs(w))
-        {
-            // Уровни вида копятся за сессию: «Волк (ур. 10–12)», даже если сейчас рядом только один
-            _seenMobs[kind.Name] = _seenMobs.TryGetValue(kind.Name, out var seen) && seen.MaxLevel > 0
-                ? kind with { MinLevel = Math.Min(seen.MinLevel, kind.MinLevel), MaxLevel = Math.Max(seen.MaxLevel, kind.MaxLevel) }
-                : kind;
-        }
+            Remember(_seenMobs, kind);
+        foreach (var kind in NearbyNames.Targets(w))
+            Remember(_seenTargets, kind);
         foreach (var item in w.GroundItems.Where(NearbyNames.IsLootItem))
             _seenItems.Add(item.Name.Trim());
     }
+
+    // Уровни вида копятся за сессию: «Волк (ур. 10–12)», даже если сейчас рядом только один
+    private static void Remember(Dictionary<string, NameCount> seen, NameCount kind)
+        => seen[kind.Name] = seen.TryGetValue(kind.Name, out var before) && before.MaxLevel > 0
+            ? kind with { MinLevel = Math.Min(before.MinLevel, kind.MinLevel), MaxLevel = Math.Max(before.MaxLevel, kind.MaxLevel) }
+            : kind;
 
     /// <summary>После смены персонажа (если была) — его скиллы и расстояние до его точки.</summary>
     public void ShowFor(WorldState w)

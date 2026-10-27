@@ -189,6 +189,52 @@ public sealed class GatherResourceAction : ConfirmableAction
 }
 
 /// <summary>
+/// Взять в цель ближайшего из <see cref="Targets"/> (пусто — кого угодно: моба, NPC, чужого пета) — как кликом
+/// (<see cref="SelectTargetAction"/>). Ближайший уже в цели — в игру ничего не шлёт; взять некого — сделано, без предупреждения.
+/// В цели другой, а подходящий ближе — переключит: чтобы не сбивать взятую цель, шагу ставят условие «цели нет».
+/// Подтверждение — в цели тот, кого брали. Радиуса нет: как далеко — задаёт условие «Рядом можно взять цель».
+/// </summary>
+public sealed class TakeTargetAction : ConfirmableAction
+{
+    private ObservableCollection<string> _targets = [];
+
+    public TakeTargetAction() => _targets.CollectionChanged += TargetsChanged;
+
+    /// <summary>Названия мобов, NPC, петов. Меняют на месте (выбор в окне) — о правке говорит сам.</summary>
+    public ObservableCollection<string> Targets
+    {
+        get => _targets;
+        set
+        {
+            _targets.CollectionChanged -= TargetsChanged;
+            _targets = value ?? [];
+            _targets.CollectionChanged += TargetsChanged;
+            Changed(nameof(Targets));
+        }
+    }
+
+    private void TargetsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Targets));
+
+    protected override string What() => Targets.Count == 0 ? "взять ближайшую цель" : $"взять в цель: {string.Join(", ", Targets)}";
+
+    public override IClickerRun Start(BrainContext c)
+    {
+        if (TargetChoice.Nearest(c.World, Targets) is not { } target)
+            return ClickerRuns.Skipped("взять в цель некого");
+
+        return c.World.Host.TargetWid == target.Wid
+            ? ClickerRuns.Skipped($"«{target.Name}» уже в цели")
+            : Send(new SelectTargetAction(target));
+    }
+
+    public override void Normalize()
+    {
+        if (!Targets.SequenceEqual(MobNameFilter.Clean(Targets)))
+            Targets = new ObservableCollection<string>(MobNameFilter.Clean(Targets));
+    }
+}
+
+/// <summary>
 /// Действие вида, которого эта версия бота не знает (файл от более новой копии): не выполняется, но и не теряется — в файл
 /// пишется как было (<see cref="Fields"/>).
 /// </summary>

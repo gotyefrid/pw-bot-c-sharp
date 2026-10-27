@@ -32,6 +32,12 @@
                    Placeholder="Ближайший любой" EmptyOptionsText="Рядом копать нечего, и в блокноте ресурсов пусто"
                    ToolTip="Что копать: ресурсы и «нересурсы» (квестовые, ящики) — бот не проверяет кирку, уровень и квест, нельзя — откажет игра. Ничего не выбрано — ближайшее, что копается. Как далеко — задайте условием «Рядом можно копать»" />
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:TakeTargetAction}">
+    <app:TagPicker Margin="0,0,0,6" Selected="{Binding Targets}"
+                   Options="{Binding DataContext.Choices.Targets, RelativeSource={RelativeSource AncestorType=Window}}"
+                   Placeholder="Ближайшая любая" EmptyOptionsText="Рядом никого, и раньше никто не встречался"
+                   ToolTip="Кого брать в цель: мобы, NPC, чужие петы. Ничего не выбрано — ближайшего любого (свой пет — никогда). В цели другой, а выбранный ближе — цель сменится; чтобы не сбивать взятую, добавьте условие «Цели нет». Как далеко — задайте условием «Рядом можно взять цель»" />
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />
