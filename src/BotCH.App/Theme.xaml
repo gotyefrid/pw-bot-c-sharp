@@ -155,6 +155,35 @@
   </Style>
 
   <!-- Переключатель вкладок «Бот | Настройки» -->
+  <!-- Плоская маленькая кнопка в заголовке карточки: текст цветом акцента, фон — только под мышью -->
+  <Style x:Key="FlatButton" TargetType="Button">
+    <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="FontSize" Value="11.5" />
+    <Setter Property="Foreground" Value="{StaticResource Accent}" />
+    <Setter Property="Padding" Value="8,2" />
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="Button">
+          <Border x:Name="Body" CornerRadius="5" Background="Transparent" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Body" Property="Background" Value="{StaticResource Track}" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Body" Property="Background" Value="#E1E5EE" />
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+              <Setter TargetName="Body" Property="Opacity" Value="0.6" />
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
   <Style x:Key="Segment" TargetType="RadioButton">
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="FontWeight" Value="SemiBold" />

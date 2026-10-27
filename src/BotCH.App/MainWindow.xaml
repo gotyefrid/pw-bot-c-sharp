@@ -281,7 +281,15 @@
                   Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=4}">
       <Border Style="{StaticResource Card}">
         <StackPanel>
-          <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
+          <DockPanel Margin="0,0,0,8">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+              <Button Style="{StaticResource FlatButton}" Content="Экспорт" Command="{Binding Clicker.ExportCommand}"
+                      ToolTip="Сохранить сценарий в отдельный файл — чтобы не потерять, перенести на другого персонажа или переслать" />
+              <Button Style="{StaticResource FlatButton}" Content="Импорт" Margin="2,0,0,0" Command="{Binding Clicker.ImportCommand}"
+                      ToolTip="Загрузить сценарий из файла — вместо текущего (бот сначала спросит)" />
+            </StackPanel>
+            <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" Margin="0" VerticalAlignment="Center" />
+          </DockPanel>
           <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
                      Text="Бот выполняет шаги сверху вниз, после последнего — снова первый. Условие шага не выполнено — шаг пропускается. Паузы между шагами ставьте сами — шагом «Пауза». Двойной щелчок по шагу — его настройки, Delete — удалить." />
           <ListView Height="250" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="EditClickerStep" KeyDown="ClickerStepKey" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
@@ -312,12 +320,6 @@
             <Button Style="{StaticResource ButtonBase}" Content="Добавить" HorizontalAlignment="Left"
                     Command="{Binding Clicker.AddCommand}" ToolTip="Новый шаг в конец сценария — сразу откроются его настройки" />
           </DockPanel>
-          <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-            <Button Style="{StaticResource ButtonBase}" Content="Экспорт в файл" Command="{Binding Clicker.ExportCommand}"
-                    ToolTip="Сохранить сценарий в отдельный файл — чтобы не потерять, перенести на другого персонажа или переслать" />
-            <Button Style="{StaticResource ButtonBase}" Content="Импорт из файла" Margin="6,0,0,0" Command="{Binding Clicker.ImportCommand}"
-                    ToolTip="Загрузить сценарий из файла — вместо текущего (бот сначала спросит)" />
-          </StackPanel>
         </StackPanel>
       </Border>
     </ScrollViewer>
