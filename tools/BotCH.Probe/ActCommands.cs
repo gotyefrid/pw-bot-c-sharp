@@ -89,10 +89,16 @@ internal static class ActCommands
         }
 
         var watch = Stopwatch.StartNew();
+        var seen = Seen(action, world);
+        Console.WriteLine($"  {0.0,5:0.0} с  {seen}");
         while (watch.Elapsed < action.Timeout + TimeSpan.FromSeconds(1))
         {
             Thread.Sleep(200);
-            var outcome = runner.Update(reader.Read()).FirstOrDefault();
+            var now = reader.Read();
+            if (Seen(action, now) is var next && next != seen)
+                Console.WriteLine($"  {watch.Elapsed.TotalSeconds,5:0.0} с  {seen = next}");
+
+            var outcome = runner.Update(now).FirstOrDefault();
             if (outcome is null)
                 continue;
 
@@ -103,6 +109,24 @@ internal static class ActCommands
 
         Console.WriteLine("❌ нет ответа");
         return 4;
+    }
+
+    // Что видно по ходу действия — печатается при каждой перемене: каст; у воскрешения ещё скилл и пет в клетке
+    private static string Seen(GameAction action, WorldState w)
+    {
+        var host = w.Host;
+        var cast = $"каст {(host.IsCasting ? "да" : "нет")}{(host.CastingSkillId is int id and not 0 ? $" ({id})" : "")}";
+        if (action is not RevivePetAction revive)
+            return cast;
+
+        var skill = w.Skill(revive.CastsSkill) switch
+        {
+            null => "не изучен",
+            { IsReady: true } => "готов",
+            var s => $"перезарядка из {s.CooldownFullMs / 1000.0:0.#} с",
+        };
+        var pet = w.Pet?.InCage(revive.Cage) is { } p ? $"HP {p.HpRatio * 100:0.#} %" : "нет";
+        return $"{cast}; скилл {skill}; пет в клетке {revive.Cage}: {pet}{(w.Pet is { IsSummoned: true } ? ", призван" : "")}";
     }
 
     private static GameAction? Build(string name, string[] args, WorldState w, ProfileData data, out string problem)
