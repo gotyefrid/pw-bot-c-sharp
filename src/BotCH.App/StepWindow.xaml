@@ -40,6 +40,17 @@
         <Grid />
       </DockPanel>
     </DataTemplate>
+    <DataTemplate DataType="{x:Type clicker:TargetCondition}">
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Равно" VerticalAlignment="Center" />
+        <ComboBox DockPanel.Dock="Right" Width="200" SelectedValuePath="Tag" SelectedValue="{Binding Is}"
+                  ToolTip="Цель — кто угодно в таргете: моб, игрок, NPC">
+          <ComboBoxItem Content="Цели нет" Tag="{x:Static clicker:TargetIs.None}" />
+          <ComboBoxItem Content="Цель есть" Tag="{x:Static clicker:TargetIs.Any}" />
+        </ComboBox>
+        <Grid />
+      </DockPanel>
+    </DataTemplate>
     <DataTemplate DataType="{x:Type clicker:ItemNearbyCondition}">
       <StackPanel>
         <DockPanel Margin="0,0,0,6">

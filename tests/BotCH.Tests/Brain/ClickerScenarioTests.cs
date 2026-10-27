@@ -119,6 +119,24 @@ public class ClickerScenarioTests
     }
 
     [Fact]
+    public void TargetConditionSeesAnyTarget()
+    {
+        // «Цели нет» — взять в таргет (Tab), «цель есть» — бить (1); цель — кто угодно, даже не из списка мобов рядом
+        Key("Tab", new TargetCondition { Is = TargetIs.None });
+        Key("1", new TargetCondition { Is = TargetIs.Any });
+        var bot = Start();
+
+        Assert.Equal(["key Tab"], Run(bot, 1));
+
+        _world.TargetWid = _world.AddMob(0x80104298, "Волк", 10).Wid;
+        Assert.Equal(["key 1"], Run(bot, 1));
+        Assert.Contains(_log, e => e.Message.Contains("цель — Волк"));
+
+        _world.TargetWid = 0x00AB0001;
+        Assert.Equal(["key 1"], Run(bot, 1));
+    }
+
+    [Fact]
     public void ItemConditionLooksAtNamesGroupsAndRadius()
     {
         Key("4", new ItemNearbyCondition { Items = ["Мягкий мех", "Банки"], Radius = 10 });

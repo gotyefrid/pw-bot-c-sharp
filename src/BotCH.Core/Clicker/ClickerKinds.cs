@@ -49,5 +49,6 @@ public static class ClickerKinds
     public static ClickerKindList<ClickerCondition> Conditions { get; } = new ClickerKindList<ClickerCondition>()
         .Add<AlwaysCondition>("Always", "Всегда")
         .Add<HpBelowCondition>("HpBelow", "HP персонажа меньше, %")
+        .Add<TargetCondition>("Target", "Цель персонажа")
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет");
 }

@@ -14,7 +14,7 @@ public class ClickerSettingsTests
     {
         var s = new BotSettings();
         s.Clicker.Steps.Add(new ClickerStep { Action = new PressKeyAction { Key = "F1" }, Condition = new HpBelowCondition { Percent = 40 } });
-        s.Clicker.Steps.Add(new ClickerStep { Action = new PauseAction { Milliseconds = 2500 } });
+        s.Clicker.Steps.Add(new ClickerStep { Action = new PauseAction { Milliseconds = 2500 }, Condition = new TargetCondition { Is = TargetIs.Any } });
         s.Clicker.Steps.Add(new ClickerStep
         {
             Action = new PressKeyAction { Key = "Ctrl+2" },
@@ -29,7 +29,8 @@ public class ClickerSettingsTests
         Assert.Equal(3, steps.Count);
         Assert.Equal(("F1", 40), (Assert.IsType<PressKeyAction>(steps[0].Action).Key, Assert.IsType<HpBelowCondition>(steps[0].Condition).Percent));
         Assert.Equal(2500, Assert.IsType<PauseAction>(steps[1].Action).Milliseconds);
-        Assert.IsType<AlwaysCondition>(steps[1].Condition);
+        Assert.Equal(TargetIs.Any, Assert.IsType<TargetCondition>(steps[1].Condition).Is);
+        Assert.Contains("\"is\": \"Any\"", json);
         var items = Assert.IsType<ItemNearbyCondition>(steps[2].Condition);
         Assert.Equal(8, items.Radius);
         Assert.Equal(["Мягкий мех", "Банки"], items.Items);
@@ -130,6 +131,8 @@ public class ClickerSettingsTests
         Assert.Equal("пауза 500 мс", new PauseAction { Milliseconds = 500 }.Describe());
         Assert.Equal("всегда", new AlwaysCondition().Describe());
         Assert.Equal("HP меньше 30 %", new HpBelowCondition { Percent = 30 }.Describe());
+        Assert.Equal("цели нет", new TargetCondition().Describe());
+        Assert.Equal("цель есть", new TargetCondition { Is = TargetIs.Any }.Describe());
         Assert.Equal("лежит любой предмет (до 10 м)", new ItemNearbyCondition().Describe());
         Assert.Equal("лежит: Мех, Банки (до 5 м)", new ItemNearbyCondition { Items = ["Мех", "Банки"], Radius = 5 }.Describe());
     }

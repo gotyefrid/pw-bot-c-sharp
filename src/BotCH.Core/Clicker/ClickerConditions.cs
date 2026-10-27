@@ -60,6 +60,34 @@ public sealed class HpBelowCondition : ClickerCondition
     public override void Normalize() => Percent = Math.Min(100, Math.Max(1, Percent));
 }
 
+public enum TargetIs
+{
+    /// <summary>Цели нет.</summary>
+    None,
+    /// <summary>Цель есть — кто угодно: моб, игрок, NPC.</summary>
+    Any,
+}
+
+/// <summary>Цель персонажа: нет её или есть (<see cref="TargetIs"/>).</summary>
+public sealed class TargetCondition : ClickerCondition
+{
+    private TargetIs _is;
+
+    public TargetIs Is { get => _is; set => Set(ref _is, value); }
+
+    public override string Describe() => Is == TargetIs.None ? "цели нет" : "цель есть";
+
+    public override string? Check(BrainContext c)
+    {
+        var has = c.World.Host.TargetWid != 0;
+        return Is switch
+        {
+            TargetIs.None => has ? null : "цели нет",
+            _ => has ? $"цель — {c.World.Target?.Name ?? "есть"}" : null,
+        };
+    }
+}
+
 /// <summary>
 /// Рядом с персонажем (не дальше <see cref="Radius"/>) лежит предмет из <see cref="Items"/> — название или группа, как у лута;
 /// список пуст — любой предмет или монеты. Ресурсы не в счёт: их копают, а не подбирают.
