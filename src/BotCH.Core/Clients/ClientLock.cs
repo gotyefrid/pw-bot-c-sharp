@@ -13,7 +13,7 @@ public sealed class ClientLock : IDisposable
 
     private ClientLock(Mutex mark) => _mark = mark;
 
-    private static string NameFor(int pid) => $@"Local\BotCH-client-{pid}";
+    private static string NameFor(int pid) => MutexNames.For("client", pid.ToString());
 
     /// <summary>Занять клиент; null — его уже занимает другое окно BotCH.</summary>
     public static ClientLock? TryTake(int pid)

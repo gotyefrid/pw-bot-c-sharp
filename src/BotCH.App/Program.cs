@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows;
+using BotCH.Core.Clients;
 
 namespace BotCH.App;
 
@@ -22,7 +23,7 @@ internal static class Program
     {
         // Из одной папки — один бот: у копии свои настройки и персонажи. Второй клиент — копия папки с ботом
         var folder = Path.GetDirectoryName(typeof(Program).Assembly.Location)!.ToLowerInvariant().Replace('\\', '/');
-        using var single = new Mutex(initiallyOwned: false, @"Local\BotCH-app-" + folder, out var first);
+        using var single = new Mutex(initiallyOwned: false, MutexNames.For("app", folder), out var first);
         if (!first)
         {
             MessageBox.Show(
