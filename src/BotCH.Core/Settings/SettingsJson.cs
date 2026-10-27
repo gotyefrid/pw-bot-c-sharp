@@ -27,4 +27,10 @@ public static class SettingsJson
         => (JsonConvert.DeserializeObject<BotSettings>(json, Options) ?? new BotSettings()).Normalize();
 
     public static string Serialize(BotSettings settings) => JsonConvert.SerializeObject(settings, Options);
+
+    /// <summary>Часть настроек в своём файле (сценарий кликера) — по тем же правилам, что весь файл.</summary>
+    public static string SerializePart(SettingsPart part) => JsonConvert.SerializeObject(part, Options);
+
+    /// <summary>Часть настроек из своего файла — без <see cref="BotSettings.Normalize"/>: значения в пределы приводит тот, кто читает.</summary>
+    public static T? ParsePart<T>(string json) where T : SettingsPart => JsonConvert.DeserializeObject<T>(json, Options);
 }
