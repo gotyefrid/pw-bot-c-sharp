@@ -118,7 +118,8 @@ public sealed class FarmPanel : ObservableObject
         => () => PickLists.Options(_world() is { } w ? NearbyNames.Mobs(w) : [], _seenMobs.Values);
 
     public Func<IReadOnlyList<PickOption>> LootOptions
-        => () => PickLists.Options(_world() is { } w ? NearbyNames.GroundItems(w) : [], _seenItems.Select(n => new NameCount(n, 0, 0)));
+        => () => PickLists.Options(_world() is { } w ? NearbyNames.GroundItems(w) : [], _seenItems.Select(n => new NameCount(n, 0, 0)),
+            _profile().Data.LootGroups.Select(g => g.Name));
 
     // ── Центр фарма ──────────────────────────────────────────────────────────
 
