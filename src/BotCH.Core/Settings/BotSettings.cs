@@ -442,7 +442,7 @@ public sealed class PetSettings : SettingsPart
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>
 public static class LootFilter
 {
-    /// <param name="group">Группа лута предмета («ДК: Цю Ню (20)»): в списке может стоять она вместо названия.</param>
+    /// <param name="group">Группа лута предмета («Предметы ДК»): в списке может стоять она вместо названия.</param>
     public static bool Allows(LootSettings loot, GroundItemKind kind, string? name, string? group = null)
     {
         // Ресурс копается, а не подбирается — подбором никогда (см. AllowsGather)

@@ -264,7 +264,7 @@ public sealed record GroundItem(uint Address, uint Id, uint Tid, GroundItemKind 
     /// <summary>Для ресурса — его запись в справочнике игры; null — не ресурс или запись не найдена для сервера.</summary>
     public MineInfo? Mine { get; init; }
 
-    /// <summary>Группа лута из профиля («ДК: Цю Ню (20)») по подтипу материала; null — не материал из групп.</summary>
+    /// <summary>Группа лута из профиля («Предметы ДК») по типу материала; null — не материал из групп.</summary>
     public string? Group { get; init; }
 
     /// <summary>

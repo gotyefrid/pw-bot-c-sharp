@@ -288,7 +288,7 @@ public sealed class WorldReader
         return mine;
     }
 
-    // Группа лута — по подтипу из записи материала; запись не меняется, пока клиент запущен, — по tid читаем один раз
+    // Группа лута — по типу из записи материала; запись не меняется, пока клиент запущен, — по tid читаем один раз
     private string? ReadGroup(uint tid, uint namePointer)
     {
         var m = _p.MaterialEssence;
@@ -298,11 +298,11 @@ public sealed class WorldReader
             return known;
 
         var record = namePointer - m.NameInRecord;
-        if (!_memory.TryReadUInt32(record + m.Id, out var id) || !_memory.TryReadUInt32(record + m.SubType, out var subType))
+        if (!_memory.TryReadUInt32(record + m.Id, out var id) || !_memory.TryReadUInt32(record + m.Type, out var type))
             return null;
 
         // Не материал (оружие, патроны) — запись другая, tid на месте не совпадёт
-        var group = id == tid ? _p.LootGroups.FirstOrDefault(g => g.SubType == subType)?.Name : null;
+        var group = id == tid ? _p.LootGroups.FirstOrDefault(g => g.Type == type)?.Name : null;
         _groups[tid] = group;
         return group;
     }

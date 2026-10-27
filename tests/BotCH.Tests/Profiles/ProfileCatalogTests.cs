@@ -62,7 +62,7 @@ public class ProfileCatalogTests
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>(), c => Assert.Null(profile.Capabilities.WhyNot(c)));
         // Группы лута — данные игры, одни на всех; их названия хранятся в настройках персонажа
         Assert.NotEmpty(profile.Data.LootGroups);
-        Assert.Equal(_catalog.Load("comeback136").Data.LootGroups.Select(g => (g.SubType, g.Name)), profile.Data.LootGroups.Select(g => (g.SubType, g.Name)));
+        Assert.Equal(_catalog.Load("comeback136").Data.LootGroups.Select(g => (g.Type, g.Name)), profile.Data.LootGroups.Select(g => (g.Type, g.Name)));
     }
 
     [Fact]

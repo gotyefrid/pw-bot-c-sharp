@@ -22,7 +22,7 @@ public sealed class ProfileData
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
     public MaterialEssenceOffsets MaterialEssence { get; init; } = new();
-    /// <summary>Группы лута — подтипы материалов (предметы ДК по уровням): в списке лута выбираются вместо названий. Пусто — групп нет.</summary>
+    /// <summary>Группы лута — типы материалов («Предметы ДК»): в списке лута выбираются вместо названий. Пусто — групп нет.</summary>
     public List<LootGroup> LootGroups { get; init; } = new();
     public MonsterEssenceOffsets MonsterEssence { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
@@ -288,14 +288,14 @@ public sealed class MaterialEssenceOffsets
     public uint NameInRecord { get; init; }
     /// <summary>tid материала — для проверки, что это запись материала: у оружия, патронов запись другая.</summary>
     public uint Id { get; init; }
-    /// <summary>Подтип («Особые товары ур.2») — по нему группа лута.</summary>
-    public uint SubType { get; init; }
+    /// <summary>Тип материала (у предметов ДК всех уровней — один) — по нему группа лута.</summary>
+    public uint Type { get; init; }
 }
 
-/// <summary>Группа лута: все материалы подтипа <see cref="SubType"/> под одним названием в списке лута.</summary>
+/// <summary>Группа лута: все материалы типа <see cref="Type"/> под одним названием в списке лута.</summary>
 public sealed class LootGroup
 {
-    public uint SubType { get; init; }
+    public uint Type { get; init; }
     public string Name { get; init; } = "";
 }
 
