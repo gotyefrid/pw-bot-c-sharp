@@ -47,7 +47,7 @@ public sealed class ClickerBehavior : IBehavior
 
             if (_pressed.TryGetValue(i, out var last) && c.Now - last < TimeSpan.FromSeconds(rule.RepeatSeconds))
             {
-                waiting ??= $"{key}: {why}";
+                waiting ??= $"жму {key}: {why}";
                 continue;
             }
 
@@ -68,7 +68,8 @@ public sealed class ClickerBehavior : IBehavior
             return true;
 
         c.Log.Debug($"Кликер: {stroke} — {pressWhy}");
-        Status = $"нажал {stroke}: {pressWhy}";
+        // Тот же вид, что и между нажатиями, — строка в окне не мигает 4 раза в секунду
+        Status = $"жму {stroke}: {pressWhy}";
         return true;
     }
 
