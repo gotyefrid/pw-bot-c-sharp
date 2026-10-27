@@ -9,7 +9,7 @@ namespace BotCH.App.Panels;
 /// Окно одного условия кликера (<see cref="ConditionWindow"/>): его вид, поля и «НЕ». Сменили вид — в списке на его месте
 /// новое условие с полями по умолчанию, «НЕ» остаётся.
 /// </summary>
-public sealed class ConditionSlot(ConditionList list, ClickerCondition condition, Func<IReadOnlyList<PickOption>>? lootOptions)
+public sealed class ConditionSlot(ConditionList list, ClickerCondition condition, ClickerChoices? choices)
     : ObservableObject
 {
     private ClickerCondition _condition = condition;
@@ -19,8 +19,8 @@ public sealed class ConditionSlot(ConditionList list, ClickerCondition condition
     /// <summary>Виды условий — для выбора с поиском (привязка окна видит только свойства экземпляра).</summary>
     public IReadOnlyList<PickOption> Kinds => AllKinds;
 
-    /// <summary>Варианты предметов — для условия «рядом лежит предмет».</summary>
-    public Func<IReadOnlyList<PickOption>>? LootOptions { get; } = lootOptions;
+    /// <summary>Варианты для выбора в полях условия.</summary>
+    public ClickerChoices? Choices { get; } = choices;
 
     /// <summary>Условие — его поля показывает шаблон окна для его класса.</summary>
     public ClickerCondition Condition => _condition;

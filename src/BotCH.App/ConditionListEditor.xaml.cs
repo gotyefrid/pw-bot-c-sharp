@@ -18,8 +18,8 @@ public partial class ConditionListEditor : UserControl
     public static readonly DependencyProperty ConditionsProperty = DependencyProperty.Register(
         nameof(Conditions), typeof(ConditionList), typeof(ConditionListEditor), new PropertyMetadata(null, OnConditionsChanged));
 
-    public static readonly DependencyProperty LootOptionsProperty = DependencyProperty.Register(
-        nameof(LootOptions), typeof(Func<IReadOnlyList<PickOption>>), typeof(ConditionListEditor));
+    public static readonly DependencyProperty ChoicesProperty = DependencyProperty.Register(
+        nameof(Choices), typeof(ClickerChoices), typeof(ConditionListEditor));
 
     public static readonly DependencyProperty EmptyTextProperty = DependencyProperty.Register(
         nameof(EmptyText), typeof(string), typeof(ConditionListEditor), new PropertyMetadata(""));
@@ -32,11 +32,11 @@ public partial class ConditionListEditor : UserControl
         set => SetValue(ConditionsProperty, value);
     }
 
-    /// <summary>Варианты предметов — для условия «рядом лежит предмет» в окне условия.</summary>
-    public Func<IReadOnlyList<PickOption>>? LootOptions
+    /// <summary>Варианты для выбора в окне условия (предметы…).</summary>
+    public ClickerChoices? Choices
     {
-        get => (Func<IReadOnlyList<PickOption>>?)GetValue(LootOptionsProperty);
-        set => SetValue(LootOptionsProperty, value);
+        get => (ClickerChoices?)GetValue(ChoicesProperty);
+        set => SetValue(ChoicesProperty, value);
     }
 
     /// <summary>Что написать, когда условий нет («шаг выполняется всегда»).</summary>
@@ -109,7 +109,7 @@ public partial class ConditionListEditor : UserControl
         new ConditionWindow
         {
             Owner = Window.GetWindow(this),
-            DataContext = new ConditionSlot(conditions, condition, LootOptions),
+            DataContext = new ConditionSlot(conditions, condition, Choices),
         }.ShowDialog();
     }
 }

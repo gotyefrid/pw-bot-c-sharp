@@ -26,13 +26,13 @@ public sealed class ClickerPanel : ObservableObject
 
     /// <param name="settings">Настройки текущего персонажа (меняются при смене персонажа).</param>
     /// <param name="current">Номер шага, который бот выполняет сейчас; null — бот не работает.</param>
-    /// <param name="lootOptions">Варианты предметов (рядом, встречались, группы) — как у лута.</param>
+    /// <param name="choices">Варианты для выбора в окнах шага и условий (предметы…).</param>
     /// <param name="edited">Правка настроек из этой вкладки.</param>
-    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, Func<IReadOnlyList<PickOption>> lootOptions, Action edited)
+    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, ClickerChoices choices, Action edited)
     {
         _settings = settings;
         _current = current;
-        LootOptions = lootOptions;
+        Choices = choices;
         _edited = edited;
         AddCommand = new RelayCommand(Add);
         RemoveCommand = new RelayCommand(Remove, () => Selected is not null);
@@ -45,8 +45,8 @@ public sealed class ClickerPanel : ObservableObject
     /// <summary>Виды действий — для выбора с поиском.</summary>
     public IReadOnlyList<PickOption> ActionKinds { get; } = PickLists.Kinds(ClickerKinds.Actions);
 
-    /// <summary>Варианты для условия «рядом лежит предмет».</summary>
-    public Func<IReadOnlyList<PickOption>> LootOptions { get; }
+    /// <summary>Варианты для выбора в окнах шага и условий.</summary>
+    public ClickerChoices Choices { get; }
 
     /// <summary>Открыть окно выбранного шага (двойной щелчок, новый шаг). Окно открывает вид.</summary>
     public event Action? EditRequested;

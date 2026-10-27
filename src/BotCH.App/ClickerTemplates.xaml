@@ -3,7 +3,7 @@
                     xmlns:app="clr-namespace:BotCH.App"
                     xmlns:clicker="clr-namespace:BotCH.Core.Clicker;assembly=BotCH.Core">
   <!-- Кликер: поля каждого вида действия и условия — по классу. Новый вид — ещё один шаблон здесь. Окна, где они нужны
-       (шаг, условие), подключают этот словарь; у их DataContext есть LootOptions — варианты предметов -->
+       (шаг, условие), подключают этот словарь; у их DataContext есть Choices — варианты для выбора (ClickerChoices) -->
   <DataTemplate DataType="{x:Type clicker:PressKeyAction}">
     <DockPanel Margin="0,0,0,6">
       <TextBlock Text="Клавиша" VerticalAlignment="Center" />
@@ -22,7 +22,7 @@
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:PickUpItemAction}">
     <app:TagPicker Margin="0,0,0,6" Selected="{Binding Items}"
-                   Options="{Binding DataContext.LootOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                   Options="{Binding DataContext.Choices.Loot, RelativeSource={RelativeSource AncestorType=Window}}"
                    Placeholder="Ближайший любой" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
                    ToolTip="Какие предметы поднимать: названия или группы, как у лута. Ничего не выбрано — ближайший любой предмет или монеты. Как далеко — задайте условием «Рядом лежит предмет»" />
   </DataTemplate>
@@ -77,7 +77,7 @@
         <Grid />
       </DockPanel>
       <app:TagPicker Margin="0,0,0,6" Selected="{Binding Items}"
-                     Options="{Binding DataContext.LootOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                     Options="{Binding DataContext.Choices.Loot, RelativeSource={RelativeSource AncestorType=Window}}"
                      Placeholder="Любой предмет" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
                      ToolTip="Какие предметы: названия или группы, как у лута. Ничего не выбрано — любой предмет или монеты" />
     </StackPanel>
@@ -86,7 +86,7 @@
     <StackPanel>
       <TextBlock Text="Выполнено, когда выполнены все условия списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />
       <app:ConditionListEditor Conditions="{Binding Conditions}"
-                               LootOptions="{Binding DataContext.LootOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Choices="{Binding DataContext.Choices, RelativeSource={RelativeSource AncestorType=Window}}"
                                EmptyText="Нет условий — выполнено всегда" />
     </StackPanel>
   </DataTemplate>
@@ -94,7 +94,7 @@
     <StackPanel>
       <TextBlock Text="Выполнено, когда выполнено хотя бы одно условие списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />
       <app:ConditionListEditor Conditions="{Binding Conditions}"
-                               LootOptions="{Binding DataContext.LootOptions, RelativeSource={RelativeSource AncestorType=Window}}"
+                               Choices="{Binding DataContext.Choices, RelativeSource={RelativeSource AncestorType=Window}}"
                                EmptyText="Нет условий — не выполнено никогда" />
     </StackPanel>
   </DataTemplate>

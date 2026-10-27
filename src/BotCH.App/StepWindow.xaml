@@ -36,7 +36,7 @@
       <TextBlock Text="Условия" Margin="0,6,0,2" />
       <TextBlock Text="Шаг выполняется, когда выполнены все условия. Двойной щелчок по условию — его настройки, Delete — удалить."
                  TextWrapping="Wrap" Style="{StaticResource Muted}" FontSize="11" Margin="0,0,0,4" />
-      <app:ConditionListEditor Conditions="{Binding SelectedConditions}" LootOptions="{Binding LootOptions}"
+      <app:ConditionListEditor Conditions="{Binding SelectedConditions}" Choices="{Binding Choices}"
                                EmptyText="Нет условий — шаг выполняется всегда" />
       <Button Style="{StaticResource PrimaryButton}" Content="Готово" HorizontalAlignment="Right" Margin="0,10,0,0"
               IsCancel="True" Click="Done" ToolTip="Правки уже сохранены — просто закрыть" />
