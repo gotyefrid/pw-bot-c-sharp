@@ -91,6 +91,15 @@
     <TextBlock Text="Выполнено, когда призванный пет голоден. Пет не призван — не выполнено." TextWrapping="Wrap"
                Style="{StaticResource Muted}" Margin="0,0,0,6" />
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:SkillCooldownCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Скилл" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Skill}" ValueText="{Binding SkillName}" Placeholder="Выберите скилл"
+                        OptionsSource="{Binding DataContext.Choices.Skills, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Выполнено, пока этот скилл на перезарядке. «Скилл готов» — это же условие с «НЕ»" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:TargetCondition}">
     <DockPanel Margin="0,0,0,6">
       <TextBlock Text="Равно" VerticalAlignment="Center" />

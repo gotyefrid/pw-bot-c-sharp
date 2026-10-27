@@ -133,6 +133,35 @@ public sealed class PetHungryCondition : ClickerCondition
         => c.World.Pet is { IsSummoned: true, ActiveCage: int cage } pet && pet.InCage(cage) is { IsHungry: true } ? "пет голоден" : null;
 }
 
+/// <summary>
+/// Скилл персонажа на перезарядке; «скилл готов» — то же с «НЕ». Скилл не выбран или его нет среди изученных (сценарий
+/// другого персонажа) — не выполнено.
+/// </summary>
+public sealed class SkillCooldownCondition : ClickerCondition
+{
+    private int _skill;
+    private string _skillName = "";
+
+    /// <summary>ID скилла; 0 — не выбран.</summary>
+    public int Skill { get => _skill; set => Set(ref _skill, value); }
+
+    /// <summary>Название, как в игре, — запоминается при выборе: в таблице видно, какой скилл, и без подключения к игре.</summary>
+    public string SkillName { get => _skillName; set => Set(ref _skillName, value ?? ""); }
+
+    private string Title => ClickerSkill.Title(Skill, SkillName);
+
+    protected override string What() => Skill <= 0 ? "скилл не выбран" : $"{Title} на перезарядке";
+
+    protected override string? Holds(BrainContext c)
+        => Skill > 0 && c.World.Skill(Skill) is { IsReady: false } s ? $"{Title} на перезарядке ещё {s.CooldownLeftMs / 1000.0:0.0} с" : null;
+
+    public override void Normalize()
+    {
+        Skill = Math.Max(0, Skill);
+        SkillName = SkillName.Trim();
+    }
+}
+
 public enum TargetIs
 {
     /// <summary>Цели нет.</summary>

@@ -57,6 +57,7 @@ public static class ClickerKinds
         .Add<MpBelowCondition>("MpBelow", "MP персонажа меньше, %")
         .Add<PetHpBelowCondition>("PetHpBelow", "HP пета меньше, %")
         .Add<PetHungryCondition>("PetHungry", "Пет голоден")
+        .Add<SkillCooldownCondition>("SkillCooldown", "Скилл на перезарядке")
         .Add<TargetCondition>("Target", "Цель персонажа")
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет")
         .Add<ResourceNearbyCondition>("ResourceNearby", "Рядом можно копать")
