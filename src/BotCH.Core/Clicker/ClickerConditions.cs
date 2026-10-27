@@ -82,10 +82,10 @@ public abstract class PercentBelowCondition : ClickerCondition
 
     public int Percent { get => _percent; set => Set(ref _percent, value); }
 
-    /// <summary>Что сравнивается: «HP», «MP».</summary>
+    /// <summary>Что сравнивается: «HP», «MP», «HP пета».</summary>
     protected abstract string Subject { get; }
 
-    /// <summary>Сколько сейчас, %; null — неизвестно (поле не найдено для сервера).</summary>
+    /// <summary>Сколько сейчас, %; null — неизвестно (поле не найдено для сервера, пет не призван).</summary>
     protected abstract int? Current(WorldState world);
 
     protected override string What() => $"{Subject} меньше {Percent} %";
@@ -110,6 +110,15 @@ public sealed class MpBelowCondition : PercentBelowCondition
     protected override string Subject => "MP";
 
     protected override int? Current(WorldState world) => world.Host.MpPercent;
+}
+
+/// <summary>HP призванного пета ниже порога в %; пет не призван — не выполнено.</summary>
+public sealed class PetHpBelowCondition : PercentBelowCondition
+{
+    protected override string Subject => "HP пета";
+
+    protected override int? Current(WorldState world)
+        => world.Pet is { IsSummoned: true, ActiveCage: int cage } pet && pet.InCage(cage) is { } summoned ? summoned.HpPercent : null;
 }
 
 public enum TargetIs

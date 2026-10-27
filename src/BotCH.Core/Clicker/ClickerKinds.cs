@@ -50,6 +50,7 @@ public static class ClickerKinds
         .Add<AlwaysCondition>("Always", "Всегда")
         .Add<HpBelowCondition>("HpBelow", "HP персонажа меньше, %")
         .Add<MpBelowCondition>("MpBelow", "MP персонажа меньше, %")
+        .Add<PetHpBelowCondition>("PetHpBelow", "HP пета меньше, %")
         .Add<TargetCondition>("Target", "Цель персонажа")
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет")
         .Add<AllCondition>("All", "Все условия (И)")

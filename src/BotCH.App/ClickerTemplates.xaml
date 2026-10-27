@@ -43,6 +43,14 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PetHpBelowCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="HP пета меньше, %" VerticalAlignment="Center" />
+      <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="Шаг выполняется, только когда пет призван и его здоровье ниже этого процента" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:TargetCondition}">
     <DockPanel Margin="0,0,0,6">
       <TextBlock Text="Равно" VerticalAlignment="Center" />
