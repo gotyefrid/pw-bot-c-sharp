@@ -512,7 +512,7 @@
                 <TextBlock Text="Пет на земле" VerticalAlignment="Center" />
                 <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Pets.GroundPets}" DisplayMemberPath="Title"
                           SelectedValuePath="Value" SelectedValue="{Binding Pets.GroundPet}"
-                          ToolTip="Кого звать, когда персонаж на земле. Авто — первого, кто живёт на земле" />
+                          ToolTip="Кого звать, когда персонаж на земле: наземного или летающего (летающих можно звать и на земле). Авто — первого из них" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Pets.KnowsPetHabitats, Converter={StaticResource Visible}}">
                 <TextBlock Text="Пет в воде" VerticalAlignment="Center" />

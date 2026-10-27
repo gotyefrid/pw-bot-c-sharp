@@ -330,6 +330,9 @@ public sealed record PetInCage(int Cage, float HpRatio, int Hunger)
     public bool IsHungry => Hunger > 0;
 
     public bool Lives(PetHabitat where) => Habitat is { } h && (h & where) != 0;
+
+    /// <summary>Можно ли призвать там, где персонаж: где живёт, а на земле — и летающего (летающие призываются и на земле).</summary>
+    public bool CanSummon(PetHabitat where) => Lives(where) || where == PetHabitat.Ground && Lives(PetHabitat.Air);
 }
 
 /// <summary>Где питомец может быть призван: на земле, в воде, в воздухе (бывает несколько сразу).</summary>

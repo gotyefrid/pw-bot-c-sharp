@@ -66,8 +66,8 @@ public sealed class PetBehavior : IBehavior
 
         var where = PetPicker.Where(c.World.Host);
         var inCage = PetPicker.Pick(pet, settings, where, out var problem);
-        // Призван другой, но он живёт там, где мы сейчас (позвали руками), — он и есть наш пет
-        if (pet.ActiveCage is int active && pet.InCage(active) is { } summoned && summoned.Lives(where))
+        // Призван другой, но его можно звать там, где мы сейчас (позвали руками), — он и есть наш пет
+        if (pet.ActiveCage is int active && pet.InCage(active) is { } summoned && summoned.CanSummon(where))
             inCage = summoned;
         if (inCage is null)
         {
