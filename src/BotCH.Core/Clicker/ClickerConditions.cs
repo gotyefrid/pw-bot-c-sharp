@@ -240,6 +240,49 @@ public sealed class ResourceNearbyCondition : ClickerCondition
 }
 
 /// <summary>
+/// Рядом с персонажем (не дальше <see cref="Radius"/>) есть кого взять в цель из <see cref="Targets"/> — моб, NPC, чужой пет;
+/// список пуст — кто угодно из них (<see cref="TargetChoice"/>). Тот, кто уже в цели, тоже в счёт.
+/// </summary>
+public sealed class TargetNearbyCondition : ClickerCondition
+{
+    private ObservableCollection<string> _targets = [];
+    private int _radius = 10;
+
+    public TargetNearbyCondition() => _targets.CollectionChanged += TargetsChanged;
+
+    /// <summary>Названия мобов, NPC, петов. Список, который меняют на месте (выбор в окне), — о правке говорит сам.</summary>
+    public ObservableCollection<string> Targets
+    {
+        get => _targets;
+        set
+        {
+            _targets.CollectionChanged -= TargetsChanged;
+            _targets = value ?? [];
+            _targets.CollectionChanged += TargetsChanged;
+            Changed(nameof(Targets));
+        }
+    }
+
+    /// <summary>Не дальше этого от персонажа, м.</summary>
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
+
+    private void TargetsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Targets));
+
+    protected override string What()
+        => Targets.Count == 0 ? $"рядом любая цель (до {Radius} м)" : $"рядом цель: {string.Join(", ", Targets)} (до {Radius} м)";
+
+    protected override string? Holds(BrainContext c)
+        => TargetChoice.Nearest(c.World, Targets, Radius) is { } target ? $"рядом «{target.Name}» в {target.Offset}" : null;
+
+    public override void Normalize()
+    {
+        Radius = GroundItemChoice.CleanRadius(Radius);
+        if (!Targets.SequenceEqual(MobNameFilter.Clean(Targets)))
+            Targets = new ObservableCollection<string>(MobNameFilter.Clean(Targets));
+    }
+}
+
+/// <summary>
 /// Группа условий — внутри свой список (<see cref="Conditions"/>), в нём могут быть и группы. Правка внутри — правка группы
 /// (окно и сохранение узнают о ней).
 /// </summary>

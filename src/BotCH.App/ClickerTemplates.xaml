@@ -108,6 +108,20 @@
                      ToolTip="Что копать: ресурсы и «нересурсы» (квестовые, ящики) — бот не проверяет кирку, уровень и квест. Ничего не выбрано — что угодно" />
     </StackPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:TargetNearbyCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Моб, NPC или пет не дальше этого от персонажа" />
+        <Grid />
+      </DockPanel>
+      <app:TagPicker Margin="0,0,0,6" Selected="{Binding Targets}"
+                     Options="{Binding DataContext.Choices.Targets, RelativeSource={RelativeSource AncestorType=Window}}"
+                     Placeholder="Любая цель" EmptyOptionsText="Рядом никого, и раньше никто не встречался"
+                     ToolTip="Кто рядом: мобы, NPC, чужие петы. Ничего не выбрано — кто угодно из них (свой пет — нет). Тот, кто уже в цели, тоже в счёт" />
+    </StackPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:AllCondition}">
     <StackPanel>
       <TextBlock Text="Выполнено, когда выполнены все условия списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />
