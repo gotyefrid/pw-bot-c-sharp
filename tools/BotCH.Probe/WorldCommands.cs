@@ -318,7 +318,7 @@ internal static class WorldCommands
 
         s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame?.ToString() ?? "?"})");
         foreach (var i in w.GroundItems.OrderBy(i => i.Offset.Direct).Take(full ? 10 : 3))
-            s.AppendLine($"       {i.Offset.Horizontal,6:0.0} м {Height(i.Offset),6}  {ItemKind(i.Kind),-7} {i.Name} (id 0x{i.Id:X8}, tid {i.Tid})");
+            s.AppendLine($"       {i.Offset.Horizontal,6:0.0} м {Height(i.Offset),6}  {ItemKind(i.Kind),-7} {i.Name}{(i.Group is { } group ? $" [{group}]" : "")} (id 0x{i.Id:X8}, tid {i.Tid})");
 
         if (!full)
             return s.ToString();
