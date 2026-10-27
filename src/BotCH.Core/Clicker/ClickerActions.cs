@@ -85,14 +85,13 @@ public sealed class PauseAction : ClickerAction
 }
 
 /// <summary>
-/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) не дальше <see cref="Radius"/> от
-/// персонажа — «как мышкой» (<see cref="PickupAction"/>): подбегает сам, сделано — предмет пропал с земли. Поднимать нечего —
-/// тоже сделано, без предупреждения: шаг можно ставить и без условия.
+/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) — «как мышкой» (<see cref="PickupAction"/>):
+/// подбегает сам, сделано — предмет пропал с земли. Поднимать нечего — тоже сделано, без предупреждения. Радиуса нет: как
+/// далеко — задаёт условие шага «Рядом лежит предмет».
 /// </summary>
 public sealed class PickUpItemAction : ClickerAction
 {
     private ObservableCollection<string> _items = [];
-    private int _radius = 10;
 
     public PickUpItemAction() => _items.CollectionChanged += ItemsChanged;
 
@@ -109,22 +108,17 @@ public sealed class PickUpItemAction : ClickerAction
         }
     }
 
-    /// <summary>Не дальше этого от персонажа, м.</summary>
-    public int Radius { get => _radius; set => Set(ref _radius, value); }
-
     private void ItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Items));
 
-    public override string Describe()
-        => Items.Count == 0 ? $"поднять ближайший предмет (до {Radius} м)" : $"поднять: {string.Join(", ", Items)} (до {Radius} м)";
+    public override string Describe() => Items.Count == 0 ? "поднять ближайший предмет" : $"поднять: {string.Join(", ", Items)}";
 
     public override IClickerRun Start(BrainContext c)
-        => GroundItemChoice.Nearest(c.World, Items, Radius) is { } item
+        => GroundItemChoice.Nearest(c.World, Items) is { } item
             ? ClickerRuns.Send(new PickupAction(item))
             : ClickerRuns.Skipped("рядом нечего поднять");
 
     public override void Normalize()
     {
-        Radius = GroundItemChoice.CleanRadius(Radius);
         if (!Items.SequenceEqual(MobNameFilter.Clean(Items)))
             Items = new ObservableCollection<string>(MobNameFilter.Clean(Items));
     }

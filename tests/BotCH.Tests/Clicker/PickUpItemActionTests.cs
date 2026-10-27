@@ -7,8 +7,8 @@ using Xunit;
 namespace BotCH.Tests.Clicker;
 
 /// <summary>
-/// Действие «Поднять предмет»: ближайший из выбранных (пусто — любой) в радиусе; ждёт, пока предмет пропадёт с земли;
-/// поднимать нечего — дальше без предупреждения.
+/// Действие «Поднять предмет»: ближайший из выбранных (пусто — любой) на любом расстоянии — как далеко, задаёт условие;
+/// ждёт, пока предмет пропадёт с земли; поднимать нечего — дальше без предупреждения.
 /// </summary>
 public class PickUpItemActionTests
 {
@@ -48,13 +48,20 @@ public class PickUpItemActionTests
     }
 
     [Fact]
-    public void OnlyWithinRadiusAndNotResources()
+    public void AnyDistance()
     {
-        // Ресурс копают, а не подбирают; дальний предмет — за радиусом: поднимать нечего, следующий шаг — в тот же ход
-        Drop(1, "Мягкий мех", 1, GroundItemKind.Resource);
-        Drop(2, "Мягкий мех", 12);
+        Drop(1, "Мягкий мех", 150);
 
-        Assert.Equal("key F1", FirstTurn(new PickUpItemAction { Radius = 10 }));
+        Assert.Equal("pickup-approach 1", FirstTurn(new PickUpItemAction()));
+    }
+
+    [Fact]
+    public void NotResources()
+    {
+        // Ресурс копают, а не подбирают: поднимать нечего, следующий шаг — в тот же ход
+        Drop(1, "Мягкий мех", 1, GroundItemKind.Resource);
+
+        Assert.Equal("key F1", FirstTurn(new PickUpItemAction()));
     }
 
     [Fact]
@@ -94,18 +101,16 @@ public class PickUpItemActionTests
     [Fact]
     public void FileKeepsChoiceAndCleansIt()
     {
-        var back = ClickerScript.RoundTrip(new PickUpItemAction { Items = [" Мех ", "мех", "", "Банки"], Radius = -1 });
+        var back = ClickerScript.RoundTrip(new PickUpItemAction { Items = [" Мех ", "мех", "", "Банки"] });
 
         Assert.Equal(["Мех", "Банки"], back.Items);
-        Assert.Equal(1, back.Radius);
-        Assert.Equal(GroundItemChoice.MaxRadius, ClickerScript.RoundTrip(new PickUpItemAction { Radius = 5000 }).Radius);
     }
 
     [Fact]
     public void Described()
     {
-        Assert.Equal("поднять ближайший предмет (до 10 м)", new PickUpItemAction().Describe());
-        Assert.Equal("поднять: Мех, Банки (до 5 м)", new PickUpItemAction { Items = ["Мех", "Банки"], Radius = 5 }.Describe());
+        Assert.Equal("поднять ближайший предмет", new PickUpItemAction().Describe());
+        Assert.Equal("поднять: Мех, Банки", new PickUpItemAction { Items = ["Мех", "Банки"] }.Describe());
     }
 
     [Fact]
@@ -117,7 +122,7 @@ public class PickUpItemActionTests
         action.PropertyChanged += (_, _) => edits++;
 
         action.Items.Add("Мех");
-        action.Radius = 7;
+        action.Items.Remove("Мех");
         action.Items = ["Банки"];
         action.Items.Add("Мех");
 
