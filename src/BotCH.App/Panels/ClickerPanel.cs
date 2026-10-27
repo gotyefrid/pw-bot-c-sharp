@@ -90,6 +90,9 @@ public sealed class ClickerPanel : ObservableObject
     /// <summary>Действие выбранного шага — его поля показывает шаблон окна для его класса.</summary>
     public ClickerAction? SelectedAction => _watchedAction;
 
+    /// <summary>То же действие, если итог его виден по игре — для галочки «Ждать подтверждения выполнения»; иначе null.</summary>
+    public ConfirmableAction? SelectedConfirmable => _watchedAction as ConfirmableAction;
+
     /// <summary>Условия выбранного шага — должны выполниться все; список правится в окне шага.</summary>
     public ConditionList? SelectedConditions => _watchedConditions;
 
@@ -181,6 +184,7 @@ public sealed class ClickerPanel : ObservableObject
         if (_watchedConditions is not null)
             _watchedConditions.Edited += PartEdited;
         OnPropertyChanged(nameof(SelectedAction));
+        OnPropertyChanged(nameof(SelectedConfirmable));
         OnPropertyChanged(nameof(SelectedConditions));
     }
 

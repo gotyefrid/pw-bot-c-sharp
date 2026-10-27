@@ -20,6 +20,19 @@
         <Grid />
       </DockPanel>
       <ContentControl Content="{Binding SelectedAction}" Focusable="False" />
+      <!-- Общая галочка всех действий, итог которых виден по игре (ConfirmableAction); у остальных скрыта -->
+      <CheckBox Content="Ждать подтверждения выполнения" IsChecked="{Binding SelectedConfirmable.WaitConfirmed}" Margin="0,0,0,6"
+                ToolTip="Следующий шаг — только когда игра подтвердит, что сделано (поднять: предмет пропал с земли). Не вышло — в логе «не вышло». Без галочки — как клавиша: отправил и сразу дальше">
+        <CheckBox.Style>
+          <Style TargetType="CheckBox">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding SelectedConfirmable}" Value="{x:Null}">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </CheckBox.Style>
+      </CheckBox>
       <TextBlock Text="Условия" Margin="0,6,0,2" />
       <TextBlock Text="Шаг выполняется, когда выполнены все условия. Двойной щелчок по условию — его настройки, Delete — удалить."
                  TextWrapping="Wrap" Style="{StaticResource Muted}" FontSize="11" Margin="0,0,0,4" />

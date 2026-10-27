@@ -85,11 +85,34 @@ public sealed class PauseAction : ClickerAction
 }
 
 /// <summary>
-/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) — «как мышкой» (<see cref="PickupAction"/>):
-/// подбегает сам, сделано — предмет пропал с земли. Поднимать нечего — тоже сделано, без предупреждения. Радиуса нет: как
-/// далеко — задаёт условие шага «Рядом лежит предмет».
+/// Действие, итог которого видно по игре (предмет пропал с земли), — у него есть галочка «Ждать подтверждения выполнения»
+/// (<see cref="WaitConfirmed"/>). Без неё — как клавиша: ушло в игру — сделано, следующий шаг в тот же ход. С ней — следующий
+/// шаг только после подтверждения; не подтвердилось — в лог «не вышло», и дальше.
 /// </summary>
-public sealed class PickUpItemAction : ClickerAction
+public abstract class ConfirmableAction : ClickerAction
+{
+    private bool _waitConfirmed;
+
+    /// <summary>Ждать подтверждения. В файл пишется, только когда включено.</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public bool WaitConfirmed { get => _waitConfirmed; set => Set(ref _waitConfirmed, value); }
+
+    /// <summary>Для окна: само действие, с ожиданием — «…, жду подтверждения»: в таблице видно, что шаг ждёт.</summary>
+    public sealed override string Describe() => WaitConfirmed ? $"{What()}, жду подтверждения" : What();
+
+    /// <summary>Само действие для окна, без ожидания.</summary>
+    protected abstract string What();
+
+    /// <summary>Отправить действие игры — ждать его итога или нет, по галочке.</summary>
+    protected IClickerRun Send(GameAction action) => ClickerRuns.Send(action, doneWhenSent: !WaitConfirmed);
+}
+
+/// <summary>
+/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) — «как мышкой» (<see cref="PickupAction"/>):
+/// подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Поднимать нечего — сделано, без предупреждения.
+/// Радиуса нет: как далеко — задаёт условие «Рядом лежит предмет».
+/// </summary>
+public sealed class PickUpItemAction : ConfirmableAction
 {
     private ObservableCollection<string> _items = [];
 
@@ -110,11 +133,11 @@ public sealed class PickUpItemAction : ClickerAction
 
     private void ItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Items));
 
-    public override string Describe() => Items.Count == 0 ? "поднять ближайший предмет" : $"поднять: {string.Join(", ", Items)}";
+    protected override string What() => Items.Count == 0 ? "поднять ближайший предмет" : $"поднять: {string.Join(", ", Items)}";
 
     public override IClickerRun Start(BrainContext c)
         => GroundItemChoice.Nearest(c.World, Items) is { } item
-            ? ClickerRuns.Send(new PickupAction(item))
+            ? Send(new PickupAction(item))
             : ClickerRuns.Skipped("рядом нечего поднять");
 
     public override void Normalize()

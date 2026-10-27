@@ -8,7 +8,8 @@ namespace BotCH.Tests.Clicker;
 
 /// <summary>
 /// Действие «Поднять предмет»: ближайший из выбранных (пусто — любой) на любом расстоянии — как далеко, задаёт условие;
-/// ждёт, пока предмет пропадёт с земли; поднимать нечего — дальше без предупреждения.
+/// без галочки «ждать» — отправило подбор и дальше, с ней — ждёт, пока предмет пропадёт с земли; поднимать нечего — дальше
+/// без предупреждения. Сама галочка (файл, подпись) — в <see cref="WaitConfirmedTests"/>.
 /// </summary>
 public class PickUpItemActionTests
 {
@@ -17,7 +18,7 @@ public class PickUpItemActionTests
     private void Drop(uint id, string name, float distance, GroundItemKind kind = GroundItemKind.Item, string? group = null)
         => ClickerScript.Drop(_script.World, id, name, distance, kind, group);
 
-    private string FirstTurn(PickUpItemAction action) => _script.Step(action).Key("F1").Run(_script.Start(), 1).Single();
+    private string FirstTurn(PickUpItemAction action) => _script.Step(action).Run(_script.Start(), 1).Single();
 
     [Fact]
     public void NearestOfChosen()
@@ -58,26 +59,45 @@ public class PickUpItemActionTests
     [Fact]
     public void NotResources()
     {
-        // Ресурс копают, а не подбирают: поднимать нечего, следующий шаг — в тот же ход
+        // Ресурс копают, а не подбирают
         Drop(1, "Мягкий мех", 1, GroundItemKind.Resource);
 
-        Assert.Equal("key F1", FirstTurn(new PickUpItemAction()));
+        Assert.Equal("", FirstTurn(new PickUpItemAction()));
     }
 
     [Fact]
     public void NothingToPickIsNotWarning()
     {
-        Assert.Equal("key F1", FirstTurn(new PickUpItemAction()));
+        var turns = _script.Step(new PickUpItemAction()).Key("F1").Run(_script.Start(), 1);
 
+        Assert.Equal(["key F1"], turns);
         Assert.DoesNotContain(_script.Log, e => e.Level >= LogLevel.Warning);
         Assert.Contains(_script.Log, e => e.Level == LogLevel.Debug && e.Message.Contains("рядом нечего поднять"));
     }
 
     [Fact]
-    public void WaitsUntilItemIsGone()
+    public void DoesNotWaitForPickup()
+    {
+        // Подбор ушёл — сразу следующий шаг: подбежит и поднимет игра сама
+        Drop(1, "Мягкий мех", 8);
+
+        Assert.Equal(["pickup-approach 1, key F1"], _script.Step(new PickUpItemAction()).Key("F1").Run(_script.Start(), 1));
+    }
+
+    [Fact]
+    public void SameItemIsNotSentAgainWhileGameIsOnIt()
+    {
+        // По кругу — тот же предмет, а персонаж к нему ещё бежит: второй раз в игру не шлётся
+        Drop(1, "Мягкий мех", 8);
+
+        Assert.Equal(["pickup-approach 1", "", ""], _script.Step(new PickUpItemAction()).Run(_script.Start(), 3));
+    }
+
+    [Fact]
+    public void WaitsUntilItemIsGoneWhenAsked()
     {
         Drop(1, "Мягкий мех", 8);
-        var bot = _script.Step(new PickUpItemAction()).Key("F1").Start();
+        var bot = _script.Step(new PickUpItemAction { WaitConfirmed = true }).Key("F1").Start();
 
         Assert.Equal(["pickup-approach 1", ""], _script.Run(bot, 2));
 
@@ -86,12 +106,12 @@ public class PickUpItemActionTests
     }
 
     [Fact]
-    public void NotGivenIsFailureAndScriptGoesOn()
+    public void NotGivenWhileWaitingIsFailure()
     {
-        // Стоим рядом, а предмет не пропадает (чужой лут) — «не вышло» в лог, и дальше по сценарию. По кругу — снова к нему:
-        // действие атомарное, памяти между запусками нет — как быть с таким предметом, решает сценарий
+        // Стоим рядом, а предмет не пропадает (чужой лут) — «не вышло» в лог, и дальше по сценарию; по кругу — снова к нему:
+        // памяти между запусками нет — как быть с таким предметом, решает сценарий
         Drop(1, "Мягкий мех", 1);
-        var turns = _script.Step(new PickUpItemAction()).Key("F1").Run(_script.Start(), 20);
+        var turns = _script.Step(new PickUpItemAction { WaitConfirmed = true }).Key("F1").Run(_script.Start(), 20);
 
         Assert.Equal("pickup-approach 1", turns[0]);
         Assert.Contains("key F1, pickup-approach 1", turns);

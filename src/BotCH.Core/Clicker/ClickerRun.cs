@@ -38,7 +38,7 @@ public interface IClickerRun
 public static class ClickerRuns
 {
     /// <summary>Отправить действие игры и дождаться итога по снимкам: подтвердилось — сделано, иначе — не вышло.</summary>
-    /// <param name="doneWhenSent">Сделано, как только ушло (клавиша: проверять нечего) — следующий шаг в тот же ход.</param>
+    /// <param name="doneWhenSent">Сделано, как только ушло (клавиша: проверять нечего; подбор без галочки «ждать») — следующий шаг в тот же ход.</param>
     public static IClickerRun Send(GameAction action, bool doneWhenSent = false) => new SendRun(action, doneWhenSent);
 
     /// <summary>Подождать: сделано, когда с первого хода прошло <paramref name="time"/> (по снимкам — с шагом 0,25 с).</summary>
