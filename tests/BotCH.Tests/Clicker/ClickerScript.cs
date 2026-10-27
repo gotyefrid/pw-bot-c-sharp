@@ -34,15 +34,16 @@ internal sealed class ClickerScript
         public void Write(LogEntry entry) => entries.Add(entry);
     }
 
-    public ClickerScript Step(ClickerAction action, ClickerCondition? when = null)
+    /// <param name="when">Условия шага (все должны выполниться); нет — всегда.</param>
+    public ClickerScript Step(ClickerAction action, params ClickerCondition[] when)
     {
-        Settings.Clicker.Steps.Add(new ClickerStep { Action = action, Condition = when ?? new AlwaysCondition() });
+        Settings.Clicker.Steps.Add(new ClickerStep { Action = action, Conditions = new ConditionList(when) });
         return this;
     }
 
-    public ClickerScript Key(string key, ClickerCondition? when = null) => Step(new PressKeyAction { Key = key }, when);
+    public ClickerScript Key(string key, params ClickerCondition[] when) => Step(new PressKeyAction { Key = key }, when);
 
-    public ClickerScript Pause(int milliseconds, ClickerCondition? when = null) => Step(new PauseAction { Milliseconds = milliseconds }, when);
+    public ClickerScript Pause(int milliseconds, params ClickerCondition[] when) => Step(new PauseAction { Milliseconds = milliseconds }, when);
 
     public IBotRunner Start()
     {
@@ -78,7 +79,7 @@ internal sealed class ClickerScript
     public static T RoundTrip<T>(T part) where T : class
     {
         var back = SettingsJson.Parse(Json(part)).Clicker.Steps.Single();
-        return (T)(object)(part is ClickerAction ? back.Action : back.Condition);
+        return (T)(object)(part is ClickerAction ? back.Action : back.Conditions.Single());
     }
 
     /// <summary>Файл настроек с одним шагом, где это действие или условие.</summary>
@@ -87,7 +88,7 @@ internal sealed class ClickerScript
         var step = part switch
         {
             ClickerAction action => new ClickerStep { Action = action },
-            ClickerCondition condition => new ClickerStep { Condition = condition },
+            ClickerCondition condition => new ClickerStep { Conditions = { condition } },
             _ => throw new ArgumentException("Не действие и не условие кликера", nameof(part)),
         };
         var settings = new BotSettings();

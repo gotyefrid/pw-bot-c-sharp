@@ -61,27 +61,29 @@ public class ClickerKindsTests
         var step = Assert.Single(s.Clicker.Steps);
         Assert.Equal("Teleport", Assert.IsType<UnknownAction>(step.Action).Kind);
         Assert.NotNull(step.Action.Problem);
-        Assert.Equal("MoonIsFull", Assert.IsType<UnknownCondition>(step.Condition).Kind);
-        Assert.Null(step.Condition.Check(ClickerScript.Context(new Fakes.FakeWorld().Snapshot())));
+        var condition = Assert.IsType<UnknownCondition>(Assert.Single(step.Conditions));
+        Assert.Equal("MoonIsFull", condition.Kind);
+        Assert.Null(condition.Check(ClickerScript.Context(new Fakes.FakeWorld().Snapshot())));
 
         var again = SettingsJson.Parse(SettingsJson.Serialize(s)).Clicker.Steps[0];
         var action = Assert.IsType<UnknownAction>(again.Action);
         Assert.Equal("Город Мечей", (string)action.Fields["town"]!);
         Assert.Equal(5, (int)action.Fields["price"]!);
-        Assert.Equal(1, (int)Assert.IsType<UnknownCondition>(again.Condition).Fields["phase"]!);
+        Assert.Equal(1, (int)Assert.IsType<UnknownCondition>(Assert.Single(again.Conditions)).Fields["phase"]!);
     }
 
     [Fact]
     public void EmptyStepsAreRepairedNullOnesDropped()
     {
-        var steps = SettingsJson.Parse("""{ "clicker": { "steps": [ { }, null, { "action": null, "condition": null } ] } }""").Clicker.Steps;
+        var steps = SettingsJson.Parse("""
+            { "clicker": { "steps": [ { }, null, { "action": null, "conditions": null }, { "conditions": [ null, { "kind": "Always" } ] } ] } }
+            """).Clicker.Steps;
 
-        Assert.Equal(2, steps.Count);
-        Assert.All(steps, st =>
-        {
-            Assert.IsType<PressKeyAction>(st.Action);
-            Assert.IsType<AlwaysCondition>(st.Condition);
-        });
+        Assert.Equal(3, steps.Count);
+        Assert.All(steps, st => Assert.IsType<PressKeyAction>(st.Action));
+        Assert.Empty(steps[0].Conditions);
+        Assert.Empty(steps[1].Conditions);
+        Assert.IsType<AlwaysCondition>(Assert.Single(steps[2].Conditions));
     }
 
     [Fact]

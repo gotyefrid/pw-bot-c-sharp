@@ -61,7 +61,7 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
                 started++;
 
                 var step = steps[_index];
-                if (step.Action.Problem is not null || step.Condition.Check(c) is not { } why)
+                if (step.Action.Problem is not null || step.Check(c) is not { } why)
                 {
                     Next(steps.Count);
                     continue;

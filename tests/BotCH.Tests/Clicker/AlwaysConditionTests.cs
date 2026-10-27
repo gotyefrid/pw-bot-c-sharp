@@ -17,7 +17,4 @@ public class AlwaysConditionTests
 
     [Fact]
     public void Described() => Assert.Equal("всегда", new AlwaysCondition().Describe());
-
-    [Fact]
-    public void IsDefaultForNewStep() => Assert.IsType<AlwaysCondition>(new ClickerStep().Condition);
 }

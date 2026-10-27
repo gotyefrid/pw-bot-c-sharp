@@ -13,7 +13,7 @@ namespace BotCH.App.Panels;
 /// <summary>
 /// Вкладка «Кликер» — сценарий: шаги по порядку, у каждого действие и условие. Шаги — в настройках персонажа; о правке
 /// говорит модели окна (та сохраняет и отдаёт боту). Выбранный шаг правится в своём окне (<see cref="EditRequested"/>): поля
-/// действия и условия показывают их шаблоны (по классу) и правят их напрямую — о правке поля говорят сами.
+/// действия и условий показывают их шаблоны (по классу) и правят их напрямую — о правке говорят сами действие и список условий.
 /// </summary>
 public sealed class ClickerPanel : ObservableObject
 {
@@ -22,7 +22,7 @@ public sealed class ClickerPanel : ObservableObject
     private readonly Action _edited;
     private ClickerRow? _selected;
     private ClickerAction? _watchedAction;
-    private ClickerCondition? _watchedCondition;
+    private ConditionList? _watchedConditions;
 
     /// <param name="settings">Настройки текущего персонажа (меняются при смене персонажа).</param>
     /// <param name="current">Номер шага, который бот выполняет сейчас; null — бот не работает.</param>
@@ -42,10 +42,8 @@ public sealed class ClickerPanel : ObservableObject
 
     private List<ClickerStep> Steps => _settings().Clicker.Steps;
 
-    /// <summary>Виды действий и условий — для выпадающих списков.</summary>
+    /// <summary>Виды действий — для выпадающего списка.</summary>
     public IReadOnlyList<ClickerKind> ActionKinds => ClickerKinds.Actions.All;
-
-    public IReadOnlyList<ClickerKind> ConditionKinds => ClickerKinds.Conditions.All;
 
     /// <summary>Варианты для условия «рядом лежит предмет».</summary>
     public Func<IReadOnlyList<PickOption>> LootOptions { get; }
@@ -71,7 +69,6 @@ public sealed class ClickerPanel : ObservableObject
             Watch();
             OnPropertyChanged(nameof(SelectedTitle));
             OnPropertyChanged(nameof(SelectedActionKind));
-            OnPropertyChanged(nameof(SelectedConditionKind));
         }
     }
 
@@ -93,19 +90,8 @@ public sealed class ClickerPanel : ObservableObject
     /// <summary>Действие выбранного шага — его поля показывает шаблон окна для его класса.</summary>
     public ClickerAction? SelectedAction => _watchedAction;
 
-    public string? SelectedConditionKind
-    {
-        get => Selected?.Step.Condition.Kind;
-        set
-        {
-            if (Selected is not { } row || value is null || value == row.Step.Condition.Kind || ClickerKinds.Conditions.Create(value) is not { } condition)
-                return;
-            row.Step.Condition = condition;
-            PartReplaced(row);
-        }
-    }
-
-    public ClickerCondition? SelectedCondition => _watchedCondition;
+    /// <summary>Условия выбранного шага — должны выполниться все; список правится в окне шага.</summary>
+    public ConditionList? SelectedConditions => _watchedConditions;
 
     /// <summary>Список в окне ← настройки персонажа (выбор сбрасывается, если шага больше нет).</summary>
     public void Load()
@@ -172,7 +158,7 @@ public sealed class ClickerPanel : ObservableObject
         _edited();
     }
 
-    // Действие или условие шага заменили новым видом
+    // Действие шага заменили новым видом
     private void PartReplaced(ClickerRow row)
     {
         Watch();
@@ -180,25 +166,27 @@ public sealed class ClickerPanel : ObservableObject
         _edited();
     }
 
-    // Слушать поля действия и условия выбранного шага: правка поля — строка в списке и сохранение
+    // Слушать действие и условия выбранного шага: правка — строка в списке и сохранение
     private void Watch()
     {
         if (_watchedAction is not null)
-            _watchedAction.PropertyChanged -= PartEdited;
-        if (_watchedCondition is not null)
-            _watchedCondition.PropertyChanged -= PartEdited;
+            _watchedAction.PropertyChanged -= ActionEdited;
+        if (_watchedConditions is not null)
+            _watchedConditions.Edited -= PartEdited;
 
         _watchedAction = Selected?.Step.Action;
-        _watchedCondition = Selected?.Step.Condition;
+        _watchedConditions = Selected?.Step.Conditions;
         if (_watchedAction is not null)
-            _watchedAction.PropertyChanged += PartEdited;
-        if (_watchedCondition is not null)
-            _watchedCondition.PropertyChanged += PartEdited;
+            _watchedAction.PropertyChanged += ActionEdited;
+        if (_watchedConditions is not null)
+            _watchedConditions.Edited += PartEdited;
         OnPropertyChanged(nameof(SelectedAction));
-        OnPropertyChanged(nameof(SelectedCondition));
+        OnPropertyChanged(nameof(SelectedConditions));
     }
 
-    private void PartEdited(object? sender, PropertyChangedEventArgs e)
+    private void ActionEdited(object? sender, PropertyChangedEventArgs e) => PartEdited();
+
+    private void PartEdited()
     {
         Selected?.Refresh();
         _edited();

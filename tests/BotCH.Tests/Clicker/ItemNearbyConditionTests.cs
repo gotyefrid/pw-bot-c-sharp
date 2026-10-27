@@ -92,7 +92,7 @@ public class ItemNearbyConditionTests
         // Выбор предметов в окне меняет список на месте — условие говорит о правке само
         var condition = new ItemNearbyCondition();
         var edits = 0;
-        condition.PropertyChanged += (_, _) => edits++;
+        condition.PropertyChanged += (_, e) => edits += e.PropertyName == nameof(ClickerCondition.Description) ? 0 : 1;
 
         condition.Items.Add("Мех");
         condition.Items.Remove("Мех");
