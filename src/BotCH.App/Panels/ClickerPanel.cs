@@ -142,14 +142,16 @@ public sealed class ClickerPanel : ObservableObject
         Edit();
     }
 
+    // Выделение — на следующий шаг (удалили последний — на новый последний): Delete можно жать подряд
     private void Remove()
     {
         if (Selected is not { } row)
             return;
 
+        var at = Rows.IndexOf(row);
         Steps.Remove(row.Step);
         Load();
-        Selected = null;
+        Selected = Rows.Count == 0 ? null : Rows[Math.Min(at, Rows.Count - 1)];
         _edited();
     }
 

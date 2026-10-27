@@ -283,8 +283,8 @@
         <StackPanel>
           <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
           <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
-                     Text="Бот выполняет шаги сверху вниз, после последнего — снова первый. Условие шага не выполнено — шаг пропускается. Паузы между шагами ставьте сами — шагом «Пауза». Двойной щелчок по шагу — его настройки." />
-          <ListView Height="250" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="EditClickerStep" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
+                     Text="Бот выполняет шаги сверху вниз, после последнего — снова первый. Условие шага не выполнено — шаг пропускается. Паузы между шагами ставьте сами — шагом «Пауза». Двойной щелчок по шагу — его настройки, Delete — удалить." />
+          <ListView Height="250" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="EditClickerStep" KeyDown="ClickerStepKey" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
             <ListView.ItemContainerStyle>
               <Style TargetType="ListViewItem">
                 <Style.Triggers>
@@ -304,7 +304,7 @@
           </ListView>
           <DockPanel Margin="0,8,0,0">
             <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
-                    Command="{Binding Clicker.RemoveCommand}" ToolTip="Удалить выбранный шаг" />
+                    Command="{Binding Clicker.RemoveCommand}" ToolTip="Удалить выбранный шаг (или клавиша Delete в списке)" />
             <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70D;" Margin="6,0,0,0"
                     Command="{Binding Clicker.DownCommand}" ToolTip="Позже в сценарии" />
             <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"

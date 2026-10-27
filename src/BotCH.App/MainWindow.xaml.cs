@@ -102,6 +102,24 @@ public partial class MainWindow : Window
             _model.Clicker.Edit();
     }
 
+    // Delete в списке шагов — удалить без вопросов; строки пересобраны — фокус на новую выбранную, чтобы жать дальше
+    private void ClickerStepKey(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Delete || !_model.Clicker.RemoveCommand.CanExecute(null))
+            return;
+
+        e.Handled = true;
+        _model.Clicker.RemoveCommand.Execute(null);
+        var list = (ListView)sender;
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+        {
+            if (list.ItemContainerGenerator.ContainerFromItem(list.SelectedItem) is ListViewItem item)
+                item.Focus();
+            else
+                list.Focus();
+        }));
+    }
+
     private void OpenLogFolder(object sender, RoutedEventArgs e)
     {
         var folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
