@@ -7,6 +7,8 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <Deterministic>true</Deterministic>
+    <!-- Версия продукта без «+<коммит>»: по номеру коммита находится открытый репозиторий -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Company></Company>
     <Product>Notes</Product>
   </PropertyGroup>
