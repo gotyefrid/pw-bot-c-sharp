@@ -2,7 +2,6 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:BotCH.App"
-        xmlns:clicker="clr-namespace:BotCH.Core.Clicker;assembly=BotCH.Core"
         Title="Заметки" Width="440" Height="760" MinWidth="380" MinHeight="600"
         WindowStartupLocation="CenterScreen" Icon="app.ico"
         Style="{StaticResource AppWindow}">
@@ -12,57 +11,6 @@
     <app:TabVisibilityConverter x:Key="TabVisible" />
     <app:TabCheckedConverter x:Key="TabChecked" />
     <app:LootModeConverter x:Key="LootMode" />
-
-    <!-- Кликер: поля каждого вида действия и условия. Новый вид — ещё один шаблон здесь (по классу) -->
-    <DataTemplate DataType="{x:Type clicker:PressKeyAction}">
-      <DockPanel Margin="0,0,0,4">
-        <TextBlock Text="Клавиша" VerticalAlignment="Center" />
-        <app:KeyBox DockPanel.Dock="Right" Width="120" Style="{StaticResource {x:Type TextBox}}" Stroke="{Binding Key}"
-                    ToolTip="Щёлкните сюда и нажмите клавишу — можно с Ctrl, Alt, Shift" />
-        <Grid />
-      </DockPanel>
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type clicker:PauseAction}">
-      <DockPanel Margin="0,0,0,4">
-        <TextBlock Text="Ждать, мс" VerticalAlignment="Center" />
-        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="80" Text="{Binding Milliseconds, UpdateSourceTrigger=PropertyChanged}"
-                 ToolTip="Следующий шаг — через столько миллисекунд (1000 мс = 1 с). Бот смотрит в игру раз в 250 мс: пауза короче всё равно ждёт до следующего раза" />
-        <Grid />
-      </DockPanel>
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type clicker:UnknownAction}">
-      <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4"
-                 Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type clicker:AlwaysCondition}">
-      <Grid />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type clicker:HpBelowCondition}">
-      <DockPanel Margin="0,0,0,4">
-        <TextBlock Text="HP персонажа меньше, %" VerticalAlignment="Center" />
-        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
-                 ToolTip="Шаг выполняется, только когда здоровье персонажа ниже этого процента" />
-        <Grid />
-      </DockPanel>
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type clicker:ItemNearbyCondition}">
-      <StackPanel>
-        <DockPanel Margin="0,0,0,4">
-          <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
-          <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
-                   ToolTip="Предмет лежит на земле не дальше этого от персонажа" />
-          <Grid />
-        </DockPanel>
-        <app:TagPicker Margin="0,0,0,4" Selected="{Binding Items}"
-                       Options="{Binding DataContext.Farm.LootOptions, RelativeSource={RelativeSource AncestorType=Window}}"
-                       Placeholder="Любой предмет" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
-                       ToolTip="Какие предметы: названия или группы, как у лута. Ничего не выбрано — любой предмет или монеты" />
-      </StackPanel>
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type clicker:UnknownCondition}">
-      <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4"
-                 Text="Это условие из другой версии бота — здесь оно никогда не выполнено." />
-    </DataTemplate>
   </Window.Resources>
 
   <Grid Margin="14">
@@ -335,8 +283,8 @@
         <StackPanel>
           <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
           <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
-                     Text="Бот выполняет шаги сверху вниз, после последнего — снова первый. Условие шага не выполнено — шаг пропускается. Паузы между шагами ставьте сами — шагом «Пауза»." />
-          <ListView Height="250" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
+                     Text="Бот выполняет шаги сверху вниз, после последнего — снова первый. Условие шага не выполнено — шаг пропускается. Паузы между шагами ставьте сами — шагом «Пауза». Двойной щелчок по шагу — его настройки." />
+          <ListView Height="250" ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="EditClickerStep" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
             <ListView.ItemContainerStyle>
               <Style TargetType="ListViewItem">
                 <Style.Triggers>
@@ -362,26 +310,8 @@
             <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"
                     Command="{Binding Clicker.UpCommand}" ToolTip="Раньше в сценарии" />
             <Button Style="{StaticResource ButtonBase}" Content="Добавить" HorizontalAlignment="Left"
-                    Command="{Binding Clicker.AddCommand}" ToolTip="Новый шаг в конец сценария" />
+                    Command="{Binding Clicker.AddCommand}" ToolTip="Новый шаг в конец сценария — сразу откроются его настройки" />
           </DockPanel>
-          <StackPanel Margin="0,10,0,0" Visibility="{Binding Clicker.HasSelected, Converter={StaticResource Visible}}">
-            <TextBlock Text="{Binding Clicker.SelectedTitle}" FontWeight="SemiBold" Margin="0,0,0,4" />
-            <DockPanel Margin="0,0,0,4">
-              <TextBlock Text="Что сделать" VerticalAlignment="Center" />
-              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Clicker.ActionKinds}" DisplayMemberPath="Title"
-                        SelectedValuePath="Id" SelectedValue="{Binding Clicker.SelectedActionKind}" ToolTip="Что бот делает на этом шаге" />
-              <Grid />
-            </DockPanel>
-            <ContentControl Content="{Binding Clicker.SelectedAction}" Focusable="False" />
-            <DockPanel Margin="0,4,0,4">
-              <TextBlock Text="Условие" VerticalAlignment="Center" />
-              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Clicker.ConditionKinds}" DisplayMemberPath="Title"
-                        SelectedValuePath="Id" SelectedValue="{Binding Clicker.SelectedConditionKind}"
-                        ToolTip="Когда шаг выполняется; не выполнено — шаг пропускается" />
-              <Grid />
-            </DockPanel>
-            <ContentControl Content="{Binding Clicker.SelectedCondition}" Focusable="False" />
-          </StackPanel>
         </StackPanel>
       </Border>
     </ScrollViewer>

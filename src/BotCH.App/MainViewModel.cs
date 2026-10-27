@@ -85,7 +85,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
         Clicker = new ClickerPanel(() => Settings,
-            () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null, SettingsEdited);
+            () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null, () => Farm.LootOptions(), SettingsEdited);
         Farm.Load();
         Route.Load();
         Clicker.Load();

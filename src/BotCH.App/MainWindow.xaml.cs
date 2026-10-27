@@ -24,6 +24,7 @@ public partial class MainWindow : Window
             Tell = text => MessageBox.Show(this, text, "Заметки", MessageBoxButton.OK, MessageBoxImage.Error),
         };
         DataContext = _model;
+        _model.Clicker.EditRequested += () => new StepWindow { Owner = this, DataContext = _model.Clicker }.ShowDialog();
 
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
@@ -93,6 +94,13 @@ public partial class MainWindow : Window
     }
 
     private void LogFilterChanged(object sender, RoutedEventArgs e) => RebuildLog();
+
+    // Двойной щелчок по строке (не по заголовку и не по пустому месту) — окно шага
+    private void EditClickerStep(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ItemsControl.ContainerFromElement((ItemsControl)sender, (DependencyObject)e.OriginalSource) is ListViewItem)
+            _model.Clicker.Edit();
+    }
 
     private void OpenLogFolder(object sender, RoutedEventArgs e)
     {

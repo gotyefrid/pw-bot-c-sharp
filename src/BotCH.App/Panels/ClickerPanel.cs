@@ -12,8 +12,8 @@ namespace BotCH.App.Panels;
 
 /// <summary>
 /// Вкладка «Кликер» — сценарий: шаги по порядку, у каждого действие и условие. Шаги — в настройках персонажа; о правке
-/// говорит модели окна (та сохраняет и отдаёт боту). Поля действия и условия выбранного шага показывают их шаблоны в окне
-/// (по классу) и правят их напрямую — о правке поля говорят сами.
+/// говорит модели окна (та сохраняет и отдаёт боту). Выбранный шаг правится в своём окне (<see cref="EditRequested"/>): поля
+/// действия и условия показывают их шаблоны (по классу) и правят их напрямую — о правке поля говорят сами.
 /// </summary>
 public sealed class ClickerPanel : ObservableObject
 {
@@ -26,11 +26,13 @@ public sealed class ClickerPanel : ObservableObject
 
     /// <param name="settings">Настройки текущего персонажа (меняются при смене персонажа).</param>
     /// <param name="current">Номер шага, который бот выполняет сейчас; null — бот не работает.</param>
+    /// <param name="lootOptions">Варианты предметов (рядом, встречались, группы) — как у лута.</param>
     /// <param name="edited">Правка настроек из этой вкладки.</param>
-    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, Action edited)
+    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, Func<IReadOnlyList<PickOption>> lootOptions, Action edited)
     {
         _settings = settings;
         _current = current;
+        LootOptions = lootOptions;
         _edited = edited;
         AddCommand = new RelayCommand(Add);
         RemoveCommand = new RelayCommand(Remove, () => Selected is not null);
@@ -44,6 +46,12 @@ public sealed class ClickerPanel : ObservableObject
     public IReadOnlyList<ClickerKind> ActionKinds => ClickerKinds.Actions.All;
 
     public IReadOnlyList<ClickerKind> ConditionKinds => ClickerKinds.Conditions.All;
+
+    /// <summary>Варианты для условия «рядом лежит предмет».</summary>
+    public Func<IReadOnlyList<PickOption>> LootOptions { get; }
+
+    /// <summary>Открыть окно выбранного шага (двойной щелчок, новый шаг). Окно открывает вид.</summary>
+    public event Action? EditRequested;
 
     /// <summary>Шаги по порядку: после последнего — снова первый.</summary>
     public ObservableCollection<ClickerRow> Rows { get; } = new();
@@ -61,14 +69,11 @@ public sealed class ClickerPanel : ObservableObject
             if (!SetProperty(ref _selected, value))
                 return;
             Watch();
-            OnPropertyChanged(nameof(HasSelected));
             OnPropertyChanged(nameof(SelectedTitle));
             OnPropertyChanged(nameof(SelectedActionKind));
             OnPropertyChanged(nameof(SelectedConditionKind));
         }
     }
-
-    public bool HasSelected => Selected is not null;
 
     public string SelectedTitle => Selected is { } row ? $"Шаг {Rows.IndexOf(row) + 1}" : "";
 
@@ -113,6 +118,13 @@ public sealed class ClickerPanel : ObservableObject
         ShowCurrent();
     }
 
+    /// <summary>Править выбранный шаг в его окне.</summary>
+    public void Edit()
+    {
+        if (Selected is not null)
+            EditRequested?.Invoke();
+    }
+
     /// <summary>Выделить шаг, который бот выполняет сейчас.</summary>
     public void ShowCurrent()
     {
@@ -127,6 +139,7 @@ public sealed class ClickerPanel : ObservableObject
         Load();
         Selected = Rows.LastOrDefault();
         _edited();
+        Edit();
     }
 
     private void Remove()
