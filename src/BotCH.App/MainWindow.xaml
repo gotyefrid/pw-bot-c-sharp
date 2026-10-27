@@ -51,9 +51,7 @@
           <TextBlock Text="{Binding ConnectionText}" FontSize="12" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis" />
         </StackPanel>
       </Border>
-      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-        <TextBlock Text="Заметки" FontSize="20" FontWeight="Bold" />
-      </StackPanel>
+      <TextBlock Text="Заметки" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
     </DockPanel>
 
     <!-- Подключение -->
