@@ -28,7 +28,7 @@ namespace BotCH.App;
 /// <summary>
 /// Модель главного окна: подключение к клиенту, запуск и остановка бота, режим, настройки персонажа (сохранение через 0,5 с).
 /// Вкладки — свои маленькие классы (<see cref="Status"/>, <see cref="Farm"/>, <see cref="Pets"/>, <see cref="Route"/>,
-/// <see cref="Log"/>): новая вкладка (кликер) — ещё один такой класс, а не поля здесь. Снимок мира читается в фоне
+/// <see cref="Clicker"/>, <see cref="Log"/>): новая вкладка — ещё один такой класс, а не поля здесь. Снимок мира читается в фоне
 /// (<see cref="WorldMonitor"/>), в поток окна переносится только последний.
 /// </summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
@@ -83,8 +83,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         });
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
+        Clicker = new ClickerPanel(() => Settings, SettingsEdited);
         Farm.Load();
         Route.Load();
+        Clicker.Load();
 
         RefreshCommand = new RelayCommand(RefreshClients);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
@@ -282,6 +284,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Вкладка «Ресы»: точки маршрута, что копать, опасные мобы.</summary>
     public RoutePanel Route { get; }
+
+    /// <summary>Вкладка «Кликер»: правила — клавиша, когда жать, как часто.</summary>
+    public ClickerPanel Clicker { get; }
 
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
     public bool CanRecallPet => _profile.Capabilities.Has(Capability.RecallPet);
@@ -492,6 +497,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Pets.Rebind();
         Farm.Load();
         Route.Load();
+        Clicker.Load();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
     }

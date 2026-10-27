@@ -276,16 +276,76 @@
       </StackPanel>
     </ScrollViewer>
 
-    <!-- Кликер (часть 10) — пока заготовка -->
-    <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" VerticalAlignment="Top"
-            Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=4}">
-      <StackPanel>
-        <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
-        <TextBlock TextWrapping="Wrap" Text="Здесь будет список шагов, которые бот повторяет по кругу: нажать клавишу или скилл, подобрать, выбрать моба, подождать." />
-        <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,8,0,0"
-                   Text="Режим ещё не сделан: при «Старт» бот ничего не делает в игре." />
-      </StackPanel>
-    </Border>
+    <!-- Кликер: правила по порядку — клавиша, когда жать, как часто -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=4}">
+      <Border Style="{StaticResource Card}">
+        <StackPanel>
+          <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
+          <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
+                     Text="Бот жмёт клавиши в окне игры по правилам. Правила проверяются сверху вниз: жмётся первое, у которого выполнено условие и прошло время повтора, — одна клавиша за раз. Окно игры в фоне — многие клиенты такое нажатие не замечают." />
+          <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
+            <ListView.View>
+              <GridView>
+                <GridViewColumn Header="№" Width="34" DisplayMemberBinding="{Binding Number}" />
+                <GridViewColumn Header="Клавиша" Width="80" DisplayMemberBinding="{Binding KeyText}" />
+                <GridViewColumn Header="Когда" Width="190" DisplayMemberBinding="{Binding When}" />
+                <GridViewColumn Header="Повтор" Width="80" DisplayMemberBinding="{Binding RepeatText}" />
+              </GridView>
+            </ListView.View>
+          </ListView>
+          <DockPanel Margin="0,8,0,0">
+            <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
+                    Command="{Binding Clicker.RemoveCommand}" ToolTip="Удалить выбранное правило" />
+            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70D;" Margin="6,0,0,0"
+                    Command="{Binding Clicker.DownCommand}" ToolTip="Ниже — менее важное" />
+            <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"
+                    Command="{Binding Clicker.UpCommand}" ToolTip="Выше — важнее" />
+            <Button Style="{StaticResource ButtonBase}" Content="Добавить" HorizontalAlignment="Left"
+                    Command="{Binding Clicker.AddCommand}" ToolTip="Новое правило в конец списка — потом выберите для него клавишу" />
+          </DockPanel>
+          <StackPanel Margin="0,10,0,0" Visibility="{Binding Clicker.HasSelected, Converter={StaticResource Visible}}">
+            <TextBlock Text="{Binding Clicker.SelectedTitle}" FontWeight="SemiBold" Margin="0,0,0,4" />
+            <DockPanel Margin="0,0,0,4">
+              <TextBlock Text="Клавиша" VerticalAlignment="Center" />
+              <app:KeyBox DockPanel.Dock="Right" Width="120" Style="{StaticResource {x:Type TextBox}}" Stroke="{Binding Clicker.SelectedKey}"
+                          ToolTip="Щёлкните сюда и нажмите клавишу — можно с Ctrl, Alt, Shift" />
+              <Grid />
+            </DockPanel>
+            <DockPanel Margin="0,0,0,4">
+              <TextBlock Text="Когда жать" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="200" ItemsSource="{Binding Clicker.Conditions}" DisplayMemberPath="Title"
+                        SelectedValuePath="Condition" SelectedValue="{Binding Clicker.SelectedCondition}"
+                        ToolTip="Всегда — просто раз в заданное время; HP — когда здоровье персонажа ниже порога; предмет — когда рядом с персонажем что-то лежит" />
+              <Grid />
+            </DockPanel>
+            <DockPanel Margin="0,0,0,4" Visibility="{Binding Clicker.ShowHp, Converter={StaticResource Visible}}">
+              <TextBlock Text="HP персонажа меньше, %" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Clicker.HpPercent, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="Жать, пока здоровье персонажа ниже этого процента" />
+              <Grid />
+            </DockPanel>
+            <StackPanel Visibility="{Binding Clicker.ShowItems, Converter={StaticResource Visible}}">
+              <DockPanel Margin="0,0,0,4">
+                <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Clicker.ItemRadius, UpdateSourceTrigger=PropertyChanged}"
+                         ToolTip="Предмет лежит на земле не дальше этого от персонажа" />
+                <Grid />
+              </DockPanel>
+              <app:TagPicker Margin="0,0,0,4" Selected="{Binding Clicker.ItemNames}" Options="{Binding Farm.LootOptions}"
+                             Placeholder="Любой предмет" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
+                             ToolTip="Какие предметы: названия или группы, как у лута. Ничего не выбрано — любой предмет или монеты" />
+            </StackPanel>
+            <DockPanel>
+              <TextBlock Text="Не чаще, чем раз в, с" VerticalAlignment="Center" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Clicker.RepeatText, UpdateSourceTrigger=PropertyChanged}"
+                       ToolTip="Пока условие выполнено, клавиша жмётся с таким шагом. Можно дробное: 0,5. Не меньше 0,25" />
+              <Grid />
+            </DockPanel>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </ScrollViewer>
 
     <!-- Лог: текст можно выделять и копировать -->
     <Border Grid.Row="3" Grid.RowSpan="3" Style="{StaticResource Card}" Margin="0" Padding="0"
