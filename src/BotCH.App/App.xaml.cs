@@ -20,7 +20,7 @@ public partial class App : Application
         var file = WriteCrash(e.Exception);
         MessageBox.Show(
             $"Ошибка в окне бота: {e.Exception.Message}\n\nПодробности: {file}\n\nБот продолжит работу, но лучше его перезапустить.",
-            "BotCH", MessageBoxButton.OK, MessageBoxImage.Error);
+            "Заметки", MessageBoxButton.OK, MessageBoxImage.Error);
         e.Handled = true;
     }
 

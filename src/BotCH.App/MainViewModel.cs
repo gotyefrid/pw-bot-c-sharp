@@ -90,7 +90,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
 
-        _log.Info("BotCH запущен");
+        _log.Info("Запущено");
         RefreshClients();
     }
 
