@@ -227,6 +227,35 @@ public sealed class MacroAction(int macro) : GameAction
 }
 
 /// <summary>
+/// Скилл как кнопкой на панели (кликер): по текущей цели, до дальности клиент подбежит сам. Итог не ждём: когда начнётся
+/// перезарядка, зависит от времени каста каждого скилла. Ушла команда — сделано; тело занимает на миг, как макрос: во время
+/// каста не жмётся.
+/// </summary>
+public sealed class SkillButtonAction(int skill, string title) : GameAction
+{
+    public int Skill { get; } = skill;
+    public override string Name => title;
+    public override ActionSlot Slot => ActionSlot.Skill;
+    public override uint SlotId => (uint)Skill;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override ActionResource Resource => ActionResource.Body;
+    public override bool Quiet => true;
+    public override int CastsSkill => Skill;
+
+    public override string? Precondition(WorldState now)
+        => now.Skill(Skill) switch
+        {
+            null => $"{title}: не изучен",
+            { IsReady: false } s => $"{title}: перезарядка {s.CooldownLeftMs / 1000.0:0.0} с",
+            _ => null,
+        };
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ApplySkill(Skill, 0);
+
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
+/// <summary>
 /// Нажать клавишу в окне игры (кликер). Что она делает, бот не знает, проверить нечего: ушло нажатие — сделано. Тела не
 /// занимает: игра сама решит, что делать с клавишей посреди каста или бега. Каждое нажатие — своё действие: два шага
 /// кликера с одной клавишей подряд — два нажатия, а не «уже ждёт».

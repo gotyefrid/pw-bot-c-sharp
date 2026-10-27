@@ -21,6 +21,13 @@ public partial class ChoicePicker : UserControl
         nameof(Value), typeof(string), typeof(ChoicePicker),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnShownChanged));
 
+    public static readonly DependencyProperty ValueTextProperty = DependencyProperty.Register(
+        nameof(ValueText), typeof(string), typeof(ChoicePicker),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnShownChanged));
+
+    public static readonly DependencyProperty PlaceholderProperty = DependencyProperty.Register(
+        nameof(Placeholder), typeof(string), typeof(ChoicePicker), new PropertyMetadata(null, OnShownChanged));
+
     public static readonly DependencyProperty OptionsSourceProperty = DependencyProperty.Register(
         nameof(OptionsSource), typeof(Func<IReadOnlyList<PickOption>>), typeof(ChoicePicker), new PropertyMetadata(null, OnShownChanged));
 
@@ -52,12 +59,32 @@ public partial class ChoicePicker : UserControl
         set => SetValue(ValueProperty, value);
     }
 
-    // Варианта с таким именем нет (вид из другой версии бота) — показать как есть
+    /// <summary>
+    /// Подпись выбранного варианта — пишется при выборе (название скилла): по ней видно, что выбрано, и когда вариантов нет
+    /// (бот не подключён, сценарий другого персонажа).
+    /// </summary>
+    public string? ValueText
+    {
+        get => (string?)GetValue(ValueTextProperty);
+        set => SetValue(ValueTextProperty, value);
+    }
+
+    /// <summary>Что показать, когда выбранного нет среди вариантов и подписи нет («Выберите скилл»); не задано — имя как есть.</summary>
+    public string? Placeholder
+    {
+        get => (string?)GetValue(PlaceholderProperty);
+        set => SetValue(PlaceholderProperty, value);
+    }
+
+    // Варианта с таким именем нет (вид из другой версии бота, скилл другого персонажа) — подпись, иначе подсказка или имя как есть
     private static void OnShownChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var picker = (ChoicePicker)d;
-        picker.Shown.Text = picker.CurrentOptions().FirstOrDefault(o => o.Name == picker.Value)?.Text ?? picker.Value ?? "";
+        picker.Shown.Text = picker.CurrentOptions().FirstOrDefault(o => o.Name == picker.Value)?.Text
+                            ?? NonEmpty(picker.ValueText) ?? picker.Placeholder ?? picker.Value ?? "";
     }
+
+    private static string? NonEmpty(string? text) => string.IsNullOrEmpty(text) ? null : text;
 
     private void BoxClicked(object sender, RoutedEventArgs e) => Open("");
 
@@ -161,6 +188,7 @@ public partial class ChoicePicker : UserControl
     {
         if (option is null)
             return;
+        ValueText = option.Text;
         Value = option.Name;
         Close();
     }

@@ -33,6 +33,10 @@ public static class PickLists
         return list;
     }
 
+    /// <summary>Изученные скиллы персонажа по названиям из игры (ещё не загрузились — «скилл 123»); имя варианта — ID.</summary>
+    public static List<PickOption> Skills(IEnumerable<SkillInfo> skills)
+        => skills.Select(s => new PickOption(s.Id.ToString(), s.Name ?? $"скилл {s.Id}")).ToList();
+
     public static IReadOnlyList<PickOption> Kinds<T>(ClickerKindList<T> kinds) where T : class
         => kinds.All.Select(k => new PickOption(k.Id, k.Title)).ToList();
 }

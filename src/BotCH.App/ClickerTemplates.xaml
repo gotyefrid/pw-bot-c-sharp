@@ -47,6 +47,15 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:UseSkillAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Скилл" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Skill}" ValueText="{Binding SkillName}" Placeholder="Выберите скилл"
+                        OptionsSource="{Binding DataContext.Choices.Skills, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Как кнопкой на панели: по текущей цели, до дальности персонаж подбежит сам. Скилл на перезарядке — шаг ничего не делает. Персонаж кастует другое — шаг подождёт конца каста. Итог не ждём: ушло в игру — сделано" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />

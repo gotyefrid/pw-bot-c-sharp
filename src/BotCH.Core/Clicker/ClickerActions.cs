@@ -271,6 +271,45 @@ public sealed class FeedPetAction : ConfirmableAction
 }
 
 /// <summary>
+/// Скилл персонажа — как кнопкой на панели (<see cref="SkillButtonAction"/>): по текущей цели, до дальности персонаж подбежит
+/// сам, бафы на себя цели не требуют. Итог не ждём: ушёл в игру — сделано. На перезарядке — в игру ничего не шлёт, сделано;
+/// скилла нет среди изученных (сценарий другого персонажа) — «не вышло». Персонаж кастует другое — ждёт конца каста
+/// (общее правило: свой каст не сбиваем).
+/// </summary>
+public sealed class UseSkillAction : ClickerAction
+{
+    private int _skill;
+    private string _skillName = "";
+
+    /// <summary>ID скилла; 0 — не выбран.</summary>
+    public int Skill { get => _skill; set => Set(ref _skill, value); }
+
+    /// <summary>Название, как в игре, — запоминается при выборе: в таблице видно, какой скилл, и без подключения к игре.</summary>
+    public string SkillName { get => _skillName; set => Set(ref _skillName, value ?? ""); }
+
+    private string Title => ClickerSkill.Title(Skill, SkillName);
+
+    public override string? Problem => Skill <= 0 ? "скилл не выбран" : null;
+
+    public override string Describe() => Skill <= 0 ? "скилл не выбран" : $"использовать {Title}";
+
+    public override IClickerRun Start(BrainContext c)
+        => Skill <= 0 ? ClickerRuns.Failed(Problem!)
+            : c.World.Skill(Skill) switch
+            {
+                null => ClickerRuns.Failed($"{Title} — не изучен"),
+                { IsReady: false } s => ClickerRuns.Skipped($"{Title} на перезарядке ещё {s.CooldownLeftMs / 1000.0:0.0} с"),
+                _ => ClickerRuns.Send(new SkillButtonAction(Skill, $"скилл {Title}"), doneWhenSent: true),
+            };
+
+    public override void Normalize()
+    {
+        Skill = Math.Max(0, Skill);
+        SkillName = SkillName.Trim();
+    }
+}
+
+/// <summary>
 /// Действие вида, которого эта версия бота не знает (файл от более новой копии): не выполняется, но и не теряется — в файл
 /// пишется как было (<see cref="Fields"/>).
 /// </summary>
