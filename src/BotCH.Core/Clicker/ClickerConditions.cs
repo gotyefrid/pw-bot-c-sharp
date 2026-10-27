@@ -83,7 +83,8 @@ public sealed class TargetCondition : ClickerCondition
         return Is switch
         {
             TargetIs.None => has ? null : "цели нет",
-            _ => has ? $"цель — {c.World.Target?.Name ?? "есть"}" : null,
+            _ when !has => null,
+            _ => c.World.Target is { } target ? $"цель — {target.Name}" : "цель есть",
         };
     }
 }
