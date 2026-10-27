@@ -9,7 +9,7 @@
 MSB=$(ls /c/Program\ Files*/Microsoft\ Visual\ Studio/*/*/MSBuild/Current/Bin/MSBuild.exe | head -1)
 "$MSB" PwBot.sln -restore -t:Build -p:Configuration=Release -m -v:minimal -nologo
 tests/BotCH.Tests/bin/Release/net48/BotCH.Tests.exe            # все тесты; -class / -method — выборочно
-tools/BotCH.Probe/bin/Release/net48/BotCH.Probe.exe            # без аргументов — список команд
+tools/BotCH.Probe/bin/Release/net48/BotCH.Probe.exe            # без аргументов — список команд; без --server — профиль pwclassic136
 ```
 
 MSB3027 при сборке — `BotCH.exe` занят запущенным ботом, остальное собралось. Тесты на файлах настоящего клиента
