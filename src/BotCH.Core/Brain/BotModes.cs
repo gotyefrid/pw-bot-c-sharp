@@ -44,22 +44,28 @@ public static class BotModes
         _ => "Бить мобов",
     };
 
-    /// <summary>
-    /// Собрать режим: мозг (<see cref="BotBrain"/>) один, режимы отличаются набором поведений и их порядком. Кликер
-    /// (часть 10) — ещё один набор: [банки?, пет?, шаги].
-    /// </summary>
+    /// <summary>Собрать режим: мозг (<see cref="BotBrain"/>) один, режимы отличаются набором поведений и их порядком.</summary>
     /// <param name="routeStart">Обход: с какой точки начинать (с 0) — выбранная в окне.</param>
     /// <param name="random">Паузы и разброс; тесты задают свой, чтобы ход повторялся.</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
         IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null)
     {
-        if (mode == BotMode.Clicker)
-            return new NotReadyMode("кликер", "часть 10", log);
-
         // Копия настроек: окно может менять свои дальше (новые мозг получит через UpdateSettings)
         var context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
         var tools = gatherTools ?? [];
-        return mode == BotMode.GatherResources ? GatherResources(context, tools, routeStart) : FarmMobs(context, tools);
+        return mode switch
+        {
+            BotMode.GatherResources => GatherResources(context, tools, routeStart),
+            BotMode.Clicker => Clicker(context),
+            _ => FarmMobs(context, tools),
+        };
+    }
+
+    /// <summary>Кликер: только правила из списка — без банок, пета и боя (банка — правилом «HP меньше %»).</summary>
+    private static BotBrain Clicker(BrainContext context)
+    {
+        var clicker = new ClickerBehavior();
+        return new BotBrain(context, [clicker], main: clicker);
     }
 
     /// <summary>
@@ -88,42 +94,4 @@ public static class BotModes
              new LootBehavior(), route],
             main: combat);
     }
-}
-
-/// <summary>
-/// Заготовка режима, который ещё не сделан: ничего не делает в игре, только честно об этом пишет.
-/// Место, куда встанет свой ход выполнения (маршрут сбора, шаги кликера).
-/// </summary>
-public sealed class NotReadyMode(string name, string where, ILogger log) : IBotRunner
-{
-    private bool _said;
-
-    public string Status { get; } = $"режим «{name}» ещё не сделан ({where})";
-
-    public event Action<string>? StatusChanged;
-
-    // Заготовка сама не останавливается
-    public event Action<string>? StopRequested
-    {
-        add { }
-        remove { }
-    }
-
-    public void Tick(WorldState world)
-    {
-        if (_said)
-            return;
-
-        _said = true;
-        log.Warning($"Режим «{name}» ещё не сделан ({where}) — бот ничего не делает");
-        StatusChanged?.Invoke(Status);
-    }
-
-    public void UpdateSettings(BotSettings settings)
-    {
-    }
-
-    public void Reset() => _said = false;
-
-    public T? Part<T>() where T : class => null;
 }

@@ -32,22 +32,8 @@ public class BotModesTests
         Assert.Null(Create(BotMode.Clicker).Part<IRouteProgress>());
     }
 
-    [Theory]
-    [InlineData(BotMode.Clicker, "кликер")]
-    public void NotReadyModesDoNothingInGame(BotMode mode, string name)
-    {
-        var world = new FakeWorld();
-        world.AddMob(1, "Волк", 5);
-        world.Hp = 10;
-        world.AddPotion(1, 8617, 5, hp: 30);
-        var runner = Create(mode);
-
-        for (var i = 0; i < 10; i++)
-            runner.Tick(world.Wait(0.25).Snapshot());
-
-        Assert.Empty(_actions.Calls);
-        Assert.Contains(name, runner.Status);
-    }
+    [Fact]
+    public void ClickerIsTheBrainToo() => Assert.IsType<BotBrain>(Create(BotMode.Clicker));
 
     [Fact]
     public void ModeIsSavedPerCharacterSettings()
