@@ -390,6 +390,8 @@ public sealed class GameFunction
     public CallingConvention Convention { get; init; }
     /// <summary>Откуда взять this у thiscall: host — персонаж, session — связь с сервером (бот находит их сам, свежими на каждом вызове).</summary>
     public FunctionThis This { get; init; }
+    /// <summary>Метод объекта, вложенного в персонаж или связь: this = (персонаж или связь) + сдвиг. Обычно 0.</summary>
+    public uint ThisOffset { get; init; }
     /// <summary>
     /// Аргументы по порядку: имена значений, которые даёт бот («wid», «data», у workStart — «work»…), или числа («0», «0xFFFFFFFF»).
     /// Нет в профиле — порядок по умолчанию (как у PW Classic 1.3.6), см. методы GameCaller.

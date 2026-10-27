@@ -17,6 +17,8 @@ public class GameCallerTests
     private const uint DataAddress = 0x7000_0100;
     private const uint Host = 0x1FA1F868;
     private const uint Session = 0x3300_0000;
+    // castSkill у PW Classic — метод объекта внутри связи: клиент сам зовёт его с this = связь + 0xF4
+    private const uint CastSkillThis = Session + 0xF4;
     private static readonly ProfileData Profile = new ProfileCatalog().Load("pwclassic136").Data;
 
     private readonly MemoryImage _memory = new();
@@ -157,7 +159,7 @@ public class GameCallerTests
 
         var run = _runner.Runs.Single();
         Assert.Equal(BitConverter.GetBytes(0x80116200u), run.Data);
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, Session, [330, 0, 1, DataAddress]), run.Stub);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, CastSkillThis, [330, 0, 1, DataAddress]), run.Stub);
     }
 
     [Fact]
@@ -167,7 +169,7 @@ public class GameCallerTests
 
         Caller().CastSkill(329, 0);
 
-        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, Session, [329, 0, 0, DataAddress]),
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, CastSkillThis, [329, 0, 0, DataAddress]),
             _runner.Runs.Single().Stub);
     }
 
@@ -435,6 +437,32 @@ public class GameCallerTests
         Caller(profile).CastSkill(330, 0x80116200);
 
         Assert.Equal(StubBuilder.Call(Address(GameFunctions.CastSkill), CallingConvention.Thiscall, session, [330, 0, 1, DataAddress]),
+            _runner.Runs.Single().Stub);
+    }
+
+    [Fact]
+    public void ThisOffsetIsAddedToSession()
+    {
+        const uint basePtr = 0x1000_0000, session = 0x3300_0000;
+        _memory.WriteUInt32(BasePointer, basePtr);
+        _memory.WriteUInt32(basePtr + 0x20, session);
+        var cancel = Profile.Functions[GameFunctions.CancelAction];
+        var profile = new ProfileData
+        {
+            Base = new BaseOffsets { Session = 0x20 },
+            Functions = new()
+            {
+                [GameFunctions.CancelAction] = new GameFunction
+                {
+                    Rva = cancel.Rva, Signature = cancel.Signature, Convention = CallingConvention.Thiscall, This = FunctionThis.Session,
+                    ThisOffset = 0x40,
+                },
+            },
+        };
+
+        Caller(profile).CancelAction();
+
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CancelAction), CallingConvention.Thiscall, session + 0x40, []),
             _runner.Runs.Single().Stub);
     }
 
