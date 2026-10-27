@@ -336,7 +336,7 @@
           <TextBlock Text="КЛИКЕР" Style="{StaticResource CardTitle}" />
           <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
                      Text="Бот выполняет шаги сверху вниз, после последнего — снова первый. Условие шага не выполнено — шаг пропускается. Паузы между шагами ставьте сами — шагом «Пауза»." />
-          <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
+          <ListView Height="250" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Clicker.Rows}" SelectedItem="{Binding Clicker.Selected}" BorderThickness="0" Background="Transparent">
             <ListView.ItemContainerStyle>
               <Style TargetType="ListViewItem">
                 <Style.Triggers>
@@ -348,9 +348,9 @@
             </ListView.ItemContainerStyle>
             <ListView.View>
               <GridView>
-                <GridViewColumn Header="№" Width="34" DisplayMemberBinding="{Binding Number}" />
-                <GridViewColumn Header="Что сделать" Width="140" DisplayMemberBinding="{Binding What}" />
-                <GridViewColumn Header="Условие" Width="200" DisplayMemberBinding="{Binding When}" />
+                <GridViewColumn Header="№" Width="30" DisplayMemberBinding="{Binding Number}" />
+                <GridViewColumn Header="Что сделать" Width="130" DisplayMemberBinding="{Binding What}" />
+                <GridViewColumn Header="Условие" Width="175" DisplayMemberBinding="{Binding When}" />
               </GridView>
             </ListView.View>
           </ListView>
