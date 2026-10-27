@@ -27,7 +27,7 @@ internal static class Program
         if (!first)
         {
             MessageBox.Show(
-                "BotCH из этой папки уже запущен.\n\nДля второго клиента скопируйте папку с ботом и запустите BotCH.exe из копии — у неё будут свои настройки.",
+                "BotCH из этой папки уже запущен.\n\nДля второго клиента скопируйте папку с ботом и запустите Notes.exe из копии — у неё будут свои настройки.",
                 "BotCH", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }

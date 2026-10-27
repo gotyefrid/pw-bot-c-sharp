@@ -38,7 +38,7 @@
 ## Запуск
 
 1. Запустите клиент игры и войдите персонажем.
-2. Запустите `BotCH.exe` — это один файл, ставить ничего не нужно.
+2. Запустите `Notes.exe` — это один файл, ставить ничего не нужно.
 3. Выберите сервер, клиент и режим, настройте под персонажа и нажмите **Старт**.
 
 Одна папка — один бот. Для второго клиента скопируйте папку с ботом.
@@ -58,7 +58,7 @@
 msbuild PwBot.sln -restore -p:Configuration=Release
 ```
 
-Бот — `src/BotCH.App/bin/Release/net48/BotCH.exe`, тесты — `tests/BotCH.Tests/bin/Release/net48/BotCH.Tests.exe`.
+Бот — `src/BotCH.App/bin/Release/net48/Notes.exe`, тесты — `tests/BotCH.Tests/bin/Release/net48/BotCH.Tests.exe`.
 
 ```
 src/BotCH.Core      логика: память, профили серверов, снимок мира, вызовы игры, мозг, настройки
