@@ -245,7 +245,7 @@ public sealed class GroundItemOffsets
 {
     public uint Id { get; init; }
     public uint Tid { get; init; }
-    /// <summary>1 предмет, 2 ресурс, 3 монеты.</summary>
+    /// <summary>Байт: 1 предмет, 2 ресурс, 3 монеты. Следующий байт — не вид (у части вещей там 1, всё поле — 0x101).</summary>
     public uint Kind { get; init; }
     /// <summary>
     /// Расстояние до персонажа, которое держит сама игра (float, в 3D — с высотой). Бот его не читает — считает из

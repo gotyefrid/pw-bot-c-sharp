@@ -237,7 +237,7 @@ public sealed class WorldReader
             b.Address,
             b.UInt32(g.Id),
             b.UInt32(g.Tid),
-            (GroundItemKind)b.Int32(g.Kind),
+            (GroundItemKind)b.Byte(g.Kind),
             ReadPosition(b, g.Location),
             ReadName(name));
         if (item.Kind == GroundItemKind.Item)

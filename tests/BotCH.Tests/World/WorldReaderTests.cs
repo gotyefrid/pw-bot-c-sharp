@@ -176,7 +176,7 @@ public class WorldReaderTests
     }
 
     // Предмет на земле с записью в справочнике: указатель на название ведёт в запись, перед названием — tid и тип
-    private void AddTyped(uint slots, int slot, uint address, ItemEssenceOffsets m, uint tid, uint recordTid, uint type, string name)
+    private void AddTyped(uint slots, int slot, uint address, ItemEssenceOffsets m, uint tid, uint recordTid, uint type, string name, uint kind = 1)
     {
         var g = Profile.GroundItem;
         uint node = address + 0x800, record = address + 0x1000;
@@ -185,7 +185,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(node + Profile.World.ObjectInSlot, address);
         _memory.Map(address, 0x400);
         _memory.WriteUInt32(address + g.Tid, tid);
-        _memory.WriteUInt32(address + g.Kind, 1);
+        _memory.WriteUInt32(address + g.Kind, kind);
         _memory.WriteUInt32(address + g.NamePointer, record + m.NameInRecord);
         _memory.Map(record, 0x100);
         _memory.WriteUInt32(record + m.Id, recordTid);
@@ -201,7 +201,7 @@ public class WorldReaderTests
         _memory.WriteUInt32(0x1003_0000 + Profile.World.GroundItems.Manager, manager);
         _memory.Map(manager, 0x100);
         _memory.WriteUInt32(manager + Profile.World.GroundItems.SlotArray, slots);
-        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 4);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 5);
         _memory.Map(slots, Profile.World.SlotCount * 4);
         // Материал — tid, тип, подтип, название; снаряд — tid, тип, название
         var material = Profile.ItemEssences[0];
@@ -211,11 +211,14 @@ public class WorldReaderTests
         AddTyped(slots, 3, 0x4200_0000, material, 830, 830, 785, "Мех животных");
         // Ни в одной раскладке на месте tid не он — записи без типа (корм пета)
         AddTyped(slots, 4, 0x4300_0000, material, 8796, 0, 8077, "Чистая вода");
+        // Вид — байт: во втором байте у части вещей 1 (0x101), это тоже предмет
+        AddTyped(slots, 5, 0x4400_0000, material, 341, 341, 316, "☆Корона с перьями", kind: 0x101);
 
         var world = Reader().Read();
 
-        Assert.Equal([("Бивень", "Предметы ДК"), ("Железная пуля", "Снаряды"), ("Мех животных", null), ("Чистая вода", null)],
+        Assert.Equal([("Бивень", "Предметы ДК"), ("Железная пуля", "Снаряды"), ("Мех животных", null), ("Чистая вода", null), ("☆Корона с перьями", "Броня")],
             world.GroundItems.Select(i => (i.Name, i.Group)));
+        Assert.All(world.GroundItems, i => Assert.Equal(GroundItemKind.Item, i.Kind));
     }
 
     [Fact]
