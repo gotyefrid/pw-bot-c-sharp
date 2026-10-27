@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Windows;
+using BotCH.Core.Clients;
 
 namespace BotCH.App;
 
@@ -21,13 +22,15 @@ internal static class Program
     private static void Run()
     {
         // Из одной папки — один бот: у копии свои настройки и персонажи. Второй клиент — копия папки с ботом
-        var folder = Path.GetDirectoryName(typeof(Program).Assembly.Location)!.ToLowerInvariant().Replace('\\', '/');
-        using var single = new Mutex(initiallyOwned: false, @"Local\BotCH-app-" + folder, out var first);
+        var exe = typeof(Program).Assembly.Location;
+        var folder = Path.GetDirectoryName(exe)!.ToLowerInvariant().Replace('\\', '/');
+        using var single = new Mutex(initiallyOwned: false, MutexNames.For("app", folder), out var first);
         if (!first)
         {
+            // Имя exe — как у запущенного файла: его могли переименовать
             MessageBox.Show(
-                "BotCH из этой папки уже запущен.\n\nДля второго клиента скопируйте папку с ботом и запустите BotCH.exe из копии — у неё будут свои настройки.",
-                "BotCH", MessageBoxButton.OK, MessageBoxImage.Information);
+                $"Программа из этой папки уже запущена.\n\nДля второго клиента скопируйте папку с программой и запустите {Path.GetFileName(exe)} из копии — у неё будут свои настройки.",
+                "Заметки", MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 

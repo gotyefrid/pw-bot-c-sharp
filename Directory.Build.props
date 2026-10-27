@@ -7,7 +7,16 @@
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <Deterministic>true</Deterministic>
-    <Company>gotyefrid</Company>
-    <Product>BotCH</Product>
+    <!-- Версия продукта без «+<коммит>»: по номеру коммита находится открытый репозиторий -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <!-- Поле «Компания» пустое. Пустой <Company> не годится: сборка подставит туда имя сборки -->
+    <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+    <Product>Notes</Product>
+  </PropertyGroup>
+
+  <!-- Релиз без отладочных данных: в готовом exe (и во вшитой в него BotCH.Core.dll) не остаётся пути к папке сборки -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 </Project>

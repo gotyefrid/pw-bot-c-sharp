@@ -66,7 +66,7 @@ public sealed class ClientConnection : IDisposable
         _logger = logger;
         _log = logger.For("подключение");
         if (clientLock is null)
-            _log.Warning($"PID {game.Pid} уже подключён в другом окне BotCH — не запускайте двух ботов на один клиент");
+            _log.Warning($"PID {game.Pid} уже подключён в другом окне — не запускайте двух ботов на один клиент");
 
         // База ищется в коде клиента — сразу, один раз на подключение
         _roots = GameRoots.Find(game, game.MainModuleBase, profile);
@@ -254,14 +254,14 @@ public sealed class ClientConnection : IDisposable
 
     /// <summary>
     /// Обработчик окна игры — один на все боты этого клиента (<see cref="Calls.WindowCallRunner"/>): «Стоп» его не снимает,
-    /// снимаем при отключении. Только если метка клиента у нас: без метки на этом клиенте работает и бот другого окна BotCH —
+    /// снимаем при отключении. Только если метка клиента у нас: без метки на этом клиенте работает и бот другого окна —
     /// снимем обработчик, и тот встанет. Тогда оставляем: вреда нет, следующий «Старт» возьмёт его же.
     /// </summary>
     private void RemoveWindowHandler()
     {
         if (_clientLock is null)
         {
-            _log.Debug("Обработчик окна игры оставляю: клиент подключён и в другом окне BotCH");
+            _log.Debug("Обработчик окна игры оставляю: клиент подключён и в другом окне");
             return;
         }
 

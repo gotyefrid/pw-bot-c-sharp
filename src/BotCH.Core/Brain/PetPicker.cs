@@ -6,8 +6,8 @@ using BotCH.Core.World;
 namespace BotCH.Core.Brain;
 
 /// <summary>
-/// Кого из питомцев звать: персонаж летит — того, кто живёт в воздухе, в воде — водного, иначе — наземного (не того
-/// сервер не призовёт). По названию из настроек, а если оно пустое — первого подходящего по порядку клеток.
+/// Кого из питомцев звать: персонаж летит — того, кто живёт в воздухе, в воде — водного, иначе — наземного или летающего
+/// (летающие призываются и на земле; не того сервер не призовёт). По названию из настроек, а если оно пустое — первого подходящего по порядку клеток.
 /// Сервер не говорит, где питомцы живут (поля не найдены), — как раньше, по номеру клетки.
 /// </summary>
 public static class PetPicker
@@ -38,7 +38,7 @@ public static class PetPicker
             return named;
         }
 
-        var first = pet.Cages.Where(p => p.Lives(where)).OrderBy(p => p.Cage).FirstOrDefault();
+        var first = pet.Cages.Where(p => p.CanSummon(where)).OrderBy(p => p.Cage).FirstOrDefault();
         if (first is null)
             problem = $"нет питомца, которого можно призвать {text}";
         return first;

@@ -39,7 +39,7 @@ public sealed class PetsPanel : ObservableObject
     /// <summary>Сервер говорит, где питомцы живут: выбор питомцами; иначе — номер клетки, как раньше.</summary>
     public bool KnowsPetHabitats { get => _knowsPetHabitats; private set => SetProperty(ref _knowsPetHabitats, value); }
 
-    /// <summary>Кого звать на земле: «авто» и питомцы, которые живут на земле.</summary>
+    /// <summary>Кого звать на земле: «авто» и питомцы, которые живут на земле или летают.</summary>
     public ObservableCollection<PetChoice> GroundPets { get; } = new();
 
     /// <summary>Кого звать в воздухе: «авто» и питомцы, которые летают.</summary>
@@ -113,7 +113,7 @@ public sealed class PetsPanel : ObservableObject
 
     private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, PetHabitat where, string chosen)
     {
-        var fit = cages.Where(p => p.Lives(where) && p.Name is not null).OrderBy(p => p.Cage).ToList();
+        var fit = cages.Where(p => p.CanSummon(where) && p.Name is not null).OrderBy(p => p.Cage).ToList();
         var auto = fit.FirstOrDefault() is { } first ? $"авто — {first.Name} (клетка {first.Cage})" : "авто — подходящего нет";
         var list = new List<PetChoice> { new("", auto) };
         list.AddRange(fit.Select(p => new PetChoice(p.Name!, $"{p.Name} (клетка {p.Cage})")));

@@ -269,6 +269,8 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"{name}: персонаж не в мире");
         if (prepared.Definition.This == FunctionThis.Session && !_roots.TrySession(out thisPointer))
             return CallResult.Refused($"{name}: нет связи с сервером");
+        if (prepared.Definition.This != FunctionThis.None)
+            thisPointer += prepared.Definition.ThisOffset;
 
         var known = values.ToDictionary(v => v.Name, v => v.Value);
         var address = _functions[name].Address;

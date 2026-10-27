@@ -32,7 +32,7 @@ public class ClientListTests
     [InlineData("ElementClient Window", true)]
     // Другие окна процесса игры и окно самого бота (WPF)
     [InlineData("GDI+ Hook Window Class", false)]
-    [InlineData("HwndWrapper[BotCH.exe;;4f0c]", false)]
+    [InlineData("HwndWrapper[Notes.exe;;4f0c]", false)]
     [InlineData("", false)]
     public void ClientIsFoundByGameWindowClass(string className, bool expected)
     {

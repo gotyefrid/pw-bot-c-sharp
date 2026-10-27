@@ -4,15 +4,15 @@
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
     <RootNamespace>BotCH.App</RootNamespace>
-    <AssemblyName>BotCH</AssemblyName>
+    <AssemblyName>Notes</AssemblyName>
     <!-- Свой Main: сначала загрузчик вшитых dll, потом WPF -->
     <StartupObject>BotCH.App.Program</StartupObject>
     <!-- Иконка exe и окна: синяя «B» с оранжевой точкой -->
-    <ApplicationIcon>BotCH.ico</ApplicationIcon>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="BotCH.ico" />
+    <Resource Include="app.ico" />
   </ItemGroup>
 
   <ItemGroup>

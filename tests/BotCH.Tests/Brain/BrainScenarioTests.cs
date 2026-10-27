@@ -162,6 +162,29 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void OnGroundFlyingPetIsSummonedToo()
+    {
+        // Летающих призывают и на земле; водного (карп в клетке раньше пчелы) — нет
+        _settings.Pet.Enabled = true;
+        _world.SetPets(null, Carp with { Cage = 1 }, Bee);
+
+        Tick();
+
+        Assert.Equal(["summon 2"], _actions.Calls);
+    }
+
+    [Fact]
+    public void FlyingPetSummonedByHandOnGroundIsKept()
+    {
+        _settings.Pet.Enabled = true;
+        _world.SetPets(2, Scorpion, Bee);
+
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, call => call.StartsWith("summon") || call.StartsWith("recall"));
+    }
+
+    [Fact]
     public void ChosenPetByNameWinsOverFirstSuitable()
     {
         _settings.Pet.Enabled = true;
