@@ -175,6 +175,46 @@ public class WorldReaderTests
         _memory.WriteBytes(record + m.Amounts + 12, System.BitConverter.GetBytes(0.1f));
     }
 
+    // Предмет на земле с записью материала: указатель на название ведёт в запись +0xC, перед ним tid, тип, подтип
+    private void AddMaterial(uint slots, int slot, uint address, uint tid, uint recordTid, uint subType, string name)
+    {
+        var g = Profile.GroundItem;
+        var m = Profile.MaterialEssence;
+        uint node = address + 0x800, record = address + 0x1000;
+        _memory.Map(node, 0x10);
+        _memory.WriteUInt32(slots + (uint)slot * 4, node);
+        _memory.WriteUInt32(node + Profile.World.ObjectInSlot, address);
+        _memory.Map(address, 0x400);
+        _memory.WriteUInt32(address + g.Tid, tid);
+        _memory.WriteUInt32(address + g.Kind, 1);
+        _memory.WriteUInt32(address + g.NamePointer, record + m.NameInRecord);
+        _memory.Map(record, 0x100);
+        _memory.WriteUInt32(record + m.Id, recordTid);
+        _memory.WriteUInt32(record + m.SubType, subType);
+        _memory.WriteBytes(record + m.NameInRecord, System.Text.Encoding.Unicode.GetBytes(name + "\0"));
+    }
+
+    [Fact]
+    public void MaterialsGetLootGroupBySubType()
+    {
+        BuildWorld();
+        const uint manager = 0x3000_0000, slots = 0x3001_0000;
+        _memory.WriteUInt32(0x1003_0000 + Profile.World.GroundItems.Manager, manager);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.SlotArray, slots);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 3);
+        _memory.Map(slots, Profile.World.SlotCount * 4);
+        AddMaterial(slots, 1, 0x4000_0000, 8099, 8099, 8089, "Бивень");
+        AddMaterial(slots, 2, 0x4100_0000, 8083, 8083, 794, "Разорванный мех");
+        // Не материал: запись другая, на месте tid — не он
+        AddMaterial(slots, 3, 0x4200_0000, 1041, 0, 8089, "Железная пуля");
+
+        var world = Reader().Read();
+
+        Assert.Equal([("Бивень", "ДК: Цю Ню (20)"), ("Разорванный мех", null), ("Железная пуля", null)],
+            world.GroundItems.Select(i => (i.Name, i.Group)));
+    }
+
     [Fact]
     public void ResourcesReadWithTheirYieldAndNonResourcesMarked()
     {

@@ -30,6 +30,7 @@ public sealed class WorldReader
     private readonly int _npcSize;
     private readonly int _itemSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
+    private readonly Dictionary<uint, string?> _groups = [];
     private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
     private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
@@ -239,6 +240,8 @@ public sealed class WorldReader
             (GroundItemKind)b.Int32(g.Kind),
             ReadPosition(b, g.Location),
             ReadName(name));
+        if (item.Kind == GroundItemKind.Item)
+            return item with { Group = ReadGroup(item.Tid, name) };
         if (item.Kind != GroundItemKind.Resource)
             return item;
 
@@ -283,6 +286,25 @@ public sealed class WorldReader
 
         _mines[tid] = mine;
         return mine;
+    }
+
+    // Группа лута — по подтипу из записи материала; запись не меняется, пока клиент запущен, — по tid читаем один раз
+    private string? ReadGroup(uint tid, uint namePointer)
+    {
+        var m = _p.MaterialEssence;
+        if (_p.LootGroups.Count == 0 || m.NameInRecord == 0 || namePointer < m.NameInRecord)
+            return null;
+        if (_groups.TryGetValue(tid, out var known))
+            return known;
+
+        var record = namePointer - m.NameInRecord;
+        if (!_memory.TryReadUInt32(record + m.Id, out var id) || !_memory.TryReadUInt32(record + m.SubType, out var subType))
+            return null;
+
+        // Не материал (оружие, патроны) — запись другая, tid на месте не совпадёт
+        var group = id == tid ? _p.LootGroups.FirstOrDefault(g => g.SubType == subType)?.Name : null;
+        _groups[tid] = group;
+        return group;
     }
 
     private List<InventoryItem> ReadInventory(uint inventory, out int slots)

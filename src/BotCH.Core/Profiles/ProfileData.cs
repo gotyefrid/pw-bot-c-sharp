@@ -21,6 +21,9 @@ public sealed class ProfileData
     public NpcOffsets Npc { get; init; } = new();
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
+    public MaterialEssenceOffsets MaterialEssence { get; init; } = new();
+    /// <summary>Группы лута — подтипы материалов (предметы ДК по уровням): в списке лута выбираются вместо названий. Пусто — групп нет.</summary>
+    public List<LootGroup> LootGroups { get; init; } = new();
     public MonsterEssenceOffsets MonsterEssence { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
     public PotionOffsets Potion { get; init; } = new();
@@ -274,6 +277,26 @@ public sealed class MineEssenceOffsets
     public uint Quest { get; init; }
     /// <summary>С какого уровня персонажа копается (int). 0 в профиле — поле не найдено, уровень не проверяем.</summary>
     public uint LevelRequired { get; init; }
+}
+
+/// <summary>
+/// Запись материала в справочнике игры (MATERIAL_ESSENCE из elements.data): указатель на название у предмета на земле ведёт
+/// внутрь неё, запись = [название] − <see cref="NameInRecord"/>. NameInRecord = 0 — не найдено для сервера.
+/// </summary>
+public sealed class MaterialEssenceOffsets
+{
+    public uint NameInRecord { get; init; }
+    /// <summary>tid материала — для проверки, что это запись материала: у оружия, патронов запись другая.</summary>
+    public uint Id { get; init; }
+    /// <summary>Подтип («Особые товары ур.2») — по нему группа лута.</summary>
+    public uint SubType { get; init; }
+}
+
+/// <summary>Группа лута: все материалы подтипа <see cref="SubType"/> под одним названием в списке лута.</summary>
+public sealed class LootGroup
+{
+    public uint SubType { get; init; }
+    public string Name { get; init; } = "";
 }
 
 public sealed class InventoryOffsets

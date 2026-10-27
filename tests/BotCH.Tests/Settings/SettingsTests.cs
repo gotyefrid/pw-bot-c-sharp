@@ -118,6 +118,20 @@ public class SettingsTests
     }
 
     [Theory]
+    [InlineData(LootListMode.OnlyListed, "ДК: Цю Ню (20)", true)]
+    [InlineData(LootListMode.OnlyListed, "ДК: Я Цы (31)", false)]
+    [InlineData(LootListMode.OnlyListed, null, false)]
+    [InlineData(LootListMode.ExceptListed, "ДК: Цю Ню (20)", false)]
+    [InlineData(LootListMode.ExceptListed, null, true)]
+    public void LootListFiltersByGroup(LootListMode mode, string? group, bool allowed)
+    {
+        // В списке группа, а не название: «Бивень» проходит как предмет ДК 20
+        var loot = new LootSettings { ListMode = mode, ItemNames = ["ДК: Цю Ню (20)"] };
+
+        Assert.Equal(allowed, LootFilter.Allows(loot, GroundItemKind.Item, "Бивень", group));
+    }
+
+    [Theory]
     [InlineData(LootListMode.OnlyListed)]
     [InlineData(LootListMode.ExceptListed)]
     public void MoneyIgnoresItemList(LootListMode mode)

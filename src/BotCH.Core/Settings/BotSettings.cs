@@ -442,7 +442,8 @@ public sealed class PetSettings : SettingsPart
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>
 public static class LootFilter
 {
-    public static bool Allows(LootSettings loot, GroundItemKind kind, string? name)
+    /// <param name="group">Группа лута предмета («ДК: Цю Ню (20)»): в списке может стоять она вместо названия.</param>
+    public static bool Allows(LootSettings loot, GroundItemKind kind, string? name, string? group = null)
     {
         // Ресурс копается, а не подбирается — подбором никогда (см. AllowsGather)
         if (kind == GroundItemKind.Resource)
@@ -453,10 +454,10 @@ public static class LootFilter
         if (kind == GroundItemKind.Item && !loot.PickItems)
             return false;
 
-        return ByList(loot.ListMode, loot.ItemNames, name);
+        return ByList(loot.ListMode, loot.ItemNames, name, group);
     }
 
-    public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name);
+    public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name, item.Group);
 
     /// <summary>Копать ли ресурс в радиусе фарма: «Копать ресурсы» включено, и список ресурсов разрешает (подбор лута ни при чём).</summary>
     public static bool AllowsGather(LootSettings loot, string? name)
@@ -469,14 +470,20 @@ public static class LootFilter
     public static bool ListsForGather(LootSettings loot, string? name)
         => loot.PickResources && NamedExplicitly(loot.ResourceMode, loot.ResourceNames, name);
 
-    /// <summary>Пропускает ли список: «все» — всех, «только» — названных, «кроме» — всех, кроме названных.</summary>
-    public static bool ByList(LootListMode mode, IReadOnlyCollection<string> names, string? name)
+    /// <summary>
+    /// Пропускает ли список: «все» — всех, «только» — названных, «кроме» — всех, кроме названных. Названо — само название
+    /// или группа предмета (<paramref name="group"/>).
+    /// </summary>
+    public static bool ByList(LootListMode mode, IReadOnlyCollection<string> names, string? name, string? group = null)
         => mode switch
         {
-            LootListMode.OnlyListed => MobNameFilter.Contains(names, name),
-            LootListMode.ExceptListed => !MobNameFilter.Contains(names, name),
+            LootListMode.OnlyListed => Listed(names, name, group),
+            LootListMode.ExceptListed => !Listed(names, name, group),
             _ => true,
         };
+
+    private static bool Listed(IReadOnlyCollection<string> names, string? name, string? group)
+        => MobNameFilter.Contains(names, name) || MobNameFilter.Contains(names, group);
 
     /// <summary>Название явно выбрано (в режимах «все» и «только»); «кроме списка» — значит «не трогать».</summary>
     public static bool NamedExplicitly(LootListMode mode, IReadOnlyCollection<string> names, string? name)
