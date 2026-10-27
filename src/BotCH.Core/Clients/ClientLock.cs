@@ -4,8 +4,9 @@ using System.Threading;
 namespace BotCH.Core.Clients;
 
 /// <summary>
-/// Метка «этот клиент занят окном BotCH»: именованный объект Windows с PID клиента. Живёт, пока окно подключено
-/// (и само исчезает, если окно бота закрылось или упало) — другое окно BotCH при запуске выберет свободный клиент.
+/// Метка «этот клиент занят окном бота»: именованный объект Windows, имя — отпечаток PID клиента (<see cref="MutexNames"/>).
+/// Живёт, пока окно подключено (и само исчезает, если окно бота закрылось или упало) — другое окно бота при запуске выберет
+/// свободный клиент.
 /// </summary>
 public sealed class ClientLock : IDisposable
 {
@@ -15,7 +16,7 @@ public sealed class ClientLock : IDisposable
 
     private static string NameFor(int pid) => MutexNames.For("client", pid.ToString());
 
-    /// <summary>Занять клиент; null — его уже занимает другое окно BotCH.</summary>
+    /// <summary>Занять клиент; null — его уже занимает другое окно бота.</summary>
     public static ClientLock? TryTake(int pid)
     {
         var mark = new Mutex(initiallyOwned: false, NameFor(pid), out var created);
