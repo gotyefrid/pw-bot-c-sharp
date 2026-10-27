@@ -118,15 +118,36 @@ public class BrainScenarioTests
         Tick();
         Assert.Equal("cast 329 0", LastCall);
 
+        _world.CastingSkillId = 329;
         for (var i = 0; i < 20; i++)
-            Tick(0.5); // каст ~12 с — ничего не повторяем
+            Tick(0.5); // каст ~11 с — ничего не повторяем
         Assert.Single(_actions.Calls);
 
         _world.SetPet(1, hpRatio: 0.1f, summoned: false);
         Tick();
+        _world.CastingSkillId = 0;
         Tick();
 
         Assert.Equal(["cast 329 0", "summon 1"], _actions.Calls);
+    }
+
+    [Fact]
+    public void BrokenReviveIsCastAgainAtOnce()
+    {
+        // Пока кастуется воскрешение, перса ударили и каст сорвался — жмём снова в ту же секунду, а не через 20 с
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1, hpRatio: 0, summoned: false);
+        _world.AddSkill(329);
+
+        Tick();
+        _world.CastingSkillId = 329;
+        for (var i = 0; i < 10; i++)
+            Tick(0.5);
+        _world.CastingSkillId = 0;
+        for (var i = 0; i < 4; i++)
+            Tick();
+
+        Assert.Equal(["cast 329 0", "cast 329 0"], _actions.Calls);
     }
 
     private static readonly PetInCage Scorpion = new(1, 1, 0) { Name = "Молодой узорчатый скорпион", Habitat = PetHabitat.Ground };

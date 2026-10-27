@@ -544,15 +544,81 @@ public class ActionRunnerTests
         Assert.Equal(SubmitStatus.Failed, _runner.Submit(Bot, new SummonPetAction(1), _world.Snapshot()).Status); // мёртв
 
         Assert.True(_runner.Submit(Bot, new RevivePetAction(1, 329), _world.Snapshot()).Sent);
+        _world.CastingSkillId = 329;
         Assert.Empty(_runner.Update(_world.Wait(5).Snapshot()));
+        // Как в игре: пет ожил на снимке, где каст ещё виден
         _world.SetPet(1, hpRatio: 0.1f, summoned: false);
-        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(7).Snapshot())).Status);
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(6.4).Snapshot())).Status);
+        _world.CastingSkillId = 0;
 
         Assert.True(_runner.Submit(Bot, new SummonPetAction(1), _world.Snapshot()).Sent);
         _world.SetPet(1, hpRatio: 0.1f, summoned: true);
         Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(3.5).Snapshot())).Status);
 
         Assert.Equal(["cast 329 0", "summon 1"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ReviveRejectedSoonWhenCastBroken()
+    {
+        // Каст сбили на 7-й секунде — отказ через полсекунды, а не через 20 с
+        _world.SetPet(1, hpRatio: 0, summoned: false);
+        _world.AddSkill(329);
+        _runner.Submit(Bot, new RevivePetAction(1, 329), _world.Snapshot());
+        _world.CastingSkillId = 329;
+        Assert.Empty(_runner.Update(_world.Wait(7).Snapshot()));
+
+        _world.CastingSkillId = 0;
+        Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        var outcome = Single(_runner.Update(_world.Wait(0.25).Snapshot()));
+
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.StartsWith("каст сбили через 7", outcome.Details);
+    }
+
+    [Fact]
+    public void ReviveCastMissedOnceIsNotBroken()
+    {
+        // Номер скилла разок не прочитался — каст идёт дальше
+        _world.SetPet(1, hpRatio: 0, summoned: false);
+        _world.AddSkill(329);
+        _runner.Submit(Bot, new RevivePetAction(1, 329), _world.Snapshot());
+        _world.CastingSkillId = 329;
+        Assert.Empty(_runner.Update(_world.Wait(3).Snapshot()));
+        _world.CastingSkillId = 0;
+        Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        _world.CastingSkillId = 329;
+
+        for (var i = 0; i < 20; i++)
+            Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+    }
+
+    [Fact]
+    public void ReviveRejectedWhenCastDidNotStart()
+    {
+        _world.SetPet(1, hpRatio: 0, summoned: false);
+        _world.AddSkill(329);
+        _runner.Submit(Bot, new RevivePetAction(1, 329), _world.Snapshot());
+
+        Assert.Empty(_runner.Update(_world.Wait(1.5).Snapshot()));
+        var outcome = Single(_runner.Update(_world.Wait(0.5).Snapshot()));
+
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.StartsWith("каст не начался", outcome.Details);
+    }
+
+    [Fact]
+    public void ReviveWaitsForPetWhenCastIsNotShown()
+    {
+        // Сервер не показывает, что кастуется: ни «сбили», ни «не начался» не понять — ждём пета весь срок
+        _world.CastingSkillId = null;
+        _world.SetPet(1, hpRatio: 0, summoned: false);
+        _world.AddSkill(329);
+        _runner.Submit(Bot, new RevivePetAction(1, 329), _world.Snapshot());
+
+        Assert.Empty(_runner.Update(_world.Wait(15).Snapshot()));
+        Assert.Equal(ActionStatus.Timeout, Single(_runner.Update(_world.Wait(5).Snapshot())).Status);
     }
 
     [Fact]

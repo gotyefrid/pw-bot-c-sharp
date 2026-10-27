@@ -558,7 +558,12 @@ public sealed class RecallPetAction : GameAction
         => now.Pet is not { IsSummoned: true } ? Verdict.Confirmed() : Verdict.Pending;
 }
 
-/// <summary>Воскресить пета скиллом (пакетом, без цели; каст ~12 с). Подтверждение — пет в клетке жив.</summary>
+/// <summary>
+/// Воскресить пета скиллом (пакетом, без цели; каст ~11 с). Подтверждение — пет в клетке жив: удачный каст оживляет его на том же
+/// снимке, где каст кончается. Каст кончился, а пет мёртв, — каст сбили (ударили, сдвинули): отказ сразу, а не через 20 с, —
+/// хозяин жмёт снова, перезарядки после срыва нет. Каст не начался — тоже отказ. Что кастуется — по номеру скилла
+/// (<see cref="HostState.CastingSkillId"/>): байт «кастует» при касте пакетом не ставится.
+/// </summary>
 public sealed class RevivePetAction(int cage, int skill) : GameAction
 {
     public int Cage { get; } = cage;
@@ -576,8 +581,36 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.CastSkill(skill, 0);
 
+    // В игре каст виден через 0,2 с после отправки
+    private static readonly TimeSpan StartPatience = TimeSpan.FromSeconds(2);
+    // Каст пропал, а пет мёртв: подождать на случай, если номер скилла разок не прочитался
+    private static readonly TimeSpan EndPatience = TimeSpan.FromSeconds(0.5);
+    private bool _castSeen;
+    private DateTime? _castEnded;
+
     public override Verdict Check(WorldState start, WorldState now)
-        => now.Pet?.InCage(Cage) is { IsAlive: true } ? Verdict.Confirmed() : Verdict.Pending;
+    {
+        if (now.Pet?.InCage(Cage) is { IsAlive: true })
+            return Verdict.Confirmed();
+        // Сервер не показывает, что кастуется, — ждём до конца срока
+        if (now.Host.CastingSkillId is not int casting)
+            return Verdict.Pending;
+
+        if (casting == skill)
+        {
+            _castSeen = true;
+            _castEnded = null;
+            return Verdict.Pending;
+        }
+
+        if (!_castSeen)
+            return now.Time - start.Time >= StartPatience ? Verdict.Rejected($"каст не начался за {StartPatience.TotalSeconds:0} с") : Verdict.Pending;
+
+        _castEnded ??= now.Time;
+        return now.Time - _castEnded.Value >= EndPatience
+            ? Verdict.Rejected($"каст сбили через {(_castEnded.Value - start.Time).TotalSeconds:0.0} с")
+            : Verdict.Pending;
+    }
 }
 
 /// <summary>Приказ пету атаковать. Подтверждение — у пета в списке мобов цель = этот моб.</summary>
