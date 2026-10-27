@@ -97,6 +97,8 @@ internal sealed class ClickerScript
     }
 
     /// <summary>Положить на землю предмет в <paramref name="distance"/> м от персонажа.</summary>
-    public static void Drop(FakeWorld world, uint id, string name, float distance, GroundItemKind kind = GroundItemKind.Item, string? group = null)
-        => world.Ground.Add(new GroundItem(0x1000 + id, id, 100 + id, kind, new Position(distance, 0, 0), name) { Group = group });
+    /// <param name="special">«Нересурс» (квестовый, ящик) — копается, но не киркой.</param>
+    public static void Drop(FakeWorld world, uint id, string name, float distance, GroundItemKind kind = GroundItemKind.Item, string? group = null,
+        bool special = false)
+        => world.Ground.Add(new GroundItem(0x1000 + id, id, 100 + id, kind, new Position(distance, 0, 0), name) { Group = group, Special = special });
 }

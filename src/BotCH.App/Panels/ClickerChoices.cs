@@ -9,4 +9,5 @@ namespace BotCH.App.Panels;
 /// Новый вид выбора — свойство здесь.
 /// </summary>
 /// <param name="Loot">Предметы: рядом, встречались, группы — как у лута.</param>
-public sealed record ClickerChoices(Func<IReadOnlyList<PickOption>> Loot);
+/// <param name="Resources">Что копается: рядом (и «нересурсы») и известное по блокноту ресурсов — как в точках маршрута.</param>
+public sealed record ClickerChoices(Func<IReadOnlyList<PickOption>> Loot, Func<IReadOnlyList<PickOption>> Resources);

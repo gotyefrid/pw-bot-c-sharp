@@ -184,7 +184,7 @@ public sealed class ItemNearbyCondition : ClickerCondition
 
     protected override string? Holds(BrainContext c)
     {
-        var item = GroundItemChoice.Nearest(c.World, Items, Radius);
+        var item = GroundItemChoice.NearestItem(c.World, Items, Radius);
         return item is null ? null : $"лежит «{item.Name}» в {item.Offset}";
     }
 
@@ -193,6 +193,49 @@ public sealed class ItemNearbyCondition : ClickerCondition
         Radius = GroundItemChoice.CleanRadius(Radius);
         if (!Items.SequenceEqual(MobNameFilter.Clean(Items)))
             Items = new ObservableCollection<string>(MobNameFilter.Clean(Items));
+    }
+}
+
+/// <summary>
+/// Рядом с персонажем (не дальше <see cref="Radius"/>) есть что копать из <see cref="Resources"/> — ресурс или «нересурс»
+/// (квестовый, ящик), без проверки инструмента, уровня, квеста; список пуст — что угодно (<see cref="GroundItemChoice"/>).
+/// </summary>
+public sealed class ResourceNearbyCondition : ClickerCondition
+{
+    private ObservableCollection<string> _resources = [];
+    private int _radius = 10;
+
+    public ResourceNearbyCondition() => _resources.CollectionChanged += ResourcesChanged;
+
+    /// <summary>Названия ресурсов. Список, который меняют на месте (выбор в окне), — о правке говорит сам.</summary>
+    public ObservableCollection<string> Resources
+    {
+        get => _resources;
+        set
+        {
+            _resources.CollectionChanged -= ResourcesChanged;
+            _resources = value ?? [];
+            _resources.CollectionChanged += ResourcesChanged;
+            Changed(nameof(Resources));
+        }
+    }
+
+    /// <summary>Не дальше этого от персонажа, м.</summary>
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
+
+    private void ResourcesChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Resources));
+
+    protected override string What()
+        => Resources.Count == 0 ? $"рядом любой ресурс (до {Radius} м)" : $"рядом ресурс: {string.Join(", ", Resources)} (до {Radius} м)";
+
+    protected override string? Holds(BrainContext c)
+        => GroundItemChoice.NearestResource(c.World, Resources, Radius) is { } resource ? $"рядом «{resource.Name}» в {resource.Offset}" : null;
+
+    public override void Normalize()
+    {
+        Radius = GroundItemChoice.CleanRadius(Radius);
+        if (!Resources.SequenceEqual(MobNameFilter.Clean(Resources)))
+            Resources = new ObservableCollection<string>(MobNameFilter.Clean(Resources));
     }
 }
 

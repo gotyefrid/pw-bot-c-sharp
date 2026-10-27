@@ -136,7 +136,7 @@ public sealed class PickUpItemAction : ConfirmableAction
     protected override string What() => Items.Count == 0 ? "поднять ближайший предмет" : $"поднять: {string.Join(", ", Items)}";
 
     public override IClickerRun Start(BrainContext c)
-        => GroundItemChoice.Nearest(c.World, Items) is { } item
+        => GroundItemChoice.NearestItem(c.World, Items) is { } item
             ? Send(new PickupAction(item))
             : ClickerRuns.Skipped("рядом нечего поднять");
 

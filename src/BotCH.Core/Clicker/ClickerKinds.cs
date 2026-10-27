@@ -54,6 +54,7 @@ public static class ClickerKinds
         .Add<PetHpBelowCondition>("PetHpBelow", "HP пета меньше, %")
         .Add<TargetCondition>("Target", "Цель персонажа")
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет")
+        .Add<ResourceNearbyCondition>("ResourceNearby", "Рядом можно копать")
         .Add<AllCondition>("All", "Все условия (И)")
         .Add<AnyCondition>("Any", "Любое из условий (ИЛИ)");
 }

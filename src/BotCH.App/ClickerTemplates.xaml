@@ -82,6 +82,20 @@
                      ToolTip="Какие предметы: названия или группы, как у лута. Ничего не выбрано — любой предмет или монеты" />
     </StackPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:ResourceNearbyCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Ресурс не дальше этого от персонажа" />
+        <Grid />
+      </DockPanel>
+      <app:TagPicker Margin="0,0,0,6" Selected="{Binding Resources}"
+                     Options="{Binding DataContext.Choices.Resources, RelativeSource={RelativeSource AncestorType=Window}}"
+                     Placeholder="Любой ресурс" EmptyOptionsText="Рядом копать нечего, и в блокноте ресурсов пусто"
+                     ToolTip="Что копать: ресурсы и «нересурсы» (квестовые, ящики) — бот не проверяет кирку, уровень и квест. Ничего не выбрано — что угодно" />
+    </StackPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:AllCondition}">
     <StackPanel>
       <TextBlock Text="Выполнено, когда выполнены все условия списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />
