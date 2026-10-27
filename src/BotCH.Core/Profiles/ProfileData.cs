@@ -23,7 +23,8 @@ public sealed class ProfileData
     public MineEssenceOffsets MineEssence { get; init; } = new();
     /// <summary>Раскладки записей предметов с типом (оружие, банки, снаряды…) — для групп лута. Пусто — групп нет.</summary>
     public List<ItemEssenceOffsets> ItemEssences { get; init; } = new();
-    /// <summary>Группы лута по типу предмета («Оружие», «Предметы ДК»): в списке лута выбираются вместо названий. Пусто — групп нет.</summary>
+    /// <summary>Группы лута по типу предмета («Оружие», «Предметы ДК») или списком tid («Корм пета»): в списке лута выбираются вместо
+    /// названий. Пусто — групп нет.</summary>
     public List<LootGroup> LootGroups { get; init; } = new();
     public MonsterEssenceOffsets MonsterEssence { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
@@ -293,11 +294,13 @@ public sealed class ItemEssenceOffsets
     public uint Type { get; init; }
 }
 
-/// <summary>Группа лута: все предметы типов <see cref="Types"/> под одним названием в списке лута.</summary>
+/// <summary>Группа лута: все предметы типов <see cref="Types"/> и с tid из <see cref="Tids"/> под одним названием в списке лута.</summary>
 public sealed class LootGroup
 {
     public string Name { get; init; } = "";
     public List<uint> Types { get; init; } = new();
+    /// <summary>Предметы списком tid — когда в их записи нет типа (корм пета).</summary>
+    public List<uint> Tids { get; init; } = new();
 }
 
 public sealed class InventoryOffsets

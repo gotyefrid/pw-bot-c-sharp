@@ -194,14 +194,14 @@ public class WorldReaderTests
     }
 
     [Fact]
-    public void ItemsGetLootGroupByType()
+    public void ItemsGetLootGroupByTypeOrTid()
     {
         BuildWorld();
         const uint manager = 0x3000_0000, slots = 0x3001_0000;
         _memory.WriteUInt32(0x1003_0000 + Profile.World.GroundItems.Manager, manager);
         _memory.Map(manager, 0x100);
         _memory.WriteUInt32(manager + Profile.World.GroundItems.SlotArray, slots);
-        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 5);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 6);
         _memory.Map(slots, Profile.World.SlotCount * 4);
         // Материал — tid, тип, подтип, название; снаряд — tid, тип, название
         var material = Profile.ItemEssences[0];
@@ -209,14 +209,16 @@ public class WorldReaderTests
         AddTyped(slots, 1, 0x4000_0000, material, 8099, 8099, 8077, "Бивень");
         AddTyped(slots, 2, 0x4100_0000, projectile, 1041, 1041, 8548, "Железная пуля");
         AddTyped(slots, 3, 0x4200_0000, material, 830, 830, 785, "Мех животных");
-        // Ни в одной раскладке на месте tid не он — записи без типа (корм пета)
+        // Записи без типа (ни в одной раскладке на месте tid не он): корм пета — по списку tid, остальное — без группы
         AddTyped(slots, 4, 0x4300_0000, material, 8796, 0, 8077, "Чистая вода");
+        AddTyped(slots, 6, 0x4500_0000, material, 9999, 0, 8077, "Свиток");
         // Вид — байт: во втором байте у части вещей 1 (0x101), это тоже предмет
         AddTyped(slots, 5, 0x4400_0000, material, 341, 341, 316, "☆Корона с перьями", kind: 0x101);
 
         var world = Reader().Read();
 
-        Assert.Equal([("Бивень", "Предметы ДК"), ("Железная пуля", "Снаряды"), ("Мех животных", null), ("Чистая вода", null), ("☆Корона с перьями", "Броня")],
+        Assert.Equal([("Бивень", "Предметы ДК"), ("Железная пуля", "Снаряды"), ("Мех животных", null), ("Чистая вода", "Корм пета"),
+                ("☆Корона с перьями", "Броня"), ("Свиток", null)],
             world.GroundItems.Select(i => (i.Name, i.Group)));
         Assert.All(world.GroundItems, i => Assert.Equal(GroundItemKind.Item, i.Kind));
     }

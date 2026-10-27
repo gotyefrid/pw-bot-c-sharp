@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using BotCH.Core.Profiles;
@@ -62,7 +63,9 @@ public class ProfileCatalogTests
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>(), c => Assert.Null(profile.Capabilities.WhyNot(c)));
         // Группы лута — данные игры, одни на всех; их названия хранятся в настройках персонажа
         Assert.NotEmpty(profile.Data.LootGroups);
-        Assert.Equal(_catalog.Load("comeback136").Data.LootGroups.Select(g => (g.Name, string.Join(",", g.Types))), profile.Data.LootGroups.Select(g => (g.Name, string.Join(",", g.Types))));
+        static IEnumerable<string> Groups(ServerProfile p) =>
+            p.Data.LootGroups.Select(g => $"{g.Name}: типы {string.Join(",", g.Types)}, tid {string.Join(",", g.Tids)}");
+        Assert.Equal(Groups(_catalog.Load("comeback136")), Groups(profile));
     }
 
     [Fact]

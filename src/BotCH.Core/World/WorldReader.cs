@@ -295,6 +295,9 @@ public sealed class WorldReader
             return null;
         if (_groups.TryGetValue(tid, out var known))
             return known;
+        // Списком tid (корм пета: типа в его записи нет) — память не читаем
+        if (_p.LootGroups.FirstOrDefault(g => g.Tids.Contains(tid)) is { } listed)
+            return _groups[tid] = listed.Name;
 
         string? group = null;
         var unread = false;
