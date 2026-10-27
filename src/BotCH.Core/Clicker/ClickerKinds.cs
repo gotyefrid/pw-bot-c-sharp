@@ -47,7 +47,8 @@ public static class ClickerKinds
         .Add<PauseAction>("Pause", "Пауза")
         .Add<PickUpItemAction>("PickUpItem", "Поднять предмет")
         .Add<GatherResourceAction>("Gather", "Копать")
-        .Add<TakeTargetAction>("TakeTarget", "Взять цель");
+        .Add<TakeTargetAction>("TakeTarget", "Взять цель")
+        .Add<FeedPetAction>("FeedPet", "Кормить пета");
 
     public static ClickerKindList<ClickerCondition> Conditions { get; } = new ClickerKindList<ClickerCondition>()
         .Add<AlwaysCondition>("Always", "Всегда")

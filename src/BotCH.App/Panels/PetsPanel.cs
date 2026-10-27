@@ -125,11 +125,7 @@ public sealed class PetsPanel : ObservableObject
     // Корм из сумки по названию (стопки складываем), сначала самый простой; выбранный, которого в сумке нет, — с пометкой
     private static List<PetChoice> FoodChoices(IEnumerable<InventoryItem> bag, string chosen)
     {
-        var list = new List<PetChoice> { new("", "любой — сначала самый простой") };
-        list.AddRange(bag.Where(i => i.IsPetFood && i.Name is not null)
-            .GroupBy(i => i.Name!, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(g => g.Min(i => i.FoodLoyalty))
-            .Select(g => new PetChoice(g.Key, $"{g.Key} ×{g.Sum(i => i.Count)}")));
+        var list = PickLists.Foods(bag).Select(o => new PetChoice(o.Name, o.Text)).ToList();
         if (chosen.Length > 0 && !list.Any(c => string.Equals(c.Value, chosen, StringComparison.OrdinalIgnoreCase)))
             list.Add(new PetChoice(chosen, $"{chosen} — нет в сумке"));
         return list;

@@ -38,6 +38,15 @@
                    Placeholder="Ближайшая любая" EmptyOptionsText="Рядом никого, и раньше никто не встречался"
                    ToolTip="Кого брать в цель: мобы, NPC, чужие петы. Ничего не выбрано — ближайшего любого (свой пет — никогда). В цели другой, а выбранный ближе — цель сменится; чтобы не сбивать взятую, добавьте условие «Цели нет». Как далеко — задайте условием «Рядом можно взять цель»" />
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:FeedPetAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Корм" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Food}"
+                        OptionsSource="{Binding DataContext.Choices.Foods, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Чем кормить: корм из сумки. «Любой» — самый простой, что есть. Выбранного нет в сумке — шаг не выйдет, другим кормом не заменит. Корм на перезарядке — шаг ничего не делает. Голоден ли пет — задайте условием «Пет голоден»" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />

@@ -21,6 +21,12 @@ public partial class ChoicePicker : UserControl
         nameof(Value), typeof(string), typeof(ChoicePicker),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault, OnShownChanged));
 
+    public static readonly DependencyProperty OptionsSourceProperty = DependencyProperty.Register(
+        nameof(OptionsSource), typeof(Func<IReadOnlyList<PickOption>>), typeof(ChoicePicker), new PropertyMetadata(null, OnShownChanged));
+
+    // Что в открытом списке: меняющиеся варианты берутся при открытии
+    private IReadOnlyList<PickOption> _listed = [];
+
     public ChoicePicker() => InitializeComponent();
 
     /// <summary>Варианты по порядку — как в списке.</summary>
@@ -29,6 +35,15 @@ public partial class ChoicePicker : UserControl
         get => (IReadOnlyList<PickOption>?)GetValue(OptionsProperty);
         set => SetValue(OptionsProperty, value);
     }
+
+    /// <summary>Варианты, которые меняются (корм в сумке), — вместо <see cref="Options"/>: берутся заново при каждом открытии списка.</summary>
+    public Func<IReadOnlyList<PickOption>>? OptionsSource
+    {
+        get => (Func<IReadOnlyList<PickOption>>?)GetValue(OptionsSourceProperty);
+        set => SetValue(OptionsSourceProperty, value);
+    }
+
+    private IReadOnlyList<PickOption> CurrentOptions() => OptionsSource?.Invoke() ?? Options ?? [];
 
     /// <summary>Имя выбранного варианта (<see cref="PickOption.Name"/>).</summary>
     public string? Value
@@ -41,7 +56,7 @@ public partial class ChoicePicker : UserControl
     private static void OnShownChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var picker = (ChoicePicker)d;
-        picker.Shown.Text = picker.Options?.FirstOrDefault(o => o.Name == picker.Value)?.Text ?? picker.Value ?? "";
+        picker.Shown.Text = picker.CurrentOptions().FirstOrDefault(o => o.Name == picker.Value)?.Text ?? picker.Value ?? "";
     }
 
     private void BoxClicked(object sender, RoutedEventArgs e) => Open("");
@@ -66,6 +81,7 @@ public partial class ChoicePicker : UserControl
 
     private void Open(string search)
     {
+        _listed = CurrentOptions();
         Search.Text = search;
         Search.CaretIndex = search.Length;
         Filter();
@@ -88,7 +104,7 @@ public partial class ChoicePicker : UserControl
     private void Filter()
     {
         var text = Search.Text.Trim();
-        var shown = (Options ?? []).Where(o => text.Length == 0 || o.Text.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
+        var shown = _listed.Where(o => text.Length == 0 || o.Text.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0).ToList();
         OptionList.ItemsSource = shown;
         OptionList.SelectedItem = (text.Length == 0 ? shown.FirstOrDefault(o => o.Name == Value) : null) ?? shown.FirstOrDefault();
         if (OptionList.SelectedItem is not null)

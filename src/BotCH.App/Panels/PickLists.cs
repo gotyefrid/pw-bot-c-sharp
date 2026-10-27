@@ -22,6 +22,17 @@ public static class PickLists
     }
 
     /// <summary>Виды действий или условий кликера — для выбора с поиском: имя — вид в файле, текст — название в окне.</summary>
+    /// <summary>Корм пета из сумки: «любой» и названия со счётом, сначала самый простой (меньше даёт верности).</summary>
+    public static List<PickOption> Foods(IEnumerable<InventoryItem> bag)
+    {
+        var list = new List<PickOption> { new("", "любой — сначала самый простой") };
+        list.AddRange(bag.Where(i => i.IsPetFood && i.Name is not null)
+            .GroupBy(i => i.Name!, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Min(i => i.FoodLoyalty))
+            .Select(g => new PickOption(g.Key, $"{g.Key} ×{g.Sum(i => i.Count)}")));
+        return list;
+    }
+
     public static IReadOnlyList<PickOption> Kinds<T>(ClickerKindList<T> kinds) where T : class
         => kinds.All.Select(k => new PickOption(k.Id, k.Title)).ToList();
 }

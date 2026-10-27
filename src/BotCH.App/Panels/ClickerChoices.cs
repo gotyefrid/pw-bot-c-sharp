@@ -11,7 +11,9 @@ namespace BotCH.App.Panels;
 /// <param name="Loot">Предметы: рядом, встречались, группы — как у лута.</param>
 /// <param name="Resources">Что копается: рядом (и «нересурсы») и известное по блокноту ресурсов — как в точках маршрута.</param>
 /// <param name="Targets">Кого можно взять в цель — мобы, NPC, чужие петы: рядом и встречались.</param>
+/// <param name="Foods">Корм пета из сумки и «любой» — как в настройках пета.</param>
 public sealed record ClickerChoices(
     Func<IReadOnlyList<PickOption>> Loot,
     Func<IReadOnlyList<PickOption>> Resources,
-    Func<IReadOnlyList<PickOption>> Targets);
+    Func<IReadOnlyList<PickOption>> Targets,
+    Func<IReadOnlyList<PickOption>> Foods);

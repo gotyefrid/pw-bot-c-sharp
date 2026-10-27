@@ -235,6 +235,42 @@ public sealed class TakeTargetAction : ConfirmableAction
 }
 
 /// <summary>
+/// Покормить призванного пета кормом <see cref="Food"/> (пусто — самым простым: меньше всех даёт верности) — как из сумки
+/// (<see cref="UseItemAction"/>). Голоден ли пет, не смотрит: это задаёт условие «Пет голоден». Корм на перезарядке — в игру
+/// ничего не шлёт, сделано; выбранного нет в сумке — «не вышло», другим кормом не подменяет. Подтверждение — стопка корма
+/// уменьшилась.
+/// </summary>
+public sealed class FeedPetAction : ConfirmableAction
+{
+    private string _food = "";
+
+    /// <summary>Название корма, как в игре; пусто — самый простой из сумки.</summary>
+    public string Food { get => _food; set => Set(ref _food, value ?? ""); }
+
+    protected override string What() => Food.Length == 0 ? "кормить пета любым кормом" : $"кормить пета: {Food}";
+
+    public override IClickerRun Start(BrainContext c)
+    {
+        var world = c.World;
+        if (world.Pet is not { IsSummoned: true })
+            return ClickerRuns.Failed("пет не призван");
+        if (world.Host.PetFoodCooldownMs > 0)
+            return ClickerRuns.Skipped($"корм на перезарядке ещё {world.Host.PetFoodCooldownMs / 1000.0:0} с");
+
+        var food = world.Inventory
+            .Where(i => i.IsPetFood && i.Count > 0 && (Food.Length == 0 || string.Equals(i.Name?.Trim(), Food, StringComparison.OrdinalIgnoreCase)))
+            .OrderBy(i => i.FoodLoyalty)
+            .FirstOrDefault();
+        if (food is null)
+            return ClickerRuns.Failed(Food.Length == 0 ? "нет корма в сумке" : $"корма «{Food}» нет в сумке");
+
+        return Send(new UseItemAction(food, ItemUse.PetFood));
+    }
+
+    public override void Normalize() => Food = Food.Trim();
+}
+
+/// <summary>
 /// Действие вида, которого эта версия бота не знает (файл от более новой копии): не выполняется, но и не теряется — в файл
 /// пишется как было (<see cref="Fields"/>).
 /// </summary>
