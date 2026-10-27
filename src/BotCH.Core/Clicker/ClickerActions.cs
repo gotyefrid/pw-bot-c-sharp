@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Linq;
 using BotCH.Core.Actions;
 using BotCH.Core.Brain;
 using BotCH.Core.Settings;
@@ -79,6 +82,52 @@ public sealed class PauseAction : ClickerAction
     public override IClickerRun Start(BrainContext c) => ClickerRuns.Wait(TimeSpan.FromMilliseconds(Milliseconds));
 
     public override void Normalize() => Milliseconds = Math.Min(MaxMilliseconds, Math.Max(0, Milliseconds));
+}
+
+/// <summary>
+/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) не дальше <see cref="Radius"/> от
+/// персонажа — «как мышкой» (<see cref="PickupAction"/>): подбегает сам, сделано — предмет пропал с земли. Поднимать нечего —
+/// тоже сделано, без предупреждения: шаг можно ставить и без условия.
+/// </summary>
+public sealed class PickUpItemAction : ClickerAction
+{
+    private ObservableCollection<string> _items = [];
+    private int _radius = 10;
+
+    public PickUpItemAction() => _items.CollectionChanged += ItemsChanged;
+
+    /// <summary>Названия или группы предметов (<see cref="GroundItemChoice"/>). Меняют на месте (выбор в окне) — о правке говорит сам.</summary>
+    public ObservableCollection<string> Items
+    {
+        get => _items;
+        set
+        {
+            _items.CollectionChanged -= ItemsChanged;
+            _items = value ?? [];
+            _items.CollectionChanged += ItemsChanged;
+            Changed(nameof(Items));
+        }
+    }
+
+    /// <summary>Не дальше этого от персонажа, м.</summary>
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
+
+    private void ItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Items));
+
+    public override string Describe()
+        => Items.Count == 0 ? $"поднять ближайший предмет (до {Radius} м)" : $"поднять: {string.Join(", ", Items)} (до {Radius} м)";
+
+    public override IClickerRun Start(BrainContext c)
+        => GroundItemChoice.Nearest(c.World, Items, Radius) is { } item
+            ? ClickerRuns.Send(new PickupAction(item))
+            : ClickerRuns.Skipped("рядом нечего поднять");
+
+    public override void Normalize()
+    {
+        Radius = GroundItemChoice.CleanRadius(Radius);
+        if (!Items.SequenceEqual(MobNameFilter.Clean(Items)))
+            Items = new ObservableCollection<string>(MobNameFilter.Clean(Items));
+    }
 }
 
 /// <summary>

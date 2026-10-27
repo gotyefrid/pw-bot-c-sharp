@@ -45,7 +45,10 @@ public static class ClickerRuns
     public static IClickerRun Wait(TimeSpan time) => new WaitRun(time);
 
     /// <summary>Сразу «не вышло» — делать нечего (рядом нет моба, клавиша не выбрана).</summary>
-    public static IClickerRun Failed(string why) => new FailedRun(why);
+    public static IClickerRun Failed(string why) => new FixedRun(StepState.Failed(why));
+
+    /// <summary>Сразу «сделано» — делать нечего, и это не ошибка (поднимать нечего): почему — в подробный лог.</summary>
+    public static IClickerRun Skipped(string why) => new FixedRun(new StepState(StepStatus.Done, why));
 
     private sealed class SendRun(GameAction action, bool doneWhenSent) : IClickerRun
     {
@@ -99,9 +102,9 @@ public static class ClickerRuns
         }
     }
 
-    private sealed class FailedRun(string why) : IClickerRun
+    private sealed class FixedRun(StepState state) : IClickerRun
     {
-        public StepState Tick(BrainContext c) => StepState.Failed(why);
+        public StepState Tick(BrainContext c) => state;
 
         public void OnOutcome(BrainContext c, ActionOutcome outcome)
         {

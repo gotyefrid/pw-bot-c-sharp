@@ -82,6 +82,8 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
 
             if (state.Status == StepStatus.Failed)
                 c.Say("clicker-" + _index, $"Кликер: {_running} — не вышло: {state.Details}", LogLevel.Warning);
+            else if (state.Details.Length > 0)
+                c.Log.Debug($"Кликер: {_running} — {state.Details}");
             _run = null;
             Next(steps.Count);
         }
