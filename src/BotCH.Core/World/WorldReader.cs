@@ -288,22 +288,37 @@ public sealed class WorldReader
         return mine;
     }
 
-    // Группа лута — по типу из записи материала; запись не меняется, пока клиент запущен, — по tid читаем один раз
+    // Группа лута — по типу из записи предмета; запись не меняется, пока клиент запущен, — по tid читаем один раз
     private string? ReadGroup(uint tid, uint namePointer)
     {
-        var m = _p.MaterialEssence;
-        if (_p.LootGroups.Count == 0 || m.NameInRecord == 0 || namePointer < m.NameInRecord)
+        if (_p.LootGroups.Count == 0)
             return null;
         if (_groups.TryGetValue(tid, out var known))
             return known;
 
-        var record = namePointer - m.NameInRecord;
-        if (!_memory.TryReadUInt32(record + m.Id, out var id) || !_memory.TryReadUInt32(record + m.Type, out var type))
-            return null;
+        string? group = null;
+        var unread = false;
+        foreach (var e in _p.ItemEssences)
+        {
+            if (e.NameInRecord == 0 || namePointer < e.NameInRecord)
+                continue;
+            var record = namePointer - e.NameInRecord;
+            if (!_memory.TryReadUInt32(record + e.Id, out var id) || !_memory.TryReadUInt32(record + e.Type, out var type))
+            {
+                unread = true;
+                continue;
+            }
 
-        // Не материал (оружие, патроны) — запись другая, tid на месте не совпадёт
-        var group = id == tid ? _p.LootGroups.FirstOrDefault(g => g.Type == type)?.Name : null;
-        _groups[tid] = group;
+            // Раскладка не та (или у предмета нет типа) — tid на месте не совпадёт
+            if (id != tid)
+                continue;
+            group = _p.LootGroups.FirstOrDefault(g => g.Types.Contains(type))?.Name;
+            break;
+        }
+
+        // Не прочиталось — в следующем снимке попробуем ещё
+        if (group is not null || !unread)
+            _groups[tid] = group;
         return group;
     }
 

@@ -21,8 +21,9 @@ public sealed class ProfileData
     public NpcOffsets Npc { get; init; } = new();
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
-    public MaterialEssenceOffsets MaterialEssence { get; init; } = new();
-    /// <summary>Группы лута — типы материалов («Предметы ДК»): в списке лута выбираются вместо названий. Пусто — групп нет.</summary>
+    /// <summary>Раскладки записей предметов с типом (оружие, банки, снаряды…) — для групп лута. Пусто — групп нет.</summary>
+    public List<ItemEssenceOffsets> ItemEssences { get; init; } = new();
+    /// <summary>Группы лута по типу предмета («Оружие», «Предметы ДК»): в списке лута выбираются вместо названий. Пусто — групп нет.</summary>
     public List<LootGroup> LootGroups { get; init; } = new();
     public MonsterEssenceOffsets MonsterEssence { get; init; } = new();
     public InventoryOffsets Inventory { get; init; } = new();
@@ -280,23 +281,23 @@ public sealed class MineEssenceOffsets
 }
 
 /// <summary>
-/// Запись материала в справочнике игры (MATERIAL_ESSENCE из elements.data): указатель на название у предмета на земле ведёт
-/// внутрь неё, запись = [название] − <see cref="NameInRecord"/>. NameInRecord = 0 — не найдено для сервера.
+/// Запись предмета с типом в справочнике игры (WEAPON_ESSENCE, MATERIAL_ESSENCE, PROJECTILE_ESSENCE… из elements.data):
+/// указатель на название у предмета на земле ведёт внутрь неё, запись = [название] − <see cref="NameInRecord"/>.
 /// </summary>
-public sealed class MaterialEssenceOffsets
+public sealed class ItemEssenceOffsets
 {
     public uint NameInRecord { get; init; }
-    /// <summary>tid материала — для проверки, что это запись материала: у оружия, патронов запись другая.</summary>
+    /// <summary>tid предмета — для проверки, что раскладка та: у записи другого вида здесь чужое число.</summary>
     public uint Id { get; init; }
-    /// <summary>Тип материала (у предметов ДК всех уровней — один) — по нему группа лута.</summary>
+    /// <summary>Тип («Мечи», «Восстанавливает ЖС», «Стрела») — по нему группа лута.</summary>
     public uint Type { get; init; }
 }
 
-/// <summary>Группа лута: все материалы типа <see cref="Type"/> под одним названием в списке лута.</summary>
+/// <summary>Группа лута: все предметы типов <see cref="Types"/> под одним названием в списке лута.</summary>
 public sealed class LootGroup
 {
-    public uint Type { get; init; }
     public string Name { get; init; } = "";
+    public List<uint> Types { get; init; } = new();
 }
 
 public sealed class InventoryOffsets

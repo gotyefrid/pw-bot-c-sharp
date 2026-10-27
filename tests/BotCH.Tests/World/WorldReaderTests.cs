@@ -175,11 +175,10 @@ public class WorldReaderTests
         _memory.WriteBytes(record + m.Amounts + 12, System.BitConverter.GetBytes(0.1f));
     }
 
-    // Предмет на земле с записью материала: указатель на название ведёт в запись +0xC, перед ним tid, тип, подтип
-    private void AddMaterial(uint slots, int slot, uint address, uint tid, uint recordTid, uint type, string name)
+    // Предмет на земле с записью в справочнике: указатель на название ведёт в запись, перед названием — tid и тип
+    private void AddTyped(uint slots, int slot, uint address, ItemEssenceOffsets m, uint tid, uint recordTid, uint type, string name)
     {
         var g = Profile.GroundItem;
-        var m = Profile.MaterialEssence;
         uint node = address + 0x800, record = address + 0x1000;
         _memory.Map(node, 0x10);
         _memory.WriteUInt32(slots + (uint)slot * 4, node);
@@ -195,23 +194,27 @@ public class WorldReaderTests
     }
 
     [Fact]
-    public void MaterialsGetLootGroupByType()
+    public void ItemsGetLootGroupByType()
     {
         BuildWorld();
         const uint manager = 0x3000_0000, slots = 0x3001_0000;
         _memory.WriteUInt32(0x1003_0000 + Profile.World.GroundItems.Manager, manager);
         _memory.Map(manager, 0x100);
         _memory.WriteUInt32(manager + Profile.World.GroundItems.SlotArray, slots);
-        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 3);
+        _memory.WriteUInt32(manager + Profile.World.GroundItems.Count, 4);
         _memory.Map(slots, Profile.World.SlotCount * 4);
-        AddMaterial(slots, 1, 0x4000_0000, 8099, 8099, 8077, "Бивень");
-        AddMaterial(slots, 2, 0x4100_0000, 830, 830, 785, "Мех животных");
-        // Не материал: запись другая, на месте tid — не он
-        AddMaterial(slots, 3, 0x4200_0000, 1041, 0, 8077, "Железная пуля");
+        // Материал — tid, тип, подтип, название; снаряд — tid, тип, название
+        var material = Profile.ItemEssences[0];
+        var projectile = Profile.ItemEssences[1];
+        AddTyped(slots, 1, 0x4000_0000, material, 8099, 8099, 8077, "Бивень");
+        AddTyped(slots, 2, 0x4100_0000, projectile, 1041, 1041, 8548, "Железная пуля");
+        AddTyped(slots, 3, 0x4200_0000, material, 830, 830, 785, "Мех животных");
+        // Ни в одной раскладке на месте tid не он — записи без типа (корм пета)
+        AddTyped(slots, 4, 0x4300_0000, material, 8796, 0, 8077, "Чистая вода");
 
         var world = Reader().Read();
 
-        Assert.Equal([("Бивень", "Предметы ДК"), ("Мех животных", null), ("Железная пуля", null)],
+        Assert.Equal([("Бивень", "Предметы ДК"), ("Железная пуля", "Снаряды"), ("Мех животных", null), ("Чистая вода", null)],
             world.GroundItems.Select(i => (i.Name, i.Group)));
     }
 
