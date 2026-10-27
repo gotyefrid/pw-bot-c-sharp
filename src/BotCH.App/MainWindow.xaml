@@ -337,9 +337,9 @@
                              ToolTip="Какие предметы: названия или группы, как у лута. Ничего не выбрано — любой предмет или монеты" />
             </StackPanel>
             <DockPanel>
-              <TextBlock Text="Не чаще, чем раз в, с" VerticalAlignment="Center" />
+              <TextBlock Text="Пауза между нажатиями, с" VerticalAlignment="Center" />
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Clicker.RepeatText, UpdateSourceTrigger=PropertyChanged}"
-                       ToolTip="Пока условие выполнено, клавиша жмётся с таким шагом. Можно дробное: 0,5. Не меньше 0,25" />
+                       ToolTip="Пока условие выполнено, клавиша жмётся с такой паузой. Можно дробное: 0,5. Не меньше 0,25" />
               <Grid />
             </DockPanel>
           </StackPanel>
