@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Linq;
+using BotCH.Core.Actions;
 using BotCH.Core.Clients;
 using BotCH.Core.Memory;
 using BotCH.Core.Profiles;
@@ -55,6 +56,8 @@ internal static class Program
                     return WithClient(rest, (_, game) => MemoryWatch(game));
                 case "rename":
                     return Rename(rest);
+                case "key":
+                    return Key(rest);
                 case "dump":
                     return WithClient(rest, (profile, game) => WorldCommands.Dump(profile, game, rest));
                 case "record":
@@ -99,6 +102,7 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
+        Console.WriteLine("  key <клавиша> [--wait с]  нажать клавишу в окне клиента, как кликер (F1, 3, Ctrl+2); через 5 с — успеть переключиться в игру");
         Console.WriteLine("  cdfind [pet-food|potion-hp|potion-mp]  использовать предмет и 15 с искать поле его перезарядки («до/после»)");
         Console.WriteLine();
         Console.WriteLine("ПЕРЕНОС НА НОВЫЙ КЛИЕНТ (только чтение; правит файл профиля):");
@@ -359,6 +363,41 @@ internal static class Program
         return failed == 0 ? 0 : 5;
     }
 
+    private static int Key(string[] args)
+    {
+        if (args.Length == 0 || !KeyStroke.TryParse(args[0], out var key))
+        {
+            Console.Error.WriteLine("Клавиша: F1…F24, 0…9, A…Z, Num0…Num9, Space, Esc, Tab, ←↑→↓…, можно с Ctrl+, Alt+, Shift+");
+            return 1;
+        }
+
+        var rest = args.Skip(1).ToArray();
+        var at = Array.IndexOf(rest, "--wait");
+        var wait = at >= 0 && at + 1 < rest.Length && int.TryParse(rest[at + 1], out var w) ? Math.Max(0, w) : 5;
+        var pid = ClientPid(rest.Where((_, i) => i != at + 1 || at < 0).ToArray());
+        var keys = new WindowKeys(pid);
+        if (keys.Window == IntPtr.Zero)
+        {
+            Console.Error.WriteLine($"❌ PID {pid}: окно игры не найдено");
+            return 2;
+        }
+
+        Console.WriteLine($"Клиент PID {pid} «{NativeWindows.GetTitle(keys.Window)}»: нажму {key} через {wait} с — переключитесь в окно игры, если нужно");
+        for (var left = wait; left > 0; left--)
+        {
+            Console.Write($"{left}… ");
+            System.Threading.Thread.Sleep(1000);
+        }
+
+        var active = keys.IsActive;
+        var result = keys.Press(key);
+        Console.WriteLine();
+        Console.WriteLine(result.Ok
+            ? $"✅ {key} отправлена, окно игры было {(active ? "активным" : "в фоне")}. Сработала ли — смотрите в игре"
+            : $"❌ {result.Details}");
+        return result.Ok ? 0 : 3;
+    }
+
     private static int WithClient(string[] args, Func<ServerProfile, GameProcess, int> command)
     {
         var profile = LoadProfile(args);
@@ -374,14 +413,15 @@ internal static class Program
     }
 
     internal static GameProcess OpenClient(string[] args, GameProcessRights rights = GameProcessRights.Read)
+        => GameProcess.Open(ClientPid(args), rights);
+
+    private static int ClientPid(string[] args)
     {
         // Число среди аргументов — PID, только если это запущенный клиент (у scanint числа — искомые значения)
         var clients = NativeWindows.FindClientProcesses();
         var pidArg = args.TakeWhile(a => a != "--server").Select(a => int.TryParse(a, out var n) ? n : -1).FirstOrDefault(clients.Contains);
-        var pid = pidArg > 0
+        return pidArg > 0
             ? pidArg
             : clients.Count > 0 ? clients[0] : throw new InvalidOperationException("Клиент игры не найден: нет окна «ElementClient Window»");
-
-        return GameProcess.Open(pid, rights);
     }
 }

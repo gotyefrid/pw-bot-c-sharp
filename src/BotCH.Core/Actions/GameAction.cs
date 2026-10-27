@@ -64,6 +64,8 @@ public enum ActionSlot
     PetOrder,
     /// <summary>Прервать каст или копание.</summary>
     Cancel,
+    /// <summary>Нажатие клавиши (кликер); в ключе — клавиша с Ctrl/Alt/Shift.</summary>
+    Key,
 }
 
 /// <summary>«То же самое действие»: слот и, где нужно, что в нём (ID скилла, ячейка, предмет); у остальных 0.</summary>
@@ -220,6 +222,24 @@ public sealed class MacroAction(int macro) : GameAction
         => now.Target is null ? "нет цели" : now.Macros.Any(m => m.Number == Macro) ? null : $"макроса {Macro} нет";
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.ApplyMacro(Macro);
+
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
+/// <summary>
+/// Нажать клавишу в окне игры (кликер). Что она делает, бот не знает, проверить нечего: ушло нажатие — сделано. Тела не
+/// занимает: игра сама решит, что делать с клавишей посреди каста или бега.
+/// </summary>
+public sealed class KeyAction(KeyStroke stroke) : GameAction
+{
+    public KeyStroke Stroke { get; } = stroke;
+    public override string Name => $"клавиша {Stroke}";
+    public override ActionSlot Slot => ActionSlot.Key;
+    public override uint SlotId => Stroke.Code;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override bool Quiet => true;
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Keys.Press(Stroke);
 
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }

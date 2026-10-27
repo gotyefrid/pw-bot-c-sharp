@@ -126,8 +126,8 @@ internal sealed class FakeWorld
     }
 }
 
-/// <summary>Действия, которые ничего не делают в игре, а запоминают, что их просили.</summary>
-internal sealed class FakeActions : IGameActions
+/// <summary>Действия и клавиши, которые ничего не делают в игре, а запоминают, что их просили (по порядку, в одном списке).</summary>
+internal sealed class FakeActions : IGameActions, IGameKeys
 {
     public List<string> Calls { get; } = [];
     public CallResult Result { get; set; } = CallResult.Done;
@@ -161,4 +161,5 @@ internal sealed class FakeActions : IGameActions
     public CallResult Gather(GroundItem resource) => Record($"gather {resource.Id:X}");
     public CallResult ToggleFly() => Record("fly-toggle");
     public CallResult FlyTo(Position point) => Record($"fly {point}");
+    public CallResult Press(KeyStroke key) => Record($"key {key}");
 }
