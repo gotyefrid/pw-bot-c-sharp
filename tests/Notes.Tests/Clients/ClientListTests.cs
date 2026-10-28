@@ -11,8 +11,8 @@ public class ClientListTests
 {
     private sealed class FakeSource(params (int Pid, string? Nick)[] clients) : IClientSource
     {
-        public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses()
-            => clients.Select(c => (c.Pid, new IntPtr(c.Pid * 10))).ToList();
+        public IReadOnlyList<(int Pid, IntPtr Window, string? ExePath)> FindProcesses()
+            => clients.Select(c => (c.Pid, new IntPtr(c.Pid * 10), (string?)null)).ToList();
 
         public string? ReadNick(int pid) => clients.First(c => c.Pid == pid).Nick;
     }

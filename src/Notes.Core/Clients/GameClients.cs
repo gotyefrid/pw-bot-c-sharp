@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
@@ -8,7 +10,7 @@ using Notes.Core.World;
 namespace Notes.Core.Clients;
 
 /// <summary>Запущенный клиент игры.</summary>
-public sealed record GameClient(int Pid, string? Nick, IntPtr Window)
+public sealed record GameClient(int Pid, string? Nick, IntPtr Window, string? ExePath)
 {
     /// <summary>Как показать в списке выбора.</summary>
     public string Display => Nick is null ? $"PID {Pid} — персонаж не в мире" : $"{Nick} (PID {Pid})";
@@ -25,8 +27,8 @@ public static class WindowTitles
 /// <summary>Откуда берутся процессы и ники. Подменяется в тестах.</summary>
 public interface IClientSource
 {
-    /// <summary>PID и главное окно всех запущенных клиентов игры.</summary>
-    IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses();
+    /// <summary>PID, главное окно и путь exe всех запущенных клиентов игры.</summary>
+    IReadOnlyList<(int Pid, IntPtr Window, string? ExePath)> FindProcesses();
 
     /// <summary>Ник персонажа в клиенте или null (экран выбора, нет доступа).</summary>
     string? ReadNick(int pid);
@@ -38,7 +40,7 @@ public static class ClientList
     public static List<GameClient> Build(IClientSource source)
         => source.FindProcesses()
             .OrderBy(p => p.Pid)
-            .Select(p => new GameClient(p.Pid, source.ReadNick(p.Pid), p.Window))
+            .Select(p => new GameClient(p.Pid, source.ReadNick(p.Pid), p.Window, p.ExePath))
             .ToList();
 
     /// <summary>
@@ -67,8 +69,24 @@ public sealed class SystemClientSource(ProfileData profile) : IClientSource
     /// Клиент — процесс с окном игры, имя exe не важно: у Comeback есть ElementClient.exe и ElementClient_test.exe,
     /// игроки запускают любой; у PW Classic — client.exe (старый elementclient.exe бот не поддерживает).
     /// </summary>
-    public IReadOnlyList<(int Pid, IntPtr Window)> FindProcesses()
-        => NativeWindows.FindClientProcesses().Select(pid => (pid, NativeWindows.FindMainWindow(pid))).ToList();
+    public IReadOnlyList<(int Pid, IntPtr Window, string? ExePath)> FindProcesses()
+        => NativeWindows.FindClientProcesses()
+            .Select(pid => (pid, NativeWindows.FindMainWindow(pid), MainModulePath(pid)))
+            .ToList();
+
+    /// <summary>Путь exe процесса; null — процесс закрылся или пути не достать (права).</summary>
+    private static string? MainModulePath(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return process.MainModule?.FileName;
+        }
+        catch (Exception e) when (e is ArgumentException or Win32Exception or InvalidOperationException or NotSupportedException)
+        {
+            return null;
+        }
+    }
 
     public string? ReadNick(int pid)
     {
