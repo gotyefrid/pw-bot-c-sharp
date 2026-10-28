@@ -385,7 +385,7 @@ internal static class Program
             return 2;
         }
 
-        Console.WriteLine($"Клиент PID {pid} «{NativeWindows.GetTitle(keys.Window)}»: нажму {key} через {wait} с — переключитесь в окно игры, если нужно");
+        Console.WriteLine($"Клиент PID {pid} «{NativeWindows.GetTitle(keys.Window)}»: нажму {key} через {wait} с");
         for (var left = wait; left > 0; left--)
         {
             Console.Write($"{left}… ");
