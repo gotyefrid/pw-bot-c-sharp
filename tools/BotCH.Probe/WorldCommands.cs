@@ -151,6 +151,92 @@ internal static class WorldCommands
         return 0;
     }
 
+    /// <summary>
+    /// Кто кого бьёт и на сколько: каждый новый удар из менеджера атак игры (снимок раз в 100 мс), в конце — итог по парам
+    /// «кто → кого». Файл .tsv — те же удары таблицей, для разбора вне Probe.
+    /// </summary>
+    public static int Attacks(ServerProfile profile, GameProcess game, string[] args)
+    {
+        if (profile.Data.Attacks.Manager == 0)
+        {
+            Console.Error.WriteLine($"❌ {profile.Name}: в профиле нет менеджера атак (attacks)");
+            return 1;
+        }
+
+        var path = args.FirstOrDefault(a => a.EndsWith(".tsv", StringComparison.OrdinalIgnoreCase));
+        var seconds = args.Select(a => int.TryParse(a, out var n) && n != game.Pid ? n : 0).FirstOrDefault(n => n is > 0 and <= 3600);
+        if (seconds == 0)
+            seconds = 60;
+
+        var reader = CreateReader(profile, game, out var skills);
+        var tracker = new AttackTracker();
+        var stop = false;
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            stop = true;
+        };
+
+        using var file = path is null
+            ? null
+            : new StreamWriter(new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite), new UTF8Encoding(false));
+        file?.WriteLine("мс\tкто\tWID кто\tкого\tWID кого\tурон\tскилл\tфлаги");
+        Console.WriteLine($"Удары {seconds} с{(path is null ? "" : " → " + Path.GetFullPath(path))}, Ctrl+C — раньше");
+
+        var names = new Dictionary<uint, string>();
+        var totals = new Dictionary<(uint From, uint To), (int Hits, long Damage, int Min, int Max)>();
+        var watch = Stopwatch.StartNew();
+        while (!stop && !game.HasExited && watch.Elapsed.TotalSeconds < seconds)
+        {
+            var started = watch.ElapsedMilliseconds;
+            WorldState w;
+            try
+            {
+                w = reader.Read();
+            }
+            catch (WorldNotReadyException e)
+            {
+                Console.WriteLine($"{started / 1000,4} с  ⏳ {e.Message}");
+                Thread.Sleep(250);
+                continue;
+            }
+
+            foreach (var attack in tracker.Update(w))
+            {
+                var from = names[attack.AttackerWid] = Who(w, attack.AttackerWid);
+                var skill = attack.Skill == 0 ? "" : $", {skills.Get(attack.Skill) ?? "скилл"} ({attack.Skill})";
+                foreach (var hit in attack.Hits)
+                {
+                    var to = names[hit.TargetWid] = Who(w, hit.TargetWid);
+                    Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff}  {from} → {to}: {hit.Damage}{skill}{(hit.Flags != 0 ? $", флаги 0x{hit.Flags:X}" : "")}");
+                    file?.WriteLine($"{started}\t{from}\t0x{attack.AttackerWid:X8}\t{to}\t0x{hit.TargetWid:X8}\t{hit.Damage}\t{attack.Skill}\t0x{hit.Flags:X}");
+                    if (hit.Damage <= 0)
+                        continue;
+
+                    var key = (attack.AttackerWid, hit.TargetWid);
+                    (int Hits, long Damage, int Min, int Max) t = totals.TryGetValue(key, out var old) ? old : (0, 0L, int.MaxValue, 0);
+                    totals[key] = (t.Hits + 1, t.Damage + hit.Damage, Math.Min(t.Min, hit.Damage), Math.Max(t.Max, hit.Damage));
+                }
+            }
+
+            file?.Flush();
+            Thread.Sleep((int)Math.Max(0, 100 - (watch.ElapsedMilliseconds - started)));
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(totals.Count == 0 ? "Ударов с уроном не было" : $"Итог за {watch.Elapsed.TotalSeconds:0} с (урон больше 0):");
+        foreach (var t in totals.OrderByDescending(t => t.Value.Damage))
+            Console.WriteLine($"  {names[t.Key.From]} → {names[t.Key.To]}: {t.Value.Damage} за {t.Value.Hits} уд. ({t.Value.Min}…{t.Value.Max})");
+        return 0;
+    }
+
+    // Вы, ваш пет, моб или NPC из снимка (с WID — их бывает несколько одинаковых), игрок (WID без старшего бита) или просто WID
+    private static string Who(WorldState w, uint wid)
+        => wid == w.Host.Wid ? "вы"
+            : w.Npcs.FirstOrDefault(n => n.Wid == wid) is { } n
+                ? (w.Pet?.ActiveWid == wid ? $"пет «{n.Name}»" : $"{n.Name} ур. {n.Level} ({wid & 0xFFFF:X4})")
+                : (wid & 0x8000_0000) == 0 ? $"игрок 0x{wid:X8}" : $"0x{wid:X8}";
+
     /// <summary>Читает снимок и проверяет, что значения разумные. Плюс замер скорости.</summary>
     public static int SelfTest(ServerProfile profile, GameProcess game)
     {
