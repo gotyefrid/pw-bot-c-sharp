@@ -32,7 +32,7 @@ public sealed class SpotService
     private DateTime _synced;
     private string? _character;
 
-    /// <param name="folder">Общая папка всех копий бота (%AppData%\BotCH): resources.json и resource-events.csv.</param>
+    /// <param name="folder">Общая папка всех копий бота (%AppData%\Notes, <see cref="SharedFolder"/>): resources.json и resource-events.csv.</param>
     /// <param name="clock">Часы для «раз в 10 с / раз в минуту» (в тестах — подставные).</param>
     public SpotService(string folder, ILogger log, Func<DateTime>? clock = null)
     {

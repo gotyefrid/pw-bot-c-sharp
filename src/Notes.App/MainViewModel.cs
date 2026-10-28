@@ -47,7 +47,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private ServerProfile _profile;
     private bool _refreshing;
 
-    // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\BotCH\resources.json), копятся в любом режиме
+    // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\Notes\resources.json), копятся в любом режиме
     private readonly SpotService _spots;
 
     // Правка настроек — сохранить файл и отдать боту копию через 0,5 с после последней (число в поле набирают по цифре)
@@ -74,8 +74,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _saveTimer.Tick += (_, _) => FlushSettings();
         Settings.Edited += SettingsEdited;
 
-        var shared = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BotCH");
-        _spots = new SpotService(shared, logger.For(LogSources.Resources));
+        var resourcesLog = logger.For(LogSources.Resources);
+        var shared = SharedFolder.Prepare(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), resourcesLog);
+        _spots = new SpotService(shared, resourcesLog);
         _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
