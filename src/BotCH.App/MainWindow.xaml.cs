@@ -33,6 +33,7 @@ public partial class MainWindow : Window
 
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
+        _model.Log.FilterChanged += RebuildLog;
         _model.Log.Entries.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 
@@ -103,7 +104,7 @@ public partial class MainWindow : Window
         LogBox.ScrollToEnd();
     }
 
-    private void LogFilterChanged(object sender, RoutedEventArgs e) => RebuildLog();
+    private void OpenLogFilters(object sender, RoutedEventArgs e) => new LogFilterWindow { Owner = this, DataContext = _model.Log }.ShowDialog();
 
     // Двойной щелчок по строке (не по заголовку и не по пустому месту) — окно шага
     private void EditClickerStep(object sender, System.Windows.Input.MouseButtonEventArgs e)

@@ -11,9 +11,6 @@ namespace BotCH.Core.World;
 /// </summary>
 public sealed class DamageLog(ILogger log)
 {
-    /// <summary>Источник записей лога: по нему окно показывает или прячет урон.</summary>
-    public const string Source = "урон";
-
     private readonly AttackTracker _tracker = new();
 
     public void Observe(WorldState world)

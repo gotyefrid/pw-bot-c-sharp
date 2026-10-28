@@ -23,7 +23,7 @@ public class DamageLogTests
 
     public DamageLogTests()
     {
-        _damage = new DamageLog(new Logger().AddSink(new ListSink(_log)).For(DamageLog.Source));
+        _damage = new DamageLog(new Logger().AddSink(new ListSink(_log)).For(LogSources.Damage));
         _world.AddMob(Bee, "Боевая пчела-убийца", 3);
         _world.AddMob(Widow, "Паучья вдова", 6);
         // Скорпион ур. 37: 1067 HP в окне пета, сейчас 90 % — 960
@@ -44,7 +44,7 @@ public class DamageLogTests
     {
         Assert.Equal(["Пет → Боевая пчела-убийца: 519 (Яростная атака)", "Вы → Паучья вдова: 228"],
             Lines(Hit(FakeWorld.PetWid, Bee, 519, "Яростная атака"), Hit(FakeWorld.HostWid, Widow, 228)));
-        Assert.All(_log, e => Assert.Equal(DamageLog.Source, e.Source));
+        Assert.All(_log, e => Assert.Equal(LogSources.Damage, e.Source));
     }
 
     [Fact]

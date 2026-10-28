@@ -64,7 +64,7 @@ public sealed class ClientConnection : IDisposable
         _clientLock = clientLock;
         _profile = profile;
         _logger = logger;
-        _log = logger.For("подключение");
+        _log = logger.For(LogSources.Connection);
         if (clientLock is null)
             _log.Warning($"PID {game.Pid} уже подключён в другом окне — не запускайте двух ботов на один клиент");
 
@@ -175,9 +175,9 @@ public sealed class ClientConnection : IDisposable
             foreach (var (name, why) in calls.Caller.Problems)
                 _log.Warning($"Функция {name} недоступна: {why}");
 
-            var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid)), _logger.For("действия"));
-            var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For("мозг"), _profile.GatherTools, routeStart);
-            var memoryLog = _logger.For("память");
+            var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid)), _logger.For(LogSources.Actions));
+            var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For(LogSources.Brain), _profile.GatherTools, routeStart);
+            var memoryLog = _logger.For(LogSources.Memory);
             var inspector = new ProcessInspector(_game);
             var guard = new GameMemoryGuard(inspector.QueryFreeMemory, memoryLog);
             if (inspector.QueryFreeMemory() is FreeMemory free)

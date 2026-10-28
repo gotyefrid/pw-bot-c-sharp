@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using BotCH.Core.Logging;
 using BotCH.Core.Settings;
 using BotCH.Core.World;
 using Xunit;
@@ -151,6 +152,20 @@ public class SettingsTests
         Assert.True(LootFilter.Allows(onlyMoney, GroundItemKind.Money, "Монета"));
         Assert.False(LootFilter.Allows(onlyMoney, GroundItemKind.Item, "Мягкий мех"));
         Assert.False(LootFilter.Allows(new LootSettings { PickMoney = false }, GroundItemKind.Money, "Монета"));
+    }
+
+    [Fact]
+    public void LogViewHidesDamageByDefaultAndKeepsChoice()
+    {
+        // Старый файл без раздела — урон скрыт; выбор переживает сохранение, пустой список — всё показано
+        Assert.Equal([LogSources.Damage], SettingsJson.Parse("{}").LogView.Hidden);
+
+        var s = SettingsJson.Parse("""{ "logView": { "onlyImportant": true, "hidden": [] } }""");
+        var again = SettingsJson.Parse(SettingsJson.Serialize(s)).LogView;
+
+        Assert.True(again.OnlyImportant);
+        Assert.Empty(again.Hidden);
+        Assert.Empty(SettingsJson.Parse("""{ "logView": { "hidden": null } }""").LogView.Hidden);
     }
 
     [Fact]

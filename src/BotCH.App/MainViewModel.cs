@@ -60,15 +60,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(Path.Combine(appDirectory, "logs")));
         ring.Added += entry => OnUi(() => Log.Add(entry));
         _logger = logger;
-        _log = logger.For("окно");
-        _connectionLog = logger.For("подключение");
+        _log = logger.For(LogSources.Window);
+        _connectionLog = logger.For(LogSources.Connection);
 
         _config = new SettingsService(appDirectory, _log);
+        // Что показывать в логе — своё у окна, как подключение: в settings.json
+        Log.Load(_config.App.LogView);
+        Log.FilterChanged += () =>
+        {
+            Log.Save(_config.App.LogView);
+            SaveSettings();
+        };
         _saveTimer.Tick += (_, _) => FlushSettings();
         Settings.Edited += SettingsEdited;
 
         var shared = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BotCH");
-        _spots = new SpotService(shared, logger.For("ресурсы"));
+        _spots = new SpotService(shared, logger.For(LogSources.Resources));
         _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
@@ -387,7 +394,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _spots.Server = _profile.Id;
             // Блокноту ресурсов и логу урона — каждый снимок, прямо в потоке снимков; окну — только последний
             connection.WorldUpdated += _spots.Observe;
-            connection.WorldUpdated += new DamageLog(_logger.For(DamageLog.Source)).Observe;
+            connection.WorldUpdated += new DamageLog(_logger.For(LogSources.Damage)).Observe;
             connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => OnUi(() => ShowFailure(message));
             connection.BotStatusChanged += status => OnUi(() => BotState = Capitalize(status));

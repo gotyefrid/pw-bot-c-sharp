@@ -1,13 +1,15 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Windows.Input;
 using BotCH.App.Mvvm;
 using BotCH.Core.Logging;
-using BotCH.Core.World;
+using BotCH.Core.Settings;
 
 namespace BotCH.App.Panels;
 
-/// <summary>Лог в окне: последние строки, последняя запись для вкладки «Бот», фильтры «только важное» и «урон».</summary>
+/// <summary>Лог в окне: последние строки, последняя запись для вкладки «Бот», фильтры — «только важное» и по источникам.</summary>
 public sealed class LogPanel : ObservableObject
 {
     /// <summary>Сколько строк держать в окне — отдельно записей бота и урона (в файл пишется всё).</summary>
@@ -15,9 +17,16 @@ public sealed class LogPanel : ObservableObject
 
     private string _lastEvent = "";
     private bool _onlyImportantLog;
-    private bool _showDamage;
+    // Пока фильтр берётся из настроек — не сообщать о каждом переключателе
+    private bool _loading;
 
-    public LogPanel() => ClearLogCommand = new RelayCommand(Entries.Clear);
+    public LogPanel()
+    {
+        ClearLogCommand = new RelayCommand(Entries.Clear);
+        Sources = LogSources.All.Select(s => new LogSourceFilter(s.Name, s.Hint)).ToList();
+        foreach (var source in Sources)
+            source.PropertyChanged += (_, _) => Changed();
+    }
 
     public ObservableCollection<LogEntry> Entries { get; } = new();
 
@@ -26,16 +35,49 @@ public sealed class LogPanel : ObservableObject
     /// <summary>Последняя запись лога — видна на вкладке «Бот».</summary>
     public string LastEvent { get => _lastEvent; private set => SetProperty(ref _lastEvent, value); }
 
-    /// <summary>В логе только предупреждения и ошибки.</summary>
-    public bool OnlyImportantLog { get => _onlyImportantLog; set => SetProperty(ref _onlyImportantLog, value); }
+    /// <summary>В логе только предупреждения и ошибки (из включённых источников).</summary>
+    public bool OnlyImportantLog
+    {
+        get => _onlyImportantLog;
+        set
+        {
+            if (SetProperty(ref _onlyImportantLog, value))
+                Changed();
+        }
+    }
 
-    /// <summary>В логе ещё и удары — кто кого и сколько (в файл пишутся всегда).</summary>
-    public bool ShowDamage { get => _showDamage; set => SetProperty(ref _showDamage, value); }
+    /// <summary>Переключатели по источникам — в окне фильтров.</summary>
+    public IReadOnlyList<LogSourceFilter> Sources { get; }
 
-    public static bool IsDamage(LogEntry entry) => entry.Source == DamageLog.Source;
+    /// <summary>Фильтр поменяли: окно перестраивает лог, выбор сохраняется.</summary>
+    public event Action? FilterChanged;
 
-    /// <summary>Показывать ли запись: урон — по галочке «Урон», остальное — по «только важное».</summary>
-    public bool Shows(LogEntry entry) => IsDamage(entry) ? ShowDamage : !OnlyImportantLog || entry.Level >= LogLevel.Warning;
+    private void Changed()
+    {
+        if (!_loading)
+            FilterChanged?.Invoke();
+    }
+
+    /// <summary>Показывать ли запись. Источник не из списка (новый) — показывать.</summary>
+    public bool Shows(LogEntry entry)
+        => (!OnlyImportantLog || entry.Level >= LogLevel.Warning) && Sources.FirstOrDefault(s => s.Name == entry.Source) is not { Shown: false };
+
+    public void Load(LogViewSettings settings)
+    {
+        _loading = true;
+        OnlyImportantLog = settings.OnlyImportant;
+        foreach (var source in Sources)
+            source.Shown = !settings.Hidden.Contains(source.Name);
+        _loading = false;
+    }
+
+    public void Save(LogViewSettings settings)
+    {
+        settings.OnlyImportant = OnlyImportantLog;
+        settings.Hidden = Sources.Where(s => !s.Shown).Select(s => s.Name).ToList();
+    }
+
+    private static bool IsDamage(LogEntry entry) => entry.Source == LogSources.Damage;
 
     public void Add(LogEntry entry)
     {
@@ -47,4 +89,15 @@ public sealed class LogPanel : ObservableObject
         if (Entries.Count(e => IsDamage(e) == damage) > MaxLines)
             Entries.Remove(Entries.First(e => IsDamage(e) == damage));
     }
+}
+
+/// <summary>Переключатель источника в окне фильтров лога.</summary>
+public sealed class LogSourceFilter(string name, string hint) : ObservableObject
+{
+    private bool _shown = true;
+
+    public string Name { get; } = name;
+    public string Title { get; } = char.ToUpper(name[0]) + name.Substring(1);
+    public string Hint { get; } = hint;
+    public bool Shown { get => _shown; set => SetProperty(ref _shown, value); }
 }

@@ -47,6 +47,9 @@ public sealed class BotSettings
     }
 
     public ConnectionSettings Connection { get; set; } = new();
+
+    /// <summary>Что показывать в логе окна. Своё у окна, как <see cref="Connection"/>: в <see cref="Edited"/> не идёт.</summary>
+    public LogViewSettings LogView { get; set; } = new();
     public TargetSettings Target { get => _target; set => Part(ref _target, value); }
     public CombatSettings Combat { get => _combat; set => Part(ref _combat, value); }
     public LootSettings Loot { get => _loot; set => Part(ref _loot, value); }
@@ -76,6 +79,8 @@ public sealed class BotSettings
     public BotSettings Normalize()
     {
         Connection ??= new();
+        LogView ??= new();
+        LogView.Hidden ??= [];
         Target ??= new();
         Combat ??= new();
         Loot ??= new();
@@ -136,6 +141,16 @@ public sealed class ConnectionSettings
 
     /// <summary>С кем бот работал последним — при запуске выбирается его клиент.</summary>
     public string LastCharacter { get; set; } = "";
+}
+
+/// <summary>Что показывать в логе окна (в файл пишется всё).</summary>
+public sealed class LogViewSettings
+{
+    /// <summary>Только предупреждения и ошибки.</summary>
+    public bool OnlyImportant { get; set; }
+
+    /// <summary>Скрытые источники (<see cref="Logging.LogSources"/>): скрытые, а не показанные — новый источник сразу виден.</summary>
+    public List<string> Hidden { get; set; } = [Logging.LogSources.Damage];
 }
 
 public sealed class TargetSettings : SettingsPart
