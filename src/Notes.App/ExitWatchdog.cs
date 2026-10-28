@@ -20,7 +20,7 @@ internal static class ExitWatchdog
 
     /// <param name="ui">Главный поток (диспетчер окна) — его стек в лог, если выход так и не прошёл.</param>
     public static void Start(Dispatcher dispatcher, Thread ui, ILogger log)
-        => new Thread(() => Watch(dispatcher, ui, log)) { IsBackground = true, Name = "BotCH: выход" }.Start();
+        => new Thread(() => Watch(dispatcher, ui, log)) { IsBackground = true, Name = "Notes: выход" }.Start();
 
     private static void Watch(Dispatcher dispatcher, Thread ui, ILogger log)
     {
@@ -34,7 +34,7 @@ internal static class ExitWatchdog
         {
             Thread.Sleep(AfterKick);
             Environment.Exit(0);
-        }) { IsBackground = true, Name = "BotCH: выход наверняка" }.Start();
+        }) { IsBackground = true, Name = "Notes: выход наверняка" }.Start();
         log.Error($"Выход не прошёл и после толчка (диспетчер: {State(dispatcher)}) — выхожу принудительно. Главный поток:\n{StackOf(ui)}");
         Environment.Exit(0);
     }

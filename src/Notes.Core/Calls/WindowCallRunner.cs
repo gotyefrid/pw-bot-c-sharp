@@ -17,7 +17,7 @@ namespace Notes.Core.Calls;
 /// </para>
 /// <para>
 /// «Свой» — по коду: по адресу обработчика окна лежат ровно наши байты <see cref="WindowStubs.WindowProc"/> с тем же
-/// номером сообщения (<c>RegisterWindowMessage("BotCH.Call")</c> в одном сеансе Windows даёт одно число всем). Новая
+/// номером сообщения (<c>RegisterWindowMessage("Notes.Call")</c> в одном сеансе Windows даёт одно число всем). Новая
 /// версия бота с другим кодом обработчика старый своим не признает и поставит новый поверх: одна страница на обновление
 /// бота. Поменялся смысл сообщения (что в wParam, что возвращаем) — поменяйте и его имя, иначе старый обработчик
 /// под новым примет чужой вызов за свой.
@@ -27,7 +27,7 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
 {
     private static readonly TimeSpan CallTimeout = TimeSpan.FromSeconds(5);
     private const int OriginalSlotOffset = 0x100;
-    private const string MessageName = "BotCH.Call";
+    private const string MessageName = "Notes.Call";
 
     private readonly RemotePages _pages;
     private readonly IntPtr _window;

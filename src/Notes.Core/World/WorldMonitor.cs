@@ -41,7 +41,7 @@ public sealed class WorldMonitor(Func<WorldState> read, TimeSpan period) : IWorl
                 return;
 
             var stop = _stop = new CancellationTokenSource();
-            _thread = new Thread(() => Loop(stop.Token)) { IsBackground = true, Name = "BotCH: снимок мира" };
+            _thread = new Thread(() => Loop(stop.Token)) { IsBackground = true, Name = "Notes: снимок мира" };
             _thread.Start();
         }
     }

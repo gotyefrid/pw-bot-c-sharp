@@ -8,7 +8,7 @@ namespace Notes.Tests.Calls;
 
 /// <summary>
 /// Байты заглушек сверяются с эталоном, снятым с настоящего старого GameCall (BuildStub / BuildMoveStub через рефлексию
-/// из собранного BotCH.exe ветки master) — эти байты проверены в игре.
+/// из собранного exe приложения ветки master) — эти байты проверены в игре.
 /// </summary>
 public class StubBuilderTests
 {

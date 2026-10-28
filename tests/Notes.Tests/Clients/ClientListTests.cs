@@ -75,7 +75,7 @@ public class ClientListTests
     [Fact]
     public void OnStartLastCharacterThenReadableNickAmongFreeClients()
     {
-        // 100 — клиент другого сервера (ник не читается этим профилем), 200 — занят другим окном BotCH
+        // 100 — клиент другого сервера (ник не читается этим профилем), 200 — занят другой копией приложения
         var list = ClientList.Build(new FakeSource((100, null), (200, "Персонаж"), (300, "Воин"), (400, "Лучница")));
         bool Taken(int pid) => pid == 200;
 
