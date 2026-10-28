@@ -330,6 +330,9 @@
       <DockPanel>
         <DockPanel DockPanel.Dock="Top" Margin="14,10,10,4">
           <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+            <CheckBox Style="{StaticResource Switch}" Content="Урон" IsChecked="{Binding Log.ShowDamage}" Margin="0,0,10,0"
+                      ToolTip="Показывать ещё и удары: кто кого и сколько, HP после удара по вам и пету (в файл пишутся всегда)"
+                      Checked="LogFilterChanged" Unchecked="LogFilterChanged" />
             <CheckBox Style="{StaticResource Switch}" Content="Только важное" IsChecked="{Binding Log.OnlyImportantLog}" Margin="0,0,10,0"
                       ToolTip="Показывать только предупреждения и ошибки (в файл пишется всё)" Checked="LogFilterChanged" Unchecked="LogFilterChanged" />
             <Button Style="{StaticResource IconButton}" Width="26" Height="26" Content="&#xE838;" Click="OpenLogFolder"

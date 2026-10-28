@@ -385,8 +385,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger);
             _spots.Server = _profile.Id;
-            // Блокноту ресурсов — каждый снимок, прямо в потоке снимков; окну — только последний
+            // Блокноту ресурсов и логу урона — каждый снимок, прямо в потоке снимков; окну — только последний
             connection.WorldUpdated += _spots.Observe;
+            connection.WorldUpdated += new DamageLog(_logger.For(DamageLog.Source)).Observe;
             connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => OnUi(() => ShowFailure(message));
             connection.BotStatusChanged += status => OnUi(() => BotState = Capitalize(status));

@@ -62,11 +62,11 @@ public partial class MainWindow : Window
         }
         else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems is not null)
         {
-            // Строки в окне — не все записи (фильтр): удаляем, только если первая показанная — это удалённая запись
+            // Строки в окне — не все записи (фильтр), а урон и остальное вытесняются каждый своим: ищем строку удалённой записи
             foreach (LogEntry entry in e.OldItems)
             {
-                if (ReferenceEquals(blocks.FirstBlock?.Tag, entry))
-                    blocks.Remove(blocks.FirstBlock);
+                if (blocks.FirstOrDefault(b => ReferenceEquals(b.Tag, entry)) is { } line)
+                    blocks.Remove(line);
             }
         }
         else if (e.Action == NotifyCollectionChangedAction.Reset)
@@ -92,7 +92,7 @@ public partial class MainWindow : Window
         return line;
     }
 
-    private bool Shown(LogEntry entry) => !_model.Log.OnlyImportantLog || entry.Level >= LogLevel.Warning;
+    private bool Shown(LogEntry entry) => _model.Log.Shows(entry);
 
     private void RebuildLog()
     {
