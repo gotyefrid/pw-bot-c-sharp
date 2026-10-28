@@ -36,7 +36,7 @@ public interface IGameActions
     /// <summary>Запустить макрос персонажа 1..N, как кнопкой на панели.</summary>
     CallResult ApplyMacro(int macro);
 
-    /// <summary>Отменить текущее действие (каст, копание) — как Esc.</summary>
+    /// <summary>Отменить текущее действие (каст, копание) — как Esc — и идущий макрос персонажа.</summary>
     CallResult CancelAction();
 
     /// <summary>Подобрать как кликом мыши: клиент подходит сам.</summary>

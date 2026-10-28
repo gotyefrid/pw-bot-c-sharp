@@ -424,6 +424,7 @@ public static class GameFunctions
     public const string PetCtrl = "petCtrl";
     public const string HostApplySkill = "hostApplySkill";
     public const string HostApplyComboSkill = "hostApplyComboSkill";
+    public const string HostClearComboSkill = "hostClearComboSkill";
     public const string HostPickupObject = "hostPickupObject";
     public const string HostFly = "hostFly";
     public const string WorkCreate = "workCreate";

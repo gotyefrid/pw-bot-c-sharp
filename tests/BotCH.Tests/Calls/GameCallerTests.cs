@@ -125,6 +125,33 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void CancelStopsMacroFirst()
+    {
+        // Кончился каст, даже отменённый, — игра сама жмёт следующий шаг макроса: сначала убрать макрос, потом отменить
+        PutHost();
+
+        var result = Caller().CancelAction();
+
+        Assert.True(result.Ok, result.Details);
+        Assert.Collection(_runner.Runs,
+            run => Assert.Equal(StubBuilder.Call(Address(GameFunctions.HostClearComboSkill), CallingConvention.Thiscall, Host, []), run.Stub),
+            run => Assert.Equal(StubBuilder.Call(Address(GameFunctions.CancelAction), CallingConvention.Thiscall, Session, []), run.Stub));
+    }
+
+    [Fact]
+    public void CancelGoesEvenIfMacroCannotBeStopped()
+    {
+        PutHost();
+        var caller = Caller();
+        _memory.WriteBytes(Address(GameFunctions.HostClearComboSkill), [0xCC, 0xCC, 0xCC, 0xCC]);
+
+        var result = caller.CancelAction();
+
+        Assert.True(result.Ok, result.Details);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.CancelAction), CallingConvention.Thiscall, Session, []), _runner.Runs.Single().Stub);
+    }
+
+    [Fact]
     public void ThiscallWithoutHostIsRefused()
     {
         var result = Caller().ApplySkill(299, 0);

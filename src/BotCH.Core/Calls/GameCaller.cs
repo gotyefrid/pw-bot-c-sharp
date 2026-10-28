@@ -59,6 +59,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.HostApplySkill] = ["skill", "force", "target", "pvp"],
         // Как кнопка макроса на панели: номер с 0, повтор не пропускать, «атаковать силой» — как в настройках игры
         [GameFunctions.HostApplyComboSkill] = ["group", "0", "0xFFFFFFFF"],
+        [GameFunctions.HostClearComboSkill] = [],
         [GameFunctions.HostPickupObject] = ["id", "gather"],
         [GameFunctions.HostFly] = ["force"],
         // 1.3.6: SetDestination(type, &point), StartWork(1, work, 1, 0)
@@ -142,8 +143,15 @@ public sealed class GameCaller : IGameActions
     public CallResult CastSkill(int skillId, uint targetWid)
         => Call(GameFunctions.CastSkill, BitConverter.GetBytes(targetWid), ("skill", (uint)skillId), ("pvpMask", 0), ("count", targetWid != 0 ? 1u : 0u));
 
-    /// <summary>Отменить текущее действие персонажа (каст, копание) — как Esc.</summary>
-    public CallResult CancelAction() => Call(GameFunctions.CancelAction, null);
+    /// <summary>
+    /// Отменить текущее действие персонажа (каст, копание) — как Esc — и идущий макрос: кончился каст, даже отменённый, — игра
+    /// сама жмёт следующий шаг макроса. Макрос не остановился (нет функции в клиенте) — действие всё равно отменяем.
+    /// </summary>
+    public CallResult CancelAction()
+    {
+        Call(GameFunctions.HostClearComboSkill, null);
+        return Call(GameFunctions.CancelAction, null);
+    }
 
     /// <summary>Приказ пету атаковать цель (данные — 1 байт pvpMask = 0).</summary>
     public CallResult PetAttack(uint targetWid)

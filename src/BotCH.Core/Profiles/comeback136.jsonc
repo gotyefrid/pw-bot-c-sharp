@@ -291,6 +291,11 @@
     // запускает заново
     "hostApplyComboSkill": { "rva": "0x31F8A0", "convention": "thiscall", "this": "host",
                              "signature": "55 8B EC 51 56 8B F1 8B 8E 50 19 00 00 85 C9 74" },
+    // Остановить идущий макрос: удаляет его [перс + 0x1950], макроса нет — ничего. Без аргументов, серверу ничего не шлёт,
+    // каст не прерывает. Игра зовёт её сама, когда скилл нажат не макросом (hostApplySkill со вторым аргументом 0). Как найти:
+    // функция сразу после hostApplyComboSkill — первые её строки (удалить идущий макрос) и сразу ret
+    "hostClearComboSkill": { "rva": "0x31F990", "convention": "thiscall", "this": "host",
+                             "signature": "56 8B F1 8B 8E 50 19 00 00 85 C9 74 10 8B 01 6A 01 FF 10 C7 86 50 19 00 00 00 00 00 00 5E C3" },
     // (0x3F6FD0) c2s 0x28, cl = где, dl = ячейка
     "useItem": { "rva": "0x3CFC20", "convention": "cdecl", "args": [ "tid", "count" ],
                  "registers": { "ecx": "where", "edx": "slot" },
