@@ -227,14 +227,8 @@ public sealed class ClientPatchPanel : ObservableObject
             return;
 
         var path = ShownPath() ?? AskClientPath();
-        if (path is null)
+        if (path is null || IsRunning(path))
             return;
-
-        if (_clients().Any(c => string.Equals(c.ExePath, path, StringComparison.OrdinalIgnoreCase)))
-        {
-            _dialogs.Tell("Клиент запущен — его exe занят. Закройте игру и повторите.");
-            return;
-        }
 
         try
         {
@@ -256,7 +250,7 @@ public sealed class ClientPatchPanel : ObservableObject
             return;
 
         var path = ShownPath() ?? AskClientPath();
-        if (path is null)
+        if (path is null || IsRunning(path))
             return;
 
         try
@@ -282,6 +276,20 @@ public sealed class ClientPatchPanel : ObservableObject
         var shown = (_connectedPid() is { } pid ? clients.FirstOrDefault(c => c.Pid == pid) : null)
                     ?? clients.FirstOrDefault(c => c.Nick is not null);
         return shown?.ExePath ?? RememberedPath();
+    }
+
+    /// <summary>
+    /// Запущен ли клиент с этим exe — тогда файл не трогаем, а просим закрыть игру. Спрашиваем систему прямо сейчас,
+    /// а не список в окне: тот обновляется по «Обновить», и клиент, закрытый после него, числился бы запущенным.
+    /// </summary>
+    private bool IsRunning(string path)
+    {
+        if (!SystemClientSource.Running().Any(c => string.Equals(c.ExePath, path, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        _log.Warning($"Патч: клиент запущен — его exe занят ({path})");
+        _dialogs.Tell("Клиент запущен — его exe занят. Закройте игру и повторите.");
+        return true;
     }
 
     /// <summary>Где лежит exe клиента — спросить окном «Открыть», когда путь взять больше неоткуда.</summary>

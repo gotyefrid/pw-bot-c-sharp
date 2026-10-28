@@ -68,11 +68,14 @@ public static class ClientList
 /// <summary>Настоящие процессы и память. Ник читается отдельным дескриптором только на чтение.</summary>
 public sealed class SystemClientSource(ProfileData profile) : IClientSource
 {
+    public IReadOnlyList<ClientProcess> FindProcesses() => Running();
+
     /// <summary>
+    /// Клиенты, запущенные прямо сейчас, — свежий опрос системы (ники не читаются, профиль не нужен).
     /// Клиент — процесс с окном игры, имя exe не важно: у Comeback есть ElementClient.exe и ElementClient_test.exe,
     /// игроки запускают любой; у PW Classic — client.exe (старый elementclient.exe бот не поддерживает).
     /// </summary>
-    public IReadOnlyList<ClientProcess> FindProcesses()
+    public static IReadOnlyList<ClientProcess> Running()
         => NativeWindows.FindClientProcesses()
             .Select(pid => new ClientProcess(pid, NativeWindows.FindMainWindow(pid), MainModulePath(pid)))
             .ToList();
