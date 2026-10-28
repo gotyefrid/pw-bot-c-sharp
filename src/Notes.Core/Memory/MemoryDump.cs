@@ -31,7 +31,7 @@ public sealed class RecordingMemory(IMemory source) : IMemory
 /// </summary>
 public sealed record MemoryDump(string ServerId, uint ModuleBase, MemoryImage Image)
 {
-    private const string Magic = "BOTCH-DUMP-1";
+    private const string Magic = "NOTES-DUMP-1";
 
     public void Save(string path)
     {
@@ -58,7 +58,7 @@ public sealed record MemoryDump(string ServerId, uint ModuleBase, MemoryImage Im
         using var reader = new BinaryReader(gzip, Encoding.UTF8);
 
         if (reader.ReadString() != Magic)
-            throw new InvalidDataException("Это не дамп BotCH");
+            throw new InvalidDataException("Это не дамп этого приложения");
 
         var serverId = reader.ReadString();
         var moduleBase = reader.ReadUInt32();
