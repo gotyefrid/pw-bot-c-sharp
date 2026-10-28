@@ -109,6 +109,9 @@ public sealed record WorldState(
     /// <summary>Макросы персонажа (только непустые); пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<MacroInfo> Macros { get; init; } = [];
 
+    /// <summary>Удары, которые игра сейчас показывает; пусто — нет или на этом сервере не найдены.</summary>
+    public IReadOnlyList<AttackEvent> Attacks { get; init; } = [];
+
     /// <summary>Сколько ячеек в сумке (0 — неизвестно).</summary>
     public int InventorySlots { get; init; }
 
@@ -306,6 +309,18 @@ public sealed record PotionInfo(int RequiredLevel, int Hp, int HpSeconds, int Mp
 
 /// <summary>Макрос персонажа: номер 1..N и номер иконки (в наборе iconlist_skillgrp — клетка номер + 1).</summary>
 public sealed record MacroInfo(int Number, int Icon);
+
+/// <summary>
+/// Удар (обычная атака или скилл по цели), который игра сейчас показывает: от ответа сервера до попадания, 0,4…2 с. Один удар
+/// виден в нескольких снимках подряд — новые выделяет <see cref="AttackTracker"/>.
+/// </summary>
+/// <param name="Node">Узел списка в памяти игры: после удара игра отдаёт его следующему.</param>
+/// <param name="LivedMs">Сколько мс удар уже в списке.</param>
+/// <param name="Skill">Скилл; 0 — обычная атака.</param>
+public sealed record AttackEvent(uint Node, int LivedMs, uint AttackerWid, int Skill, IReadOnlyList<AttackHit> Hits);
+
+/// <summary>Что досталось одной цели удара: урон, как его показывает игра (0 и меньше — без урона), и флаги удара.</summary>
+public sealed record AttackHit(uint TargetWid, int Damage, uint Flags);
 
 public sealed record SkillInfo(int Id, int Level, int CooldownLeftMs, int CooldownFullMs, uint Flags, string? Name)
 {

@@ -281,6 +281,62 @@ public class WorldReaderTests
     }
 
     [Fact]
+    public void AttacksAreReadWithAllTheirTargets()
+    {
+        // Менеджер атак: [мир + manager], +head — первый узел; узел: +0x0 следующий, удар с +event; цели — массивом
+        BuildWorld();
+        var a = Profile.Attacks;
+        const uint manager = 0x3000_0000, first = 0x3001_0000, second = 0x3002_0000, targets1 = 0x3003_0000, targets2 = 0x3004_0000;
+        const uint bee = 0x80104B25, pet = 0x80116200, me = 0x0015A420;
+        _memory.WriteUInt32(0x1003_0000 + a.Manager, manager);
+        _memory.WriteUInt32(manager + a.Head, first);
+        void Attack(uint node, uint next, int lived, uint attacker, int skill, uint targets, params (uint Wid, int Damage, uint Flags)[] hits)
+        {
+            _memory.Map(node, 0x100);
+            _memory.WriteUInt32(node, next);
+            var e = node + a.Event;
+            _memory.WriteUInt32(e + a.Lived, (uint)lived);
+            _memory.WriteUInt32(e + a.Attacker, attacker);
+            _memory.WriteUInt32(e + a.Skill, (uint)skill);
+            _memory.WriteUInt32(e + a.Targets, targets);
+            _memory.WriteUInt32(e + a.TargetCount, (uint)hits.Length);
+            for (var i = 0u; i < hits.Length; i++)
+            {
+                var t = targets + i * a.TargetSize;
+                _memory.WriteUInt32(t, hits[i].Wid);
+                _memory.WriteUInt32(t + a.TargetDamage, unchecked((uint)hits[i].Damage));
+                _memory.WriteUInt32(t + a.TargetFlags, hits[i].Flags);
+            }
+        }
+
+        // Пчела задела пета и перса; перс лечит пета — у лечения урон −2
+        Attack(first, second, 120, bee, 24, targets1, (pet, 98, 0), (me, 238, 4));
+        Attack(second, 0, 30, me, 330, targets2, (pet, -2, 0));
+
+        var attacks = Reader().Read().Attacks;
+
+        Assert.Collection(attacks,
+            hit =>
+            {
+                Assert.Equal((first, 120, bee, 24), (hit.Node, hit.LivedMs, hit.AttackerWid, hit.Skill));
+                Assert.Equal([new AttackHit(pet, 98, 0), new AttackHit(me, 238, 4)], hit.Hits);
+            },
+            heal =>
+            {
+                Assert.Equal((second, me, 330), (heal.Node, heal.AttackerWid, heal.Skill));
+                Assert.Equal([new AttackHit(pet, -2, 0)], heal.Hits);
+            });
+    }
+
+    [Fact]
+    public void NoAttacksManagerMeansNoAttacks()
+    {
+        BuildWorld();
+
+        Assert.Empty(Reader().Read().Attacks);
+    }
+
+    [Fact]
     public void VanishedMobIsSkipped()
     {
         // Узел есть, а объект уже освобождён (моб исчез посреди чтения)

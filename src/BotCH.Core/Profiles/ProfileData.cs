@@ -32,6 +32,7 @@ public sealed class ProfileData
     public PetFoodOffsets PetFood { get; init; } = new();
     public SkillOffsets Skill { get; init; } = new();
     public MacroOffsets Macros { get; init; } = new();
+    public AttackOffsets Attacks { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
@@ -360,6 +361,35 @@ public sealed class MacroOffsets
     public uint List { get; init; }
     public uint Size { get; init; }
     public int Count { get; init; }
+}
+
+/// <summary>
+/// Удары, которые игра сейчас показывает (менеджер атак мира): кто, кого, сколько урона. Узел списка: +0x0 следующий; у цели
+/// первое поле — WID. <see cref="Manager"/> 0 — не найдено.
+/// </summary>
+public sealed class AttackOffsets
+{
+    /// <summary>[мир + Manager] — менеджер атак.</summary>
+    public uint Manager { get; init; }
+    /// <summary>[менеджер + Head] — первый узел списка ударов.</summary>
+    public uint Head { get; init; }
+    /// <summary>Удар в узле — с этого смещения; дальше смещения от него.</summary>
+    public uint Event { get; init; }
+    /// <summary>Сколько мс удар уже в списке.</summary>
+    public uint Lived { get; init; }
+    /// <summary>WID того, кто бьёт.</summary>
+    public uint Attacker { get; init; }
+    /// <summary>Скилл; 0 — обычная атака.</summary>
+    public uint Skill { get; init; }
+    /// <summary>Адрес массива целей.</summary>
+    public uint Targets { get; init; }
+    public uint TargetCount { get; init; }
+    /// <summary>Сколько байт одна цель в массиве.</summary>
+    public uint TargetSize { get; init; }
+    /// <summary>В цели: флаги удара.</summary>
+    public uint TargetFlags { get; init; }
+    /// <summary>В цели: урон.</summary>
+    public uint TargetDamage { get; init; }
 }
 
 /// <summary>ID скиллов класса (пока друид).</summary>

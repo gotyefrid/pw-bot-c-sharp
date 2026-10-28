@@ -21,6 +21,9 @@ public sealed class WorldReader
     private const int MaxChain = 64;
     private const int MaxInventory = 256;
     private const int MaxSkills = 256;
+    private const int MaxAttacks = 64;
+    // Скилл по площади задевает многих — больше в снимок не берём
+    private const int MaxAttackTargets = 32;
 
     private readonly IMemory _memory;
     private readonly GameRoots _roots;
@@ -29,6 +32,7 @@ public sealed class WorldReader
     private readonly int _hostSize;
     private readonly int _npcSize;
     private readonly int _itemSize;
+    private readonly int _attackSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, string?> _groups = [];
     private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
@@ -55,6 +59,8 @@ public sealed class WorldReader
             n.Returning);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
+        var a = profile.Attacks;
+        _attackSize = BlockSize(a.Lived, a.Attacker, a.Skill, a.Targets, a.TargetCount);
     }
 
     public WorldState Read()
@@ -80,6 +86,7 @@ public sealed class WorldReader
             GroundItemCountInGame = itemCount,
             InventorySlots = slots,
             Macros = ReadMacros(),
+            Attacks = ReadAttacks(world),
         };
     }
 
@@ -174,6 +181,38 @@ public sealed class WorldReader
         }
 
         return result;
+    }
+
+    // Список ударов менеджера атак: узел +0x0 следующий, удар — с a.Event; у цели первое поле — WID
+    private List<AttackEvent> ReadAttacks(uint world)
+    {
+        var a = _p.Attacks;
+        var attacks = new List<AttackEvent>();
+        if (world == 0 || a.Manager == 0 || !_memory.TryReadUInt32(world + a.Manager, out var manager) || manager == 0
+            || !_memory.TryReadUInt32(manager + a.Head, out var node))
+            return attacks;
+
+        for (var i = 0; node != 0 && i < MaxAttacks; i++)
+        {
+            if (MemoryBlock.TryRead(_memory, node + a.Event, _attackSize, out var e))
+            {
+                var hits = new List<AttackHit>();
+                var count = Math.Min(e.Int32(a.TargetCount), MaxAttackTargets);
+                if (count > 0 && MemoryBlock.TryRead(_memory, e.UInt32(a.Targets), count * (int)a.TargetSize, out var targets))
+                {
+                    for (var t = 0u; t < count; t++)
+                        hits.Add(new AttackHit(targets.UInt32(t * a.TargetSize), targets.Int32(t * a.TargetSize + a.TargetDamage),
+                            targets.UInt32(t * a.TargetSize + a.TargetFlags)));
+                }
+
+                attacks.Add(new AttackEvent(node, e.Int32(a.Lived), e.UInt32(a.Attacker), e.Int32(a.Skill), hits));
+            }
+
+            if (!_memory.TryReadUInt32(node + NextNode, out node))
+                break;
+        }
+
+        return attacks;
     }
 
     private NpcInfo? ReadNpc(MemoryBlock b)
