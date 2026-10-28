@@ -81,6 +81,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
+        Patch = new ClientPatchPanel(
+            () => _profile,
+            () => Clients,
+            () => _connection?.Pid,
+            () => _config.App.Connection,
+            SaveSettings,
+            _connectionLog);
 
         Pets = new PetsPanel(() => Settings, SettingsEdited);
         Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, id => _connection?.SkillIcons.Get(id),
@@ -105,8 +112,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         StopCommand = new RelayCommand(Stop, () => IsRunning);
 
         _log.Info("Запущено");
-        RefreshClients();
     }
+
+    /// <summary>
+    /// Первое обновление списка клиентов — отдельно от конструктора: окно сначала ставит свои диалоги
+    /// (<see cref="AskYesNo"/>, <see cref="Tell"/> и диалоги панели патча), иначе вопрос при старте молча
+    /// ответит «нет» заглушкой. Зовётся по Loaded — вопрос не появляется раньше самого окна.
+    /// </summary>
+    public void StartUp() => RefreshClients();
 
     // ── Подключение ──────────────────────────────────────────────────────────
 
@@ -143,6 +156,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 return;
 
             Connect(value);
+            // Строка патча — про exe подключённого клиента: выбрали другой — показать его
+            Patch.Refresh();
         }
     }
 
@@ -177,6 +192,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         get => _connectionText;
         private set => SetProperty(ref _connectionText, value);
     }
+
+    // ── Патч клиента (панель: состояние, кнопки, политика) ──────────────────
+
+    /// <summary>Панель «Патч клиента»: состояние файла, кнопки «Пропатчить»/«Откат», политика подключения.</summary>
+    public ClientPatchPanel Patch { get; }
 
     // ── Состояние ────────────────────────────────────────────────────────────
 
@@ -366,6 +386,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RenameAll();
         if (reconnect || SelectedClient?.Pid != _connection?.Pid || _connection is null || _connection.HasExited)
             Connect(SelectedClient);
+
+        Patch.Refresh();
     }
 
     private void RenameAll()
@@ -386,6 +408,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (client is null)
         {
             ConnectionText = "Нет подключения";
+            return;
+        }
+
+        if (!Patch.AllowConnect(client))
+        {
+            ConnectionText = "Не подключено: без патча";
             return;
         }
 

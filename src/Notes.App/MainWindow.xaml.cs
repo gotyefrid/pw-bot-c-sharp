@@ -22,6 +22,13 @@ public partial class MainWindow : Window
         Func<string, bool> askYesNo = text => MessageBox.Show(this, text, "Заметки", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         Action<string> tell = text => MessageBox.Show(this, text, "Заметки", MessageBoxButton.OK, MessageBoxImage.Error);
         _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory) { AskYesNo = askYesNo, Tell = tell };
+        var patch = _model.Patch;
+        patch.AskYesNo = askYesNo;
+        patch.Tell = tell;
+        patch.AskClientPath = () => AskPath(new OpenFileDialog { Title = "Файл клиента игры (exe)", Filter = "Клиент игры (*.exe)|*.exe|Все файлы (*.*)|*.*" });
+        // Сначала диалоги, потом первый список клиентов — и когда окно уже показано: вопрос о клиенте без правок
+        // не появится раньше самого окна и не ответится заглушкой
+        Loaded += (_, _) => _model.StartUp();
         DataContext = _model;
 
         var clicker = _model.Clicker;

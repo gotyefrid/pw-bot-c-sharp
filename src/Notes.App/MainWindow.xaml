@@ -82,6 +82,18 @@
           <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"
                     ToolTip="Переименовывать окна клиентов в ник персонажа и PID — видно, где кто" />
         </WrapPanel>
+        <!-- Патч клиента: только у серверов с рецептом правок -->
+        <WrapPanel Margin="0,8,0,0" Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
+          <TextBlock Text="Патч клиента: " Style="{StaticResource Muted}" VerticalAlignment="Center" />
+          <TextBlock Text="{Binding Patch.PatchText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
+          <Button Style="{StaticResource ButtonBase}" Content="Пропатчить" Command="{Binding Patch.PatchCommand}"
+                  ToolTip="Применить правки к exe клиента (клиент должен быть закрыт; бэкап .orig рядом)" />
+          <Button Style="{StaticResource ButtonBase}" Content="Откат" Margin="6,0,0,0" Command="{Binding Patch.RestorePatchCommand}"
+                  ToolTip="Вернуть исходный exe из бэкапа .orig" />
+          <ComboBox Margin="10,0,0,0" VerticalAlignment="Center" MinWidth="110"
+                    ItemsSource="{Binding Patch.Policies}" DisplayMemberPath="Title" SelectedValuePath="Policy"
+                    SelectedValue="{Binding Patch.PatchPolicy}" ToolTip="Подключение к клиенту без правок" />
+        </WrapPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
           <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />
           <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" />
