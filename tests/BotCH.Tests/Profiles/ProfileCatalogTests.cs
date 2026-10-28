@@ -142,6 +142,15 @@ public class ProfileJsonTests
     }
 
     [Fact]
+    public void EmptyOffsetIsNotFound()
+    {
+        // Ключ есть, значения нет — на этом клиенте не проверено: поле не читается
+        var data = ProfileJson.Parse("""{ "host": { "hp": "", "mp": "0x470" } }""");
+
+        Assert.Equal((0u, 0x470u), (data.Host.Hp, data.Host.Mp));
+    }
+
+    [Fact]
     public void TypoInFieldNameIsAnError()
     {
         // Опечатка не должна молча превращаться в смещение 0

@@ -41,6 +41,9 @@ public static class ProfileJson
                     return Convert.ToUInt32(reader.Value, CultureInfo.InvariantCulture);
                 case JsonToken.String:
                     var text = ((string)reader.Value!).Trim();
+                    // Пустое — на этом клиенте не проверено: как 0, поле не читается
+                    if (text.Length == 0)
+                        return 0;
                     if (text.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
                         && uint.TryParse(text.Substring(2), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var hex))
                         return hex;
