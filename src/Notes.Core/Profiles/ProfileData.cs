@@ -42,6 +42,12 @@ public sealed class ProfileData
 
     /// <summary>Функции клиента для прямого вызова, ключи — <see cref="GameFunctions"/>.</summary>
     public Dictionary<string, GameFunction> Functions { get; init; } = new();
+
+    /// <summary>
+    /// Рецепт правки exe клиента для билда этого сервера: null — правки не нужны (PW Classic)
+    /// или рецепт для его билда ещё не собран (comeback136).
+    /// </summary>
+    public ClientPatchRecipe? Patch { get; init; }
 }
 
 /// <summary>

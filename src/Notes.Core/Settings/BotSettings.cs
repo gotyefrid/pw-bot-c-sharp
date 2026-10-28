@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using Notes.Core.Clients;
 using Notes.Core.Clicker;
 using Notes.Core.World;
 using Newtonsoft.Json;
@@ -79,6 +80,7 @@ public sealed class BotSettings
     public BotSettings Normalize()
     {
         Connection ??= new();
+        Connection.ClientPaths ??= new Dictionary<string, string>();
         LogView ??= new();
         LogView.Hidden ??= [];
         Target ??= new();
@@ -141,6 +143,15 @@ public sealed class ConnectionSettings
 
     /// <summary>С кем бот работал последним — при запуске выбирается его клиент.</summary>
     public string LastCharacter { get; set; } = "";
+
+    /// <summary>Клиент без патча (у серверов с рецептом): спрашивать, отказать в подключении или не проверять вовсе.</summary>
+    public ClientPatchPolicy PatchPolicy { get; set; } = ClientPatchPolicy.Ask;
+
+    /// <summary>
+    /// Путь exe клиента по id сервера — чтобы патчить и проверять патч, когда клиент не запущен. Запоминается от
+    /// клиентов при подключении; пусто у серверов, к которым ещё не подключались.
+    /// </summary>
+    public Dictionary<string, string> ClientPaths { get; set; } = new();
 }
 
 /// <summary>Что показывать в логе окна (в файл пишется всё).</summary>
