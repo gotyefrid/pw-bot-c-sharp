@@ -317,7 +317,11 @@ public sealed record MacroInfo(int Number, int Icon);
 /// <param name="Node">Узел списка в памяти игры: после удара игра отдаёт его следующему.</param>
 /// <param name="LivedMs">Сколько мс удар уже в списке.</param>
 /// <param name="Skill">Скилл; 0 — обычная атака.</param>
-public sealed record AttackEvent(uint Node, int LivedMs, uint AttackerWid, int Skill, IReadOnlyList<AttackHit> Hits);
+public sealed record AttackEvent(uint Node, int LivedMs, uint AttackerWid, int Skill, IReadOnlyList<AttackHit> Hits)
+{
+    /// <summary>Название скилла из файлов игры; null — обычная атака или название не прочитано.</summary>
+    public string? SkillName { get; init; }
+}
 
 /// <summary>Что досталось одной цели удара: урон, как его показывает игра (0 и меньше — без урона), и флаги удара.</summary>
 public sealed record AttackHit(uint TargetWid, int Damage, uint Flags);

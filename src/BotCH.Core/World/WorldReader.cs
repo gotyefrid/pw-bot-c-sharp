@@ -205,7 +205,8 @@ public sealed class WorldReader
                             targets.UInt32(t * a.TargetSize + a.TargetFlags)));
                 }
 
-                attacks.Add(new AttackEvent(node, e.Int32(a.Lived), e.UInt32(a.Attacker), e.Int32(a.Skill), hits));
+                var skill = e.Int32(a.Skill);
+                attacks.Add(new AttackEvent(node, e.Int32(a.Lived), e.UInt32(a.Attacker), skill, hits) { SkillName = skill == 0 ? null : _skillName(skill) });
             }
 
             if (!_memory.TryReadUInt32(node + NextNode, out node))
