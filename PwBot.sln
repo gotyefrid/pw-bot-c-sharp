@@ -5,17 +5,17 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotCH.Core", "src\BotCH.Core\BotCH.Core.csproj", "{688D3F6D-ED54-4F04-B292-46D2D4010A5D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notes.Core", "src\Notes.Core\Notes.Core.csproj", "{688D3F6D-ED54-4F04-B292-46D2D4010A5D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotCH.App", "src\BotCH.App\BotCH.App.csproj", "{A3262642-AC94-4480-B70B-F5B3D1D07646}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notes.App", "src\Notes.App\Notes.App.csproj", "{A3262642-AC94-4480-B70B-F5B3D1D07646}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotCH.Probe", "tools\BotCH.Probe\BotCH.Probe.csproj", "{6610BF24-332E-48BB-A81A-DDD83A191CF2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notes.Probe", "tools\Notes.Probe\Notes.Probe.csproj", "{6610BF24-332E-48BB-A81A-DDD83A191CF2}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotCH.Tests", "tests\BotCH.Tests\BotCH.Tests.csproj", "{AE83A490-905A-4892-B288-47E6D6D1FADC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Notes.Tests", "tests\Notes.Tests\Notes.Tests.csproj", "{AE83A490-905A-4892-B288-47E6D6D1FADC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

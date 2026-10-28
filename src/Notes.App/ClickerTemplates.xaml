@@ -1,0 +1,176 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:app="clr-namespace:Notes.App"
+                    xmlns:clicker="clr-namespace:Notes.Core.Clicker;assembly=Notes.Core">
+  <!-- Кликер: поля каждого вида действия и условия — по классу. Новый вид — ещё один шаблон здесь. Окна, где они нужны
+       (шаг, условие), подключают этот словарь; у их DataContext есть Choices — варианты для выбора (ClickerChoices) -->
+  <DataTemplate DataType="{x:Type clicker:PressKeyAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Клавиша" VerticalAlignment="Center" />
+      <app:KeyBox DockPanel.Dock="Right" Width="120" Style="{StaticResource {x:Type TextBox}}" Stroke="{Binding Key}"
+                  ToolTip="Щёлкните сюда и нажмите клавишу — можно с Ctrl, Alt, Shift" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PauseAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Ждать, мс" VerticalAlignment="Center" />
+      <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="80" Text="{Binding Milliseconds, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="Следующий шаг — через столько миллисекунд (1000 мс = 1 с). Бот смотрит в игру раз в 250 мс: пауза короче всё равно ждёт до следующего раза" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PickUpItemAction}">
+    <app:TagPicker Margin="0,0,0,6" Selected="{Binding Items}"
+                   Options="{Binding DataContext.Choices.Loot, RelativeSource={RelativeSource AncestorType=Window}}"
+                   Placeholder="Ближайший любой" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
+                   ToolTip="Какие предметы поднимать: названия или группы, как у лута. Ничего не выбрано — ближайший любой предмет или монеты. Как далеко — задайте условием «Рядом лежит предмет»" />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:GatherResourceAction}">
+    <app:TagPicker Margin="0,0,0,6" Selected="{Binding Resources}"
+                   Options="{Binding DataContext.Choices.Resources, RelativeSource={RelativeSource AncestorType=Window}}"
+                   Placeholder="Ближайший любой" EmptyOptionsText="Рядом копать нечего, и в блокноте ресурсов пусто"
+                   ToolTip="Что копать: ресурсы и «нересурсы» (квестовые, ящики) — бот не проверяет кирку, уровень и квест, нельзя — откажет игра. Ничего не выбрано — ближайшее, что копается. Как далеко — задайте условием «Рядом можно копать»" />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:TakeTargetAction}">
+    <app:TagPicker Margin="0,0,0,6" Selected="{Binding Targets}"
+                   Options="{Binding DataContext.Choices.Targets, RelativeSource={RelativeSource AncestorType=Window}}"
+                   Placeholder="Ближайшая любая" EmptyOptionsText="Рядом никого, и раньше никто не встречался"
+                   ToolTip="Кого брать в цель: мобы, NPC, чужие петы. Ничего не выбрано — ближайшего любого (свой пет — никогда). В цели другой, а выбранный ближе — цель сменится; чтобы не сбивать взятую, добавьте условие «Цели нет». Как далеко — задайте условием «Рядом можно взять цель»" />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:FeedPetAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Корм" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Food}"
+                        OptionsSource="{Binding DataContext.Choices.Foods, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Чем кормить: корм из сумки. «Любой» — самый простой, что есть. Выбранного нет в сумке — шаг не выйдет, другим кормом не заменит. Корм на перезарядке — шаг ничего не делает. Голоден ли пет — задайте условием «Пет голоден»" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:UseSkillAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Скилл" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Skill}" ValueText="{Binding SkillName}" Placeholder="Выберите скилл"
+                        OptionsSource="{Binding DataContext.Choices.Skills, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Как кнопкой на панели: по текущей цели, до дальности персонаж подбежит сам. Скилл на перезарядке — шаг ничего не делает. Персонаж кастует другое — шаг подождёт конца каста. Итог не ждём: ушло в игру — сделано" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:UnknownAction}">
+    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
+               Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:AlwaysCondition}">
+    <Grid />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:HpBelowCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="HP персонажа меньше, %" VerticalAlignment="Center" />
+      <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="Шаг выполняется, только когда здоровье персонажа ниже этого процента" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:MpBelowCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="MP персонажа меньше, %" VerticalAlignment="Center" />
+      <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="Шаг выполняется, только когда мана персонажа ниже этого процента" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PetHpBelowCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="HP пета меньше, %" VerticalAlignment="Center" />
+      <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
+               ToolTip="Шаг выполняется, только когда пет призван и его здоровье ниже этого процента" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PetHungryCondition}">
+    <TextBlock Text="Выполнено, когда призванный пет голоден. Пет не призван — не выполнено." TextWrapping="Wrap"
+               Style="{StaticResource Muted}" Margin="0,0,0,6" />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:SkillCooldownCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Скилл" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Skill}" ValueText="{Binding SkillName}" Placeholder="Выберите скилл"
+                        OptionsSource="{Binding DataContext.Choices.Skills, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Выполнено, пока этот скилл на перезарядке. «Скилл готов» — это же условие с «НЕ»" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:TargetCondition}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Равно" VerticalAlignment="Center" />
+      <ComboBox DockPanel.Dock="Right" Width="200" SelectedValuePath="Tag" SelectedValue="{Binding Is}"
+                ToolTip="Цель — кто угодно в таргете: моб, игрок, NPC">
+        <ComboBoxItem Content="Цели нет" Tag="{x:Static clicker:TargetIs.None}" />
+        <ComboBoxItem Content="Цель есть" Tag="{x:Static clicker:TargetIs.Any}" />
+      </ComboBox>
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:ItemNearbyCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Предмет лежит на земле не дальше этого от персонажа" />
+        <Grid />
+      </DockPanel>
+      <app:TagPicker Margin="0,0,0,6" Selected="{Binding Items}"
+                     Options="{Binding DataContext.Choices.Loot, RelativeSource={RelativeSource AncestorType=Window}}"
+                     Placeholder="Любой предмет" EmptyOptionsText="Рядом ничего не лежит, и раньше не встречалось"
+                     ToolTip="Какие предметы: названия или группы, как у лута. Ничего не выбрано — любой предмет или монеты" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:ResourceNearbyCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Ресурс не дальше этого от персонажа" />
+        <Grid />
+      </DockPanel>
+      <app:TagPicker Margin="0,0,0,6" Selected="{Binding Resources}"
+                     Options="{Binding DataContext.Choices.Resources, RelativeSource={RelativeSource AncestorType=Window}}"
+                     Placeholder="Любой ресурс" EmptyOptionsText="Рядом копать нечего, и в блокноте ресурсов пусто"
+                     ToolTip="Что копать: ресурсы и «нересурсы» (квестовые, ящики) — бот не проверяет кирку, уровень и квест. Ничего не выбрано — что угодно" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:TargetNearbyCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Не дальше от персонажа, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Моб, NPC или пет не дальше этого от персонажа" />
+        <Grid />
+      </DockPanel>
+      <app:TagPicker Margin="0,0,0,6" Selected="{Binding Targets}"
+                     Options="{Binding DataContext.Choices.Targets, RelativeSource={RelativeSource AncestorType=Window}}"
+                     Placeholder="Любая цель" EmptyOptionsText="Рядом никого, и раньше никто не встречался"
+                     ToolTip="Кто рядом: мобы, NPC, чужие петы. Ничего не выбрано — кто угодно из них (свой пет — нет). Тот, кто уже в цели, тоже в счёт" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:AllCondition}">
+    <StackPanel>
+      <TextBlock Text="Выполнено, когда выполнены все условия списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+      <app:ConditionListEditor Conditions="{Binding Conditions}"
+                               Choices="{Binding DataContext.Choices, RelativeSource={RelativeSource AncestorType=Window}}"
+                               EmptyText="Нет условий — выполнено всегда" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:AnyCondition}">
+    <StackPanel>
+      <TextBlock Text="Выполнено, когда выполнено хотя бы одно условие списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />
+      <app:ConditionListEditor Conditions="{Binding Conditions}"
+                               Choices="{Binding DataContext.Choices, RelativeSource={RelativeSource AncestorType=Window}}"
+                               EmptyText="Нет условий — не выполнено никогда" />
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:UnknownCondition}">
+    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
+               Text="Это условие из другой версии бота — здесь оно никогда не выполнено." />
+  </DataTemplate>
+</ResourceDictionary>

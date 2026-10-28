@@ -1,0 +1,45 @@
+<Window x:Class="Notes.App.StepWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Notes.App"
+        Title="{Binding SelectedTitle}" Width="400" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Style="{StaticResource AppWindow}">
+  <!-- Окно шага кликера: DataContext — ClickerPanel, правится его выбранный шаг. Правки сразу уходят в настройки.
+       Поля каждого вида действия и условия — в ClickerTemplates.xaml -->
+  <Window.Resources>
+    <ResourceDictionary Source="ClickerTemplates.xaml" />
+  </Window.Resources>
+
+  <Border Style="{StaticResource Card}" Margin="12">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Что сделать" VerticalAlignment="Center" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="200" Options="{Binding ActionKinds}" Value="{Binding SelectedActionKind}"
+                          ToolTip="Что бот делает на этом шаге. Можно начать печатать — список найдёт по части названия" />
+        <Grid />
+      </DockPanel>
+      <ContentControl Content="{Binding SelectedAction}" Focusable="False" />
+      <!-- Общая галочка всех действий, итог которых виден по игре (ConfirmableAction); у остальных скрыта -->
+      <CheckBox Content="Ждать подтверждения выполнения" IsChecked="{Binding SelectedConfirmable.WaitConfirmed}" Margin="0,0,0,6"
+                ToolTip="Следующий шаг — только когда игра подтвердит, что сделано (поднять: предмет пропал с земли; копать: в сумке прибавилось или ресурс пропал). Не вышло — в логе «не вышло». Без галочки — как клавиша: отправил и сразу дальше">
+        <CheckBox.Style>
+          <Style TargetType="CheckBox">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding SelectedConfirmable}" Value="{x:Null}">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </CheckBox.Style>
+      </CheckBox>
+      <TextBlock Text="Условия" Margin="0,6,0,2" />
+      <TextBlock Text="Шаг выполняется, когда выполнены все условия. Двойной щелчок по условию — его настройки, Delete — удалить."
+                 TextWrapping="Wrap" Style="{StaticResource Muted}" FontSize="11" Margin="0,0,0,4" />
+      <app:ConditionListEditor Conditions="{Binding SelectedConditions}" Choices="{Binding Choices}"
+                               EmptyText="Нет условий — шаг выполняется всегда" />
+      <Button Style="{StaticResource PrimaryButton}" Content="Готово" HorizontalAlignment="Right" Margin="0,10,0,0"
+              IsCancel="True" Click="Done" ToolTip="Правки уже сохранены — просто закрыть" />
+    </StackPanel>
+  </Border>
+</Window>

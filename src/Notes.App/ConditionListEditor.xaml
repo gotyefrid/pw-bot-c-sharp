@@ -1,0 +1,20 @@
+<UserControl x:Class="Notes.App.ConditionListEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+  <!-- Список условий кликера (у шага или в группе «И»/«ИЛИ»): двойной щелчок — окно условия, Delete — удалить -->
+  <StackPanel>
+    <Grid>
+      <ListBox x:Name="List" Height="110" ItemsSource="{Binding Conditions, ElementName=Root}" DisplayMemberPath="Description"
+               MouseDoubleClick="EditCondition" KeyDown="ListKey" />
+      <TextBlock x:Name="EmptyHint" Text="{Binding EmptyText, ElementName=Root}" Style="{StaticResource Muted}"
+                 Margin="8,6" IsHitTestVisible="False" TextWrapping="Wrap" />
+    </Grid>
+    <DockPanel Margin="0,6,0,0">
+      <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Click="Remove"
+              ToolTip="Удалить выбранное условие (или клавиша Delete в списке)" />
+      <Button Style="{StaticResource ButtonBase}" Content="Добавить" HorizontalAlignment="Left" Click="Add"
+              ToolTip="Новое условие — сразу откроются его настройки" />
+    </DockPanel>
+  </StackPanel>
+</UserControl>

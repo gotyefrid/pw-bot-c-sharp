@@ -8,8 +8,8 @@
 ```bash
 MSB=$(ls /c/Program\ Files*/Microsoft\ Visual\ Studio/*/*/MSBuild/Current/Bin/MSBuild.exe | head -1)
 "$MSB" PwBot.sln -restore -t:Build -p:Configuration=Release -m -v:minimal -nologo
-tests/BotCH.Tests/bin/Release/net48/BotCH.Tests.exe            # все тесты; -class / -method — выборочно
-tools/BotCH.Probe/bin/Release/net48/BotCH.Probe.exe            # без аргументов — список команд; без --server — профиль pwclassic136
+tests/Notes.Tests/bin/Release/net48/Notes.Tests.exe            # все тесты; -class / -method — выборочно
+tools/Notes.Probe/bin/Release/net48/Notes.Probe.exe            # без аргументов — список команд; без --server — профиль pwclassic136
 ```
 
 MSB3027 при сборке — `Notes.exe` занят запущенным ботом, остальное собралось. Тесты на файлах настоящего клиента
@@ -17,8 +17,8 @@ MSB3027 при сборке — `Notes.exe` занят запущенным бо
 
 ## Где что
 
-`src/BotCH.Core` — вся логика, `src/BotCH.App` — окно (MVVM, части окна в `Panels/`), `tools/BotCH.Probe` — проверки на
-живом клиенте, `tests/BotCH.Tests` — xUnit без игры (`Fakes/FakeWorld`, снимок памяти в `Fixtures/`).
+`src/Notes.Core` — вся логика, `src/Notes.App` — окно (MVVM, части окна в `Panels/`), `tools/Notes.Probe` — проверки на
+живом клиенте, `tests/Notes.Tests` — xUnit без игры (`Fakes/FakeWorld`, снимок памяти в `Fixtures/`).
 
 В Core: `Profiles` — профили серверов (`*.jsonc`, вшиты в сборку), `Memory` — чтение процесса, `World` — снимок мира,
 `Calls` — вызовы функций игры (в главном потоке игры через оконную процедуру), `Actions` — действие с проверкой
@@ -27,7 +27,7 @@ MSB3027 при сборке — `Notes.exe` занят запущенным бо
 `GameFiles` — файлы клиента (названия и иконки скиллов), `Clicker` — режим «Кликер».
 
 Новое действие или условие кликера: класс, строка в `ClickerKinds`, шаблон полей в `App/ClickerTemplates.xaml`, свой файл
-тестов в `tests/BotCH.Tests/Clicker`. Вид (`"kind"`) и имена полей — в файлах сценариев: не переименовывать.
+тестов в `tests/Notes.Tests/Clicker`. Вид (`"kind"`) и имена полей — в файлах сценариев: не переименовывать.
 
 ## Нельзя
 
@@ -41,7 +41,7 @@ MSB3027 при сборке — `Notes.exe` занят запущенным бо
 
 ## Как писать
 
-- Никаких `if` по серверу: новый сервер — новый `.jsonc` в `src/BotCH.Core/Profiles`.
+- Никаких `if` по серверу: новый сервер — новый `.jsonc` в `src/Notes.Core/Profiles`.
 - У каждого адреса и смещения в профиле — комментарий: что это и как найти такое же на другом клиенте.
 - Новое смещение — значение только в профиль клиента, где оно проверено в игре (Probe на живом клиенте). В остальных
   профилях — тот же ключ с пустым значением `""` (бот читает его как «не найдено»): сразу видно, что там не проверено.

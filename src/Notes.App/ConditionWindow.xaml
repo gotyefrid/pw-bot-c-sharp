@@ -1,0 +1,29 @@
+<Window x:Class="Notes.App.ConditionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Notes.App"
+        Title="Условие" Width="400" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Style="{StaticResource AppWindow}">
+  <!-- Окно условия кликера: DataContext — ConditionSlot. Поля каждого вида — в ClickerTemplates.xaml; у группы там снова
+       список условий, двойной щелчок — ещё такое окно. Правки сразу уходят в настройки -->
+  <Window.Resources>
+    <ResourceDictionary Source="ClickerTemplates.xaml" />
+  </Window.Resources>
+
+  <Border Style="{StaticResource Card}" Margin="12">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Условие" VerticalAlignment="Center" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="200" Options="{Binding Kinds}" Value="{Binding Kind}"
+                          ToolTip="Что проверять. Можно начать печатать — список найдёт по части названия" />
+        <Grid />
+      </DockPanel>
+      <CheckBox Content="Наоборот (НЕ)" IsChecked="{Binding Condition.Not}" Margin="0,0,0,8"
+                ToolTip="Выполнено, когда само условие НЕ выполнено: «НЕ цель есть» — цели нет" />
+      <ContentControl Content="{Binding Condition}" Focusable="False" />
+      <Button Style="{StaticResource PrimaryButton}" Content="Готово" HorizontalAlignment="Right" Margin="0,10,0,0"
+              IsCancel="True" Click="Done" ToolTip="Правки уже сохранены — просто закрыть" />
+    </StackPanel>
+  </Border>
+</Window>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Консоль для проверок на живом клиенте: чтение (запускает кто угодно) и действия (запускает владелец) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Notes.Probe</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Notes.Core\Notes.Core.csproj" />
+  </ItemGroup>
+</Project>

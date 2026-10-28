@@ -60,13 +60,13 @@
 msbuild PwBot.sln -restore -p:Configuration=Release
 ```
 
-Бот — `src/BotCH.App/bin/Release/net48/Notes.exe`, тесты — `tests/BotCH.Tests/bin/Release/net48/BotCH.Tests.exe`.
+Бот — `src/Notes.App/bin/Release/net48/Notes.exe`, тесты — `tests/Notes.Tests/bin/Release/net48/Notes.Tests.exe`.
 
 ```
-src/BotCH.Core      логика: память, профили серверов, снимок мира, вызовы игры, мозг, настройки
-src/BotCH.App       окно (WPF)
-tools/BotCH.Probe   консоль для проверок на живом клиенте: снимок мира, сигнатуры, поиск полей
-tests/BotCH.Tests   тесты без игры: подделки мира и снимок памяти живого клиента
+src/Notes.Core      логика: память, профили серверов, снимок мира, вызовы игры, мозг, настройки
+src/Notes.App       окно (WPF)
+tools/Notes.Probe   консоль для проверок на живом клиенте: снимок мира, сигнатуры, поиск полей
+tests/Notes.Tests   тесты без игры: подделки мира и снимок памяти живого клиента
 ```
 
 ## Безопасность
