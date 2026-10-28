@@ -56,7 +56,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
         [GameFunctions.CancelAction] = [],
         [GameFunctions.PetCtrl] = ["target", "command", DataArg, "size"],
-        [GameFunctions.HostApplySkill] = ["skill", "force", "target", "pvp"],
+        // Второй — «шаг макроса»: так макрос жмёт свои скиллы; 0 — нажат не макросом, и игра заодно убирает идущий макрос
+        [GameFunctions.HostApplySkill] = ["skill", "fromMacro", "target", "pvp"],
         // Как кнопка макроса на панели: номер с 0, повтор не пропускать, «атаковать силой» — как в настройках игры
         [GameFunctions.HostApplyComboSkill] = ["group", "0", "0xFFFFFFFF"],
         [GameFunctions.HostClearComboSkill] = [],
@@ -159,7 +160,7 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Скилл как нажатием кнопки: клиент сам подходит на дальность. target 0 — текущая цель.</summary>
     public CallResult ApplySkill(int skillId, uint targetWid)
-        => Call(GameFunctions.HostApplySkill, null, ("skill", (uint)skillId), ("force", 0), ("target", targetWid), ("pvp", 0xFFFFFFFF));
+        => Call(GameFunctions.HostApplySkill, null, ("skill", (uint)skillId), ("fromMacro", 0), ("target", targetWid), ("pvp", 0xFFFFFFFF));
 
     /// <summary>Запустить макрос 1..N, как кнопкой на панели: дальше игра крутит его сама. Запуск поверх идущего начинает его сначала.</summary>
     public CallResult ApplyMacro(int macro)

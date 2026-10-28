@@ -339,7 +339,7 @@
     "hostPickupObject": { "rva": "0x33BE00", "convention": "thiscall", "this": "host",
                           "signature": "55 8B EC 51 53 56 57 8B F9 8B 87 14" },
 
-    // CECHostPlayer::ApplySkill(int id, bool, int target, int pvp) — нажатие кнопки скилла, this = перс, ret 0x10.
+    // CECHostPlayer::ApplySkill(int id, bool fromMacro, int target, int pvp) — нажатие кнопки скилла, this = перс, ret 0x10.
     // Та же фабрика 0x353180 с причиной 3 (скилл), внутри особая проверка на ID 167 (0xA7, «Городской портал») — как в 1.3.6
     "hostApplySkill": { "rva": "0x3324F0", "convention": "thiscall", "this": "host",
                         "signature": "55 8B EC 83 EC 0C 53 56 57 68 ?? ?? ?? ?? 8B F9" },
