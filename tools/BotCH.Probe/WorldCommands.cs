@@ -385,7 +385,7 @@ internal static class WorldCommands
 
         s.AppendLine(w.Pet is { } pet
             ? $"Пет    {(pet.IsSummoned ? $"призван из клетки {pet.ActiveCage}, WID 0x{pet.ActiveWid:X8}" : "не призван")}; " +
-              string.Join("; ", pet.Cages.Select(c => $"клетка {c.Cage}: {(c.Name is { } name ? $"{name} ({PetHabitats.Text(c.Habitat)}), " : "")}HP {c.HpPercent} %, сытость {c.Hunger}{(c.IsAlive ? "" : " (мёртв)")}"))
+              string.Join("; ", pet.Cages.Select(c => $"клетка {c.Cage}: {(c.Name is { } name ? $"{name} ({PetHabitats.Text(c.Habitat)}), " : "")}HP {c.HpPercent} %{(c.Hp is { } hp ? $" ({hp}/{c.MaxHp})" : "")}, ур. {c.Level}, сытость {c.Hunger}{(c.IsAlive ? "" : " (мёртв)")}"))
             : "Пет    нет");
 
         var npcs = w.Npcs.OrderBy(n => n.Offset.Horizontal).Take(full ? 10 : 5).ToList();

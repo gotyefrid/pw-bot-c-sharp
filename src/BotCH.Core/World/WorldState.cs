@@ -348,6 +348,15 @@ public sealed record PetInCage(int Cage, float HpRatio, int Hunger)
 
     public int HpPercent => (int)Math.Round(HpRatio * 100);
 
+    /// <summary>Уровень; 0 — не прочитан.</summary>
+    public int Level { get; init; }
+
+    /// <summary>Максимум HP, как в окне пета; 0 — неизвестен (поля не найдены для этого сервера).</summary>
+    public int MaxHp { get; init; }
+
+    /// <summary>HP в единицах, как в окне пета: максимум × доля; null — максимум неизвестен.</summary>
+    public int? Hp => MaxHp > 0 ? (int)(float)(MaxHp * HpRatio) : null;
+
     // По доле, а не по процентам: 0.3 % HP округлится до 0, но пет жив
     public bool IsAlive => HpRatio > 0;
 

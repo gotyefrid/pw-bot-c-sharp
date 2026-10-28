@@ -96,6 +96,50 @@ public class WorldReaderTests
         Assert.False(state.InCage(3)!.IsAlive);
     }
 
+    [Theory]
+    // Числа из живых клиентов: в окне пета PW Classic скорпион ур. 37 — 1067/1067; на Comeback 1.4.6 ур. 19 — 409 из 572
+    [InlineData("pwclassic136", 37, 1.0f, 1067, 1067)]
+    [InlineData("comeback146", 19, 0.716f, 409, 572)]
+    public void PetHpLikeInPetWindow(string server, int level, float ratio, int hp, int maxHp)
+    {
+        // Макс = (уровень − levelRequire × hpB + hpC) × hpA — у скорпиона levelRequire 2, hpA 27,5, hpB 0,1, hpC 2
+        var p = new ProfileCatalog().Load(server).Data;
+        const uint manager = 0x2000_0000, pet = 0x2001_0000, record = 0x2100_0000;
+        BuildWorld(petManager: manager, profile: p);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + p.PetManager.ActiveCage, 0);
+        _memory.WriteUInt32(manager + p.PetManager.Cages, pet);
+        _memory.Map(pet, 0x400);
+        _memory.WriteUInt32(pet + p.Pet.Tid, 10492);
+        _memory.WriteUInt32(pet + p.Pet.Essence, record);
+        _memory.WriteUInt32(pet + p.Pet.Level, (uint)level);
+        _memory.WriteBytes(pet + p.Pet.HpRatio, System.BitConverter.GetBytes(ratio));
+        _memory.Map(record, 0x400);
+        _memory.WriteUInt32(record, 10492);
+        _memory.WriteUInt32(record + p.Pet.EssenceInhabit, 0);
+        _memory.WriteUInt32(record + p.Pet.EssenceLevelRequire, 2);
+        _memory.WriteBytes(record + p.Pet.EssenceHpA, System.BitConverter.GetBytes(27.5f));
+        _memory.WriteBytes(record + p.Pet.EssenceHpB, System.BitConverter.GetBytes(0.1f));
+        _memory.WriteBytes(record + p.Pet.EssenceHpC, System.BitConverter.GetBytes(2f));
+
+        var scorpion = Reader(p).Read().Pet!.InCage(1)!;
+
+        Assert.Equal((level, hp, maxHp), (scorpion.Level, scorpion.Hp, scorpion.MaxHp));
+    }
+
+    [Fact]
+    public void PetHpUnknownWithoutRecord()
+    {
+        const uint manager = 0x2000_0000, pet = 0x2001_0000;
+        BuildWorld(petManager: manager);
+        _memory.Map(manager, 0x100);
+        _memory.WriteUInt32(manager + Profile.PetManager.Cages, pet);
+        _memory.Map(pet, 0x400);
+        _memory.WriteUInt32(pet + Profile.Pet.Level, 37);
+
+        Assert.Null(Reader().Read().Pet!.InCage(1)!.Hp);
+    }
+
     [Fact]
     public void PetNameAndHabitatFromGameRecord()
     {

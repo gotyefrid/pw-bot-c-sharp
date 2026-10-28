@@ -35,7 +35,7 @@ public sealed class WorldReader
     private readonly int _attackSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, string?> _groups = [];
-    private readonly Dictionary<uint, (string?, PetHabitat?)> _petEssences = [];
+    private readonly Dictionary<uint, PetEssence> _petEssences = [];
     private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
 
@@ -462,11 +462,18 @@ public sealed class WorldReader
         for (var cage = 1; cage <= m.CageCount; cage++)
         {
             var address = b.UInt32(m.Cages + (uint)(cage - 1) * 4);
-            if (!MemoryBlock.TryRead(_memory, address, BlockSize(pet.HpRatio, pet.Hunger, pet.Tid, pet.Essence), out var petBlock))
+            if (!MemoryBlock.TryRead(_memory, address, BlockSize(pet.HpRatio, pet.Hunger, pet.Tid, pet.Essence, pet.Level), out var petBlock))
                 continue;
             var tid = petBlock.UInt32(pet.Tid);
-            var (name, habitat) = pet.EssenceInhabit == 0 || pet.Essence == 0 ? (null, null) : ReadPetEssence(tid, petBlock.UInt32(pet.Essence));
-            cages.Add(new PetInCage(cage, petBlock.Float(pet.HpRatio), petBlock.Int32(pet.Hunger)) { Name = name, Habitat = habitat });
+            var essence = pet.EssenceInhabit == 0 || pet.Essence == 0 ? null : ReadPetEssence(tid, petBlock.UInt32(pet.Essence));
+            var level = (int)Field(petBlock, pet.Level);
+            cages.Add(new PetInCage(cage, petBlock.Float(pet.HpRatio), petBlock.Int32(pet.Hunger))
+            {
+                Name = essence?.Name,
+                Habitat = essence?.Habitat,
+                Level = level,
+                MaxHp = level > 0 && essence?.Hp is { } hp ? hp.MaxHp(level) : 0,
+            });
         }
 
         if (cages.Count == 0)
@@ -477,15 +484,28 @@ public sealed class WorldReader
     }
 
     // Запись питомца в справочнике не меняется, пока клиент запущен, — по tid читаем один раз (не нашли — попробуем в другой раз)
-    private (string? Name, PetHabitat? Habitat) ReadPetEssence(uint tid, uint address)
+    private PetEssence? ReadPetEssence(uint tid, uint address)
     {
         if (_petEssences.TryGetValue(tid, out var known))
             return known;
 
         var p = _p.Pet;
-        if (address == 0 || !_memory.TryReadUInt32(address, out var id) || id != tid || !_memory.TryReadUInt32(address + p.EssenceInhabit, out var inhabit))
-            return (null, null);
-        return _petEssences[tid] = (ReadName(address + p.EssenceName), PetHabitats.FromGame(unchecked((int)inhabit)));
+        if (address == 0 || !MemoryBlock.TryRead(_memory, address, BlockSize(p.EssenceInhabit, p.EssenceLevelRequire, p.EssenceHpA, p.EssenceHpB, p.EssenceHpC),
+                out var b) || b.UInt32(0) != tid)
+            return null;
+
+        var hp = p.EssenceLevelRequire == 0 || p.EssenceHpA == 0 || p.EssenceHpB == 0 || p.EssenceHpC == 0
+            ? null
+            : new PetHpFormula(b.Int32(p.EssenceLevelRequire), b.Float(p.EssenceHpA), b.Float(p.EssenceHpB), b.Float(p.EssenceHpC));
+        return _petEssences[tid] = new PetEssence(ReadName(address + p.EssenceName), PetHabitats.FromGame(b.Int32(p.EssenceInhabit)), hp);
+    }
+
+    private sealed record PetEssence(string Name, PetHabitat? Habitat, PetHpFormula? Hp);
+
+    /// <summary>Максимум HP пета, как его считает окно пета игры: всё во float — иначе на круглых числах разойдётся на 1.</summary>
+    private sealed record PetHpFormula(int LevelRequire, float A, float B, float C)
+    {
+        public int MaxHp(int level) => (int)(float)((float)((float)(level - (float)(LevelRequire * B)) + C) * A);
     }
 
     // Макросы — в настройках игры, а не у персонажа; читаем только, какие есть и их иконки

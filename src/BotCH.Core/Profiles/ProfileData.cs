@@ -164,6 +164,15 @@ public sealed class PetOffsets
     public uint EssenceName { get; init; }
     /// <summary>Где живёт (int, inhabit_type), см. <see cref="World.PetHabitats.FromGame"/>.</summary>
     public uint EssenceInhabit { get; init; }
+    /// <summary>Уровень (int); 0 — не найдено: HP в единицах не считается.</summary>
+    public uint Level { get; init; }
+    /// <summary>
+    /// Для максимума HP, как в окне пета: (уровень − LevelRequire × HpB + HpC) × HpA. LevelRequire — int, остальное — float.
+    /// </summary>
+    public uint EssenceLevelRequire { get; init; }
+    public uint EssenceHpA { get; init; }
+    public uint EssenceHpB { get; init; }
+    public uint EssenceHpC { get; init; }
 }
 
 public sealed class WorldOffsets
