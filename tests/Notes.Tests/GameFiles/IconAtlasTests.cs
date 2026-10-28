@@ -9,7 +9,7 @@ namespace Notes.Tests.GameFiles;
 
 public class IconAtlasTests
 {
-    private const string ComebackVariable = "BOTCH_COMEBACK146_DIR";
+    private const string ComebackVariable = "NOTES_COMEBACK146_DIR";
     private static readonly string ComebackDirectory = Environment.GetEnvironmentVariable(ComebackVariable) ?? "";
     private static readonly Encoding Gbk = Encoding.GetEncoding(936);
 

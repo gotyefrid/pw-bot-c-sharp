@@ -204,7 +204,7 @@ public class SettingsTests
 
 public class SettingsStoreTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "botch-settings-" + Guid.NewGuid().ToString("N"));
+    private readonly string _directory = Path.Combine(Path.GetTempPath(), "notes-settings-" + Guid.NewGuid().ToString("N"));
 
     private string File(string name) => Path.Combine(_directory, name);
 

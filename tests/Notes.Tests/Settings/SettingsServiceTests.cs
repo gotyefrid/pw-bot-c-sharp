@@ -9,7 +9,7 @@ namespace Notes.Tests.Settings;
 /// <summary>Общие настройки и настройки персонажа на диске: смена персонажа, новый — копия общих, что куда сохраняется.</summary>
 public class SettingsServiceTests : IDisposable
 {
-    private readonly string _folder = Path.Combine(Path.GetTempPath(), "botch-settings-" + Guid.NewGuid().ToString("N"));
+    private readonly string _folder = Path.Combine(Path.GetTempPath(), "notes-settings-" + Guid.NewGuid().ToString("N"));
 
     public SettingsServiceTests() => Directory.CreateDirectory(_folder);
 

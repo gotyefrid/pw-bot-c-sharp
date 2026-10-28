@@ -20,7 +20,7 @@ public class MutexNamesTests
     public void NameHasNeitherBotNorFolder()
     {
         // Кроме «Local\» — только шестнадцатеричные знаки: ни слова, ни куска пути в имени не поместится
-        var name = MutexNames.For("app", @"d:/bots/botch-farm");
+        var name = MutexNames.For("app", @"d:/bots/notes-farm");
 
         Assert.Matches(@"^Local[\\][0-9a-f]{16}$", name);
     }

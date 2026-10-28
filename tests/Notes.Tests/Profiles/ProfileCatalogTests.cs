@@ -107,7 +107,7 @@ public class ProfileCatalogTests
     [Fact]
     public void FileNextToExeOverridesEmbedded()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "botch-profiles-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(Path.GetTempPath(), "notes-profiles-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try
         {

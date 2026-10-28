@@ -14,7 +14,7 @@ public class SpotBookTests : IDisposable
     private readonly FakeWorld _world = new();
     private const string Server = "comeback146";
     private readonly SpotBook _book = new([]) { Server = Server };
-    private readonly string _file = Path.Combine(Path.GetTempPath(), "botch-spots-" + Guid.NewGuid().ToString("N") + ".json");
+    private readonly string _file = Path.Combine(Path.GetTempPath(), "notes-spots-" + Guid.NewGuid().ToString("N") + ".json");
     private uint _nextId = 0xC0100E80;
 
     public void Dispose()

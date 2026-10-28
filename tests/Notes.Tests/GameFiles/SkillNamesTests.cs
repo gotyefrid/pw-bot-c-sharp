@@ -9,8 +9,8 @@ namespace Notes.Tests.GameFiles;
 public class SkillNamesTests
 {
     // Тесты на файлах настоящего клиента: папка element клиента — в переменной окружения. Нет переменной — тест пропускается
-    private const string GameVariable = "BOTCH_PWCLASSIC136_DIR";
-    private const string ComebackVariable = "BOTCH_COMEBACK146_DIR";
+    private const string GameVariable = "NOTES_PWCLASSIC136_DIR";
+    private const string ComebackVariable = "NOTES_COMEBACK146_DIR";
     private static readonly string GameDirectory = Environment.GetEnvironmentVariable(GameVariable) ?? "";
     private static readonly string ComebackDirectory = Environment.GetEnvironmentVariable(ComebackVariable) ?? "";
 

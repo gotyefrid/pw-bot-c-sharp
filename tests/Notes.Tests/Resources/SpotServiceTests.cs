@@ -12,7 +12,7 @@ namespace Notes.Tests.Resources;
 /// <summary>Блокнот точек с файлами: сохраняет раз в 10 с, подтягивает точки других копий бота, переносит старый файл.</summary>
 public class SpotServiceTests : IDisposable
 {
-    private readonly string _folder = Path.Combine(Path.GetTempPath(), "botch-spots-" + Guid.NewGuid().ToString("N"));
+    private readonly string _folder = Path.Combine(Path.GetTempPath(), "notes-spots-" + Guid.NewGuid().ToString("N"));
     private readonly FakeWorld _world = new();
     private DateTime _now = new(2026, 10, 4, 12, 0, 0);
 

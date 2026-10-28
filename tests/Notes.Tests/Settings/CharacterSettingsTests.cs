@@ -7,7 +7,7 @@ namespace Notes.Tests.Settings;
 
 public class CharacterSettingsTests : IDisposable
 {
-    private readonly string _directory = Path.Combine(Path.GetTempPath(), "botch-chars-" + Guid.NewGuid().ToString("N"));
+    private readonly string _directory = Path.Combine(Path.GetTempPath(), "notes-chars-" + Guid.NewGuid().ToString("N"));
     private readonly CharacterSettings _characters;
     private readonly BotSettings _template = new();
 

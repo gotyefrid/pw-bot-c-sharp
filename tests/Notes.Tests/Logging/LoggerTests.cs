@@ -74,7 +74,7 @@ public class LoggerTests
     [Fact]
     public void FileSinkWritesOneFilePerDay()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "botch-log-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(Path.GetTempPath(), "notes-log-" + Guid.NewGuid().ToString("N"));
         try
         {
             var sink = new DailyFileSink(directory);
@@ -100,7 +100,7 @@ public class LoggerTests
     [Fact]
     public void FileCanBeReadWhileBotWrites()
     {
-        var directory = Path.Combine(Path.GetTempPath(), "botch-log-" + Guid.NewGuid().ToString("N"));
+        var directory = Path.Combine(Path.GetTempPath(), "notes-log-" + Guid.NewGuid().ToString("N"));
         try
         {
             var sink = new DailyFileSink(directory);
