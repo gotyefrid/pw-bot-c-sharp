@@ -55,7 +55,7 @@ public static class ClientPatchGate
 
         return policy == ClientPatchPolicy.Require
             ? new ClientPatchDecision(ClientPatchVerdict.Refuse, problem,
-                problem + "\n\nПодключение запрещено политикой «Требовать патч»: закройте клиент и нажмите «Пропатчить».")
+                problem + "\n\nПодключение запрещено настройкой «Без патча: не подключаться». Закройте игру и нажмите «Пропатчить».")
             : new ClientPatchDecision(ClientPatchVerdict.Ask, problem,
                 problem + "\n\nПодключиться на свой страх и риск?");
     }

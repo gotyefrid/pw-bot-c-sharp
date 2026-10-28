@@ -60,13 +60,15 @@
         <TextBlock Text="ПОДКЛЮЧЕНИЕ" Style="{StaticResource CardTitle}" />
         <Grid>
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="70" />
+            <ColumnDefinition Width="Auto" MinWidth="70" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
           <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="8" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
@@ -77,22 +79,32 @@
           <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Clients}" SelectedItem="{Binding SelectedClient}" DisplayMemberPath="Display" />
           <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource IconButton}" Margin="6,0,0,0" Content="&#xE72C;"
                   Command="{Binding RefreshCommand}" ToolTip="Обновить список клиентов" />
+
+          <!-- Патч клиента: только у серверов с рецептом правок. Строки сетки — те же колонки, что у «Сервер»/«Клиент» -->
+          <TextBlock Grid.Row="3" Text="Патч" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
+                     Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
+          <DockPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                     Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
+            <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Откат" Margin="6,0,0,0"
+                    Command="{Binding Patch.RestorePatchCommand}" ToolTip="Вернуть исходный exe из бэкапа .orig" />
+            <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Пропатчить" Margin="10,0,0,0"
+                    Command="{Binding Patch.PatchCommand}"
+                    ToolTip="Применить правки к exe клиента (игра должна быть закрыта; бэкап .orig рядом)" />
+            <TextBlock Text="{Binding Patch.PatchText}" ToolTip="{Binding Patch.PatchHint}" FontWeight="SemiBold"
+                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+          </DockPanel>
+
+          <TextBlock Grid.Row="4" Text="Без патча" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
+                     Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
+          <ComboBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                    Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}"
+                    ItemsSource="{Binding Patch.Policies}" DisplayMemberPath="Title" SelectedValuePath="Policy"
+                    SelectedValue="{Binding Patch.PatchPolicy}"
+                    ToolTip="Что делать при подключении к клиенту без патча: спросить, не подключаться или подключаться без вопросов" />
         </Grid>
         <WrapPanel Margin="0,10,0,0">
           <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"
                     ToolTip="Переименовывать окна клиентов в ник персонажа и PID — видно, где кто" />
-        </WrapPanel>
-        <!-- Патч клиента: только у серверов с рецептом правок -->
-        <WrapPanel Margin="0,8,0,0" Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
-          <TextBlock Text="Патч клиента: " Style="{StaticResource Muted}" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding Patch.PatchText}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,10,0" />
-          <Button Style="{StaticResource ButtonBase}" Content="Пропатчить" Command="{Binding Patch.PatchCommand}"
-                  ToolTip="Применить правки к exe клиента (клиент должен быть закрыт; бэкап .orig рядом)" />
-          <Button Style="{StaticResource ButtonBase}" Content="Откат" Margin="6,0,0,0" Command="{Binding Patch.RestorePatchCommand}"
-                  ToolTip="Вернуть исходный exe из бэкапа .orig" />
-          <ComboBox Margin="10,0,0,0" VerticalAlignment="Center" MinWidth="110"
-                    ItemsSource="{Binding Patch.Policies}" DisplayMemberPath="Title" SelectedValuePath="Policy"
-                    SelectedValue="{Binding Patch.PatchPolicy}" ToolTip="Подключение к клиенту без правок" />
         </WrapPanel>
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
           <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />

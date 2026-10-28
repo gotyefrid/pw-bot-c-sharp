@@ -68,6 +68,7 @@ public sealed class ClientPatchPanel : ObservableObject
                 return;
 
             OnPropertyChanged(nameof(PatchText));
+            OnPropertyChanged(nameof(PatchHint));
             CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -87,6 +88,7 @@ public sealed class ClientPatchPanel : ObservableObject
                 return;
 
             OnPropertyChanged(nameof(PatchText));
+            OnPropertyChanged(nameof(PatchHint));
             CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -94,14 +96,25 @@ public sealed class ClientPatchPanel : ObservableObject
     // Номер последней проверки: результат прежней (сменили сервер или клиент, пока считался хэш) — выбрасываем
     private int _checkVersion;
 
-    /// <summary>Что написано после «Патч клиента:».</summary>
+    /// <summary>Что написано в строке «Патч» — коротко: окно бота фиксированной ширины, рядом две кнопки.</summary>
     public string PatchText => Checking ? "проверяю…" : State switch
     {
         ClientPatchState.Patched => "установлен",
-        ClientPatchState.Original => "нет — клиент видит бота",
-        ClientPatchState.Unknown => "файл не распознан (обновление клиента?)",
-        ClientPatchState.Unreadable => "файл не читается (нет прав?)",
+        ClientPatchState.Original => "не установлен",
+        ClientPatchState.Unknown => "файл не распознан",
+        ClientPatchState.Unreadable => "файл не читается",
         _ => "файл не найден",
+    };
+
+    /// <summary>Подсказка к строке «Патч» при наведении: что значит состояние и что делать.</summary>
+    public string PatchHint => Checking ? "Проверяю файл клиента" : State switch
+    {
+        ClientPatchState.Patched => "Правки стоят. Исходный файл сохранён рядом с exe как .orig — «Откат» вернёт его",
+        ClientPatchState.Original => "Файл клиента исходный. Закройте игру и нажмите «Пропатчить»",
+        ClientPatchState.Unknown => "Файл не похож ни на исходный, ни на пропатченный — скорее всего, игра обновилась. "
+                                    + "Для нового билда нужен новый рецепт, файл бот не тронет",
+        ClientPatchState.Unreadable => "Файл клиента не прочитать — не хватает прав на папку игры?",
+        _ => "Файл клиента не найден: запустите игру и нажмите «Обновить» — или «Пропатчить» и укажите exe",
     };
 
     public ICommand PatchCommand { get; }
@@ -111,9 +124,9 @@ public sealed class ClientPatchPanel : ObservableObject
 
     public IReadOnlyList<PatchPolicyChoice> Policies { get; } =
     [
-        new(ClientPatchPolicy.Ask, "Спрашивать"),
-        new(ClientPatchPolicy.Require, "Требовать патч"),
-        new(ClientPatchPolicy.Ignore, "Не проверять"),
+        new(ClientPatchPolicy.Ask, "Спросить"),
+        new(ClientPatchPolicy.Require, "Не подключаться"),
+        new(ClientPatchPolicy.Ignore, "Подключаться"),
     ];
 
     /// <summary>Подключение к клиенту без правок — на усмотрение пользователя (в settings.json).</summary>
