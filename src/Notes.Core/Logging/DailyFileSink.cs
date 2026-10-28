@@ -6,10 +6,10 @@ using System.Text;
 namespace Notes.Core.Logging;
 
 /// <summary>
-/// Файл лога на каждый день: <c>logs\botch-2026-10-01.log</c>. Файл открывается на дозапись и сразу закрывается —
+/// Файл лога на каждый день: <c>logs\notes-2026-10-01.log</c>. Файл открывается на дозапись и сразу закрывается —
 /// его можно читать и удалять, пока бот работает.
 /// </summary>
-public sealed class DailyFileSink(string directory, string prefix = "botch") : ILogSink
+public sealed class DailyFileSink(string directory, string prefix = "notes") : ILogSink
 {
     private static readonly Encoding Utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
 

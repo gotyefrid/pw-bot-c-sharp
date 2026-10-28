@@ -88,7 +88,7 @@ public class LoggerTests
 
             Assert.Equal(["12:00:00.000 INF [бот] первый день"], File.ReadAllLines(sink.PathFor(Noon)));
             Assert.Equal(2, File.ReadAllLines(sink.PathFor(Noon.AddDays(1))).Length);
-            Assert.EndsWith("botch-2026-10-01.log", sink.PathFor(Noon));
+            Assert.EndsWith("notes-2026-10-01.log", sink.PathFor(Noon));
         }
         finally
         {
