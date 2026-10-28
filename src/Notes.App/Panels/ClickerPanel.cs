@@ -21,6 +21,7 @@ public sealed class ClickerPanel : ObservableObject
     private readonly Func<BotSettings> _settings;
     private readonly Func<int?> _current;
     private readonly Action _edited;
+    private readonly IDialogs _dialogs;
     private ClickerRow? _selected;
     private ClickerAction? _watchedAction;
     private ConditionList? _watchedConditions;
@@ -29,12 +30,14 @@ public sealed class ClickerPanel : ObservableObject
     /// <param name="current">Номер шага, который бот выполняет сейчас; null — бот не работает.</param>
     /// <param name="choices">Варианты для выбора в окнах шага и условий (предметы…).</param>
     /// <param name="edited">Правка настроек из этой вкладки.</param>
-    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, ClickerChoices choices, Action edited)
+    /// <param name="dialogs">Куда сохранить и откуда загрузить сценарий, вопрос «заменить?», сообщение об ошибке.</param>
+    public ClickerPanel(Func<BotSettings> settings, Func<int?> current, ClickerChoices choices, Action edited, IDialogs dialogs)
     {
         _settings = settings;
         _current = current;
         Choices = choices;
         _edited = edited;
+        _dialogs = dialogs;
         AddCommand = new RelayCommand(Add);
         RemoveCommand = new RelayCommand(Remove, () => Selected is not null);
         UpCommand = new RelayCommand(() => Move(-1), () => Selected is { } r && Rows.IndexOf(r) > 0);
@@ -64,17 +67,8 @@ public sealed class ClickerPanel : ObservableObject
     public ICommand ExportCommand { get; }
     public ICommand ImportCommand { get; }
 
-    /// <summary>Куда сохранить сценарий — окно «Сохранить как»; null — передумали. Ставит окно бота.</summary>
-    public Func<string?> AskExportPath { get; set; } = () => null;
-
-    /// <summary>Откуда загрузить сценарий — окно «Открыть»; null — передумали. Ставит окно бота.</summary>
-    public Func<string?> AskImportPath { get; set; } = () => null;
-
-    /// <summary>Вопрос «да/нет» (заменить сценарий?).</summary>
-    public Func<string, bool> AskYesNo { get; set; } = _ => false;
-
-    /// <summary>Сообщить об ошибке (файл не записался, не читается).</summary>
-    public Action<string> Tell { get; set; } = _ => { };
+    // Сценарий кликера в файл и из файла — обычные окна Windows «Сохранить как» и «Открыть»
+    private const string ClickerFiles = "Сценарий кликера (*.json)|*.json|Все файлы (*.*)|*.*";
 
     public ClickerRow? Selected
     {
@@ -180,7 +174,7 @@ public sealed class ClickerPanel : ObservableObject
 
     private void Export()
     {
-        if (AskExportPath() is not { } path)
+        if (_dialogs.AskSavePath("Экспорт сценария кликера", ClickerFiles, "Кликер.json") is not { } path)
             return;
 
         try
@@ -189,23 +183,23 @@ public sealed class ClickerPanel : ObservableObject
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            Tell($"Сценарий не сохранён: {e.Message}");
+            _dialogs.Tell($"Сценарий не сохранён: {e.Message}");
         }
     }
 
     // Сценарий из файла — вместо текущего; есть что терять — сначала спросить. Файл не годится — текущий не трогаем
     private void Import()
     {
-        if (AskImportPath() is not { } path)
+        if (_dialogs.AskOpenPath("Импорт сценария кликера", ClickerFiles) is not { } path)
             return;
 
         if (ClickerFile.Load(path, out var problem) is not { } steps)
         {
-            Tell($"Сценарий не загружен: {problem}. Текущий сценарий не тронут.");
+            _dialogs.Tell($"Сценарий не загружен: {problem}. Текущий сценарий не тронут.");
             return;
         }
 
-        if (Steps.Count > 0 && !AskYesNo($"Заменить текущий сценарий сценарием из файла?\n\nСейчас шагов: {Steps.Count}, в файле: {steps.Count}."))
+        if (Steps.Count > 0 && !_dialogs.AskYesNo($"Заменить текущий сценарий сценарием из файла?\n\nСейчас шагов: {Steps.Count}, в файле: {steps.Count}."))
             return;
 
         _settings().Clicker.Steps = steps;

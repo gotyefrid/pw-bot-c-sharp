@@ -6,7 +6,6 @@ using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Controls;
 using Notes.Core.Logging;
-using Microsoft.Win32;
 using System.Windows;
 using System.Windows.Threading;
 
@@ -19,35 +18,19 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        Func<string, bool> askYesNo = text => MessageBox.Show(this, text, "Заметки", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
-        Action<string> tell = text => MessageBox.Show(this, text, "Заметки", MessageBoxButton.OK, MessageBoxImage.Error);
-        _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory) { AskYesNo = askYesNo, Tell = tell };
-        var patch = _model.Patch;
-        patch.AskYesNo = askYesNo;
-        patch.Tell = tell;
-        patch.AskClientPath = () => AskPath(new OpenFileDialog { Title = "Файл клиента игры (exe)", Filter = "Клиент игры (*.exe)|*.exe|Все файлы (*.*)|*.*" });
-        // Сначала диалоги, потом первый список клиентов — и когда окно уже показано: вопрос о клиенте без правок
-        // не появится раньше самого окна и не ответится заглушкой
+        _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory, new WindowDialogs(this));
+        // Первый список клиентов — когда окно уже показано: вопрос о клиенте без правок не появится раньше окна
         Loaded += (_, _) => _model.StartUp();
         DataContext = _model;
 
         var clicker = _model.Clicker;
         clicker.EditRequested += () => new StepWindow { Owner = this, DataContext = clicker }.ShowDialog();
-        clicker.AskYesNo = askYesNo;
-        clicker.Tell = tell;
-        clicker.AskExportPath = () => AskPath(new SaveFileDialog { Title = "Экспорт сценария кликера", Filter = ClickerFiles, FileName = "Кликер.json" });
-        clicker.AskImportPath = () => AskPath(new OpenFileDialog { Title = "Импорт сценария кликера", Filter = ClickerFiles });
 
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
         _model.Log.FilterChanged += RebuildLog;
         _model.Log.Entries.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
-
-    // Сценарий кликера в файл и из файла — обычные окна Windows «Сохранить как» и «Открыть»
-    private const string ClickerFiles = "Сценарий кликера (*.json)|*.json|Все файлы (*.*)|*.*";
-
-    private string? AskPath(FileDialog dialog) => dialog.ShowDialog(this) == true ? dialog.FileName : null;
 
     private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x6B, 0x73, 0x85));
     private static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xD9, 0x8B, 0x0B));

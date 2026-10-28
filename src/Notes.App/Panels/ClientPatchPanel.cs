@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
 using Notes.App.Mvvm;
 using Notes.Core.Clients;
@@ -25,16 +24,19 @@ public sealed class ClientPatchPanel : ObservableObject
     private readonly Func<int?> _connectedPid;
     private readonly Func<ConnectionSettings> _settings;
     private readonly Action _saved;
+    private readonly IDialogs _dialogs;
     private readonly ILogger _log;
 
     /// <param name="settings">Настройки подключения: политика и пути exe по серверам.</param>
     /// <param name="saved">Настройки подключения изменены — сохранить.</param>
+    /// <param name="dialogs">Вопрос «подключиться без правок?», отказ, выбор exe, когда путь взять неоткуда.</param>
     public ClientPatchPanel(
         Func<ServerProfile> profile,
         Func<IReadOnlyList<GameClient>> clients,
         Func<int?> connectedPid,
         Func<ConnectionSettings> settings,
         Action saved,
+        IDialogs dialogs,
         ILogger log)
     {
         _profile = profile;
@@ -42,6 +44,7 @@ public sealed class ClientPatchPanel : ObservableObject
         _connectedPid = connectedPid;
         _settings = settings;
         _saved = saved;
+        _dialogs = dialogs;
         _log = log;
         PatchCommand = new RelayCommand(Patch, () => Recipe is not null && !Checking && State is ClientPatchState.Original or ClientPatchState.Missing);
         RestorePatchCommand = new RelayCommand(Restore, () => Recipe is not null && !Checking && State == ClientPatchState.Patched);
@@ -97,20 +100,12 @@ public sealed class ClientPatchPanel : ObservableObject
         ClientPatchState.Patched => "установлен",
         ClientPatchState.Original => "нет — клиент видит бота",
         ClientPatchState.Unknown => "файл не распознан (обновление клиента?)",
+        ClientPatchState.Unreadable => "файл не читается (нет прав?)",
         _ => "файл не найден",
     };
 
     public ICommand PatchCommand { get; }
     public ICommand RestorePatchCommand { get; }
-
-    /// <summary>Диалоги окна: ставятся после создания модели, до первого обновления списка клиентов.</summary>
-    public Func<string, bool> AskYesNo { get; set; } = _ => false;
-
-    /// <summary>Сообщить о неудаче (окно ставит MessageBox).</summary>
-    public Action<string> Tell { get; set; } = _ => { };
-
-    /// <summary>Спросить, где лежит exe клиента, — когда путь взять больше неоткуда.</summary>
-    public Func<string?> AskClientPath { get; set; } = () => null;
 
     public sealed record PatchPolicyChoice(ClientPatchPolicy Policy, string Title);
 
@@ -161,6 +156,8 @@ public sealed class ClientPatchPanel : ObservableObject
         if (Recipe is not { } recipe)
             return true;
 
+        // Путь запоминаем до решения и при отказе тоже: «Требовать» отказывает со словами «закройте клиент и нажмите
+        // «Пропатчить»» — а у закрытого клиента путь exe взять больше неоткуда
         if (client.ExePath is { } live)
             RememberPath(live);
 
@@ -177,12 +174,12 @@ public sealed class ClientPatchPanel : ObservableObject
 
             case ClientPatchVerdict.Refuse:
                 _log.Warning(decision.Problem);
-                Tell(decision.Text);
+                _dialogs.Tell(decision.Text);
                 return false;
 
             default:
                 _log.Warning(decision.Problem);
-                return AskYesNo(decision.Text);
+                return _dialogs.AskYesNo(decision.Text);
         }
     }
 
@@ -214,7 +211,7 @@ public sealed class ClientPatchPanel : ObservableObject
 
         Checking = true;
         Task.Run(() => ClientPatcher.Check(path, recipe))
-            .ContinueWith(t => OnUi(() =>
+            .ContinueWith(t => UiThread.Run(() =>
             {
                 if (version != _checkVersion)
                     return;
@@ -235,7 +232,7 @@ public sealed class ClientPatchPanel : ObservableObject
 
         if (_clients().Any(c => string.Equals(c.ExePath, path, StringComparison.OrdinalIgnoreCase)))
         {
-            Tell("Клиент запущен — его exe занят. Закройте игру и повторите.");
+            _dialogs.Tell("Клиент запущен — его exe занят. Закройте игру и повторите.");
             return;
         }
 
@@ -247,7 +244,7 @@ public sealed class ClientPatchPanel : ObservableObject
         catch (ClientPatchException e)
         {
             _log.Error("Патч: " + e.Message);
-            Tell(e.Message);
+            _dialogs.Tell(e.Message);
         }
 
         Refresh();
@@ -269,7 +266,7 @@ public sealed class ClientPatchPanel : ObservableObject
         catch (ClientPatchException e)
         {
             _log.Error("Патч: " + e.Message);
-            Tell(e.Message);
+            _dialogs.Tell(e.Message);
         }
 
         Refresh();
@@ -287,12 +284,7 @@ public sealed class ClientPatchPanel : ObservableObject
         return shown?.ExePath ?? RememberedPath();
     }
 
-    private static void OnUi(Action action)
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-            action();
-        else
-            dispatcher.BeginInvoke(action);
-    }
+    /// <summary>Где лежит exe клиента — спросить окном «Открыть», когда путь взять больше неоткуда.</summary>
+    private string? AskClientPath()
+        => _dialogs.AskOpenPath("Файл клиента игры (exe)", "Клиент игры (*.exe)|*.exe|Все файлы (*.*)|*.*");
 }

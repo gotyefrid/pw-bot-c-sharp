@@ -1,3 +1,5 @@
+using System;
+
 namespace Notes.Core.Clients;
 
 /// <summary>Подключение к клиенту без правок — на усмотрение пользователя (хранится в settings.json).</summary>
@@ -46,7 +48,9 @@ public static class ClientPatchGate
         {
             ClientPatchState.Original => "Файл клиента исходный — правки не применены.",
             ClientPatchState.Unknown => "Файл клиента не похож на известный билд (обновление игры?) — правки не проверить.",
-            _ => "Файл клиента не найден — правки не проверить.",
+            ClientPatchState.Unreadable => "Файл клиента не читается (нет прав?) — правки не проверить.",
+            ClientPatchState.Missing => "Файл клиента не найден — правки не проверить.",
+            _ => throw new ArgumentOutOfRangeException(nameof(state), state, null),
         };
 
         return policy == ClientPatchPolicy.Require

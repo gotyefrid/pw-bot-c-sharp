@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
 namespace Notes.Core.Memory;
 
@@ -20,31 +20,19 @@ public static class ModuleSections
 
     public static IReadOnlyList<ModuleSection> Read(IMemory memory, uint moduleBase)
     {
-        if (memory.ReadUInt16(moduleBase) != 0x5A4D) // «MZ»
-            throw new MemoryAccessException(moduleBase, "Нет заголовка MZ — это не начало модуля");
-
-        var nt = moduleBase + memory.ReadUInt32(moduleBase + 0x3C);
-        if (memory.ReadUInt32(nt) != 0x00004550) // «PE\0\0»
-            throw new MemoryAccessException(nt, "Нет заголовка PE");
-
-        var sectionCount = memory.ReadUInt16(nt + 0x6);
-        var optionalHeaderSize = memory.ReadUInt16(nt + 0x14);
-        var table = nt + 0x18 + optionalHeaderSize;
-
-        var sections = new List<ModuleSection>(sectionCount);
-        for (var i = 0u; i < sectionCount; i++)
+        IReadOnlyList<PeSection> table;
+        try
         {
-            var header = memory.ReadBytes(table + i * 40, 40);
-            var name = Encoding.ASCII.GetString(header, 0, 8).TrimEnd('\0');
-            var virtualSize = BitConverter.ToInt32(header, 8);
-            var virtualAddress = BitConverter.ToUInt32(header, 12);
-            var characteristics = BitConverter.ToUInt32(header, 36);
-            var isCode = (characteristics & (ImageScnCntCode | ImageScnMemExecute)) != 0;
-
-            sections.Add(new ModuleSection(name, moduleBase + virtualAddress, virtualSize, isCode, (characteristics & ImageScnMemWrite) != 0));
+            table = PeHeaders.Sections((offset, count) => memory.ReadBytes(moduleBase + offset, count));
+        }
+        catch (FormatException e)
+        {
+            throw new MemoryAccessException(moduleBase, e.Message);
         }
 
-        return sections;
+        return table.Select(s => new ModuleSection(s.Name, moduleBase + s.VirtualAddress, (int)s.VirtualSize,
+            IsCode: (s.Characteristics & (ImageScnCntCode | ImageScnMemExecute)) != 0,
+            IsWritable: (s.Characteristics & ImageScnMemWrite) != 0)).ToList();
     }
 
     /// <summary>

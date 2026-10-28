@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using Notes.App.Mvvm;
@@ -54,11 +53,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(0.5);
     private readonly DispatcherTimer _saveTimer = new() { Interval = SaveDelay };
 
-    public MainViewModel(string appDirectory)
+    // Вопросы и сообщения пользователю — окна бота (MessageBox, «Открыть»/«Сохранить как»)
+    private readonly IDialogs _dialogs;
+
+    public MainViewModel(string appDirectory, IDialogs dialogs)
     {
+        _dialogs = dialogs;
         var ring = new RingBufferSink(LogPanel.MaxLines);
         var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(Path.Combine(appDirectory, "logs")));
-        ring.Added += entry => OnUi(() => Log.Add(entry));
+        ring.Added += entry => UiThread.Run(() => Log.Add(entry));
         _logger = logger;
         _log = logger.For(LogSources.Window);
         _connectionLog = logger.For(LogSources.Connection);
@@ -87,6 +90,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             () => _connection?.Pid,
             () => _config.App.Connection,
             SaveSettings,
+            dialogs,
             _connectionLog);
 
         Pets = new PetsPanel(() => Settings, SettingsEdited);
@@ -102,7 +106,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Clicker = new ClickerPanel(() => Settings,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null,
             new ClickerChoices(() => Farm.LootOptions(), () => Route.RouteOptions(), () => Farm.TargetOptions(),
-                () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? [])), SettingsEdited);
+                () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? [])), SettingsEdited, dialogs);
         Farm.Load();
         Route.Load();
         Clicker.Load();
@@ -115,9 +119,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Первое обновление списка клиентов — отдельно от конструктора: окно сначала ставит свои диалоги
-    /// (<see cref="AskYesNo"/>, <see cref="Tell"/> и диалоги панели патча), иначе вопрос при старте молча
-    /// ответит «нет» заглушкой. Зовётся по Loaded — вопрос не появляется раньше самого окна.
+    /// Первое обновление списка клиентов — отдельно от конструктора: при подключении может появиться вопрос
+    /// («подключиться без правок?»), а окно зовёт это по Loaded — вопрос не появляется раньше самого окна.
     /// </summary>
     public void StartUp() => RefreshClients();
 
@@ -232,12 +235,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _isStopping, value);
     }
 
-    /// <summary>Спросить пользователя «да/нет» (окно ставит MessageBox).</summary>
-    public Func<string, bool> AskYesNo { get; set; } = _ => false;
-
-    /// <summary>Сообщить пользователю об ошибке (окно ставит MessageBox).</summary>
-    public Action<string> Tell { get; set; } = _ => { };
-
     public void Start() => Start(CallTransport.Window);
 
     private void Start(CallTransport transport)
@@ -258,7 +255,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             // Основной способ не вышел — сам на поток не переходим (на нём падал 1.4.6): спрашиваем. Выбор не запоминаем
             case StartStatus.WindowFailed:
                 _log.Warning($"Вызовы через окно игры не подключились: {result.Problem}");
-                if (AskYesNo($"Не удалось подключиться к окну игры ({result.Problem}).\n\nМожно попробовать запасной способ — он работает, " +
+                if (_dialogs.AskYesNo($"Не удалось подключиться к окну игры ({result.Problem}).\n\nМожно попробовать запасной способ — он работает, " +
                              "но на некоторых клиентах игра от него падает. Попробовать?"))
                     Start(CallTransport.Thread);
                 else
@@ -267,7 +264,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             default:
                 _log.Error($"Бот не может управлять этим клиентом: {result.Problem}");
-                Tell($"Не получается управлять этим клиентом:\n{result.Problem}");
+                _dialogs.Tell($"Не получается управлять этим клиентом:\n{result.Problem}");
                 break;
         }
     }
@@ -281,7 +278,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsRunning = false;
         IsStopping = true;
         BotState = "Останавливаю…";
-        connection.StopBotAsync().ContinueWith(_ => OnUi(() =>
+        connection.StopBotAsync().ContinueWith(_ => UiThread.Run(() =>
         {
             _log.Info("Стоп");
             IsStopping = false;
@@ -425,10 +422,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             connection.WorldUpdated += _spots.Observe;
             connection.WorldUpdated += new DamageLog(_logger.For(LogSources.Damage)).Observe;
             connection.WorldUpdated += ShowLatest;
-            connection.WorldFailed += message => OnUi(() => ShowFailure(message));
-            connection.BotStatusChanged += status => OnUi(() => BotState = Capitalize(status));
+            connection.WorldFailed += message => UiThread.Run(() => ShowFailure(message));
+            connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));
             // Из хода бота — остановку не здесь, а в потоке окна (бот ждёт как раз этот ход)
-            connection.BotStopRequested += _ => OnUi(Stop);
+            connection.BotStopRequested += _ => UiThread.Run(Stop);
 
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
@@ -469,7 +466,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private void ShowLatest(WorldState state)
     {
         if (Interlocked.Exchange(ref _latest, state) is null)
-            OnUi(() =>
+            UiThread.Run(() =>
             {
                 if (Interlocked.Exchange(ref _latest, null) is { } world)
                     Show(world);
@@ -593,13 +590,4 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Чьи настройки сейчас на вкладках «Мобы» и «Общее».</summary>
     public string SettingsOwner => _config.Character is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_config.Character}";
-
-    private static void OnUi(Action action)
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null || dispatcher.CheckAccess())
-            action();
-        else
-            dispatcher.BeginInvoke(action);
-    }
 }

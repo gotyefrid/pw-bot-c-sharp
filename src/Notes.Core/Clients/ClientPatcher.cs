@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Notes.Core.Logging;
+using Notes.Core.Memory;
 using Notes.Core.Profiles;
 
 namespace Notes.Core.Clients;
@@ -18,11 +19,14 @@ public enum ClientPatchState
     /// <summary>Исходный exe — можно применять правки (клиент должен быть закрыт: файл занят).</summary>
     Original,
 
-    /// <summary>Ни исходник, ни изменённый — другой билд (обновление игры?), либо файл не прочитался: рецепт не подходит.</summary>
+    /// <summary>Ни исходник, ни изменённый — другой билд (обновление игры?): рецепт не подходит.</summary>
     Unknown,
 
     /// <summary>Файла нет по пути.</summary>
     Missing,
+
+    /// <summary>Файл есть, но не читается (нет прав, занят без общего доступа): что в нём — неизвестно.</summary>
+    Unreadable,
 }
 
 /// <summary>Правка не вышла и почему — показывается пользователю как есть.</summary>
@@ -50,7 +54,7 @@ public static class ClientPatcher
 {
     public static string BackupPath(string clientPath) => clientPath + ".orig";
 
-    /// <summary>Состояние файла: правки, исходник, чужой билд или файла нет.</summary>
+    /// <summary>Состояние файла: правки, исходник, чужой билд, файла нет или он не читается.</summary>
     public static ClientPatchState Check(string? clientPath, ClientPatchRecipe recipe)
     {
         if (clientPath is null || !File.Exists(clientPath))
@@ -62,7 +66,7 @@ public static class ClientPatcher
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
-            return ClientPatchState.Unknown; // не прочитали — не проверили
+            return ClientPatchState.Unreadable;
         }
     }
 
@@ -70,13 +74,18 @@ public static class ClientPatcher
     /// Собрать изменённый файл из исходного — все проверки, без диска (тестам файлы не нужны). Не тот билд,
     /// неверный рецепт — <see cref="ClientPatchException"/>, файл-источник не используется дальше.
     /// </summary>
-    public static byte[] Build(byte[] original, ClientPatchRecipe recipe)
+    public static byte[] Build(byte[] original, ClientPatchRecipe recipe) => Build(original, Sha256Hex(original), recipe);
+
+    /// <param name="sha">sha256 <paramref name="original"/> — уже посчитан вызывающим (файл на десятки мегабайт).</param>
+    private static byte[] Build(byte[] original, string sha, ClientPatchRecipe recipe)
     {
-        var sha = Sha256Hex(original);
-        if (Same(sha, recipe.PatchedSha256))
-            throw new ClientPatchException("Правки уже стоят — делать нечего");
-        if (!Same(sha, recipe.OriginalSha256))
-            throw new ClientPatchException("Это не тот билд клиента (обновление игры?) — рецепт не подходит");
+        switch (State(sha, recipe))
+        {
+            case ClientPatchState.Patched:
+                throw new ClientPatchException("Правки уже стоят — делать нечего");
+            case ClientPatchState.Unknown:
+                throw new ClientPatchException("Это не тот билд клиента (обновление игры?) — рецепт не подходит");
+        }
 
         if (recipe.Digest is not { } digest)
             return ApplyEdits(original, recipe, null);
@@ -105,13 +114,14 @@ public static class ClientPatcher
             throw new ClientPatchException($"Файл не читается: {e.Message}");
         }
 
-        if (Same(Sha256Hex(original), recipe.PatchedSha256))
+        var sha = Sha256Hex(original);
+        if (State(sha, recipe) == ClientPatchState.Patched)
         {
             log.Info("Правки уже стоят — делать нечего");
             return ClientPatchResult.AlreadyPatched;
         }
 
-        var patched = Build(original, recipe);
+        var patched = Build(original, sha, recipe);
 
         foreach (var edit in recipe.Edits)
             log.Info($"правка 0x{edit.Offset:X}: {Describe(edit.Expected)} → {Describe(edit.New)}  ({edit.Note})");
@@ -135,11 +145,15 @@ public static class ClientPatcher
         if (!File.Exists(backup))
             throw new ClientPatchException($"Бэкапа нет: {backup} — откатывать нечего");
 
-        var state = Check(clientPath, recipe);
-        if (state == ClientPatchState.Original)
-            throw new ClientPatchException("Файл уже исходный — откатывать нечего");
-        if (state is not (ClientPatchState.Patched or ClientPatchState.Missing))
-            throw new ClientPatchException($"В exe не наши правки (обновление клиента?) — откат не выполнен. Оригинал лежит рядом: {backup}");
+        switch (Check(clientPath, recipe))
+        {
+            case ClientPatchState.Original:
+                throw new ClientPatchException("Файл уже исходный — откатывать нечего");
+            case ClientPatchState.Unreadable:
+                throw new ClientPatchException("Файл клиента не читается (запущен? нет прав?) — откат не выполнен");
+            case ClientPatchState.Unknown:
+                throw new ClientPatchException($"В exe не наши правки (обновление клиента?) — откат не выполнен. Оригинал лежит рядом: {backup}");
+        }
 
         byte[] original;
         try
@@ -295,27 +309,31 @@ public static class ClientPatcher
     /// <summary>Секции PE: имя → (VirtualSize, SizeOfRawData, файл-смещение сырых данных).</summary>
     private static Dictionary<string, Section> Sections(byte[] data)
     {
-        if (data.Length < 0x40 || data[0] != 0x4D || data[1] != 0x5A)
-            throw new ClientPatchException("Нет заголовка MZ — это не exe");
-        var pe = BitConverter.ToUInt32(data, 0x3C);
-        if (pe + 44 >= data.Length || BitConverter.ToUInt32(data, (int)pe) != 0x00004550)
-            throw new ClientPatchException("Нет заголовка PE — это не exe");
-
-        var count = BitConverter.ToUInt16(data, (int)pe + 6);
-        var options = BitConverter.ToUInt16(data, (int)pe + 20);
-        var sections = new Dictionary<string, Section>(count);
-        for (var i = 0; i < count; i++)
+        IReadOnlyList<PeSection> table;
+        try
         {
-            var header = (int)pe + 24 + options + i * 40;
-            if (header + 40 > data.Length)
-                throw new ClientPatchException("Таблица секций вне файла — файл битый или рецепт неверен");
-
-            var name = Encoding.ASCII.GetString(data, header, 8).TrimEnd('\0');
-            sections[name] = new Section(BitConverter.ToUInt32(data, header + 8),
-                BitConverter.ToUInt32(data, header + 16), BitConverter.ToInt32(data, header + 20));
+            table = PeHeaders.Sections((offset, count) => Slice(data, offset, count));
+        }
+        catch (FormatException e)
+        {
+            throw new ClientPatchException($"Файл не похож на exe ({e.Message}) — файл битый или рецепт неверен");
         }
 
+        var sections = new Dictionary<string, Section>(table.Count);
+        foreach (var section in table)
+            sections[section.Name] = new Section(section.VirtualSize, section.RawSize, (int)section.RawOffset);
         return sections;
+    }
+
+    /// <summary>Кусок заголовка файла для <see cref="PeHeaders"/>; за концом файла — «не exe».</summary>
+    private static byte[] Slice(byte[] data, uint offset, int count)
+    {
+        if ((long)offset + count > data.Length)
+            throw new FormatException("заголовок за концом файла");
+
+        var part = new byte[count];
+        Array.Copy(data, offset, part, 0, count);
+        return part;
     }
 
     private static string Sha256Hex(byte[] data)

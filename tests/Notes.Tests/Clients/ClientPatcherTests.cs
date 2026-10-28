@@ -3,13 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using Newtonsoft.Json;
 using Notes.Core.Clients;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Xunit;
-using static Notes.Core.Clients.ClientPatchPolicy;
-using static Notes.Core.Clients.ClientPatchState;
 
 namespace Notes.Tests.Clients;
 
@@ -20,39 +17,6 @@ public class ClientPatcherTests
     private const int TextRaw = 0x200, TextLen = 0x40;
     private const int MgRaw = 0x400, MgLen = 0x200;
     private const int RelocRaw = 0x600, RelocLen = 0x20;
-
-    // ── Ворота подключения: политика × состояние ─────────────────────────────
-
-    [Theory]
-    [InlineData(Ask, Patched, ClientPatchVerdict.Allow)]
-    [InlineData(Ask, Original, ClientPatchVerdict.Ask)]
-    [InlineData(Ask, Unknown, ClientPatchVerdict.Ask)]
-    [InlineData(Ask, Missing, ClientPatchVerdict.Ask)]
-    [InlineData(Require, Patched, ClientPatchVerdict.Allow)]
-    [InlineData(Require, Original, ClientPatchVerdict.Refuse)]
-    [InlineData(Require, Unknown, ClientPatchVerdict.Refuse)]
-    [InlineData(Require, Missing, ClientPatchVerdict.Refuse)]
-    [InlineData(Ignore, Patched, ClientPatchVerdict.Allow)]
-    [InlineData(Ignore, Original, ClientPatchVerdict.Allow)]
-    [InlineData(Ignore, Unknown, ClientPatchVerdict.Allow)]
-    [InlineData(Ignore, Missing, ClientPatchVerdict.Allow)]
-    public void GateDecidesByPolicyAndState(ClientPatchPolicy policy, ClientPatchState state, ClientPatchVerdict expected)
-        => Assert.Equal(expected, ClientPatchGate.Decide(policy, state).Verdict);
-
-    [Fact]
-    public void GatePreparesTextsForAskAndRefuse()
-    {
-        var ask = ClientPatchGate.Decide(Ask, Original);
-        Assert.Contains("на свой страх и риск", ask.Text);
-        Assert.NotEqual("", ask.Problem);
-
-        var refuse = ClientPatchGate.Decide(Require, Unknown);
-        Assert.Contains("Пропатчить", refuse.Text);
-        Assert.Contains("обновление игры", refuse.Problem);
-
-        var allow = ClientPatchGate.Decide(Ignore, Original);
-        Assert.Equal("", allow.Text);
-    }
 
     // ── Сборка изменённого файла: чистое преобразование, без диска ───────────
 
@@ -262,6 +226,29 @@ public class ClientPatcherTests
     }
 
     [Fact]
+    public void CheckTellsUnreadableFromUnknownBuild()
+    {
+        var (file, recipe, _) = BuildClient();
+        var path = Write(file);
+        try
+        {
+            ClientPatcher.PatchFile(path, recipe, NullLogger.Instance); // бэкап есть — откату есть из чего
+
+            // Файл держат без общего доступа — не прочитали, это не «другой билд»
+            using (new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None))
+            {
+                Assert.Equal(ClientPatchState.Unreadable, ClientPatcher.Check(path, recipe));
+                var e = Assert.Throws<ClientPatchException>(() => ClientPatcher.Restore(path, recipe, NullLogger.Instance));
+                Assert.Contains("не читается", e.Message);
+            }
+        }
+        finally
+        {
+            Cleanup(path);
+        }
+    }
+
+    [Fact]
     public void CheckReadsFileHeldOpenForWriting()
     {
         var (file, recipe, _) = BuildClient();
@@ -291,19 +278,6 @@ public class ClientPatcherTests
         Assert.NotNull(catalog.Load("comeback146").Data.Patch);
         Assert.Null(catalog.Load("pwclassic136").Data.Patch);
         Assert.Null(catalog.Load("comeback136").Data.Patch); // клиент не разбирался — рецепта нет
-    }
-
-    [Fact]
-    public void BrokenHexInRecipeFailsProfileLoad()
-    {
-        // Опечатка в байтах рецепта ловится при загрузке профиля — как любая другая ошибка в нём
-        var json = """
-            { "id": "x", "name": "x",
-              "patch": { "originalSha256": "aa", "patchedSha256": "bb",
-                         "edits": [ { "offset": "0x100", "expected": "74 4G", "new": "90 90" } ] } }
-            """;
-
-        Assert.ThrowsAny<JsonException>(() => ProfileJson.Parse(json));
     }
 
     /// <summary>

@@ -24,11 +24,14 @@ public static class WindowTitles
     public static string For(string? nick, int pid) => $"{nick} {pid}".Trim();
 }
 
+/// <summary>Процесс клиента игры, как его видит система: PID, главное окно, путь exe (null — не достать: права).</summary>
+public sealed record ClientProcess(int Pid, IntPtr Window, string? ExePath);
+
 /// <summary>Откуда берутся процессы и ники. Подменяется в тестах.</summary>
 public interface IClientSource
 {
-    /// <summary>PID, главное окно и путь exe всех запущенных клиентов игры.</summary>
-    IReadOnlyList<(int Pid, IntPtr Window, string? ExePath)> FindProcesses();
+    /// <summary>Все запущенные клиенты игры.</summary>
+    IReadOnlyList<ClientProcess> FindProcesses();
 
     /// <summary>Ник персонажа в клиенте или null (экран выбора, нет доступа).</summary>
     string? ReadNick(int pid);
@@ -69,9 +72,9 @@ public sealed class SystemClientSource(ProfileData profile) : IClientSource
     /// Клиент — процесс с окном игры, имя exe не важно: у Comeback есть ElementClient.exe и ElementClient_test.exe,
     /// игроки запускают любой; у PW Classic — client.exe (старый elementclient.exe бот не поддерживает).
     /// </summary>
-    public IReadOnlyList<(int Pid, IntPtr Window, string? ExePath)> FindProcesses()
+    public IReadOnlyList<ClientProcess> FindProcesses()
         => NativeWindows.FindClientProcesses()
-            .Select(pid => (pid, NativeWindows.FindMainWindow(pid), MainModulePath(pid)))
+            .Select(pid => new ClientProcess(pid, NativeWindows.FindMainWindow(pid), MainModulePath(pid)))
             .ToList();
 
     /// <summary>Путь exe процесса; null — процесс закрылся или пути не достать (права).</summary>

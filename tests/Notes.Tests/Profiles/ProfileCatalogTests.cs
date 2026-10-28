@@ -164,6 +164,30 @@ public class ProfileJsonTests
     }
 
     [Fact]
+    public void BrokenHexInPatchRecipeIsAnError()
+    {
+        // Опечатка в байтах рецепта патча ловится при загрузке профиля — как любая другая ошибка в нём
+        var json = """
+            { "patch": { "originalSha256": "aa", "patchedSha256": "bb",
+                         "edits": [ { "offset": "0x100", "expected": "74 4G", "new": "90 90" } ] } }
+            """;
+
+        Assert.ThrowsAny<Exception>(() => ProfileJson.Parse(json));
+    }
+
+    [Fact]
+    public void PatchBytesAreParsedWithOrWithoutSpaces()
+    {
+        var data = ProfileJson.Parse("""
+            { "patch": { "edits": [ { "offset": "0x100", "expected": "74 4F", "new": "9090" } ] } }
+            """);
+
+        var edit = data.Patch!.Edits.Single();
+        Assert.Equal(new byte[] { 0x74, 0x4F }, edit.Expected);
+        Assert.Equal(new byte[] { 0x90, 0x90 }, edit.New);
+    }
+
+    [Fact]
     public void FunctionIsParsed()
     {
         var data = ProfileJson.Parse("""
