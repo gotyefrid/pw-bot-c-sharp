@@ -77,8 +77,10 @@
           <Border.Style>
             <Style TargetType="Border">
               <Style.Triggers>
+                <!-- Свёрнутое — недоступно ни мыши, ни клавиатуре: Tab и пробел не нажмут невидимое «Отключить» -->
                 <DataTrigger Binding="{Binding ConnectionExpanded}" Value="False">
                   <Setter Property="IsHitTestVisible" Value="False" />
+                  <Setter Property="IsEnabled" Value="False" />
                   <DataTrigger.EnterActions>
                     <BeginStoryboard>
                       <Storyboard>
