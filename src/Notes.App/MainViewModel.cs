@@ -85,7 +85,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
         Patch = new ClientPatchPanel(() => _profile, () => _config.App.Connection, SaveSettings, dialogs, _connectionLog);
-        // Сменилась «Игра» — в списке теперь клиенты её exe. Подключённого не подменяем: список заперт до отключения
+        // Сменилась «Игра» — в списке теперь клиенты её exe. Подключённого не подменяем: список заперт до отключения,
+        // а после отключения его обновит ⟳
         Patch.GameChanged += () =>
         {
             if (!IsConnected)
@@ -116,7 +117,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Route.Load();
         Clicker.Load();
 
-        RefreshCommand = new RelayCommand(RefreshClients);
+        // Пока подключены, список заперт: обновление могло бы выбрать в нём не того клиента, к которому подключены
+        RefreshCommand = new RelayCommand(RefreshClients, () => !IsConnected);
         ConnectCommand = new RelayCommand(() => Connect(anyway: false), () => !IsConnected && SelectedClient is not null);
         ConnectAnywayCommand = new RelayCommand(() => Connect(anyway: true), () => CanConnectAnyway);
         DisconnectCommand = new RelayCommand(Disconnect, () => IsConnected);
