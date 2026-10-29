@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -12,42 +11,37 @@ using Notes.Core.Settings;
 namespace Notes.App.Panels;
 
 /// <summary>
-/// Панель «Патч клиента» в карточке подключения: состояние файла, кнопки «Пропатчить»/«Откат», политика
-/// подключения к клиенту без правок. Всё про правки живёт здесь, а не в модели окна. Зависимости — делегатами,
-/// как у соседних панелей: текущий профиль, список клиентов и подключённый PID — из модели окна; политика и
-/// запомненные пути exe — в настройках подключения (settings.json), сохранение — тоже модели окна.
+/// Строки «Игра» и «Патч» в карточке подключения: exe игры сервера, состояние файла, кнопки «Выбрать…»,
+/// «Пропатчить» и «Откат». Патч — свойство установки игры (файла на диске), а не процесса, поэтому всё идёт от
+/// пути «Игры» сервера (settings.json), а не от запущенного клиента. Решение «пускать ли к клиенту» — в
+/// <see cref="ConnectCheck"/>. Зависимости — делегатами, как у соседних панелей.
 /// </summary>
 public sealed class ClientPatchPanel : ObservableObject
 {
     private readonly Func<ServerProfile> _profile;
-    private readonly Func<IReadOnlyList<GameClient>> _clients;
-    private readonly Func<int?> _connectedPid;
     private readonly Func<ConnectionSettings> _settings;
     private readonly Action _saved;
     private readonly IDialogs _dialogs;
     private readonly ILogger _log;
 
-    /// <param name="settings">Настройки подключения: политика и пути exe по серверам.</param>
+    /// <param name="settings">Настройки подключения: пути «Игры» по серверам.</param>
     /// <param name="saved">Настройки подключения изменены — сохранить.</param>
-    /// <param name="dialogs">Вопрос «подключиться без правок?», отказ, выбор exe, когда путь взять неоткуда.</param>
+    /// <param name="dialogs">Выбор exe, сообщения об ошибках правки и занятом файле.</param>
     public ClientPatchPanel(
         Func<ServerProfile> profile,
-        Func<IReadOnlyList<GameClient>> clients,
-        Func<int?> connectedPid,
         Func<ConnectionSettings> settings,
         Action saved,
         IDialogs dialogs,
         ILogger log)
     {
         _profile = profile;
-        _clients = clients;
-        _connectedPid = connectedPid;
         _settings = settings;
         _saved = saved;
         _dialogs = dialogs;
         _log = log;
         PatchCommand = new RelayCommand(Patch, () => Recipe is not null && !Checking && State is ClientPatchState.Original or ClientPatchState.Missing);
         RestorePatchCommand = new RelayCommand(Restore, () => Recipe is not null && !Checking && State == ClientPatchState.Patched);
+        ChooseGameCommand = new RelayCommand(ChooseGame, () => Recipe is not null);
     }
 
     /// <summary>Рецепт текущего сервера; null — серверу правки не нужны, строка патча в окне скрыта.</summary>
@@ -114,114 +108,74 @@ public sealed class ClientPatchPanel : ObservableObject
         ClientPatchState.Unknown => "Файл не похож ни на исходный, ни на пропатченный — скорее всего, игра обновилась. "
                                     + "Для нового билда нужен новый рецепт, файл бот не тронет",
         ClientPatchState.Unreadable => "Файл клиента не прочитать — не хватает прав на папку игры?",
-        _ => "Файл клиента не найден: запустите игру и нажмите «Обновить» — или «Пропатчить» и укажите exe",
+        _ => "Файл клиента не найден — укажите exe кнопкой «Выбрать…» у строки «Игра»",
     };
 
     public ICommand PatchCommand { get; }
     public ICommand RestorePatchCommand { get; }
 
-    public sealed record PatchPolicyChoice(ClientPatchPolicy Policy, string Title);
-
-    public IReadOnlyList<PatchPolicyChoice> Policies { get; } =
-    [
-        new(ClientPatchPolicy.Ask, "Спросить"),
-        new(ClientPatchPolicy.Require, "Не подключаться"),
-        new(ClientPatchPolicy.Ignore, "Подключаться"),
-    ];
-
-    /// <summary>Подключение к клиенту без правок — на усмотрение пользователя (в settings.json).</summary>
-    public ClientPatchPolicy PatchPolicy
-    {
-        get => Settings.PatchPolicy;
-        set
-        {
-            if (Settings.PatchPolicy == value)
-                return;
-
-            Settings.PatchPolicy = value;
-            OnPropertyChanged();
-            _saved();
-        }
-    }
+    public ICommand ChooseGameCommand { get; }
 
     private ConnectionSettings Settings => _settings();
 
-    /// <summary>exe клиента этого сервера, запомненный от прошлых подключений и правок; null — не запоминали.</summary>
-    private string? RememberedPath() => Settings.ClientPaths.TryGetValue(_profile().Id, out var remembered) ? remembered : null;
+    /// <summary>«Игра» сервера — exe клиента; null — не задана.</summary>
+    public string? GamePath => Settings.ClientPaths.TryGetValue(_profile().Id, out var path) ? path : null;
 
-    /// <summary>Запомнить, где лежит exe клиента этого сервера, — пригодится, когда клиент не запущен.</summary>
-    private void RememberPath(string path)
-    {
-        if (string.Equals(RememberedPath(), path, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        Settings.ClientPaths[_profile().Id] = path;
-        _saved();
-    }
+    /// <summary>Что написано в строке «Игра»: путь или приглашение выбрать.</summary>
+    public string GameText => GamePath ?? "не выбрана";
 
     /// <summary>
-    /// Пустить ли подключение к клиенту: решение готовит <see cref="ClientPatchGate"/> (политика × состояние
-    /// файла подключаемого — у Comeback два рабочих exe, проверяем именно его), здесь — показ вопроса/отказа и
-    /// запоминание пути. false — не подключаемся.
+    /// Сделать этот exe «Игрой» сервера (первый увиденный клиент, «Сделать игрой этого сервера», «Выбрать…»).
+    /// Состояние файла пересчитывается.
     /// </summary>
-    public bool AllowConnect(GameClient client)
+    public void Adopt(string path)
     {
-        if (Recipe is not { } recipe)
-            return true;
-
-        // Путь запоминаем до решения и при отказе тоже: «Требовать» отказывает со словами «закройте клиент и нажмите
-        // «Пропатчить»» — а у закрытого клиента путь exe взять больше неоткуда
-        if (client.ExePath is { } live)
-            RememberPath(live);
-
-        // Хэш здесь — в потоке окна: подключение и так ждёт ответа. Результат — строке патча (см. Refresh)
-        var path = client.ExePath ?? RememberedPath();
-        var state = ClientPatcher.Check(path, recipe);
-        _justChecked = (path, state);
-
-        var decision = ClientPatchGate.Decide(PatchPolicy, state);
-        switch (decision.Verdict)
+        if (!string.Equals(GamePath, path, StringComparison.OrdinalIgnoreCase))
         {
-            case ClientPatchVerdict.Allow:
-                return true;
-
-            case ClientPatchVerdict.Refuse:
-                _log.Warning(decision.Problem);
-                _dialogs.Tell(decision.Text);
-                return false;
-
-            default:
-                _log.Warning(decision.Problem);
-                return _dialogs.AskYesNo(decision.Text);
+            Settings.ClientPaths[_profile().Id] = path;
+            _saved();
         }
+
+        OnPropertyChanged(nameof(GamePath));
+        OnPropertyChanged(nameof(GameText));
+        Refresh();
     }
 
-    // Что ворота подключения только что узнали о файле: ближайший Refresh для того же exe берёт это, а не считает
-    // хэш второй раз. Только ближайший — потом файл мог смениться (правка, откат, обновление игры)
-    private (string? Path, ClientPatchState State)? _justChecked;
+    private void ChooseGame()
+    {
+        if (AskClientPath() is { } path)
+            Adopt(path);
+    }
 
     /// <summary>
-    /// Пересчитать состояние для строки в окне. Хэш файла на десятки мегабайт — в фоне, окно не ждёт; только что
-    /// проверенный воротами подключения exe второй раз не хэшируется. Вызывается после обновления списка клиентов,
-    /// подключения, смены сервера, правки и отката.
+    /// Проверить файл «Игры» прямо сейчас, в потоке окна: «Подключить» и так ждёт ответа. Результат сразу
+    /// попадает в строку «Патч» (отдельный пересчёт в фоне не нужен).
+    /// </summary>
+    public ClientPatchState CheckNow()
+    {
+        _checkVersion++;
+        if (Recipe is not { } recipe)
+            return ClientPatchState.Missing;
+
+        State = ClientPatcher.Check(GamePath, recipe);
+        Checking = false;
+        return State;
+    }
+
+    /// <summary>
+    /// Пересчитать состояние для строки в окне. Хэш файла на десятки мегабайт — в фоне, окно не ждёт.
+    /// Вызывается при смене сервера и «Игры», после правки и отката.
     /// </summary>
     public void Refresh()
     {
         OnPropertyChanged(nameof(ShowPatch));
+        OnPropertyChanged(nameof(GamePath));
+        OnPropertyChanged(nameof(GameText));
         var version = ++_checkVersion;
-        var known = _justChecked;
-        _justChecked = null;
         if (Recipe is not { } recipe)
             return;
 
-        var path = ShownPath();
-        if (known is { } fresh && string.Equals(fresh.Path, path, StringComparison.OrdinalIgnoreCase))
-        {
-            State = fresh.State;
-            Checking = false;
-            return;
-        }
-
+        var path = GamePath;
         Checking = true;
         Task.Run(() => ClientPatcher.Check(path, recipe))
             .ContinueWith(t => UiThread.Run(() =>
@@ -239,14 +193,15 @@ public sealed class ClientPatchPanel : ObservableObject
         if (Recipe is not { } recipe)
             return;
 
-        var path = ShownPath() ?? AskClientPath();
+        var path = GamePath ?? AskClientPath();
         if (path is null || IsRunning(path))
             return;
 
         try
         {
             ClientPatcher.PatchFile(path, recipe, _log);
-            RememberPath(path);
+            Adopt(path);
+            return;
         }
         catch (ClientPatchException e)
         {
@@ -262,7 +217,7 @@ public sealed class ClientPatchPanel : ObservableObject
         if (Recipe is not { } recipe)
             return;
 
-        var path = ShownPath() ?? AskClientPath();
+        var path = GamePath ?? AskClientPath();
         if (path is null || IsRunning(path))
             return;
 
@@ -277,18 +232,6 @@ public sealed class ClientPatchPanel : ObservableObject
         }
 
         Refresh();
-    }
-
-    /// <summary>
-    /// Чей exe показывать в строке: подключённого клиента (даже без ника), иначе — первого клиента с ником
-    /// (ник читается — профиль подходит; список-то общий на все серверы), иначе — запомненный от подключений.
-    /// </summary>
-    private string? ShownPath()
-    {
-        var clients = _clients();
-        var shown = (_connectedPid() is { } pid ? clients.FirstOrDefault(c => c.Pid == pid) : null)
-                    ?? clients.FirstOrDefault(c => c.Nick is not null);
-        return shown?.ExePath ?? RememberedPath();
     }
 
     /// <summary>

@@ -84,14 +84,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
-        Patch = new ClientPatchPanel(
-            () => _profile,
-            () => Clients,
-            () => _connection?.Pid,
-            () => _config.App.Connection,
-            SaveSettings,
-            dialogs,
-            _connectionLog);
+        Patch = new ClientPatchPanel(() => _profile, () => _config.App.Connection, SaveSettings, dialogs, _connectionLog);
+        // Строка в свёрнутой карточке показывает и состояние патча
+        Patch.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ClientPatchPanel.State))
+                OnPropertyChanged(nameof(Summary));
+        };
 
         Pets = new PetsPanel(() => Settings, SettingsEdited);
         Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, id => _connection?.SkillIcons.Get(id),
@@ -112,6 +111,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Clicker.Load();
 
         RefreshCommand = new RelayCommand(RefreshClients);
+        ConnectCommand = new RelayCommand(() => Connect(anyway: false), () => !IsConnected && SelectedClient is not null);
+        ConnectAnywayCommand = new RelayCommand(() => Connect(anyway: true), () => CanConnectAnyway);
+        AdoptCommand = new RelayCommand(AdoptAndConnect, () => CanAdopt);
+        DisconnectCommand = new RelayCommand(Disconnect, () => IsConnected);
+        ToggleConnectionCommand = new RelayCommand(() => ConnectionExpanded = !ConnectionExpanded);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
 
@@ -119,8 +123,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Первое обновление списка клиентов — отдельно от конструктора: при подключении может появиться вопрос
-    /// («подключиться без правок?»), а окно зовёт это по Loaded — вопрос не появляется раньше самого окна.
+    /// Первое обновление списка клиентов — отдельно от конструктора: окно зовёт это по Loaded, когда оно уже показано.
+    /// Только заполняет список, никуда не подключаясь.
     /// </summary>
     public void StartUp() => RefreshClients();
 
@@ -140,8 +144,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             SaveSettings();
             OnPropertyChanged(nameof(CanChoosePath));
             OnPropertyChanged(nameof(CanRecallPet));
-            // Тот же клиент, но читать его теперь по другим смещениям — переподключаемся всегда
-            RefreshClients(reconnect: true);
+            OnPropertyChanged(nameof(Summary));
+            // Читать клиента теперь по другим смещениям — старое подключение не годится
+            Disconnect();
+            ClearHint();
+            RefreshClients();
         }
     }
 
@@ -154,13 +161,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         get => _selectedClient;
         set
         {
-            var previous = _selectedClient?.Pid;
-            if (!SetProperty(ref _selectedClient, value) || _refreshing || value?.Pid == previous)
+            if (!SetProperty(ref _selectedClient, value) || _refreshing)
                 return;
 
-            Connect(value);
-            // Строка патча — про exe подключённого клиента: выбрали другой — показать его
-            Patch.Refresh();
+            // Выбрали — не подключаемся: подключение только кнопкой «Подключить»
+            ClearHint();
         }
     }
 
@@ -185,20 +190,95 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool IsConnected
     {
         get => _isConnected;
-        private set => SetProperty(ref _isConnected, value);
+        private set
+        {
+            if (!SetProperty(ref _isConnected, value))
+                return;
+
+            OnPropertyChanged(nameof(CanChoose));
+            OnPropertyChanged(nameof(Summary));
+            CommandManager.InvalidateRequerySuggested();
+        }
     }
 
-    private string _connectionText = "Нет подключения";
+    /// <summary>Сервер и клиента можно менять, только пока не подключены: сменить персонажа = отключиться → выбрать → подключить.</summary>
+    public bool CanChoose => !IsConnected;
 
-    public string ConnectionText
+    private string _connectionText = "";
+
+    /// <summary>Кто подключён: ник из мира, пока не прочитан — ник клиента или PID.</summary>
+    private string ConnectionText
     {
         get => _connectionText;
-        private set => SetProperty(ref _connectionText, value);
+        set
+        {
+            if (SetProperty(ref _connectionText, value))
+                OnPropertyChanged(nameof(Summary));
+        }
     }
 
-    // ── Патч клиента (панель: состояние, кнопки, политика) ──────────────────
+    // ── Карточка «Подключение»: свёрнутая строка, подсказка следующего шага ──
 
-    /// <summary>Панель «Патч клиента»: состояние файла, кнопки «Пропатчить»/«Откат», политика подключения.</summary>
+    /// <summary>Строка свёрнутой карточки: «Вася · Comeback 1.4.6 · патч ✓».</summary>
+    public string Summary
+    {
+        get
+        {
+            var who = IsConnected ? (ConnectionText.Length > 0 ? ConnectionText : "Подключено") : "Не подключено";
+            var patch = Patch.Recipe is null || !IsConnected ? ""
+                : Patch.State == ClientPatchState.Patched ? " · патч ✓" : " · без патча";
+            return $"{who} · {_profile.Name}{patch}";
+        }
+    }
+
+    private bool _connectionExpanded = true;
+
+    /// <summary>
+    /// Карточка развёрнута. Сворачивается сама после подключения, разворачивается при отключении и закрытии клиента;
+    /// вручную — в любой момент (между запусками не запоминается).
+    /// </summary>
+    public bool ConnectionExpanded
+    {
+        get => _connectionExpanded;
+        set => SetProperty(ref _connectionExpanded, value);
+    }
+
+    private string _connectHint = "";
+
+    /// <summary>Строка-причина под выбором клиента: что не так и что нажать дальше. Модальных окон в этом флоу нет.</summary>
+    public string ConnectHint
+    {
+        get => _connectHint;
+        private set
+        {
+            if (SetProperty(ref _connectHint, value))
+                OnPropertyChanged(nameof(HasHint));
+        }
+    }
+
+    public bool HasHint => ConnectHint.Length > 0;
+
+    // Чем закончилась последняя проверка — от этого зависит, какая кнопка следующего шага видна
+    private ConnectVerdict? _hintVerdict;
+
+    public bool CanConnectAnyway => !IsConnected && _hintVerdict is ConnectVerdict.NotPatched or ConnectVerdict.UnknownBuild;
+
+    public bool CanAdopt => !IsConnected && _hintVerdict == ConnectVerdict.OtherInstall;
+
+    private void ShowHint(ConnectVerdict? verdict, string text)
+    {
+        _hintVerdict = verdict;
+        ConnectHint = text;
+        OnPropertyChanged(nameof(CanConnectAnyway));
+        OnPropertyChanged(nameof(CanAdopt));
+        CommandManager.InvalidateRequerySuggested();
+    }
+
+    private void ClearHint() => ShowHint(null, "");
+
+    // ── Игра и патч (панель: путь, состояние, кнопки) ───────────────────────
+
+    /// <summary>Строки «Игра» и «Патч»: exe сервера, состояние файла, кнопки «Выбрать…», «Пропатчить», «Откат».</summary>
     public ClientPatchPanel Patch { get; }
 
     // ── Состояние ────────────────────────────────────────────────────────────
@@ -215,6 +295,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     // ── Команды ──────────────────────────────────────────────────────────────
 
     public ICommand RefreshCommand { get; }
+    public ICommand ConnectCommand { get; }
+    public ICommand ConnectAnywayCommand { get; }
+    public ICommand AdoptCommand { get; }
+    public ICommand DisconnectCommand { get; }
+    public ICommand ToggleConnectionCommand { get; }
     public ICommand StartCommand { get; }
     public ICommand StopCommand { get; }
 
@@ -357,9 +442,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Внутреннее ──────────────────────────────────────────────────────────
 
-    private void RefreshClients() => RefreshClients(reconnect: false);
-
-    private void RefreshClients(bool reconnect)
+    /// <summary>
+    /// Обновить список запущенных клиентов и выбрать последнего персонажа. Никуда не подключается. Первый клиент
+    /// сервера с известным exe становится «Игрой», пока она не задана.
+    /// </summary>
+    private void RefreshClients()
     {
         var keep = _selectedClient?.Pid;
         var clients = ClientList.Build(new SystemClientSource(_profile.Data));
@@ -381,10 +468,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _connectionLog.Warning("Клиенты игры не найдены — запустите игру и нажмите «обновить»");
 
         RenameAll();
-        if (reconnect || SelectedClient?.Pid != _connection?.Pid || _connection is null || _connection.HasExited)
-            Connect(SelectedClient);
-
-        Patch.Refresh();
+        if (Patch.Recipe is not null && Patch.GamePath is null
+            && clients.FirstOrDefault(c => c.Nick is not null && c.ExePath is not null)?.ExePath is { } path)
+            Patch.Adopt(path);
+        else
+            Patch.Refresh();
+        CommandManager.InvalidateRequerySuggested();
     }
 
     private void RenameAll()
@@ -399,21 +488,47 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private void Connect(GameClient? client)
+    /// <summary>«Подключить»: проверка (<see cref="ConnectCheck"/>) → подключение. Не прошла — строка-подсказка и кнопка шага.</summary>
+    private void Connect(bool anyway)
     {
-        Disconnect();
-        if (client is null)
+        if (SelectedClient is not { } client)
+            return;
+
+        ClearHint();
+        var recipe = Patch.Recipe;
+        // Первый запуск сервера: «Игра» ещё не задана — берём exe клиента, к которому подключаемся
+        if (recipe is not null && Patch.GamePath is null && client.ExePath is { } path)
+            Patch.Adopt(path);
+
+        var alive = SystemClientSource.Running().Any(c => c.Pid == client.Pid);
+        var state = recipe is null ? ClientPatchState.Missing : Patch.CheckNow();
+        var decision = ConnectCheck.Decide(recipe is not null, Patch.GamePath, client.ExePath, alive, state, anyway);
+        if (decision.Verdict != ConnectVerdict.Ready)
         {
-            ConnectionText = "Нет подключения";
+            _connectionLog.Warning(decision.Text);
+            ConnectionExpanded = true;
+            ShowHint(decision.Verdict, decision.Text);
             return;
         }
 
-        if (!Patch.AllowConnect(client))
-        {
-            ConnectionText = "Не подключено: без патча";
-            return;
-        }
+        if (anyway)
+            _connectionLog.Warning("Подключение к клиенту без проверки патча — по просьбе пользователя");
 
+        Open(client);
+    }
+
+    // «Сделать игрой этого сервера» → сразу проверить заново и подключиться
+    private void AdoptAndConnect()
+    {
+        if (SelectedClient?.ExePath is not { } path)
+            return;
+
+        Patch.Adopt(path);
+        Connect(anyway: false);
+    }
+
+    private void Open(GameClient client)
+    {
         try
         {
             var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger);
@@ -429,13 +544,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
+            ConnectionExpanded = false;
             _connectionLog.Info($"Подключено: {client.Display}, сервер {_profile.Name}");
             connection.Start();
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             Disconnect();
-            ConnectionText = "Ошибка подключения";
+            ShowHint(null, $"Не удалось подключиться: {e.Message}");
             _connectionLog.Error($"Не удалось подключиться к PID {client.Pid}: {e.Message}");
         }
     }
@@ -456,6 +572,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsStopping = false;
         BotState = "Ожидание";
         IsConnected = false;
+        ConnectionText = "";
+        ConnectionExpanded = true;
         ClearWorld();
     }
 
@@ -497,7 +615,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             _connectionLog.Warning("Клиент игры закрыт");
             Disconnect();
-            ConnectionText = "Клиент закрыт";
+            ShowHint(ConnectVerdict.ProcessGone, "Клиент закрыт — запустите игру и нажмите ⟳.");
             RefreshClients();
             return;
         }

@@ -19,7 +19,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory, new WindowDialogs(this));
-        // Первый список клиентов — когда окно уже показано: вопрос о клиенте без правок не появится раньше окна
+        // Первый список клиентов — когда окно уже показано; никуда не подключаемся, только «Подключить»
         Loaded += (_, _) => _model.StartUp();
         DataContext = _model;
 

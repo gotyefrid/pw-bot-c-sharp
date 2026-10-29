@@ -144,12 +144,9 @@ public sealed class ConnectionSettings
     /// <summary>С кем бот работал последним — при запуске выбирается его клиент.</summary>
     public string LastCharacter { get; set; } = "";
 
-    /// <summary>Клиент без патча (у серверов с рецептом): спрашивать, отказать в подключении или не проверять вовсе.</summary>
-    public ClientPatchPolicy PatchPolicy { get; set; } = ClientPatchPolicy.Ask;
-
     /// <summary>
-    /// Путь exe клиента по id сервера — чтобы патчить и проверять патч, когда клиент не запущен. Запоминается от
-    /// клиентов при подключении; пусто у серверов, к которым ещё не подключались.
+    /// «Игра» сервера: путь к его exe по id сервера — чтобы патчить и проверять патч, когда клиент не запущен.
+    /// Заполняется сама первым увиденным клиентом сервера или кнопкой «Выбрать…».
     /// </summary>
     public Dictionary<string, string> ClientPaths { get; set; } = new();
 }

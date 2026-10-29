@@ -23,97 +23,160 @@
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <!-- Шапка -->
+    <!-- Шапка: статус подключения живёт в карточке ниже, в её свёрнутой строке -->
     <DockPanel Margin="2,0,2,12">
-      <Border DockPanel.Dock="Right" VerticalAlignment="Center">
-        <Border.Style>
-          <Style TargetType="Border" BasedOn="{StaticResource Chip}">
-            <Style.Triggers>
-              <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                <Setter Property="Background" Value="#E6F6EE" />
-              </DataTrigger>
-            </Style.Triggers>
-          </Style>
-        </Border.Style>
-        <StackPanel Orientation="Horizontal">
-          <Ellipse Width="8" Height="8" Margin="0,0,6,0" VerticalAlignment="Center">
-            <Ellipse.Style>
-              <Style TargetType="Ellipse">
-                <Setter Property="Fill" Value="{StaticResource Bad}" />
-                <Style.Triggers>
-                  <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                    <Setter Property="Fill" Value="{StaticResource Good}" />
-                  </DataTrigger>
-                </Style.Triggers>
-              </Style>
-            </Ellipse.Style>
-          </Ellipse>
-          <TextBlock Text="{Binding ConnectionText}" FontSize="12" FontWeight="SemiBold" MaxWidth="200" TextTrimming="CharacterEllipsis" />
-        </StackPanel>
-      </Border>
       <TextBlock Text="Заметки" FontSize="20" FontWeight="Bold" VerticalAlignment="Center" />
     </DockPanel>
 
-    <!-- Подключение -->
+    <!-- Подключение: заголовок со сводкой и Старт/Стоп виден всегда, тело плавно сворачивается -->
     <Border Grid.Row="1" Style="{StaticResource Card}">
       <StackPanel>
-        <TextBlock Text="ПОДКЛЮЧЕНИЕ" Style="{StaticResource CardTitle}" />
         <Grid>
           <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" MinWidth="70" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
           </Grid.ColumnDefinitions>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="8" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
-
-          <TextBlock Text="Сервер" Style="{StaticResource Muted}" VerticalAlignment="Center" />
-          <ComboBox Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}" DisplayMemberPath="Name" />
-
-          <TextBlock Grid.Row="2" Text="Клиент" Style="{StaticResource Muted}" VerticalAlignment="Center" />
-          <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding Clients}" SelectedItem="{Binding SelectedClient}" DisplayMemberPath="Display" />
-          <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource IconButton}" Margin="6,0,0,0" Content="&#xE72C;"
-                  Command="{Binding RefreshCommand}" ToolTip="Обновить список клиентов" />
-
-          <!-- Патч клиента: только у серверов с рецептом правок. Строки сетки — те же колонки, что у «Сервер»/«Клиент» -->
-          <TextBlock Grid.Row="3" Text="Патч" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
-                     Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
-          <DockPanel Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
-                     Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
-            <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Откат" Margin="6,0,0,0"
-                    Command="{Binding Patch.RestorePatchCommand}" ToolTip="Вернуть исходный exe из бэкапа .orig" />
-            <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Пропатчить" Margin="10,0,0,0"
-                    Command="{Binding Patch.PatchCommand}"
-                    ToolTip="Применить правки к exe клиента (игра должна быть закрыта; бэкап .orig рядом)" />
-            <TextBlock Text="{Binding Patch.PatchText}" ToolTip="{Binding Patch.PatchHint}" FontWeight="SemiBold"
-                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-          </DockPanel>
-
-          <TextBlock Grid.Row="4" Text="Без патча" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
-                     Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
-          <ComboBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
-                    Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}"
-                    ItemsSource="{Binding Patch.Policies}" DisplayMemberPath="Title" SelectedValuePath="Policy"
-                    SelectedValue="{Binding Patch.PatchPolicy}"
-                    ToolTip="Что делать при подключении к клиенту без патча: спросить, не подключаться или подключаться без вопросов" />
+          <Button Style="{StaticResource FlatButton}" Command="{Binding ToggleConnectionCommand}" HorizontalContentAlignment="Left"
+                  ToolTip="Свернуть или развернуть подключение">
+            <StackPanel Orientation="Horizontal">
+              <Ellipse Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center">
+                <Ellipse.Style>
+                  <Style TargetType="Ellipse">
+                    <Setter Property="Fill" Value="{StaticResource Bad}" />
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                        <Setter Property="Fill" Value="{StaticResource Good}" />
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </Ellipse.Style>
+              </Ellipse>
+              <!-- Развёрнуто — заголовок раздела, свёрнуто — сводка -->
+              <TextBlock Text="{Binding Summary}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Text}"
+                         MaxWidth="190" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="6,0">
+            <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />
+            <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" />
+          </StackPanel>
+          <Button Grid.Column="2" Style="{StaticResource IconButton}" Command="{Binding ToggleConnectionCommand}"
+                  ToolTip="Свернуть или развернуть подключение">
+            <Button.Content>
+              <TextBlock FontSize="11" Text="&#xE70D;" />
+            </Button.Content>
+          </Button>
         </Grid>
-        <WrapPanel Margin="0,10,0,0">
-          <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"
-                    ToolTip="Переименовывать окна клиентов в ник персонажа и PID — видно, где кто" />
-        </WrapPanel>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-          <Button Style="{StaticResource PrimaryButton}" Content="▶  Старт" Command="{Binding StartCommand}" />
-          <Button Style="{StaticResource ButtonBase}" Content="■  Стоп" Margin="6,0,0,0" Command="{Binding StopCommand}" />
-        </StackPanel>
+
+        <!-- Тело: у Height="Auto" анимации нет, поэтому плавно меняем масштаб по вертикали и прозрачность -->
+        <Border ClipToBounds="True" Margin="0,10,0,0">
+          <Border.LayoutTransform>
+            <ScaleTransform ScaleY="1" />
+          </Border.LayoutTransform>
+          <Border.Style>
+            <Style TargetType="Border">
+              <Style.Triggers>
+                <DataTrigger Binding="{Binding ConnectionExpanded}" Value="False">
+                  <Setter Property="IsHitTestVisible" Value="False" />
+                  <DataTrigger.EnterActions>
+                    <BeginStoryboard>
+                      <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="(FrameworkElement.LayoutTransform).(ScaleTransform.ScaleY)"
+                                         To="0" Duration="0:0:0.18" />
+                        <DoubleAnimation Storyboard.TargetProperty="Opacity" To="0" Duration="0:0:0.18" />
+                      </Storyboard>
+                    </BeginStoryboard>
+                  </DataTrigger.EnterActions>
+                  <DataTrigger.ExitActions>
+                    <BeginStoryboard>
+                      <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="(FrameworkElement.LayoutTransform).(ScaleTransform.ScaleY)"
+                                         To="1" Duration="0:0:0.18" />
+                        <DoubleAnimation Storyboard.TargetProperty="Opacity" To="1" Duration="0:0:0.18" />
+                      </Storyboard>
+                    </BeginStoryboard>
+                  </DataTrigger.ExitActions>
+                </DataTrigger>
+              </Style.Triggers>
+            </Style>
+          </Border.Style>
+          <StackPanel>
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" MinWidth="70" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+
+              <TextBlock Text="Сервер" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+              <ComboBox Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
+                        DisplayMemberPath="Name" IsEnabled="{Binding CanChoose}" />
+
+              <!-- Игра и патч: только у серверов с рецептом правок -->
+              <TextBlock Grid.Row="1" Text="Игра" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
+                         Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
+              <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                         Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
+                <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Выбрать…" Margin="6,0,0,0"
+                        Command="{Binding Patch.ChooseGameCommand}" ToolTip="Указать exe клиента этого сервера" />
+                <TextBlock Text="{Binding Patch.GameText}" ToolTip="{Binding Patch.GameText}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" />
+              </DockPanel>
+
+              <TextBlock Grid.Row="2" Text="Патч" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
+                         Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
+              <DockPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
+                         Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
+                <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Откат" Margin="6,0,0,0"
+                        Command="{Binding Patch.RestorePatchCommand}" ToolTip="Вернуть исходный exe из бэкапа .orig" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Пропатчить" Margin="10,0,0,0"
+                        Command="{Binding Patch.PatchCommand}"
+                        ToolTip="Применить правки к exe клиента (игра должна быть закрыта; бэкап .orig рядом)" />
+                <TextBlock Text="{Binding Patch.PatchText}" ToolTip="{Binding Patch.PatchHint}" FontWeight="SemiBold"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+              </DockPanel>
+
+              <TextBlock Grid.Row="3" Text="Клиент" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0" />
+              <ComboBox Grid.Row="3" Grid.Column="1" Margin="0,8,0,0" ItemsSource="{Binding Clients}" SelectedItem="{Binding SelectedClient}"
+                        DisplayMemberPath="Display" IsEnabled="{Binding CanChoose}" />
+              <Button Grid.Row="3" Grid.Column="2" Style="{StaticResource IconButton}" Margin="6,8,0,0" Content="&#xE72C;"
+                      Command="{Binding RefreshCommand}" ToolTip="Обновить список клиентов" />
+            </Grid>
+
+            <!-- Что не так и что нажать дальше -->
+            <TextBlock Text="{Binding ConnectHint}" Foreground="{StaticResource Warn}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Visibility="{Binding HasHint, Converter={StaticResource Visible}}" />
+            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+              <Button Style="{StaticResource PrimaryButton}" Content="Подключить" Command="{Binding ConnectCommand}"
+                      Visibility="{Binding CanChoose, Converter={StaticResource Visible}}" />
+              <Button Style="{StaticResource ButtonBase}" Content="Отключить" Command="{Binding DisconnectCommand}"
+                      Visibility="{Binding IsConnected, Converter={StaticResource Visible}}" />
+              <Button Style="{StaticResource ButtonBase}" Content="Подключиться всё равно" Margin="6,0,0,0"
+                      Command="{Binding ConnectAnywayCommand}"
+                      Visibility="{Binding CanConnectAnyway, Converter={StaticResource Visible}}"
+                      ToolTip="Пропустить проверку патча — на свой страх и риск" />
+              <Button Style="{StaticResource ButtonBase}" Content="Сделать игрой этого сервера" Margin="6,0,0,0"
+                      Command="{Binding AdoptCommand}"
+                      Visibility="{Binding CanAdopt, Converter={StaticResource Visible}}"
+                      ToolTip="Считать exe этого клиента «Игрой» сервера и подключиться" />
+            </StackPanel>
+            <WrapPanel Margin="0,10,0,0">
+              <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"
+                        ToolTip="Переименовывать окна клиентов в ник персонажа и PID — видно, где кто" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </Border>
 
-    <!-- Вкладки; Старт/Стоп — в карточке подключения, видны на любой вкладке -->
+    <!-- Вкладки; Старт/Стоп — в заголовке карточки подключения, видны на любой вкладке -->
     <DockPanel Grid.Row="2" Margin="0,0,0,10">
       <Border Background="#E6E9F0" CornerRadius="9" Padding="3" HorizontalAlignment="Left">
         <StackPanel Orientation="Horizontal">
