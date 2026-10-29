@@ -36,6 +36,25 @@ public sealed class PatchEdit
 }
 
 /// <summary>
+/// Сторож клиента (pwprotector.exe в папке reportbugs рядом с exe игры): к какому файлу привязан разбор. Клиент
+/// держит его запущенным всё время игры; файл может обновиться вместе с клиентом и делать что-то новое — поэтому
+/// перед подключением бот сверяет его sha256 с эталоном, а несовпадение показывает игроку.
+/// </summary>
+public sealed class ProtectorSpec
+{
+    /// <summary>Папка сторожа от папки exe игры.</summary>
+    public const string Folder = "reportbugs";
+
+    /// <summary>Имя файла сторожа.</summary>
+    public const string FileName = "pwprotector.exe";
+
+    /// <summary>Эталон sha256 разобранного файла (hex); пусто — на этом сервере не проверено, не проверяем.</summary>
+    public string Sha256 { get; init; } = "";
+
+    public bool IsConfigured => Sha256.Length > 0;
+}
+
+/// <summary>
 /// Контрольная сумма образа в секции клиента: digest = SHA-256(заголовок секции + куски других секций), поле
 /// digest лежит в той же секции и сверяется байт в байт. Правки задели хэшируемые секции — digest надо
 /// пересчитать, иначе клиент с изменённым файлом не запустится.

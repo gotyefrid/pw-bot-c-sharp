@@ -267,7 +267,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     // Чем закончилась последняя проверка — от этого зависит, какая кнопка следующего шага видна
     private ConnectVerdict? _hintVerdict;
 
-    public bool CanConnectAnyway => !IsConnected && _hintVerdict is ConnectVerdict.NotPatched or ConnectVerdict.UnknownBuild;
+    public bool CanConnectAnyway => !IsConnected && _hintVerdict
+        is ConnectVerdict.NotPatched or ConnectVerdict.UnknownBuild or ConnectVerdict.ProtectorChanged or ConnectVerdict.ProtectorUnknown;
 
     private void ShowHint(ConnectVerdict? verdict, string text)
     {
@@ -525,7 +526,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         // Файл «Игры» — прямо сейчас, а не по прошлой проверке: его могли пропатчить или обновить после ⟳
         var state = alive && recipe is not null ? Patch.CheckNow() : ClientPatchState.Missing;
-        var decision = ConnectCheck.Decide(recipe is not null, alive, state, anyway);
+        var protector = CheckProtector(alive, client);
+        var decision = ConnectCheck.Decide(recipe is not null, alive, state, anyway, protector);
         if (decision.Verdict != ConnectVerdict.Ready)
         {
             _connectionLog.Warning(decision.Text);
@@ -538,6 +540,43 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _connectionLog.Warning("Подключение к клиенту без проверки патча — по просьбе пользователя");
 
         Open(client);
+    }
+
+    /// <summary>
+    /// Сторож рядом с клиентом: путь берётся от exe «Игры», а не от процесса — файл тот же, даже если клиент запущен
+    /// из другого места. Эталона в профиле нет или клиента нет — проверять нечего (null). Подробности (path, размер,
+    /// дата, sha256) — в лог: в окне игроку они ни к чему, а при разборе обновления нужны.
+    /// </summary>
+    private ProtectorState? CheckProtector(bool alive, GameClient client)
+    {
+        if (!alive)
+            return null;
+
+        var gamePath = Patch.GamePath ?? client.ExePath;
+        if (gamePath is null)
+            return null;
+
+        var spec = _profile.Data.Protector;
+        if (spec is not { IsConfigured: true })
+            return null;
+
+        var (state, file) = ProtectorCheck.Check(gamePath, spec);
+        switch (state)
+        {
+            case ProtectorState.Changed when file is not null:
+                _connectionLog.Warning($"Защита клиента обновилась: {file.Path}\n"
+                                       + $"  {file.Length} байт, изменён {file.Modified:yyyy-MM-dd HH:mm}, "
+                                       + $"sha256 {file.Sha256} (эталон {spec.Sha256})");
+                break;
+            case ProtectorState.Missing:
+                _connectionLog.Warning($"Файл защиты клиента не найден рядом с «{gamePath}»");
+                break;
+            case ProtectorState.Unreadable:
+                _connectionLog.Warning("Файл защиты клиента не читается (нет прав?)");
+                break;
+        }
+
+        return state;
     }
 
     private void Open(GameClient client)

@@ -48,6 +48,11 @@ public sealed class ProfileData
     /// или рецепт для его билда ещё не собран (comeback136).
     /// </summary>
     public ClientPatchRecipe? Patch { get; init; }
+
+    /// <summary>
+    /// Сторож клиента (pwprotector) для проверки перед подключением: null — файл не проверен на этом клиенте.
+    /// </summary>
+    public ProtectorSpec? Protector { get; init; }
 }
 
 /// <summary>

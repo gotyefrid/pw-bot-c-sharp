@@ -381,5 +381,11 @@
     // (0x326850)
     "workStart": { "rva": "0x3F1980", "convention": "thiscall", "args": [ "1", "work", "0" ],
                    "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
+  },
+
+  // Сторож клиента (element/reportbugs/pwprotector.exe): на этом клиенте файл не проверен — не проверяем.
+  // Как проверить: посмотреть файл рядом с exe игры и вписать сюда его sha256.
+  "protector": {
+    "sha256": ""
   }
 }
