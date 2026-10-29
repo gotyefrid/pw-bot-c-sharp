@@ -52,7 +52,7 @@
                   </Style>
                 </Ellipse.Style>
               </Ellipse>
-              <!-- Развёрнуто — заголовок раздела, свёрнуто — сводка -->
+              <!-- Сводка «кто · сервер · патч» — и в развёрнутой карточке, и в свёрнутой -->
               <TextBlock Text="{Binding Summary}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Text}"
                          MaxWidth="190" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
             </StackPanel>
