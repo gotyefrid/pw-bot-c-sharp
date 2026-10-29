@@ -120,27 +120,32 @@ public class ClientPatcherTests
     }
 
     [Fact]
-    public void PatchFileRefusesSuspiciousBackup()
+    public void PatchFileSetsAsideBackupOfPreviousBuild()
     {
-        var (file, recipe, _) = BuildClient();
+        var (file, recipe, expected) = BuildClient();
+
+        // Игра обновилась: exe — оригинал нового билда (как в профиле), а .orig остался от прежней сборки
+        var stale = (byte[])file.Clone();
+        stale[TextRaw + 0x20] ^= 0xFF;
         var path = Write(file);
+        File.WriteAllBytes(ClientPatcher.BackupPath(path), stale);
+        var stalePath = ClientPatcher.OldBuildBackupPath(path, Sha(stale));
         try
         {
-            ClientPatcher.PatchFile(path, recipe, NullLogger.Instance);
+            Assert.Equal(ClientPatchResult.Patched, ClientPatcher.PatchFile(path, recipe, NullLogger.Instance));
+
+            // Правки встали, свежий бэкап — оригинал этого билда, прежний не пропал, а лежит под именем с отпечатком
+            Assert.Equal(expected, File.ReadAllBytes(path));
+            Assert.Equal(file, File.ReadAllBytes(ClientPatcher.BackupPath(path)));
+            Assert.Equal(stale, File.ReadAllBytes(stalePath));
+
+            // Откат возвращает именно наш оригинал, а не прежний билд
             ClientPatcher.Restore(path, recipe, NullLogger.Instance);
-
-            // .orig кто-то подменил — молча затирать его своим бэкапом нельзя
-            var backup = ClientPatcher.BackupPath(path);
-            var bytes = File.ReadAllBytes(backup);
-            bytes[0] ^= 1;
-            File.WriteAllBytes(backup, bytes);
-
-            Assert.Throws<ClientPatchException>(() => ClientPatcher.PatchFile(path, recipe, NullLogger.Instance));
-            Assert.Equal(bytes, File.ReadAllBytes(backup));
             Assert.Equal(file, File.ReadAllBytes(path));
         }
         finally
         {
+            File.Delete(stalePath);
             Cleanup(path);
         }
     }
@@ -281,9 +286,9 @@ public class ClientPatcherTests
     }
 
     /// <summary>
-    /// Сквозная проверка на настоящем клиенте: патчер из вшитого профиля строит ровно эталонную сборку
-    /// f5913175…. Запускается, только если задана папка element клиента (NOTES_COMEBACK146_DIR) с бэкапом
-    /// оригинала ElementClient.exe.orig; на машинах без папки пропускается.
+    /// Сквозная проверка на настоящем клиенте: патчер из вшитого профиля строит ровно эталонную сборку.
+    /// Запускается, только если задана папка element клиента (переменная окружения); на машинах без папки
+    /// пропускается.
     /// </summary>
     [Fact]
     public void Comeback146RecipeBuildsReferencePatch()
@@ -291,7 +296,7 @@ public class ClientPatcherTests
         Assert.Equal(ClientPatchState.Patched, BuildFromProfile("comeback146", "NOTES_COMEBACK146_DIR"));
     }
 
-    /// <summary>То же для Comeback 1.3.6: рецепт из профиля собирает эталон 7c176f26….</summary>
+    /// <summary>То же для Comeback 1.3.6 — эталон из профиля.</summary>
     [Fact]
     public void Comeback136RecipeBuildsReferencePatch()
     {
@@ -299,17 +304,22 @@ public class ClientPatcherTests
     }
 
     /// <summary>
-    /// Копирует оригинал клиента (ElementClient.exe.orig из папки element по переменной окружения) в темп,
-    /// применяет рецепт из профиля и проверяет статус. Без переменной тест пропускается.
+    /// Копирует оригинал клиента из папки element (по переменной окружения) в темп, применяет рецепт из профиля и
+    /// проверяет статус. Источник — тот из двух файлов, что совпадает с <c>originalSha256</c> рецепта: exe бывает
+    /// уже пропатчен, а .orig после обновления игры — от прежнего билда. Без переменной тест пропускается.
     /// </summary>
     private static ClientPatchState BuildFromProfile(string profileId, string envVariable)
     {
         var directory = Environment.GetEnvironmentVariable(envVariable) ?? "";
-        var source = Path.Combine(directory, "ElementClient.exe.orig");
-        Assert.SkipUnless(File.Exists(source), $"Не задана {envVariable} с ElementClient.exe.orig");
-
         var recipe = new ProfileCatalog().Load(profileId).Data.Patch!;
-        var path = Write(File.ReadAllBytes(source));
+
+        var source = new[] { "ElementClient.exe", "ElementClient.exe.orig" }
+            .Select(name => Path.Combine(directory, name))
+            .Where(File.Exists)
+            .FirstOrDefault(path => Same(Sha(File.ReadAllBytes(path)), recipe.OriginalSha256));
+        Assert.SkipUnless(source is not null, $"Не задана {envVariable} с оригиналом клиента этого билда");
+
+        var path = Write(File.ReadAllBytes(source!));
         try
         {
             ClientPatcher.PatchFile(path, recipe, NullLogger.Instance);
@@ -320,6 +330,8 @@ public class ClientPatcherTests
             Cleanup(path);
         }
     }
+
+    private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
     // ── Синтетический клиент ────────────────────────────────────────────────
 
@@ -443,5 +455,10 @@ public class ClientPatcherTests
         File.Delete(ClientPatcher.BackupPath(path));
         File.Delete(ClientPatcher.BackupPath(path) + ".tmp");
         File.Delete(path + ".patch.tmp");
+
+        // Отложенные бэкапы прежних билдов (имя содержит отпечаток файла)
+        var directory = Path.GetDirectoryName(path)!;
+        foreach (var stale in Directory.GetFiles(directory, Path.GetFileName(path) + ".*.orig"))
+            File.Delete(stale);
     }
 }

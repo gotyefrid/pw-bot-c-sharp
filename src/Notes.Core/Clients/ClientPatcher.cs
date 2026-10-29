@@ -54,6 +54,12 @@ public static class ClientPatcher
 {
     public static string BackupPath(string clientPath) => clientPath + ".orig";
 
+    /// <summary>
+    /// Куда откладывается бэкап прежнего билда, когда игра обновилась: рядом с exe, с отпечатком файла в имени —
+    /// ничего не теряется, а имя <see cref="BackupPath"/> освобождается под оригинал нового билда.
+    /// </summary>
+    public static string OldBuildBackupPath(string clientPath, string sha256Hex) => clientPath + "." + sha256Hex.Substring(0, 8) + ".orig";
+
     /// <summary>Состояние файла: правки, исходник, чужой билд, файла нет или он не читается.</summary>
     public static ClientPatchState Check(string? clientPath, ClientPatchRecipe recipe)
     {
@@ -212,9 +218,16 @@ public static class ClientPatcher
         {
             if (File.Exists(backup))
             {
-                if (!Same(Sha256Hex(ReadAll(backup)), recipe.OriginalSha256))
-                    throw new ClientPatchException($"{backup} — не оригинал этого рецепта. Разберитесь с файлом вручную, правки не применены");
-                return;
+                var existing = Sha256Hex(ReadAll(backup));
+                if (Same(existing, recipe.OriginalSha256))
+                    return;
+
+                // Бэкап от прежнего билда (игра обновилась): откладываем под именем с отпечатком и кладём свежий.
+                // Чужой файл при этом не пропадает — его имя видно в сообщении об ошибке, если что-то помешает.
+                var stale = OldBuildBackupPath(clientPath, existing);
+                log.Info($"рядом лежит бэкап прежнего билда (sha256 {existing.Substring(0, 8)}…) — отложен: {stale}");
+                File.Delete(stale); // тот же билд уже откладывали раньше — заменяем (содержимое одинаковое)
+                File.Move(backup, stale);
             }
 
             var temp = backup + ".tmp";
