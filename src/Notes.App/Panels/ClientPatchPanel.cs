@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -199,7 +200,8 @@ public sealed class ClientPatchPanel : ObservableObject
         if (Recipe is not { } recipe)
             return;
 
-        var path = GamePath ?? AskClientPath();
+        // «Игры» нет или её файла уже нет (игру перенесли) — спросить, где exe теперь
+        var path = GamePath is { } game && File.Exists(game) ? game : AskClientPath();
         if (path is null || IsRunning(path))
             return;
 
