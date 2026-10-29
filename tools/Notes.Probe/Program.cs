@@ -70,6 +70,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => ScanCommands.ScanInt(profile, game, rest));
                 case "scanstr":
                     return WithClient(rest, (profile, game) => ScanCommands.ScanStrings(profile, game, rest));
+                case "protector":
+                    return Protector(rest);
             }
         }
         catch (Exception e)
@@ -101,6 +103,7 @@ internal static class Program
         Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
+        Console.WriteLine("  protector [exe игры] сторож клиента (pwprotector) рядом с exe: путь, размер, дата, sha256 и сверка с профилем");
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
@@ -248,6 +251,48 @@ internal static class Program
 
         Console.WriteLine("Клиент игры закрыт");
         return 0;
+    }
+
+    // Сторож клиента рядом с exe игры: путь, размер, дата, sha256 и сверка с эталоном профиля. Игру запускать не
+    // обязательно — файл на диске. После обновления игры: смотрим цифры здесь и вписываем новый sha256 в профиль,
+    // когда файл разобран.
+    private static int Protector(string[] args)
+    {
+        var profile = LoadProfile(args);
+        var spec = profile.Data.Protector;
+        if (spec is not { IsConfigured: true })
+            Console.WriteLine($"⚠️ В профиле «{profile.Id}» эталон сторожа не задан (protector.sha256 пуст) — сверять не с чем");
+
+        // exe игры: путь из настроек сервера или файл клиента у запущенного процесса
+        var gamePath = args.FirstOrDefault(a => a.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                                                && !a.Equals("Notes.Probe.exe", StringComparison.OrdinalIgnoreCase));
+        if (gamePath is null)
+        {
+            var clients = ClientList.Build(new SystemClientSource(profile.Data));
+            gamePath = clients.Select(c => c.ExePath).FirstOrDefault(p => p is not null)
+                       ?? throw new InvalidOperationException("Клиент игры не найден: укажите путь к exe или запустите игру");
+        }
+
+        var path = ProtectorCheck.Resolve(gamePath);
+        Console.WriteLine($"Сервер:   {profile.Name}");
+        Console.WriteLine($"exe игры: {gamePath}");
+        Console.WriteLine($"сторож:   {path}");
+        if (spec is { IsConfigured: true })
+            Console.WriteLine($"эталон:   {spec.Sha256}");
+
+        var (state, file) = ProtectorCheck.Check(gamePath, spec);
+        if (file is not null)
+            Console.WriteLine($"файл:     {file.Length} байт, изменён {file.Modified:yyyy-MM-dd HH:mm}, sha256 {file.Sha256}");
+
+        Console.WriteLine(state switch
+        {
+            ProtectorState.Known => "✅ файл тот же, что разбирали",
+            ProtectorState.Changed => "⚠️ файл обновился — эту версию не разбирали; после разбора впишите sha256 в профиль",
+            ProtectorState.Missing => "❌ файла нет по пути",
+            ProtectorState.Unreadable => "❌ файл не читается",
+            _ => "— в профиле нет эталона, сверять не с чем",
+        });
+        return state is ProtectorState.Known or ProtectorState.NotConfigured ? 0 : 3;
     }
 
     private static int Attach(string[] args)
