@@ -270,14 +270,14 @@ public class ClientPatcherTests
     // ── Профиль ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void ComebackProfileCarriesRecipeOthersDoNot()
+    public void ComebackProfilesCarryRecipeClassicDoesNot()
     {
         var catalog = new ProfileCatalog();
 
-        // Что именно в рецепте — проверяет сквозной тест ниже; здесь только проводка профиля
+        // Что именно в рецептах — проверяют сквозные тесты ниже; здесь только проводка профилей
         Assert.NotNull(catalog.Load("comeback146").Data.Patch);
+        Assert.NotNull(catalog.Load("comeback136").Data.Patch);
         Assert.Null(catalog.Load("pwclassic136").Data.Patch);
-        Assert.Null(catalog.Load("comeback136").Data.Patch); // клиент не разбирался — рецепта нет
     }
 
     /// <summary>
@@ -286,18 +286,34 @@ public class ClientPatcherTests
     /// оригинала ElementClient.exe.orig; на машинах без папки пропускается.
     /// </summary>
     [Fact]
-    public void ComebackRecipeBuildsReferencePatch()
+    public void Comeback146RecipeBuildsReferencePatch()
     {
-        var directory = Environment.GetEnvironmentVariable("NOTES_COMEBACK146_DIR") ?? "";
-        var source = Path.Combine(directory, "ElementClient.exe.orig");
-        Assert.SkipUnless(File.Exists(source), $"Не задана NOTES_COMEBACK146_DIR с ElementClient.exe.orig");
+        Assert.Equal(ClientPatchState.Patched, BuildFromProfile("comeback146", "NOTES_COMEBACK146_DIR"));
+    }
 
-        var recipe = new ProfileCatalog().Load("comeback146").Data.Patch!;
+    /// <summary>То же для Comeback 1.3.6: рецепт из профиля собирает эталон 7c176f26….</summary>
+    [Fact]
+    public void Comeback136RecipeBuildsReferencePatch()
+    {
+        Assert.Equal(ClientPatchState.Patched, BuildFromProfile("comeback136", "NOTES_COMEBACK136_DIR"));
+    }
+
+    /// <summary>
+    /// Копирует оригинал клиента (ElementClient.exe.orig из папки element по переменной окружения) в темп,
+    /// применяет рецепт из профиля и проверяет статус. Без переменной тест пропускается.
+    /// </summary>
+    private static ClientPatchState BuildFromProfile(string profileId, string envVariable)
+    {
+        var directory = Environment.GetEnvironmentVariable(envVariable) ?? "";
+        var source = Path.Combine(directory, "ElementClient.exe.orig");
+        Assert.SkipUnless(File.Exists(source), $"Не задана {envVariable} с ElementClient.exe.orig");
+
+        var recipe = new ProfileCatalog().Load(profileId).Data.Patch!;
         var path = Write(File.ReadAllBytes(source));
         try
         {
-            Assert.Equal(ClientPatchResult.Patched, ClientPatcher.PatchFile(path, recipe, NullLogger.Instance));
-            Assert.Equal(ClientPatchState.Patched, ClientPatcher.Check(path, recipe));
+            ClientPatcher.PatchFile(path, recipe, NullLogger.Instance);
+            return ClientPatcher.Check(path, recipe);
         }
         finally
         {

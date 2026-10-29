@@ -13,7 +13,8 @@ tools/Notes.Probe/bin/Release/net48/Notes.Probe.exe            # без аргу
 ```
 
 MSB3027 при сборке — `Notes.exe` занят запущенным ботом, остальное собралось. Тесты на файлах настоящего клиента
-пропускаются, пока не задана папка `element` клиента: `NOTES_PWCLASSIC136_DIR`, `NOTES_COMEBACK146_DIR`.
+пропускаются, пока не задана папка `element` клиента: `NOTES_PWCLASSIC136_DIR`, `NOTES_COMEBACK146_DIR`,
+`NOTES_COMEBACK136_DIR`.
 
 ## Где что
 
