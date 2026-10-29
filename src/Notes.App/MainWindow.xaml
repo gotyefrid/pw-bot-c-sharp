@@ -125,7 +125,8 @@
               <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
                          Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
                 <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Выбрать…" Margin="6,0,0,0"
-                        Command="{Binding Patch.ChooseGameCommand}" ToolTip="Указать exe клиента этого сервера" />
+                        Command="{Binding Patch.ChooseGameCommand}" IsEnabled="{Binding CanChoose}"
+                        ToolTip="Указать exe клиента этого сервера — в списке «Клиент» будут только запущенные из него" />
                 <TextBlock Text="{Binding Patch.GameText}" ToolTip="{Binding Patch.GameText}" VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis" />
               </DockPanel>
@@ -162,10 +163,6 @@
                       Command="{Binding ConnectAnywayCommand}"
                       Visibility="{Binding CanConnectAnyway, Converter={StaticResource Visible}}"
                       ToolTip="Пропустить проверку патча — на свой страх и риск" />
-              <Button Style="{StaticResource ButtonBase}" Content="Сделать игрой этого сервера" Margin="6,0,0,0"
-                      Command="{Binding AdoptCommand}"
-                      Visibility="{Binding CanAdopt, Converter={StaticResource Visible}}"
-                      ToolTip="Считать exe этого клиента «Игрой» сервера и подключиться" />
             </StackPanel>
             <WrapPanel Margin="0,10,0,0">
               <CheckBox Style="{StaticResource Switch}" IsChecked="{Binding RenameWindows}" Content="Окна игры «Ник PID»" Margin="0,4,18,4"

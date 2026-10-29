@@ -11,9 +11,6 @@ public enum ConnectVerdict
     /// <summary>Выбранного клиента уже нет (закрыли игру).</summary>
     ProcessGone,
 
-    /// <summary>Клиент запущен не из той папки, что указана «Игрой» сервера.</summary>
-    OtherInstall,
-
     /// <summary>Правки не применены: подключиться можно только «всё равно».</summary>
     NotPatched,
 
@@ -25,31 +22,22 @@ public enum ConnectVerdict
 public sealed record ConnectDecision(ConnectVerdict Verdict, string Text);
 
 /// <summary>
-/// Проверка перед «Подключить»: жив ли клиент, тот ли это exe, стоят ли правки. Чистая функция — главный
-/// предохранитель фичи, покрыта тестами; окну остаётся показать строку-подсказку и кнопку следующего шага.
+/// Проверка перед «Подключить»: жив ли клиент, стоят ли правки. Что клиент из exe «Игры», проверять не нужно: другие
+/// в список не попадают (<see cref="ClientList.IsOfGame"/>). Чистая функция — главный предохранитель фичи, покрыта
+/// тестами; окну остаётся показать строку-подсказку и кнопку следующего шага.
 /// </summary>
 public static class ConnectCheck
 {
     /// <param name="hasRecipe">У сервера есть рецепт правок; нет — проверять нечего, кроме живого процесса.</param>
-    /// <param name="installPath">«Игра» сервера (exe, чьё состояние проверено), null — не задана.</param>
-    /// <param name="clientPath">Путь exe запущенного клиента, null — не достать (права).</param>
     /// <param name="alive">Процесс выбранного клиента ещё запущен.</param>
-    /// <param name="state">Состояние файла <paramref name="installPath"/> (или <paramref name="clientPath"/>, если «Игры» нет).</param>
-    /// <param name="anyway">«Подключиться всё равно»: пропускает только проверку правок.</param>
-    public static ConnectDecision Decide(bool hasRecipe, string? installPath, string? clientPath, bool alive,
-        ClientPatchState state, bool anyway = false)
+    /// <param name="state">Состояние файла «Игры» сервера.</param>
+    /// <param name="anyway">«Подключиться всё равно»: пропускает проверку правок.</param>
+    public static ConnectDecision Decide(bool hasRecipe, bool alive, ClientPatchState state, bool anyway = false)
     {
         if (!alive)
             return new ConnectDecision(ConnectVerdict.ProcessGone, "Клиент закрыт — запустите игру и нажмите ⟳.");
 
-        if (!hasRecipe)
-            return Ready;
-
-        if (installPath is not null && clientPath is not null
-            && !string.Equals(installPath, clientPath, StringComparison.OrdinalIgnoreCase))
-            return new ConnectDecision(ConnectVerdict.OtherInstall, $"Клиент запущен из другой папки: {clientPath}");
-
-        if (anyway || state == ClientPatchState.Patched)
+        if (!hasRecipe || anyway || state == ClientPatchState.Patched)
             return Ready;
 
         return state switch

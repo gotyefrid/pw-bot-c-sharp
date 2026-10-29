@@ -40,11 +40,35 @@ public interface IClientSource
 public static class ClientList
 {
     /// <summary>Клиенты по возрастанию PID — порядок не прыгает при обновлении списка.</summary>
-    public static List<GameClient> Build(IClientSource source)
-        => source.FindProcesses()
+    public static List<GameClient> Build(IClientSource source) => Build(source, source.FindProcesses(), null);
+
+    /// <summary>
+    /// Клиенты «Игры» (<see cref="IsOfGame"/>) по возрастанию PID; ники остальных не читаются. «Игра» не задана — все.
+    /// </summary>
+    public static List<GameClient> Build(IClientSource source, IReadOnlyList<ClientProcess> processes, string? game)
+        => processes
+            .Where(p => IsOfGame(p.ExePath, game))
             .OrderBy(p => p.Pid)
             .Select(p => new GameClient(p.Pid, source.ReadNick(p.Pid), p.Window, p.ExePath))
             .ToList();
+
+    /// <summary>
+    /// Клиент запущен из exe «Игры»; «Игра» не задана — подходит любой. Путь не прочитан (права) — не подходит:
+    /// не проверить, что это та игра.
+    /// </summary>
+    public static bool IsOfGame(string? exePath, string? game)
+        => game is null || string.Equals(exePath, game, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// «Игра», которую можно взять у запущенных клиентов без вопроса: у всех клиентов сервера (ник читается этим
+    /// профилем) один и тот же exe. Exe разные или путь не прочитан — не угадываем: «Игрой» станет exe клиента,
+    /// к которому подключатся.
+    /// </summary>
+    public static string? GuessGame(IEnumerable<GameClient> clients)
+    {
+        var paths = clients.Where(c => c.Nick is not null).Select(c => c.ExePath).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return paths.Count == 1 ? paths[0] : null;
+    }
 
     /// <summary>
     /// Кого выбрать после обновления списка: того же по PID, если он ещё жив — обновление списка и переименование окон

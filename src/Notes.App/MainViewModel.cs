@@ -85,6 +85,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
         _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
         Patch = new ClientPatchPanel(() => _profile, () => _config.App.Connection, SaveSettings, dialogs, _connectionLog);
+        // Сменилась «Игра» — в списке теперь клиенты её exe. Подключённого не подменяем: список заперт до отключения
+        Patch.GameChanged += () =>
+        {
+            if (!IsConnected)
+                ReloadClients();
+        };
         // Строка в свёрнутой карточке показывает и состояние патча
         Patch.PropertyChanged += (_, e) =>
         {
@@ -113,7 +119,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         RefreshCommand = new RelayCommand(RefreshClients);
         ConnectCommand = new RelayCommand(() => Connect(anyway: false), () => !IsConnected && SelectedClient is not null);
         ConnectAnywayCommand = new RelayCommand(() => Connect(anyway: true), () => CanConnectAnyway);
-        AdoptCommand = new RelayCommand(AdoptAndConnect, () => CanAdopt);
         DisconnectCommand = new RelayCommand(Disconnect, () => IsConnected);
         ToggleConnectionCommand = new RelayCommand(() => ConnectionExpanded = !ConnectionExpanded);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
@@ -262,14 +267,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public bool CanConnectAnyway => !IsConnected && _hintVerdict is ConnectVerdict.NotPatched or ConnectVerdict.UnknownBuild;
 
-    public bool CanAdopt => !IsConnected && _hintVerdict == ConnectVerdict.OtherInstall;
-
     private void ShowHint(ConnectVerdict? verdict, string text)
     {
         _hintVerdict = verdict;
         ConnectHint = text;
         OnPropertyChanged(nameof(CanConnectAnyway));
-        OnPropertyChanged(nameof(CanAdopt));
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -296,7 +298,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand RefreshCommand { get; }
     public ICommand ConnectCommand { get; }
     public ICommand ConnectAnywayCommand { get; }
-    public ICommand AdoptCommand { get; }
     public ICommand DisconnectCommand { get; }
     public ICommand ToggleConnectionCommand { get; }
     public ICommand StartCommand { get; }
@@ -441,16 +442,33 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // ── Внутреннее ──────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Обновить список запущенных клиентов и выбрать последнего персонажа. Никуда не подключается. Первый клиент
-    /// сервера с известным exe становится «Игрой», пока она не задана.
-    /// </summary>
+    /// <summary>⟳, запуск, смена сервера: список клиентов и состояние файла «Игры» — заново.</summary>
     private void RefreshClients()
+    {
+        ReloadClients();
+        Patch.Refresh();
+    }
+
+    /// <summary>
+    /// Перестроить список запущенных клиентов и выбрать последнего персонажа. Никуда не подключается. У сервера с
+    /// «Игрой» в списке только клиенты из её exe; «Игра» не задана, а у всех клиентов сервера один exe — он и
+    /// становится «Игрой».
+    /// </summary>
+    private void ReloadClients()
     {
         // Подсказка и её кнопки — про прежний список: после обновления там может быть выбран уже другой клиент
         ClearHint();
         var keep = _selectedClient?.Pid;
-        var clients = ClientList.Build(new SystemClientSource(_profile.Data));
+        var source = new SystemClientSource(_profile.Data);
+        var processes = source.FindProcesses();
+        var game = Patch.Recipe is null ? null : Patch.GamePath;
+        var clients = ClientList.Build(source, processes, game);
+        if (Patch.Recipe is not null && game is null && ClientList.GuessGame(clients) is { } guessed)
+        {
+            // Список перестроится уже по «Игре»: Adopt → GameChanged → сюда же
+            Patch.Adopt(guessed);
+            return;
+        }
 
         _refreshing = true;
         try
@@ -465,15 +483,16 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _refreshing = false;
         }
 
-        if (clients.Count == 0)
+        var others = processes.Where(p => !ClientList.IsOfGame(p.ExePath, game)).ToList();
+        if (processes.Count == 0)
             _connectionLog.Warning("Клиенты игры не найдены — запустите игру и нажмите «обновить»");
+        else if (others.Count > 0)
+            _connectionLog.Info("Не из exe «Игры», в списке не показаны: "
+                                + string.Join(", ", others.Select(p => $"PID {p.Pid} — {p.ExePath ?? "путь не прочитать"}")));
+        if (clients.Count == 0 && others.Count > 0)
+            ShowHint(null, "Запущенные клиенты — не из exe «Игры». Чтобы подключиться к ним, укажите их exe кнопкой «Выбрать…».");
 
         RenameAll();
-        if (Patch.Recipe is not null && Patch.GamePath is null
-            && clients.FirstOrDefault(c => c.Nick is not null && c.ExePath is not null)?.ExePath is { } path)
-            Patch.Adopt(path);
-        else
-            Patch.Refresh();
         CommandManager.InvalidateRequerySuggested();
     }
 
@@ -496,14 +515,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         ClearHint();
+        var alive = SystemClientSource.Running().Any(c => c.Pid == client.Pid);
         var recipe = Patch.Recipe;
-        // Первый запуск сервера: «Игра» ещё не задана — берём exe клиента, к которому подключаемся
-        if (recipe is not null && Patch.GamePath is null && client.ExePath is { } path)
+        // «Игра» ещё не задана (клиенты сервера из разных exe) — ею становится exe клиента, к которому подключаемся
+        if (alive && recipe is not null && Patch.GamePath is null && client.ExePath is { } path)
             Patch.Adopt(path);
 
-        var alive = SystemClientSource.Running().Any(c => c.Pid == client.Pid);
-        var state = recipe is null ? ClientPatchState.Missing : Patch.CheckNow();
-        var decision = ConnectCheck.Decide(recipe is not null, Patch.GamePath, client.ExePath, alive, state, anyway);
+        // Файл «Игры» — прямо сейчас, а не по прошлой проверке: его могли пропатчить или обновить после ⟳
+        var state = alive && recipe is not null ? Patch.CheckNow() : ClientPatchState.Missing;
+        var decision = ConnectCheck.Decide(recipe is not null, alive, state, anyway);
         if (decision.Verdict != ConnectVerdict.Ready)
         {
             _connectionLog.Warning(decision.Text);
@@ -516,16 +536,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _connectionLog.Warning("Подключение к клиенту без проверки патча — по просьбе пользователя");
 
         Open(client);
-    }
-
-    // «Сделать игрой этого сервера» → сразу проверить заново и подключиться
-    private void AdoptAndConnect()
-    {
-        if (SelectedClient?.ExePath is not { } path)
-            return;
-
-        Patch.Adopt(path);
-        Connect(anyway: false);
     }
 
     private void Open(GameClient client)

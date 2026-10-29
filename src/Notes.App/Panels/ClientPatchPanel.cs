@@ -124,27 +124,33 @@ public sealed class ClientPatchPanel : ObservableObject
     /// <summary>Что написано в строке «Игра»: путь или приглашение выбрать.</summary>
     public string GameText => GamePath ?? "не выбрана";
 
+    /// <summary>«Игра» сменилась — список клиентов отбирается по ней заново.</summary>
+    public event Action? GameChanged;
+
     /// <summary>
-    /// Сделать этот exe «Игрой» сервера (первый увиденный клиент, «Сделать игрой этого сервера», «Выбрать…»).
-    /// Состояние файла пересчитывается.
+    /// Сделать этот exe «Игрой» сервера (угадана по запущенным клиентам, подключение, «Выбрать…», «Пропатчить»).
+    /// Файл не проверяет — это дело вызывающего: в фоне (<see cref="Refresh"/>) или сразу перед подключением
+    /// (<see cref="CheckNow"/>), чтобы не считать хэш дважды.
     /// </summary>
     public void Adopt(string path)
     {
-        if (!string.Equals(GamePath, path, StringComparison.OrdinalIgnoreCase))
-        {
-            Settings.ClientPaths[_profile().Id] = path;
-            _saved();
-        }
+        if (string.Equals(GamePath, path, StringComparison.OrdinalIgnoreCase))
+            return;
 
+        Settings.ClientPaths[_profile().Id] = path;
+        _saved();
         OnPropertyChanged(nameof(GamePath));
         OnPropertyChanged(nameof(GameText));
-        Refresh();
+        GameChanged?.Invoke();
     }
 
     private void ChooseGame()
     {
-        if (AskClientPath() is { } path)
-            Adopt(path);
+        if (AskClientPath() is not { } path)
+            return;
+
+        Adopt(path);
+        Refresh();
     }
 
     /// <summary>
@@ -201,7 +207,6 @@ public sealed class ClientPatchPanel : ObservableObject
         {
             ClientPatcher.PatchFile(path, recipe, _log);
             Adopt(path);
-            return;
         }
         catch (ClientPatchException e)
         {

@@ -88,6 +88,73 @@ public class ClientListTests
         Assert.Equal(100, ClientList.KeepSelection(list, null, "x", _ => true)!.Pid);
     }
 
+    private const string Game = @"D:\Game\ElementClient.exe";
+
+    // Клиенты с путём exe; запоминает, чьи ники читали
+    private sealed class PathSource(params (int Pid, string? Nick, string? Exe)[] clients) : IClientSource
+    {
+        public List<int> NickReads { get; } = new();
+
+        public IReadOnlyList<ClientProcess> FindProcesses()
+            => clients.Select(c => new ClientProcess(c.Pid, IntPtr.Zero, c.Exe)).ToList();
+
+        public string? ReadNick(int pid)
+        {
+            NickReads.Add(pid);
+            return clients.First(c => c.Pid == pid).Nick;
+        }
+    }
+
+    [Fact]
+    public void WithGameOnlyItsExeIsListedAndOthersAreNotRead()
+    {
+        // 200 — второй exe в той же папке, 400 — путь не прочитать (права)
+        var source = new PathSource((300, "В", Game.ToUpperInvariant()), (100, "А", Game),
+            (200, "Б", @"D:\Game\ElementClient_test.exe"), (400, null, null));
+
+        var list = ClientList.Build(source, source.FindProcesses(), Game);
+
+        Assert.Equal([100, 300], list.Select(c => c.Pid));
+        Assert.Equal([100, 300], source.NickReads);
+    }
+
+    [Fact]
+    public void WithoutGameEveryClientIsListed()
+    {
+        var source = new PathSource((100, "А", Game), (200, "Б", @"E:\Other\client.exe"), (300, null, null));
+
+        Assert.Equal([100, 200, 300], ClientList.Build(source, source.FindProcesses(), null).Select(c => c.Pid));
+    }
+
+    [Theory]
+    [InlineData(Game, Game, true)]
+    [InlineData(@"d:\game\elementclient.exe", Game, true)]
+    [InlineData(@"D:\Game\ElementClient_test.exe", Game, false)]
+    [InlineData(null, Game, false)]
+    [InlineData(@"E:\Other\client.exe", null, true)]
+    [InlineData(null, null, true)]
+    public void ClientIsOfGameByExactExe(string? exe, string? game, bool expected)
+    {
+        Assert.Equal(expected, ClientList.IsOfGame(exe, game));
+    }
+
+    [Fact]
+    public void GameIsGuessedOnlyWhenServerClientsShareOneExe()
+    {
+        static GameClient C(int pid, string? nick, string? exe) => new(pid, nick, IntPtr.Zero, exe);
+
+        // Клиент другого сервера (ник этим профилем не читается) не мешает
+        Assert.Equal(Game, ClientList.GuessGame([C(1, "А", Game), C(2, "Б", Game.ToLowerInvariant()), C(3, null, @"E:\Other\client.exe")]));
+        // Два exe — «Игрой» станет тот, к кому подключатся
+        Assert.Null(ClientList.GuessGame([C(1, "А", Game), C(2, "Б", @"D:\Game\ElementClient_test.exe")]));
+        // Путь не прочитан — не угадываем
+        Assert.Null(ClientList.GuessGame([C(1, "А", Game), C(2, "Б", null)]));
+        Assert.Null(ClientList.GuessGame([C(1, "А", null)]));
+        // Ник не читается ни у кого — профиль, может, не подходит
+        Assert.Null(ClientList.GuessGame([C(1, null, Game)]));
+        Assert.Null(ClientList.GuessGame([]));
+    }
+
     [Fact]
     public void ClientLockMarksClientForOtherWindows()
     {

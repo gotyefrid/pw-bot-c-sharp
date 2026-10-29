@@ -4,23 +4,21 @@ using static Notes.Core.Clients.ClientPatchState;
 
 namespace Notes.Tests.Clients;
 
-/// <summary>Проверка перед «Подключить»: процесс, папка игры, патч → вердикт и подсказка.</summary>
+/// <summary>Проверка перед «Подключить»: процесс, патч → вердикт и подсказка.</summary>
 public class ConnectCheckTests
 {
-    private const string Game = @"D:\Game\ElementClient.exe";
-
     [Fact]
     public void ClosedClientIsGoneEvenWithoutRecipe()
-        => Assert.Equal(ConnectVerdict.ProcessGone, ConnectCheck.Decide(false, null, null, alive: false, Missing).Verdict);
+        => Assert.Equal(ConnectVerdict.ProcessGone, ConnectCheck.Decide(false, alive: false, Missing).Verdict);
 
     [Fact]
     public void ServerWithoutRecipeIsReady()
-        => Assert.Equal(ConnectVerdict.Ready, ConnectCheck.Decide(false, null, Game, alive: true, Missing).Verdict);
+        => Assert.Equal(ConnectVerdict.Ready, ConnectCheck.Decide(false, alive: true, Missing).Verdict);
 
     [Fact]
     public void PatchedIsReady()
     {
-        var decision = ConnectCheck.Decide(true, Game, Game, alive: true, Patched);
+        var decision = ConnectCheck.Decide(true, alive: true, Patched);
         Assert.Equal(ConnectVerdict.Ready, decision.Verdict);
         Assert.Equal("", decision.Text);
     }
@@ -32,7 +30,7 @@ public class ConnectCheckTests
     [InlineData(Unreadable, ConnectVerdict.UnknownBuild)]
     public void UnpatchedAsksForNextStep(ClientPatchState state, ConnectVerdict expected)
     {
-        var decision = ConnectCheck.Decide(true, Game, Game, alive: true, state);
+        var decision = ConnectCheck.Decide(true, alive: true, state);
         Assert.Equal(expected, decision.Verdict);
         Assert.NotEqual("", decision.Text);
     }
@@ -42,24 +40,9 @@ public class ConnectCheckTests
     [InlineData(Unknown)]
     [InlineData(Missing)]
     [InlineData(Unreadable)]
-    public void AnywaySkipsOnlyThePatchCheck(ClientPatchState state)
+    public void AnywaySkipsThePatchCheckButNotClosedClient(ClientPatchState state)
     {
-        Assert.Equal(ConnectVerdict.Ready, ConnectCheck.Decide(true, Game, Game, alive: true, state, anyway: true).Verdict);
-        Assert.Equal(ConnectVerdict.ProcessGone, ConnectCheck.Decide(true, Game, Game, alive: false, state, anyway: true).Verdict);
-        Assert.Equal(ConnectVerdict.OtherInstall, ConnectCheck.Decide(true, Game, @"E:\Test\ElementClient.exe", alive: true, state, anyway: true).Verdict);
+        Assert.Equal(ConnectVerdict.Ready, ConnectCheck.Decide(true, alive: true, state, anyway: true).Verdict);
+        Assert.Equal(ConnectVerdict.ProcessGone, ConnectCheck.Decide(true, alive: false, state, anyway: true).Verdict);
     }
-
-    [Fact]
-    public void OtherFolderIsReportedWithItsPathAndIgnoresCase()
-    {
-        var other = ConnectCheck.Decide(true, Game, @"E:\Test\ElementClient.exe", alive: true, Patched);
-        Assert.Equal(ConnectVerdict.OtherInstall, other.Verdict);
-        Assert.Contains(@"E:\Test\ElementClient.exe", other.Text);
-
-        Assert.Equal(ConnectVerdict.Ready, ConnectCheck.Decide(true, Game.ToLowerInvariant(), Game, alive: true, Patched).Verdict);
-    }
-
-    [Fact]
-    public void UnknownClientPathIsNotAnotherFolder()
-        => Assert.Equal(ConnectVerdict.Ready, ConnectCheck.Decide(true, Game, null, alive: true, Patched).Verdict);
 }
