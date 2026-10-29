@@ -147,7 +147,6 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(Summary));
             // Читать клиента теперь по другим смещениям — старое подключение не годится
             Disconnect();
-            ClearHint();
             RefreshClients();
         }
     }
@@ -448,6 +447,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// </summary>
     private void RefreshClients()
     {
+        // Подсказка и её кнопки — про прежний список: после обновления там может быть выбран уже другой клиент
+        ClearHint();
         var keep = _selectedClient?.Pid;
         var clients = ClientList.Build(new SystemClientSource(_profile.Data));
 
@@ -615,8 +616,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             _connectionLog.Warning("Клиент игры закрыт");
             Disconnect();
-            ShowHint(ConnectVerdict.ProcessGone, "Клиент закрыт — запустите игру и нажмите ⟳.");
             RefreshClients();
+            ShowHint(null, "Клиент игры закрыт — бот отключился.");
             return;
         }
 
