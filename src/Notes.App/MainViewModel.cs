@@ -562,7 +562,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             Disconnect();
-            ShowHint(null, $"Не удалось подключиться: {e.Message}");
+            // В окне — без подробностей: в тексте ошибки бывают адреса памяти
+            ShowHint(null, "Не удалось подключиться — подробности в логе.");
             _connectionLog.Error($"Не удалось подключиться к PID {client.Pid}: {e.Message}");
         }
     }
