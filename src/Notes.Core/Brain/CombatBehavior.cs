@@ -30,6 +30,8 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     // Макрос: только запускаем, дальше игра крутит его сама; запуск поверх идущего начинает его сначала — не чаще раза в секунду
     private static readonly TimeSpan MacroPeriod = TimeSpan.FromSeconds(1);
     private static readonly TimeSpan PetOrderPeriod = TimeSpan.FromSeconds(5);
+    // Пауза между выбором цели и приказом пету: приказ сразу после выбора игра может не успеть связать с новой целью
+    private static readonly TimeSpan PetOrderDelay = TimeSpan.FromSeconds(0.5);
     private static readonly TimeSpan TargetLostGrace = TimeSpan.FromSeconds(1.5);
     private static readonly TimeSpan GiveUpFor = TimeSpan.FromSeconds(60);
     // HP цели не падает столько — бьём впустую (не достаём: моб в воде или в текстурах), бросаем раньше общего лимита
@@ -232,8 +234,9 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         var w = c.World;
         var combat = c.Settings.Combat;
 
-        // Приказ пету — пока он не бьёт эту цель, не чаще раза в 5 с
-        if (c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true } && c.Now - _lastPetOrder >= PetOrderPeriod && !w.PetFights(mob.Wid))
+        // Приказ пету — через полсекунды после выбора цели, пока он не бьёт эту цель, не чаще раза в 5 с
+        if (c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true } && c.Now - _fightStarted >= PetOrderDelay
+            && c.Now - _lastPetOrder >= PetOrderPeriod && !w.PetFights(mob.Wid))
         {
             _lastPetOrder = c.Now;
             // Прошлый приказ ещё ждёт подтверждения, но на другого моба (бой переключился) — заменяем, не ждём 6 с
