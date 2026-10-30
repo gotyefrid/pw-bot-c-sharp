@@ -143,7 +143,7 @@ public class ActionRunnerTests
     [Fact]
     public void GatherNotStartedWhileStandingIsRejected()
     {
-        // Подошли, а полоски нет (нет кирки) — 4 с стоим и бросаем
+        // Подошли, а полоски нет — 4 с стоим и бросаем
         var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(2, 0, 0), "Железная руда");
         _world.Ground.Add(ore);
         _world.Gather = new GatherProgress(false, 0, 0);
@@ -156,7 +156,99 @@ public class ActionRunnerTests
 
         var outcome = Single(_runner.Update(_world.Wait(1.2).Snapshot()));
         Assert.Equal(ActionStatus.Rejected, outcome.Status);
-        Assert.Contains("нет инструмента", outcome.ToString());
+        Assert.Contains("стоим 4 с, а копание не началось", outcome.ToString());
+    }
+
+    private GroundItem Ore(float distance)
+    {
+        var ore = new GroundItem(1, 0xC0100E4B, 3079, GroundItemKind.Resource, new Position(distance, 0, 0), "Железная руда");
+        _world.Ground.Add(ore);
+        _world.Gather = new GatherProgress(false, 0, 0);
+        return ore;
+    }
+
+    // Персонаж бежит к ресурсу: каждый снимок — на шаг ближе
+    private WorldState Run(double seconds)
+    {
+        _world.Position = _world.Position with { X = _world.Position.X + 1 };
+        return _world.Wait(seconds).Snapshot();
+    }
+
+    [Fact]
+    public void GatherFarResourceGetsTimeToWalk()
+    {
+        // 40 м: 40 / 4 м/с + 3 с = 13 с на дорогу — на 12-й секунде ещё бежим, потом копаем
+        var gather = new GatherAction(Ore(40));
+        _runner.Submit(Bot, gather, _world.Snapshot());
+        for (var i = 0; i < 12; i++)
+            Assert.Empty(_runner.Update(Run(1)));
+        Assert.Equal(GatherPhase.Approach, gather.Phase);
+
+        _world.Gather = new GatherProgress(true, 100, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(0.5).Snapshot()));
+        Assert.Equal(GatherPhase.Digging, gather.Phase);
+    }
+
+    [Fact]
+    public void GatherNotReachedInTimeIsRejected()
+    {
+        // 20 м: срок 8 с (20 / 4 + 3, но не меньше 8) — бежим и бежим, а копание не начинается
+        _runner.Submit(Bot, new GatherAction(Ore(20)), _world.Snapshot());
+        for (var i = 0; i < 7; i++)
+            Assert.Empty(_runner.Update(Run(1)));
+
+        var outcome = Single(_runner.Update(Run(1)));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("не дошли до ресурса за 8 с (20 м)", outcome.ToString());
+    }
+
+    [Fact]
+    public void GatherDiggingLongerThanBarIsRejected()
+    {
+        // Полоска 5 с, а копка идёт уже 7 с (5 + 2 запаса)
+        _runner.Submit(Bot, new GatherAction(Ore(2)), _world.Snapshot());
+        _world.Gather = new GatherProgress(true, 100, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(0.5).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(6.5).Snapshot()));
+
+        var outcome = Single(_runner.Update(_world.Wait(0.5).Snapshot()));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("копка не кончилась за 7 с", outcome.ToString());
+    }
+
+    [Fact]
+    public void GatherDugWithoutLootIsRejected()
+    {
+        // Полоска дошла до конца, но ни добычи, ни пропажи ресурса за 3 с
+        var gather = new GatherAction(Ore(2));
+        _runner.Submit(Bot, gather, _world.Snapshot());
+        _world.Gather = new GatherProgress(true, 100, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(0.5).Snapshot()));
+        _world.Gather = new GatherProgress(false, 5000, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(5).Snapshot()));
+        Assert.Equal(GatherPhase.Dug, gather.Phase);
+        Assert.Empty(_runner.Update(_world.Wait(2.5).Snapshot()));
+
+        var outcome = Single(_runner.Update(_world.Wait(0.5).Snapshot()));
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("выкопали, а добыча не пришла за 3 с", outcome.ToString());
+    }
+
+    [Fact]
+    public void GatherConfirmationTellsWalkAndDigTime()
+    {
+        // 2 с бежали, 5 с копали, добыча пришла — в логе видно, куда ушло время
+        _runner.Submit(Bot, new GatherAction(Ore(8)), _world.Snapshot());
+        Assert.Empty(_runner.Update(Run(1)));
+        _world.Gather = new GatherProgress(true, 100, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(1).Snapshot()));
+        _world.Gather = new GatherProgress(false, 5000, 5000);
+        Assert.Empty(_runner.Update(_world.Wait(5).Snapshot()));
+        _world.Ground.Clear();
+
+        var outcome = Single(_runner.Update(_world.Wait(1).Snapshot()));
+        Assert.Equal(ActionStatus.Confirmed, outcome.Status);
+        Assert.Contains("путь 2,0 с, копка 5,0 с", outcome.ToString());
     }
 
     [Fact]

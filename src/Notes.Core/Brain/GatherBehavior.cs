@@ -20,7 +20,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
 {
     private readonly IGatherScope _scope = scope ?? FarmAreaScope.Instance;
 
-    // Не вышло (нет инструмента, не дошли, сбили N раз подряд) — ресурс бросаем на время
+    // Не вышло (не дошли, копание не началось, сбили N раз подряд) — ресурс бросаем на время
     private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(3);
     private const int KnockdownsToSkip = 3;
 
@@ -49,7 +49,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
 
         if (pending is not null)
         {
-            Status = $"копаю {pending.Item.Name}";
+            Status = Step(w, pending);
             return true;
         }
 
@@ -74,11 +74,29 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         if (!resource.Special && w.BagFull)
             c.Say($"gather-into-stack-{resource.Id:X8}", $"Сумка полна, но добыча {resource.Name} ляжет в начатую стопку — копаю", seconds: 600);
 
-        Status = $"копаю {resource.Name}";
+        Status = $"иду к {resource.Name}, {resource.Offset.Direct:0} м";
         var sent = c.Send(new GatherAction(resource));
         if (sent == SubmitStatus.Sent)
             c.Log.Info($"Копаю {resource.Name}{_scope.Where(c)}, {resource.Offset}");
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+    }
+
+    // Какой шаг копания идёт — для строки состояния
+    private static string Step(WorldState w, GatherAction gather)
+    {
+        var name = gather.Item.Name;
+        switch (gather.Phase)
+        {
+            case GatherPhase.Digging when w.Host.Gather is { TotalMs: > 0 } g:
+                return $"копаю {name}, {g.ElapsedMs / 1000.0:0} из {g.TotalMs / 1000.0:0} с";
+            case GatherPhase.Digging:
+                return $"копаю {name}";
+            case GatherPhase.Dug:
+                return $"выкопал {name}, жду добычу";
+            default:
+                var item = w.GroundItems.FirstOrDefault(i => i.Id == gather.Item.Id) ?? gather.Item;
+                return $"иду к {name}, {item.Offset.Direct:0} м";
+        }
     }
 
     // Не в зоне опасного моба; в зоне — говорим (раз в 5 мин на ресурс) и не летим к нему

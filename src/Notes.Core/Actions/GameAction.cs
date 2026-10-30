@@ -410,64 +410,105 @@ public sealed class PickupAction(GroundItem item) : GameAction
     }
 }
 
+/// <summary>Шаг копания: <see cref="GatherAction.Phase"/>.</summary>
+public enum GatherPhase
+{
+    /// <summary>Идём к ресурсу: копание ещё не началось.</summary>
+    Approach,
+    /// <summary>Копаем: идёт полоска.</summary>
+    Digging,
+    /// <summary>Полоска дошла до конца — ждём добычу в сумке.</summary>
+    Dug,
+}
+
 /// <summary>
 /// Собрать ресурс «как мышкой»: клиент подводит персонажа, копает (полоска) и кладёт добычу в сумку.
-/// Подтверждение — в сумке прибавилось или ресурс пропал с земли. Нужен инструмент (для руды — кирка): без него откажет игра.
-/// Если сервер показывает полоску копания (<see cref="HostState.Gather"/>): полоска кончилась раньше времени — сбили;
-/// стоим на месте, а копать не начали — игра не даёт (нет инструмента).
+/// Подтверждение — в сумке прибавилось или ресурс пропал с земли. Инструмент (кирку) проверяет поведение до команды.
+/// Если сервер показывает полоску копания (<see cref="HostState.Gather"/>), у каждого шага (<see cref="GatherPhase"/>) свой срок:
+/// дойти — по расстоянию; копать — длина полоски и запас; добыча — несколько секунд. Полоска кончилась раньше времени — сбили;
+/// дошли и стоим, а копать не начали — игра не даёт.
 /// </summary>
 public sealed class GatherAction(GroundItem resource) : GameAction
 {
+    // Бег персонажа по логам копаний — 3,8…4,7 м/с; запас — на разгон, обход и полёт
+    private const float RunSpeed = 4f;
+    private static readonly TimeSpan ApproachReserve = TimeSpan.FromSeconds(3);
+    // Не меньше, чем «дошли и стоим» (StandPatience) с запасом: у близкого ресурса судит стояние, а не срок
+    private static readonly TimeSpan MinApproach = TimeSpan.FromSeconds(8);
+    private static readonly TimeSpan DigReserve = TimeSpan.FromSeconds(2);
+    // Добыча приходит ~2 с после конца полоски
+    private static readonly TimeSpan LootWait = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(4);
+    // Срок на копание, пока длина полоски неизвестна (сервер без полоски): с запасом на самую длинную копку
+    private static readonly TimeSpan DigFallback = TimeSpan.FromSeconds(30);
+
     public GroundItem Item { get; } = resource;
+
+    /// <summary>Расстояние до ресурса в момент команды.</summary>
+    public float Distance { get; } = resource.Offset.Direct;
+
+    /// <summary>Сколько ждать начала копания: дойти по расстоянию и запас.</summary>
+    public TimeSpan ApproachTimeout => TimeSpan.FromSeconds(Math.Max(MinApproach.TotalSeconds, Distance / RunSpeed + ApproachReserve.TotalSeconds));
 
     public override string Name => $"собрать {Item.Name} ({Item.Offset})";
     public override ActionSlot Slot => ActionSlot.Gather;
     public override uint SlotId => Item.Id;
     public override ActionResource Resource => ActionResource.Body;
     public override ActionPriority Priority { get; init; } = ActionPriority.Background;
-    // Подойти + копать несколько секунд
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(30);
+    // Запасной срок — сроки шагов проверяет Check; этот только для сервера без полоски копания
+    public override TimeSpan Timeout => ApproachTimeout + DigFallback;
 
     public override string? Precondition(WorldState now)
         => Item.Kind != GroundItemKind.Resource ? "это не ресурс — его подбирают" : null;
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.Gather(Item);
 
-    private static readonly TimeSpan StandPatience = TimeSpan.FromSeconds(4);
-    private bool _started;
+    /// <summary>Какой сейчас шаг.</summary>
+    public GatherPhase Phase { get; private set; } = GatherPhase.Approach;
 
     /// <summary>Копание началось и оборвалось раньше конца полоски (ударили, сдвинули).</summary>
     public bool KnockedDown { get; private set; }
+
     private Position? _lastPosition;
     private DateTime? _standingSince;
+    private DateTime _digStarted, _dugAt;
+    private TimeSpan? _walk, _dig;
 
     public override Verdict Check(WorldState start, WorldState now)
     {
         var before = start.Inventory.Sum(i => i.Count);
         var after = now.Inventory.Sum(i => i.Count);
         if (after > before)
-            return Verdict.Confirmed($"в сумке +{after - before}");
+            return Verdict.Confirmed($"в сумке +{after - before}{Steps(now)}");
         if (!now.GroundItems.Any(i => i.Id == Item.Id))
-            return Verdict.Confirmed("ресурс пропал с земли");
+            return Verdict.Confirmed($"ресурс пропал с земли{Steps(now)}");
         if (now.Host.Gather is not { } g)
             return Verdict.Pending;
 
+        return Phase switch
+        {
+            GatherPhase.Approach => Approach(start, now, g),
+            GatherPhase.Digging => Digging(now, g),
+            _ => now.Time - _dugAt >= LootWait
+                ? Verdict.Rejected($"выкопали, а добыча не пришла за {LootWait.TotalSeconds:0} с")
+                : Verdict.Pending,
+        };
+    }
+
+    private Verdict Approach(WorldState start, WorldState now, GatherProgress g)
+    {
         if (g.Active)
         {
-            _started = true;
+            Phase = GatherPhase.Digging;
+            _digStarted = now.Time;
+            _walk = now.Time - start.Time;
             return Verdict.Pending;
         }
 
-        // Полоска кончилась: дошла до конца — ждём добычу, нет — сбили
-        if (_started)
-        {
-            if (g.Finished)
-                return Verdict.Pending;
-            KnockedDown = true;
-            return Verdict.Rejected($"копание сбили: {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с");
-        }
+        if (now.Time - start.Time >= ApproachTimeout)
+            return Verdict.Rejected($"не дошли до ресурса за {ApproachTimeout.TotalSeconds:0} с ({Distance:0} м)");
 
-        // Ещё не начали: бежим — ждём; стоим — игра не даёт копать
+        // Бежим — ждём; дошли и стоим — игра не даёт копать
         if (_lastPosition is not { } last || now.Host.Position.HorizontalDistanceTo(last) > 0.1f)
         {
             _lastPosition = now.Host.Position;
@@ -476,8 +517,37 @@ public sealed class GatherAction(GroundItem resource) : GameAction
         }
 
         return now.Time - _standingSince!.Value >= StandPatience
-            ? Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0} с, а копать не начали — нет инструмента?")
+            ? Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0} с, а копание не началось")
             : Verdict.Pending;
+    }
+
+    private Verdict Digging(WorldState now, GatherProgress g)
+    {
+        if (g.Active)
+            return now.Time - _digStarted >= TimeSpan.FromMilliseconds(g.TotalMs) + DigReserve
+                ? Verdict.Rejected($"копка не кончилась за {(g.TotalMs + DigReserve.TotalMilliseconds) / 1000:0} с")
+                : Verdict.Pending;
+
+        // Полоска кончилась: дошла до конца — ждём добычу, нет — сбили
+        if (g.Finished)
+        {
+            Phase = GatherPhase.Dug;
+            _dugAt = now.Time;
+            _dig = now.Time - _digStarted;
+            return Verdict.Pending;
+        }
+
+        KnockedDown = true;
+        return Verdict.Rejected($"копание сбили: {g.ElapsedMs / 1000.0:0.0} из {g.TotalMs / 1000.0:0} с");
+    }
+
+    // «; путь 5,8 с, копка 7,7 с» — где ушло время; копку, которая ещё шла, считаем до этого снимка
+    private string Steps(WorldState now)
+    {
+        if (_walk is not { } walk)
+            return "";
+        var dig = _dig ?? now.Time - _digStarted;
+        return $"; путь {walk.TotalSeconds:0.0} с, копка {dig.TotalSeconds:0.0} с";
     }
 }
 
