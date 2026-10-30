@@ -500,11 +500,15 @@ public class WorldReaderTests
         Assert.Equal(new GatherProgress(true, 1800, 8000), Reader(p).Read().Host.Gather);
     }
 
-    [Fact]
-    public void GatherWorkFromListCountsOnlyWhileListIsNotEmpty()
+    [Theory]
+    [InlineData("pwclassic136")]
+    [InlineData("comeback146")]
+    [InlineData("comeback136")]
+    public void GatherWorkFromListCountsOnlyWhileListIsNotEmpty(string server)
     {
-        // client.exe PW Classic: [менеджер + 0x18] — массив работ уровня 1, [+0x24] — их число; копание — первая работа
-        var p = new ProfileCatalog().Load("pwclassic136").Data;
+        // Как в игре на всех трёх: [менеджер + 0x18] — массив работ уровня 1, [+0x24] — их число; копание — первая работа.
+        // Id ресурса (Comeback) клиент обычно не пишет — копание видно только по работе
+        var p = new ProfileCatalog().Load(server).Data;
         ComebackWorldWithMob(p);
         const uint host = 0x1002_0000, workMan = 0x2300_0000, array = 0x2302_0000, work = 0x2301_0000;
         _memory.WriteUInt32(host + p.Host.GatherElapsed, 42);

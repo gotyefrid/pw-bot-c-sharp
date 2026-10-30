@@ -547,13 +547,18 @@ public sealed class WorldReader
 
     private static Position ReadPosition(MemoryBlock b, uint offset) => new(b.Float(offset), b.Float(offset + 4), b.Float(offset + 8));
 
-    // Копает ли — как сама игра: по id ресурса (Comeback) или по текущей работе «сбор» (PW Classic); null — не знаем как.
+    // Копает ли — как сама игра: по работе «сбор» или по id ресурса; null — не знаем как. Обработчик «начало сбора» обычно
+    // заводит работу «сбор» и id не пишет — по одному id бот не видел копания, бросал ресурс и думал, что его выкопал другой.
     // Прежний байт «0 — копает» не годился: в воде он 0 и без копания — бот без конца «прерывал копание» и стоял
     private bool? IsGathering(MemoryBlock b, HostOffsets h)
     {
-        if (h.GatherTarget != 0)
-            return b.UInt32(h.GatherTarget) != 0;
+        bool? byTarget = h.GatherTarget == 0 ? null : b.UInt32(h.GatherTarget) != 0;
+        return byTarget == true ? true : HasGatherWork(b, h) ?? byTarget;
+    }
 
+    // Текущая работа персонажа — «сбор»; null — в профиле нет раскладки работ
+    private bool? HasGatherWork(MemoryBlock b, HostOffsets h)
+    {
         var work = _p.GatherWork;
         if (work.Current == 0 || h.WorkMan == 0)
             return null;

@@ -130,7 +130,7 @@ public sealed class HostOffsets
     public uint Location { get; init; }
     /// <summary>Указатель на объект скилла, который кастуется сейчас (0 — не кастует); номер — по <see cref="SkillOffsets.Id"/>.</summary>
     public uint CastingSkill { get; init; }
-    /// <summary>Id ресурса, который копается: не 0 — идёт копание (0 в профиле — поле не найдено, смотрим <see cref="ProfileData.GatherWork"/>).</summary>
+    /// <summary>Id ресурса, который копается: не 0 — идёт копание. Пишется не при каждом копании — главный признак <see cref="ProfileData.GatherWork"/>; 0 в профиле — поле не найдено.</summary>
     public uint GatherTarget { get; init; }
     /// <summary>Полоска копания: сколько мс прошло.</summary>
     public uint GatherElapsed { get; init; }
