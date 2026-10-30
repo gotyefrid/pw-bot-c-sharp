@@ -19,6 +19,12 @@ public enum ClientPatchState
     /// <summary>Исходный exe — можно применять правки (клиент должен быть закрыт: файл занят).</summary>
     Original,
 
+    /// <summary>
+    /// Правки прежнего рецепта (прошлая версия бота): можно пересобрать из оригинала — «Пропатчить» сделает это,
+    /// взяв оригинал из .orig рядом с exe.
+    /// </summary>
+    Outdated,
+
     /// <summary>Ни исходник, ни изменённый — другой билд (обновление игры?): рецепт не подходит.</summary>
     Unknown,
 
@@ -89,6 +95,8 @@ public static class ClientPatcher
         {
             case ClientPatchState.Patched:
                 throw new ClientPatchException("Правки уже стоят — делать нечего");
+            case ClientPatchState.Outdated:
+                throw new ClientPatchException("На диске правки прежней версии — этот файл надо пересобрать из оригинала (.orig)");
             case ClientPatchState.Unknown:
                 throw new ClientPatchException("Это не тот билд клиента (обновление игры?) — рецепт не подходит");
         }
@@ -127,6 +135,15 @@ public static class ClientPatcher
             return ClientPatchResult.AlreadyPatched;
         }
 
+        // На диске правки прежнего рецепта: файл не совпадёт ни с исходником, ни с эталоном. Оригинал берём
+        // из .orig (он же — то, что вернёт «Откат») и собираем текущий рецепт заново.
+        if (State(sha, recipe) == ClientPatchState.Outdated)
+        {
+            log.Info("на диске правки прежней версии — пересобираю по текущему рецепту");
+            original = OriginalFromBackup(clientPath, recipe);
+            sha = Sha256Hex(original);
+        }
+
         var patched = Build(original, sha, recipe);
 
         foreach (var edit in recipe.Edits)
@@ -159,6 +176,8 @@ public static class ClientPatcher
                 throw new ClientPatchException("Файл клиента не читается (запущен? нет прав?) — откат не выполнен");
             case ClientPatchState.Unknown:
                 throw new ClientPatchException($"В exe не наши правки (обновление клиента?) — откат не выполнен. Оригинал лежит рядом: {backup}");
+            case ClientPatchState.Outdated:
+                break; // правки прежнего рецепта — это тоже наши следы, оригинал из бэкапа их снимает
         }
 
         byte[] original;
@@ -208,6 +227,7 @@ public static class ClientPatcher
     private static ClientPatchState State(string sha, ClientPatchRecipe recipe)
         => Same(sha, recipe.PatchedSha256) ? ClientPatchState.Patched
          : Same(sha, recipe.OriginalSha256) ? ClientPatchState.Original
+         : recipe.SupersededSha256.Any(old => Same(sha, old)) ? ClientPatchState.Outdated
          : ClientPatchState.Unknown;
 
     /// <summary>Бэкап: один раз и навсегда. Через временный файл — прервётся, останется .tmp, но не битый .orig.</summary>
@@ -280,6 +300,33 @@ public static class ClientPatcher
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new BinaryReader(stream);
         return reader.ReadBytes((int)stream.Length);
+    }
+
+    /// <summary>
+    /// Оригинал для пересборки устаревших правок: .orig рядом с exe, и он обязан быть оригиналом этого рецепта.
+    /// Не тот файл или его нет — <see cref="ClientPatchException"/> с понятным следующим шагом.
+    /// </summary>
+    private static byte[] OriginalFromBackup(string clientPath, ClientPatchRecipe recipe)
+    {
+        var backup = BackupPath(clientPath);
+        if (!File.Exists(backup))
+            throw new ClientPatchException(
+                $"На диске правки прежней версии, а оригинала рядом нет ({backup}) — нужен чистый exe из обновления игры");
+
+        byte[] original;
+        try
+        {
+            original = ReadAll(backup);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            throw new ClientPatchException($"Бэкап не читается: {e.Message}");
+        }
+
+        if (!Same(Sha256Hex(original), recipe.OriginalSha256))
+            throw new ClientPatchException($"{backup} — не оригинал этого рецепта, пересобрать нельзя");
+
+        return original;
     }
 
     private static bool DigestMatches(byte[] data, ImageDigest spec)

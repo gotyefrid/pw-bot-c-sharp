@@ -25,6 +25,7 @@ public class ConnectCheckTests
 
     [Theory]
     [InlineData(Original, ConnectVerdict.NotPatched)]
+    [InlineData(Outdated, ConnectVerdict.OutdatedPatch)]
     [InlineData(Unknown, ConnectVerdict.UnknownBuild)]
     [InlineData(Missing, ConnectVerdict.UnknownBuild)]
     [InlineData(Unreadable, ConnectVerdict.UnknownBuild)]
@@ -37,6 +38,7 @@ public class ConnectCheckTests
 
     [Theory]
     [InlineData(Original)]
+    [InlineData(Outdated)]
     [InlineData(Unknown)]
     [InlineData(Missing)]
     [InlineData(Unreadable)]

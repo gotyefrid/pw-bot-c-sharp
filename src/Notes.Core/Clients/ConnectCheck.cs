@@ -14,6 +14,9 @@ public enum ConnectVerdict
     /// <summary>Правки не применены: подключиться можно только «всё равно».</summary>
     NotPatched,
 
+    /// <summary>Правки на диске от прежней версии бота: подключиться можно только «всё равно».</summary>
+    OutdatedPatch,
+
     /// <summary>Правки не проверить (файл не распознан, не найден, не читается): тоже только «всё равно».</summary>
     UnknownBuild,
 
@@ -53,6 +56,8 @@ public static class ConnectCheck
             {
                 ClientPatchState.Original => new ConnectDecision(ConnectVerdict.NotPatched,
                     "Клиент без патча. Закройте игру и нажмите «Пропатчить»."),
+                ClientPatchState.Outdated => new ConnectDecision(ConnectVerdict.OutdatedPatch,
+                    "Патч на клиенте от прежней версии бота. Закройте игру и нажмите «Пропатчить»."),
                 ClientPatchState.Unknown => new ConnectDecision(ConnectVerdict.UnknownBuild,
                     "Версия клиента не распознана (обновление игры?) — патч не проверить."),
                 ClientPatchState.Unreadable => new ConnectDecision(ConnectVerdict.UnknownBuild,

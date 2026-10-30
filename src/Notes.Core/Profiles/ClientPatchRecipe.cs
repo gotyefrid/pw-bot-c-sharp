@@ -15,6 +15,12 @@ public sealed class ClientPatchRecipe
     /// <summary>Ожидаемый sha256 после правок (hex): не сошёлся — рецепт неверен, файл не записывается.</summary>
     public string PatchedSha256 { get; init; } = "";
 
+    /// <summary>
+    /// Сборки прежнего рецепта (прошлая версия бота, например до смены фильтра окон): их бот узнаёт и
+    /// заменяет текущим рецептом, взяв оригинал из .orig рядом с exe. Пусто — узнавать нечего.
+    /// </summary>
+    public List<string> SupersededSha256 { get; init; } = new();
+
     /// <summary>Байтовые правки по смещениям в файле.</summary>
     public List<PatchEdit> Edits { get; init; } = new();
 

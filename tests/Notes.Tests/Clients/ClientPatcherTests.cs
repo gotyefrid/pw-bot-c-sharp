@@ -150,6 +150,117 @@ public class ClientPatcherTests
         }
     }
 
+    // ── Правки прежней версии бота: узнаём и пересобираем ───────────────────
+
+    /// <summary>
+    /// На диске правки прежнего рецепта (другая версия бота, например до смены фильтра окон): файл не совпадает
+    /// ни с исходником, ни с эталоном — бот узнаёт его по supersededSha256 и пересобирает из .orig.
+    /// </summary>
+    [Fact]
+    public void PatchFileRebuildsOutdatedPatchFromBackup()
+    {
+        var (file, recipe, expected) = BuildClient();
+
+        // Прежняя сборка: та же правка .text, но в .mgbase+0x48 другой стаб — так выглядел прошлый рецепт бота
+        var old = (byte[])file.Clone();
+        old[0x202] = 0xCC;
+        old[0x203] = 0xDD;
+        for (var i = 0; i < 8; i++)
+            old[MgRaw + 0x48 + i] = 0x91;
+        Digest(old).CopyTo(old, MgRaw + 0x24);
+
+        var current = new ClientPatchRecipe
+        {
+            OriginalSha256 = recipe.OriginalSha256,
+            PatchedSha256 = recipe.PatchedSha256,
+            SupersededSha256 = [Sha(old)],
+            Edits = recipe.Edits,
+            Digest = recipe.Digest,
+        };
+
+        var path = Write(old);
+        File.WriteAllBytes(ClientPatcher.BackupPath(path), file);
+        try
+        {
+            Assert.Equal(ClientPatchState.Outdated, ClientPatcher.Check(path, current));
+
+            Assert.Equal(ClientPatchResult.Patched, ClientPatcher.PatchFile(path, current, NullLogger.Instance));
+            Assert.Equal(expected, File.ReadAllBytes(path));
+            Assert.Equal(ClientPatchState.Patched, ClientPatcher.Check(path, current));
+
+            // Повторный «Пропатчить» ничего не делает, оригинал в .orig не потерян
+            Assert.Equal(ClientPatchResult.AlreadyPatched, ClientPatcher.PatchFile(path, current, NullLogger.Instance));
+            Assert.Equal(file, File.ReadAllBytes(ClientPatcher.BackupPath(path)));
+        }
+        finally
+        {
+            Cleanup(path);
+        }
+    }
+
+    /// <summary>Устаревшие правки без подходящего .orig пересобрать не из чего — понятная ошибка, файл не тронут.</summary>
+    [Fact]
+    public void PatchFileRefusesOutdatedPatchWithoutOriginal()
+    {
+        var (file, recipe, _) = BuildClient();
+        var old = (byte[])file.Clone();
+        old[0x202] = 0xCC;
+        old[0x203] = 0xDD;
+        Digest(old).CopyTo(old, MgRaw + 0x24);
+        var current = new ClientPatchRecipe
+        {
+            OriginalSha256 = recipe.OriginalSha256,
+            PatchedSha256 = recipe.PatchedSha256,
+            SupersededSha256 = [Sha(old)],
+            Edits = recipe.Edits,
+            Digest = recipe.Digest,
+        };
+
+        var path = Write(old);
+        try
+        {
+            var e = Assert.Throws<ClientPatchException>(() => ClientPatcher.PatchFile(path, current, NullLogger.Instance));
+            Assert.Contains("оригинала рядом нет", e.Message);
+            Assert.Equal(old, File.ReadAllBytes(path));
+        }
+        finally
+        {
+            Cleanup(path);
+        }
+    }
+
+    /// <summary>Откат снимает и устаревшие правки: оригинал тот же, что вернул бы прошлый рецепт.</summary>
+    [Fact]
+    public void RestoreRollsBackOutdatedPatch()
+    {
+        var (file, recipe, _) = BuildClient();
+        var old = (byte[])file.Clone();
+        old[0x202] = 0xCC;
+        old[0x203] = 0xDD;
+        Digest(old).CopyTo(old, MgRaw + 0x24);
+        var current = new ClientPatchRecipe
+        {
+            OriginalSha256 = recipe.OriginalSha256,
+            PatchedSha256 = recipe.PatchedSha256,
+            SupersededSha256 = [Sha(old)],
+            Edits = recipe.Edits,
+            Digest = recipe.Digest,
+        };
+
+        var path = Write(old);
+        File.WriteAllBytes(ClientPatcher.BackupPath(path), file);
+        try
+        {
+            ClientPatcher.Restore(path, current, NullLogger.Instance);
+            Assert.Equal(file, File.ReadAllBytes(path));
+            Assert.Equal(ClientPatchState.Original, ClientPatcher.Check(path, current));
+        }
+        finally
+        {
+            Cleanup(path);
+        }
+    }
+
     [Fact]
     public void PatchFileRefusesWhenFileIsBusy()
     {

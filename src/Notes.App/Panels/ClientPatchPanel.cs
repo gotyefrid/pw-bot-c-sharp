@@ -40,7 +40,7 @@ public sealed class ClientPatchPanel : ObservableObject
         _saved = saved;
         _dialogs = dialogs;
         _log = log;
-        PatchCommand = new RelayCommand(Patch, () => Recipe is not null && !Checking && State is ClientPatchState.Original or ClientPatchState.Missing);
+        PatchCommand = new RelayCommand(Patch, () => Recipe is not null && !Checking && State is ClientPatchState.Original or ClientPatchState.Missing or ClientPatchState.Outdated);
         RestorePatchCommand = new RelayCommand(Restore, () => Recipe is not null && !Checking && State == ClientPatchState.Patched);
         ChooseGameCommand = new RelayCommand(ChooseGame, () => Recipe is not null);
     }
@@ -96,6 +96,7 @@ public sealed class ClientPatchPanel : ObservableObject
     {
         ClientPatchState.Patched => "установлен",
         ClientPatchState.Original => "не установлен",
+        ClientPatchState.Outdated => "устарел",
         ClientPatchState.Unknown => "файл не распознан",
         ClientPatchState.Unreadable => "файл не читается",
         _ => "файл не найден",
@@ -106,6 +107,8 @@ public sealed class ClientPatchPanel : ObservableObject
     {
         ClientPatchState.Patched => "Правки стоят. Исходный файл сохранён рядом с exe как .orig — «Откат» вернёт его",
         ClientPatchState.Original => "Файл клиента исходный. Закройте игру и нажмите «Пропатчить»",
+        ClientPatchState.Outdated => "На диске правки прежней версии бота. Закройте игру и нажмите «Пропатчить» — "
+                                     + "бот соберёт текущий патч из сохранённого оригинала .orig",
         ClientPatchState.Unknown => "Файл не похож ни на исходный, ни на пропатченный — скорее всего, игра обновилась. "
                                     + "Для нового билда нужен новый рецепт, файл бот не тронет",
         ClientPatchState.Unreadable => "Файл клиента не прочитать — не хватает прав на папку игры?",

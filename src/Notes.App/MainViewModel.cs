@@ -268,7 +268,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private ConnectVerdict? _hintVerdict;
 
     public bool CanConnectAnyway => !IsConnected && _hintVerdict
-        is ConnectVerdict.NotPatched or ConnectVerdict.UnknownBuild or ConnectVerdict.ProtectorChanged or ConnectVerdict.ProtectorUnknown;
+        is ConnectVerdict.NotPatched or ConnectVerdict.OutdatedPatch or ConnectVerdict.UnknownBuild
+        or ConnectVerdict.ProtectorChanged or ConnectVerdict.ProtectorUnknown;
 
     private void ShowHint(ConnectVerdict? verdict, string text)
     {
