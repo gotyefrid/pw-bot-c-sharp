@@ -172,11 +172,37 @@ public class ServerCodeLogTests : IDisposable
         var watcher = Watcher();
         watcher.Scan(Noon);
 
-        // У исполняемого блока тело неподвижно, поэтому любое изменение — настоящая подмена
+        // У исполняемого блока первые байты — код, и он неподвижен, поэтому изменение здесь настоящая подмена
         _image.WriteBytes(0x3000, [0x55, 0x8B, 0xE4]);
         watcher.Scan(Noon.AddSeconds(2));
 
         Assert.Contains("\tизменился\t", Contents());
+    }
+
+    [Fact]
+    public void WorkAreaAfterTheCodeIsNotTakenForAnEdit()
+    {
+        EmptyMap();
+        Node(HeadNode, 0x2100, 0x2100, 0x2100, 0, 0, 0);
+        Node(0x2100, 0, HeadNode, 0, 7, 0x3000, 0x07);
+
+        // Как на живом клиенте: код до +0x15, дальше дескрипторы импорта, куда клиент вписывает адреса.
+        // Эти байты шевелятся постоянно, и считать их подменой кода нельзя — иначе файл забивается ложью.
+        var body = new byte[0x40];
+        body[0] = 0xE9;
+        "user32.dll\0"u8.ToArray().CopyTo(body, 0x10);
+        _image.WriteBytes(0x3000, body);
+
+        var watcher = Watcher();
+        watcher.Scan(Noon);
+
+        // Изменились только байты после отпечатка — события быть не должно
+        body[0x20] = 0xAA;
+        body[0x30] = 0xBB;
+        _image.WriteBytes(0x3000, body);
+        watcher.Scan(Noon.AddSeconds(2));
+
+        Assert.DoesNotContain("\tизменился\t", Contents());
     }
 
     [Fact]
