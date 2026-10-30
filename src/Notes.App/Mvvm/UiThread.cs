@@ -14,17 +14,4 @@ public static class UiThread
         else
             dispatcher.BeginInvoke(action);
     }
-
-    /// <summary>
-    /// Выполнить чуть позже, когда окно закончит текущее обновление (привязки, перестройку списков): то, что сказано окну
-    /// посреди его же обновления, оно пропускает.
-    /// </summary>
-    public static void Later(Action action)
-    {
-        var dispatcher = Application.Current?.Dispatcher;
-        if (dispatcher is null)
-            action();
-        else
-            dispatcher.BeginInvoke(action, System.Windows.Threading.DispatcherPriority.DataBind);
-    }
 }
