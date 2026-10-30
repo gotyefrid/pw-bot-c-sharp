@@ -139,9 +139,13 @@ public sealed class FarmPanel : ObservableObject
         get => Settings.Target.SelectedFarmPoint?.Name ?? StartCenter;
         set
         {
-            // Пересборка списка сбрасывает выбор — это не выбор пользователя
+            // Пересборка списка (или привязка раньше, чем пришёл список) сбрасывает выбор в пусто — это не выбор пользователя:
+            // в настройки не пишем, а поле в окне возвращаем к настоящему центру, иначе оно так и стоит пустым
             if (_syncingCenters || value is null)
+            {
+                ShowSelectedCenterLater();
                 return;
+            }
 
             Settings.Target.FarmCenter = value == StartCenter ? "" : value;
             FarmCenterChanged();
@@ -350,7 +354,17 @@ public sealed class FarmPanel : ObservableObject
         }
 
         FarmCenterChanged();
+        // Окно могло ещё не взять новый список — выбор показываем и после него
+        ShowSelectedCenterLater();
     }
+
+    // Только если центр есть в списке: иначе окно снова сбросит выбор в пусто, и так по кругу
+    private void ShowSelectedCenterLater()
+        => UiThread.Later(() =>
+        {
+            if (FarmCenters.Contains(SelectedFarmCenter))
+                OnPropertyChanged(nameof(SelectedFarmCenter));
+        });
 
     private void FarmCenterChanged()
     {
