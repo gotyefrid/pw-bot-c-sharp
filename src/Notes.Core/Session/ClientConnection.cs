@@ -171,7 +171,7 @@ public sealed class ClientConnection : IDisposable
         if (_serverCodeDirectory is null)
             return;
 
-        var watcher = ServerCodeLog.Start(_game, _profile.ServerCode, _serverCodeDirectory,
+        var watcher = ServerCodeLog.Start(_game, _game.MainModuleBase, _profile.ServerCode, _serverCodeDirectory,
             _logger.For(LogSources.Memory));
         // В окне и в общем логе этого не показываем: файл server-code-*.log говорит сам за себя
         _serverCode = watcher;

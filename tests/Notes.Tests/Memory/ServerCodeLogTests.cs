@@ -264,8 +264,28 @@ public class ServerCodeLogTests : IDisposable
     [Fact]
     public void NoOffsetsMeansNoWatcher()
     {
-        Assert.Null(ServerCodeLog.Start(_image, null, _directory, NullLogger.Instance));
-        Assert.Null(ServerCodeLog.Start(_image, new Notes.Core.Profiles.ServerCodeOffsets(), _directory, NullLogger.Instance));
+        Assert.Null(ServerCodeLog.Start(_image, 0x400000, null, _directory, NullLogger.Instance));
+        Assert.Null(ServerCodeLog.Start(_image, 0x400000, new Notes.Core.Profiles.ServerCodeOffsets(), _directory,
+            NullLogger.Instance));
+    }
+
+    [Fact]
+    public void MapHeadIsTakenFromTheModuleBaseNotFromTheProfile()
+    {
+        // В профиле смещение от начала модуля (у клиента ASLR); читать надо базу + смещение.
+        // Ошибка, которую этот тест закрывает: карту искали по самому смещению, и на живом клиенте она «не читалась».
+        var offsets = new Notes.Core.Profiles.ServerCodeOffsets { MapHead = 0x1000, OwnKeyMin = OwnKeyMin };
+        EmptyMap();
+        Node(HeadNode, 0x2100, 0x2100, 0x2100, 0, 0, 0);
+        Node(0x2100, 0, HeadNode, 0, 7, 0x3000, 0x07);
+        _image.WriteBytes(0x3000, [0x55]);
+
+        // База 0 — карта по адресу 0x1000, как в профиле; с ненулевой базой читалось бы мимо
+        using var watcher = ServerCodeLog.Start(_image, 0x0, offsets, _directory, NullLogger.Instance);
+
+        Assert.NotNull(watcher);
+        watcher!.Scan(Noon);
+        Assert.Contains("\tновый\t", Contents());
     }
 
     [Fact]

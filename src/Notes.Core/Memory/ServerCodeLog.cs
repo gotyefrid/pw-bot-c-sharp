@@ -77,14 +77,18 @@ public sealed class ServerCodeLog : IDisposable
     /// <summary>
     /// Начать следить. Ничего не делает, если в профиле не задана карта: на этом клиенте механизм не проверяли.
     /// </summary>
-    public static ServerCodeLog? Start(IMemory memory, Profiles.ServerCodeOffsets? offsets, string directory,
-        Logging.ILogger log)
+    /// <param name="moduleBase">
+    /// Адрес, по которому загружен exe клиента. В профиле смещения — от начала модуля (у клиента ASLR),
+    /// а читать надо настоящий адрес: база + смещение. Из памяти модуля вычислить нельзя — только снаружи.
+    /// </param>
+    public static ServerCodeLog? Start(IMemory memory, uint moduleBase, Profiles.ServerCodeOffsets? offsets,
+        string directory, Logging.ILogger log)
     {
         // Карта не настроена — молчим: в остальных профилях ключ пустой намеренно, это не ошибка
         if (offsets is null || offsets.MapHead == 0)
             return null;
 
-        var watcher = new ServerCodeLog(memory, offsets.MapHead, offsets.OwnKeyMin, directory, log);
+        var watcher = new ServerCodeLog(memory, moduleBase + offsets.MapHead, offsets.OwnKeyMin, directory, log);
         watcher.Start();
         return watcher;
     }
