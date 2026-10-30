@@ -235,6 +235,31 @@ public class ActionRunnerTests
     }
 
     [Fact]
+    public void GatherIgnoresLootOfPreviousDigWhileWalking()
+    {
+        // Как в игре 30.10: прошлый ресурс засчитан по пропаже с земли, его добыча упала в сумку, когда шли к следующему
+        var gather = new GatherAction(Ore(19));
+        _runner.Submit(Bot, gather, _world.Snapshot());
+        _world.Bag.Add(new InventoryItem(0, 1834, 0, 4, null, null));
+
+        Assert.Empty(_runner.Update(Run(0.3)));
+        Assert.Equal(GatherPhase.Approach, gather.Phase);
+    }
+
+    [Fact]
+    public void GatherResourceTakenByOtherWhileWalkingIsCancelled()
+    {
+        // Ресурс пропал, а мы ещё не копали — его выкопал другой: не ошибка и не «выкопали», просто берём следующий
+        _runner.Submit(Bot, new GatherAction(Ore(19)), _world.Snapshot());
+        Assert.Empty(_runner.Update(Run(1)));
+        _world.Ground.Clear();
+
+        var outcome = Single(_runner.Update(Run(1)));
+        Assert.Equal(ActionStatus.Cancelled, outcome.Status);
+        Assert.Contains("выкопал кто-то другой", outcome.ToString());
+    }
+
+    [Fact]
     public void GatherConfirmationTellsWalkAndDigTime()
     {
         // 2 с бежали, 5 с копали, добыча пришла — в логе видно, куда ушло время

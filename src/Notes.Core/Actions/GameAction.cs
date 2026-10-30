@@ -476,18 +476,31 @@ public sealed class GatherAction(GroundItem resource) : GameAction
 
     public override Verdict Check(WorldState start, WorldState now)
     {
+        var g = now.Host.Gather;
+        if (Phase == GatherPhase.Approach && g is { Active: true })
+        {
+            Phase = GatherPhase.Digging;
+            _digStarted = now.Time;
+            _walk = now.Time - start.Time;
+        }
+
+        // С полоской добыча и пропажа ресурса считаются только после начала копки: пока идём, в сумку падает добыча
+        // прошлой копки (приходит ~2 с после того, как ресурс пропал), а пропавший ресурс выкопал кто-то другой
+        var digging = g is null || Phase != GatherPhase.Approach;
         var before = start.Inventory.Sum(i => i.Count);
         var after = now.Inventory.Sum(i => i.Count);
-        if (after > before)
+        if (digging && after > before)
             return Verdict.Confirmed($"в сумке +{after - before}{Steps(now)}");
         if (!now.GroundItems.Any(i => i.Id == Item.Id))
-            return Verdict.Confirmed($"ресурс пропал с земли{Steps(now)}");
-        if (now.Host.Gather is not { } g)
+            return digging
+                ? Verdict.Confirmed($"ресурс пропал с земли{Steps(now)}")
+                : Verdict.Cancelled("ресурс пропал, пока шли, — выкопал кто-то другой");
+        if (g is null)
             return Verdict.Pending;
 
         return Phase switch
         {
-            GatherPhase.Approach => Approach(start, now, g),
+            GatherPhase.Approach => Approach(start, now),
             GatherPhase.Digging => Digging(now, g),
             _ => now.Time - _dugAt >= LootWait
                 ? Verdict.Rejected($"выкопали, а добыча не пришла за {LootWait.TotalSeconds:0} с")
@@ -495,16 +508,8 @@ public sealed class GatherAction(GroundItem resource) : GameAction
         };
     }
 
-    private Verdict Approach(WorldState start, WorldState now, GatherProgress g)
+    private Verdict Approach(WorldState start, WorldState now)
     {
-        if (g.Active)
-        {
-            Phase = GatherPhase.Digging;
-            _digStarted = now.Time;
-            _walk = now.Time - start.Time;
-            return Verdict.Pending;
-        }
-
         if (now.Time - start.Time >= ApproachTimeout)
             return Verdict.Rejected($"не дошли до ресурса за {ApproachTimeout.TotalSeconds:0} с ({Distance:0} м)");
 
