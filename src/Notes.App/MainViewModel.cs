@@ -56,11 +56,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     // Вопросы и сообщения пользователю — окна бота (MessageBox, «Открыть»/«Сохранить как»)
     private readonly IDialogs _dialogs;
 
+    // Куда пишутся файлы разбора (логи бота и код, присланный сервером): %exe%\logs
+    private readonly string _logsDirectory;
+
     public MainViewModel(string appDirectory, IDialogs dialogs)
     {
         _dialogs = dialogs;
+        _logsDirectory = Path.Combine(appDirectory, "logs");
         var ring = new RingBufferSink(LogPanel.MaxLines);
-        var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(Path.Combine(appDirectory, "logs")));
+        var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(_logsDirectory));
         ring.Added += entry => UiThread.Run(() => Log.Add(entry));
         _logger = logger;
         _log = logger.For(LogSources.Window);
@@ -584,7 +588,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         try
         {
-            var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger);
+            var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger, _logsDirectory);
             _spots.Server = _profile.Id;
             // Блокноту ресурсов и логу урона — каждый снимок, прямо в потоке снимков; окну — только последний
             connection.WorldUpdated += _spots.Observe;

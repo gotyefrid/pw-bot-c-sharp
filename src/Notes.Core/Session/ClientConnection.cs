@@ -51,6 +51,8 @@ public sealed class ClientConnection : IDisposable
     private readonly GameRoots _roots;
     private readonly ClientLock? _clientLock;
     private readonly WorldMonitor _monitor;
+    private readonly string? _serverCodeDirectory;
+    private ServerCodeLog? _serverCode;
     private volatile SkillNames _skillNames = SkillNames.Empty;
     private volatile SkillIcons _skillIcons = SkillIcons.Empty;
     private volatile IconAtlas _macroIcons = IconAtlas.Empty;
@@ -58,12 +60,14 @@ public sealed class ClientConnection : IDisposable
     private Task _stopping = Task.CompletedTask;
     private bool _disposed;
 
-    private ClientConnection(GameProcess game, ClientLock? clientLock, ProfileData profile, Logger logger)
+    private ClientConnection(GameProcess game, ClientLock? clientLock, ProfileData profile, Logger logger,
+        string? serverCodeDirectory)
     {
         _game = game;
         _clientLock = clientLock;
         _profile = profile;
         _logger = logger;
+        _serverCodeDirectory = serverCodeDirectory;
         _log = logger.For(LogSources.Connection);
         if (clientLock is null)
             _log.Warning($"PID {game.Pid} уже подключён в другом окне — не запускайте двух ботов на один клиент");
@@ -87,12 +91,16 @@ public sealed class ClientConnection : IDisposable
     }
 
     /// <summary>Открыть клиент для чтения. Снимки пойдут после <see cref="Start"/> — сначала подписаться на события.</summary>
-    public static ClientConnection Open(int pid, ProfileData profile, Logger logger)
+    /// <param name="serverCodeDirectory">
+    /// Куда писать <c>server-code-ГГГГ-ММ-ДД.log</c> — всё, что сервер присылает клиенту для исполнения.
+    /// null — не писать (тесты, инструменты).
+    /// </param>
+    public static ClientConnection Open(int pid, ProfileData profile, Logger logger, string? serverCodeDirectory = null)
     {
         var game = GameProcess.Open(pid);
         try
         {
-            return new ClientConnection(game, ClientLock.TryTake(pid), profile, logger);
+            return new ClientConnection(game, ClientLock.TryTake(pid), profile, logger, serverCodeDirectory);
         }
         catch
         {
@@ -151,6 +159,22 @@ public sealed class ClientConnection : IDisposable
     {
         _monitor.Start();
         LoadSkillsInBackground();
+        StartServerCodeLog();
+    }
+
+    /// <summary>
+    /// Слежение за кодом, который сервер присылает клиенту. Только чтение памяти: карта живёт до конца сеанса,
+    /// по одному ключу хранится последнее тело. Карта не задана в профиле — не начинаем и не жалуемся.
+    /// </summary>
+    private void StartServerCodeLog()
+    {
+        if (_serverCodeDirectory is null)
+            return;
+
+        var watcher = ServerCodeLog.Start(_game, _profile.ServerCode, _serverCodeDirectory,
+            _logger.For(LogSources.Memory));
+        // В окне и в общем логе этого не показываем: файл server-code-*.log говорит сам за себя
+        _serverCode = watcher;
     }
 
     /// <summary>
@@ -290,6 +314,7 @@ public sealed class ClientConnection : IDisposable
             RemoveWindowHandler();
         else
             _log.Warning($"Бот не остановился за {StopWait.TotalSeconds:0} с — отключаюсь, он закроет вызовы сам, когда закончит ход");
+        _serverCode?.Dispose();
         _monitor.Dispose();
         _game.Dispose();
         _clientLock?.Dispose();
