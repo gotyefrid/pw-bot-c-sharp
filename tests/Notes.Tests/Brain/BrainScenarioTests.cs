@@ -776,6 +776,47 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void FarMobGivesPetTimeToRunBeforeOrderIsRepeated()
+    {
+        // Цель у пета меняется, только когда он добежал: моб в 38 м от пета — бежать ~9 с, повторять приказ раньше незачем
+        _settings.Target.KillMobs = true;
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1);
+        var pet = _world.Npcs.Single(n => n.Kind == NpcKind.Pet);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 40, hp: 100).Wid;
+
+        Tick();
+        Assert.Equal("pet-attack 80000001", LastCall);
+
+        _world.Replace(pet, p => p with { State = NpcState.Moving });
+        for (var i = 0; i < 9; i++)
+            Tick(1);
+        Assert.Single(_actions.Calls, c => c.StartsWith("pet-attack"));
+
+        // Добежал и бьёт — цель у пета наш моб: приказ подтверждён, повторов нет
+        _world.Replace(pet, p => p with { State = NpcState.Casting, TargetWid = 0x80000001 });
+        Tick(1);
+        Tick(6);
+        Assert.Single(_actions.Calls, c => c.StartsWith("pet-attack"));
+    }
+
+    [Fact]
+    public void NearMobOrderIsRepeatedSoonIfPetIgnoresIt()
+    {
+        // Моб рядом с петом: срок короткий (4 с) — пет не послушался, через 5 с приказ повторяется
+        _settings.Target.KillMobs = true;
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 3, hp: 100).Wid;
+
+        Tick();
+        Tick(4.25);
+        Tick(1);
+
+        Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("pet-attack")));
+    }
+
+    [Fact]
     public void MobGivenUpAfterTimeout()
     {
         _settings.Target.KillMobs = true;

@@ -667,15 +667,28 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
     }
 }
 
-/// <summary>Приказ пету атаковать. Подтверждение — у пета в списке мобов цель = этот моб.</summary>
-public sealed class PetAttackAction(uint targetWid) : GameAction
+/// <summary>
+/// Приказ пету атаковать. Подтверждение — у пета в списке мобов цель = этот моб. Цель у пета меняется, только когда он
+/// добежал до моба (замер на 1.3.6 и 1.4.6: перед первым ударом или через ~1.5 с после него), поэтому срок — по тому,
+/// сколько пету бежать.
+/// </summary>
+/// <param name="distance">Сколько метров от пета до моба при приказе; null — пет не найден в списке, срок обычный.</param>
+public sealed class PetAttackAction(uint targetWid, float? distance = null) : GameAction
 {
+    // Пет бежит 4.5–5 м/с — считаем медленнее, с запасом; плюс на разворот и на то, что цель меняется после первого удара
+    private const float PetSpeed = 4f;
+    private static readonly TimeSpan Reserve = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan MinTimeout = TimeSpan.FromSeconds(4);
+    private static readonly TimeSpan UnknownDistanceTimeout = TimeSpan.FromSeconds(6);
+
     public uint TargetWid { get; } = targetWid;
-    public override string Name => $"пет атакует 0x{TargetWid:X8}";
+    public float? Distance { get; } = distance;
+    public override string Name => $"пет атакует 0x{TargetWid:X8}{(Distance is { } d ? $" ({d:0} м от пета)" : "")}";
     public override ActionSlot Slot => ActionSlot.PetOrder;
 
-    // В игре подтверждение пришло через 3.1 с: пет сначала разворачивается и бежит к цели
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(6);
+    public override TimeSpan Timeout => Distance is { } d
+        ? TimeSpan.FromSeconds(Math.Max(MinTimeout.TotalSeconds, d / PetSpeed + Reserve.TotalSeconds))
+        : UnknownDistanceTimeout;
 
     public override string? Precondition(WorldState now) => now.Pet is { IsSummoned: true } ? null : "пет не призван";
 

@@ -237,7 +237,9 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
         {
             _lastPetOrder = c.Now;
             // Прошлый приказ ещё ждёт подтверждения, но на другого моба (бой переключился) — заменяем, не ждём 6 с
-            var order = new PetAttackAction(mob.Wid);
+            // Срок подтверждения — по тому, сколько пету бежать до моба
+            var petNpc = w.Npcs.FirstOrDefault(n => n.Wid == w.Pet?.ActiveWid);
+            var order = new PetAttackAction(mob.Wid, petNpc?.Position.DistanceTo(mob.Position));
             var stale = c.Mine.OfType<PetAttackAction>().Any(p => p.TargetWid != mob.Wid);
             if (stale ? c.Replace(order) is SubmitStatus.Sent : c.Submit(order))
                 return true;
