@@ -127,7 +127,7 @@ public class RouteScenarioTests
         Tick();
 
         Assert.Equal(["gather C0000003"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message == "Копаю Железная руда у точки 1/2, 30,0 м");
+        Assert.Contains(_log, e => e.Message == "Бегу к Железная руда у точки 1/2, 30,0 м");
     }
 
     [Fact]

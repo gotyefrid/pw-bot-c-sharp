@@ -25,6 +25,10 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     private const int KnockdownsToSkip = 3;
 
     private readonly Dictionary<uint, DateTime> _skipped = [];
+
+    // Какой шаг копания уже записан в лог — пишем каждый шаг один раз
+    private GatherAction? _logged;
+    private GatherPhase _loggedPhase;
     private readonly Dictionary<uint, int> _knockdowns = [];
 
     public string Name => "сбор";
@@ -49,6 +53,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
 
         if (pending is not null)
         {
+            LogStep(c, pending);
             Status = Step(w, pending);
             return true;
         }
@@ -75,10 +80,34 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
             c.Say($"gather-into-stack-{resource.Id:X8}", $"Сумка полна, но добыча {resource.Name} ляжет в начатую стопку — копаю", seconds: 600);
 
         Status = $"иду к {resource.Name}, {resource.Offset.Direct:0} м";
-        var sent = c.Send(new GatherAction(resource));
+        var gather = new GatherAction(resource);
+        var sent = c.Send(gather);
         if (sent == SubmitStatus.Sent)
-            c.Log.Info($"Копаю {resource.Name}{_scope.Where(c)}, {resource.Offset}");
+        {
+            c.Log.Info($"Бегу к {resource.Name}{_scope.Where(c)}, {resource.Offset}");
+            (_logged, _loggedPhase) = (gather, GatherPhase.Approach);
+        }
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+    }
+
+    // Новый шаг копания — строка в лог: «Копаю … дошёл за», «Выкопал … жду добычу»
+    private void LogStep(BrainContext c, GatherAction gather)
+    {
+        if (ReferenceEquals(_logged, gather) && _loggedPhase == gather.Phase)
+            return;
+
+        (_logged, _loggedPhase) = (gather, gather.Phase);
+        var name = gather.Item.Name;
+        switch (gather.Phase)
+        {
+            case GatherPhase.Digging:
+                var bar = c.World.Host.Gather is { TotalMs: > 0 } g ? $", полоска {g.TotalMs / 1000.0:0} с" : "";
+                c.Log.Info($"Копаю {name}: дошёл за {gather.WalkTime?.TotalSeconds:0.0} с{bar}");
+                break;
+            case GatherPhase.Dug:
+                c.Log.Info($"Выкопал {name} за {gather.DigTime?.TotalSeconds:0.0} с, жду добычу");
+                break;
+        }
     }
 
     // Какой шаг копания идёт — для строки состояния
@@ -155,6 +184,9 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         {
             case ActionStatus.Confirmed:
                 _knockdowns.Remove(id);
+                // Добыча пришла в том же снимке, где кончилась копка, — шага «жду добычу» не было, «выкопал» пишем здесь
+                if (gather.DigTime is { } dig && !(ReferenceEquals(_logged, gather) && _loggedPhase == GatherPhase.Dug))
+                    c.Log.Info($"Выкопал {gather.Item.Name} за {dig.TotalSeconds:0.0} с");
                 break;
             case ActionStatus.Cancelled:
                 break;

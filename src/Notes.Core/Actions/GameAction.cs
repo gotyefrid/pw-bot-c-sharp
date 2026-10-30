@@ -469,6 +469,12 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     /// <summary>Копание началось и оборвалось раньше конца полоски (ударили, сдвинули).</summary>
     public bool KnockedDown { get; private set; }
 
+    /// <summary>Сколько шли до начала копки; null — копка не началась.</summary>
+    public TimeSpan? WalkTime => _walk;
+
+    /// <summary>Сколько копали; null — копка не кончилась.</summary>
+    public TimeSpan? DigTime => _dig;
+
     private Position? _lastPosition;
     private DateTime? _standingSince;
     private DateTime _digStarted, _dugAt;
@@ -551,7 +557,7 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     {
         if (_walk is not { } walk)
             return "";
-        var dig = _dig ?? now.Time - _digStarted;
+        var dig = _dig ??= now.Time - _digStarted;
         return $"; путь {walk.TotalSeconds:0.0} с, копка {dig.TotalSeconds:0.0} с";
     }
 }

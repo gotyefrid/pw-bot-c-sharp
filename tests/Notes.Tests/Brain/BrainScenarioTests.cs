@@ -1418,6 +1418,30 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void GatherStepsGoToLog()
+    {
+        // Бегу → копаю → выкопал: каждый шаг — одна строка, когда он начался
+        GatherWithPickaxe();
+        var ore = AddOre(0xC0000001, 12);
+        _world.Gather = new GatherProgress(false, 0, 0);
+        Tick();
+        _world.Position = new Position(5, 0, 0);
+        Tick(1);
+        _world.Position = new Position(10, 0, 0);
+        _world.Gather = new GatherProgress(true, 100, 7000);
+        Tick(1);
+        Tick(3);
+        _world.Gather = new GatherProgress(false, 7000, 7000);
+        Tick(4);
+        _world.Ground.Remove(ore);
+        Tick(1);
+
+        var steps = _log.Select(e => e.Message).Where(m => m.Contains("Железная руда") && !m.StartsWith("собрать")).ToList();
+        Assert.Equal(["Бегу к Железная руда, 12,0 м", "Копаю Железная руда: дошёл за 2,0 с, полоска 7 с",
+            "Выкопал Железная руда за 7,0 с, жду добычу"], steps);
+    }
+
+    [Fact]
     public void AttackWhileGatheringDropsItAndFightsThenDigsAgain()
     {
         GatherWithPickaxe();
