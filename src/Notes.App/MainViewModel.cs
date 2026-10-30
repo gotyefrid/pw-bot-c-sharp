@@ -465,9 +465,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var keep = _selectedClient?.Pid;
         var source = new SystemClientSource(_profile.Data);
         var processes = source.FindProcesses();
-        var game = Patch.Recipe is null ? null : Patch.GamePath;
+        var game = Patch.GamePath;
         var clients = ClientList.Build(source, processes, game);
-        if (Patch.Recipe is not null && game is null && ClientList.GuessGame(clients) is { } guessed)
+        if (game is null && ClientList.GuessGame(clients) is { } guessed)
         {
             // Список перестроится уже по «Игре»: Adopt → GameChanged → сюда же
             Patch.Adopt(guessed);
@@ -522,7 +522,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var alive = SystemClientSource.Running().Any(c => c.Pid == client.Pid);
         var recipe = Patch.Recipe;
         // «Игра» ещё не задана (клиенты сервера из разных exe) — ею становится exe клиента, к которому подключаемся
-        if (alive && recipe is not null && Patch.GamePath is null && client.ExePath is { } path)
+        if (alive && Patch.GamePath is null && client.ExePath is { } path)
             Patch.Adopt(path);
 
         // Файл «Игры» — прямо сейчас, а не по прошлой проверке: его могли пропатчить или обновить после ⟳

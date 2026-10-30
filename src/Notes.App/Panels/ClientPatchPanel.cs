@@ -42,7 +42,7 @@ public sealed class ClientPatchPanel : ObservableObject
         _log = log;
         PatchCommand = new RelayCommand(Patch, () => Recipe is not null && !Checking && State is ClientPatchState.Original or ClientPatchState.Missing or ClientPatchState.Outdated);
         RestorePatchCommand = new RelayCommand(Restore, () => Recipe is not null && !Checking && State == ClientPatchState.Patched);
-        ChooseGameCommand = new RelayCommand(ChooseGame, () => Recipe is not null);
+        ChooseGameCommand = new RelayCommand(ChooseGame);
     }
 
     /// <summary>Рецепт текущего сервера; null — серверу правки не нужны, строка патча в окне скрыта.</summary>
@@ -122,7 +122,7 @@ public sealed class ClientPatchPanel : ObservableObject
 
     private ConnectionSettings Settings => _settings();
 
-    /// <summary>«Игра» сервера — exe клиента; null — не задана.</summary>
+    /// <summary>«Игра» сервера — exe клиента, у каждого сервера свой (есть и у серверов без патча); null — не задана.</summary>
     public string? GamePath => Settings.ClientPaths.TryGetValue(_profile().Id, out var path) ? path : null;
 
     /// <summary>Что написано в строке «Игра»: путь или приглашение выбрать.</summary>

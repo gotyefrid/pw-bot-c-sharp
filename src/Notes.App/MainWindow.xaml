@@ -121,11 +121,9 @@
               <ComboBox Grid.Column="1" Grid.ColumnSpan="2" ItemsSource="{Binding Servers}" SelectedItem="{Binding SelectedServer}"
                         DisplayMemberPath="Name" IsEnabled="{Binding CanChoose}" />
 
-              <!-- Игра и патч: только у серверов с рецептом правок -->
-              <TextBlock Grid.Row="1" Text="Игра" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0"
-                         Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}" />
-              <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0"
-                         Visibility="{Binding Patch.ShowPatch, Converter={StaticResource Visible}}">
+              <!-- Игра — у всех серверов (свой exe у каждого); патч — только у серверов с рецептом правок -->
+              <TextBlock Grid.Row="1" Text="Игра" Style="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,8,10,0" />
+              <DockPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="0,8,0,0">
                 <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Выбрать…" Margin="6,0,0,0"
                         Command="{Binding Patch.ChooseGameCommand}" IsEnabled="{Binding CanChoose}"
                         ToolTip="Указать exe клиента этого сервера — в списке «Клиент» будут только запущенные из него" />
