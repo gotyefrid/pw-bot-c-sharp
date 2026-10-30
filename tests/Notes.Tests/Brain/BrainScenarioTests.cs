@@ -982,6 +982,38 @@ public class BrainScenarioTests
         Assert.Equal("pickup-approach C0000001", LastCall);
     }
 
+    [Fact]
+    public void LootWaitsForDropThatFallsAfterDeath()
+    {
+        // Лут ложится на землю чуть позже, чем моб помечен мёртвым: на снимке смерти земля ещё пуста — к следующему мобу не бежим
+        KillMobForLoot();
+        _world.TargetWid = 0;
+        _world.AddMob(0x80000002, "Волк", 20, hp: 100);
+        Tick();
+        Assert.Equal("лут: жду, пока упадёт", Brain.Status);
+
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3044, GroundItemKind.Money, new Position(3, 0, 0), "Монета"));
+        Tick();
+
+        Assert.Equal("pickup-approach C0000001", LastCall);
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void NothingDroppedMeansNextMobAfterShortWait()
+    {
+        KillMobForLoot();
+        _world.TargetWid = 0;
+        _world.AddMob(0x80000002, "Волк", 20, hp: 100);
+        Tick();
+        Tick();
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+
+        Tick();
+        Tick();
+        Assert.Equal("select 80000002", LastCall);
+    }
+
     [Theory]
     [InlineData(5, false)]
     [InlineData(10, true)]

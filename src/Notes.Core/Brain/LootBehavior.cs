@@ -16,6 +16,9 @@ namespace Notes.Core.Brain;
 public sealed class LootBehavior : IBehavior
 {
     private static readonly TimeSpan LootLimit = TimeSpan.FromSeconds(40);
+    // Лут ложится на землю чуть позже, чем моб помечен мёртвым (замер: 0–0,1 с), а смерть бой видит на том же снимке, что и
+    // лут: пусто на первом снимке — ещё не «ничего не упало». Ждём ещё снимок-другой, потом уже идём дальше
+    private static readonly TimeSpan DropWait = TimeSpan.FromSeconds(0.5);
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
     private const int ItemFailuresToPause = 2;
     private static readonly TimeSpan ItemPause = TimeSpan.FromMinutes(3);
@@ -90,6 +93,12 @@ public sealed class LootBehavior : IBehavior
             .FirstOrDefault();
         if (item is null)
         {
+            if (_attempts == 0 && c.Now - _started < DropWait)
+            {
+                Status = "лут: жду, пока упадёт";
+                return true;
+            }
+
             if (_attempts > 0)
                 c.Log.Info($"Лут: подобрано {_attempts}, больше нечего");
             return Done(c);
