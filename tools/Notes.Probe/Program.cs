@@ -72,6 +72,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => ScanCommands.ScanStrings(profile, game, rest));
                 case "protector":
                     return Protector(rest);
+                case "code":
+                    return WithClient(rest, (profile, game) => CodeCommands.Run(profile, game, rest));
             }
         }
         catch (Exception e)
@@ -104,6 +106,7 @@ internal static class Program
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
         Console.WriteLine("  protector [exe игры] сторож клиента (pwprotector) рядом с exe: путь, размер, дата, sha256 и сверка с профилем");
+        Console.WriteLine(CodeCommands.Usage);
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");

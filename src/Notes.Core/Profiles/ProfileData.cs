@@ -39,6 +39,8 @@ public sealed class ProfileData
     public GatherWorkOffsets GatherWork { get; init; } = new();
     public MoveTypes MoveTypes { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
+    /// <summary>Карта пришедшего с сервера кода (<see cref="ServerCodeOffsets"/>): null — на этом клиенте не проверяли.</summary>
+    public ServerCodeOffsets? ServerCode { get; init; }
 
     /// <summary>Функции клиента для прямого вызова, ключи — <see cref="GameFunctions"/>.</summary>
     public Dictionary<string, GameFunction> Functions { get; init; } = new();
@@ -410,6 +412,26 @@ public sealed class AttackOffsets
     public uint TargetFlags { get; init; }
     /// <summary>В цели: урон.</summary>
     public uint TargetDamage { get; init; }
+}
+
+/// <summary>
+/// Карта пришедшего с сервера кода: приёмник серверных команд античита (1.4.6 — 0x4B9300) регистрирует каждый блок в
+/// std::map, ключ — слово из пакета, значение — исполняемый буфер. Карта живёт до конца сеанса, поэтому бот её только
+/// читает (Probe code): что сервер прислал и когда. <see cref="MapHead"/> 0 — не проверено на этом клиенте.
+/// </summary>
+public sealed class ServerCodeOffsets
+{
+    /// <summary>
+    /// Смещение головы карты от начала модуля (как rva у функций — у клиента ASLR): VA − база образа (0x400000).
+    /// Найти в новом билде: приёмник — по прологу 55 8B EC 83 E4 F8 83 EC 14 53 56 8B 75 0C 57 83 FE 02 0F 82
+    /// (1.4.6 — 0x4B9300), он берёт критическую секцию по 0xCF1A20 и зовёт 0x4B8CC0; поиск по ключу (0x4BA140) и
+    /// вставка (0x4B9FF0) работают с одним и тем же ecx — это и есть голова (в 1.4.6 VA 0xCF1A3C).
+    /// </summary>
+    public uint MapHead { get; init; }
+    /// <summary>Ключ от этого и выше — свои команды клиента (0xFFEA = 65514), ниже — присланные сервером.</summary>
+    public uint OwnKeyMin { get; init; }
+    /// <summary>Сколько байт кода читать из каждой записи (потом ищем в них строки).</summary>
+    public uint CodeBytes { get; init; }
 }
 
 /// <summary>ID скиллов класса (пока друид).</summary>
