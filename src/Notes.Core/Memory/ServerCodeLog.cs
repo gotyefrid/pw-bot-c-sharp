@@ -197,7 +197,8 @@ public sealed class ServerCodeLog : IDisposable
             _known.Remove(key);
         }
 
-        if (lines.Count > 0)
+        // Заголовок пишем и тогда, когда событий нет: иначе по пустой папке не понять, работает лог или нет
+        if (lines.Count > 0 || !_headerWritten)
             Write(now, entries, lines);
     }
 

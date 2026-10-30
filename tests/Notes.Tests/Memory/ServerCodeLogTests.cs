@@ -247,14 +247,18 @@ public class ServerCodeLogTests : IDisposable
     }
 
     [Fact]
-    public void NothingIsWrittenWhenThereIsNothingToSay()
+    public void EmptyMapStillLeavesAHeaderSoItIsClearTheLogWorks()
     {
         EmptyMap();
         var watcher = Watcher();
 
         watcher.Scan(Noon);
 
-        Assert.False(File.Exists(Path.Combine(_directory, "server-code-2026-10-30.log")));
+        var text = Contents();
+        Assert.Contains("# Сессия 2026-10-30 12:00:00: записей 0, с сервера 0, свои 0", text);
+        // Заголовок один: второй проход без событий ничего не добавляет
+        watcher.Scan(Noon.AddSeconds(2));
+        Assert.Single(Contents().Split('\n'), l => l.StartsWith("# Сессия", StringComparison.Ordinal));
     }
 
     [Fact]
