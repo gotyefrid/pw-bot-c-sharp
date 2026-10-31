@@ -74,6 +74,19 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void OpenBankIsRefusedWhereClientHasNoSuchButton()
+    {
+        // PW Classic: кнопки «Банк» в сумке нет, в профиле нет и функции — отказ с причиной, а не падение
+        PutHost();
+
+        var result = Caller().OpenBank();
+
+        Assert.False(result.Ok);
+        Assert.Contains(GameFunctions.OpenRemotePanel, result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
     public void ChangedBytesBeforeCallCancelIt()
     {
         var caller = Caller();

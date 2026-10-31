@@ -537,6 +537,7 @@ public static class GameFunctions
     public const string Unselect = "unselect";
     public const string NormalAttack = "normalAttack";
     public const string UseItem = "useItem";
+    public const string OpenRemotePanel = "openRemotePanel";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";

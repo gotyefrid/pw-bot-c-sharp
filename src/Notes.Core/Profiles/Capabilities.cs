@@ -24,6 +24,9 @@ public enum Capability
 
     /// <summary>Запустить макрос персонажа, как кнопкой на панели.</summary>
     Macro,
+
+    /// <summary>Открыть банк из сумки где угодно (кнопка «Банк» в окне сумки): есть только на клиентах Comeback.</summary>
+    RemoteBank,
 }
 
 /// <summary>
@@ -73,6 +76,7 @@ public sealed class Capabilities
         Set(Capability.FlyTo, move ?? (profile.MoveTypes.Fly == 0 ? "полёт в точку с высотой не найден для этого сервера" : null));
         Set(Capability.Cancel, First(GameFunctions.CancelAction));
         Set(Capability.RecallPet, First(GameFunctions.RecallPet));
+        Set(Capability.RemoteBank, First(GameFunctions.OpenRemotePanel));
         Set(Capability.Macro, First(GameFunctions.HostApplyComboSkill)
                               ?? (profile.Macros.List == 0 || profile.Base.Configs == 0 ? "в профиле нет макросов" : null));
         return new Capabilities(missing);

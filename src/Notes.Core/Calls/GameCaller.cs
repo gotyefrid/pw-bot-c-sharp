@@ -51,6 +51,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.Unselect] = [],
         [GameFunctions.NormalAttack] = ["pvpMask"],
         [GameFunctions.UseItem] = ["where", "slot", "tid", "count"],
+        [GameFunctions.OpenRemotePanel] = ["panel"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -127,6 +128,9 @@ public sealed class GameCaller : IGameActions
     /// <summary>Использовать 1 предмет из ячейки основной сумки (банка, корм пета).</summary>
     public CallResult UseItem(InventoryItem item)
         => Call(GameFunctions.UseItem, null, ("where", 0), ("slot", (uint)item.Slot), ("tid", item.Tid), ("count", 1));
+
+    /// <summary>Открыть банк, как кнопкой в сумке: сервер сам отвечает окном, работает и в бою.</summary>
+    public CallResult OpenBank() => Call(GameFunctions.OpenRemotePanel, null, ("panel", 1));
 
     /// <summary>Призвать пета из клетки 1..N (N — число клеток в профиле).</summary>
     public CallResult SummonPet(int cage)

@@ -64,6 +64,8 @@ public enum ActionSlot
     PetOrder,
     /// <summary>Прервать каст или копание.</summary>
     Cancel,
+    /// <summary>Открыть панель банка.</summary>
+    Bank,
     /// <summary>Нажатие клавиши (кликер); в ключе — номер нажатия: каждое своё, когда жать снова, решает кликер.</summary>
     Key,
 }
@@ -173,6 +175,18 @@ public sealed class UnselectAction : GameAction
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.Unselect();
     public override Verdict Check(WorldState start, WorldState now) => now.Host.TargetWid == 0 ? Verdict.Confirmed() : Verdict.Pending;
+}
+
+/// <summary>
+/// Открыть банк из сумки. Окно открывает ответ сервера, в снимке мира его нет — итог не ждём: ушла команда — сделано.
+/// </summary>
+public sealed class OpenBankAction : GameAction
+{
+    public override string Name => "открыть банк";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.OpenBank();
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
 /// <summary>

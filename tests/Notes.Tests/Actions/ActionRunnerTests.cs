@@ -989,6 +989,7 @@ public class ActionRunnerTests
         public CallResult PetAttack(uint targetWid) => Slow();
         public CallResult ApplyMacro(int macro) => Slow();
         public CallResult CancelAction() => Slow();
+        public CallResult OpenBank() => Slow();
         public CallResult PickupObject(GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();

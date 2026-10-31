@@ -23,6 +23,7 @@ internal static class ActCommands
     public const string Usage = """
           act target            выбрать ближайшего живого моба
           act untarget          снять цель
+          act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act attack            обычная атака текущей цели
           act skill [id]        скилл пакетом по текущей цели (по умолчанию атакующий)
           act skill-approach [id]  скилл «как кнопкой»: подойти и скастовать
@@ -142,6 +143,9 @@ internal static class ActCommands
                 var mob = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
                 problem = "рядом нет живых мобов";
                 return mob is null ? null : new SelectTargetAction(mob);
+
+            case "bank":
+                return new OpenBankAction();
 
             case "untarget":
                 return new UnselectAction();

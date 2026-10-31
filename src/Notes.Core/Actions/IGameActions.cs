@@ -39,6 +39,9 @@ public interface IGameActions
     /// <summary>Отменить текущее действие (каст, копание) — как Esc — и идущий макрос персонажа.</summary>
     CallResult CancelAction();
 
+    /// <summary>Открыть банк (хранилище) из сумки — где угодно, в том числе в бою.</summary>
+    CallResult OpenBank();
+
     /// <summary>Подобрать как кликом мыши: клиент подходит сам.</summary>
     CallResult PickupObject(GroundItem item);
 

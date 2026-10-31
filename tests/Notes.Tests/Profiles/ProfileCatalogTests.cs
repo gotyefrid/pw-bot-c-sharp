@@ -56,11 +56,17 @@ public class ProfileCatalogTests
     [InlineData("comeback146")]
     public void EveryServerCanDoTheSame(string id)
     {
-        // Бот на всех серверах умеет одно и то же: одинаковые функции, все возможности
+        // Бот на всех серверах умеет одно и то же: одинаковые функции, все возможности. Кроме того, чего в клиенте нет вовсе
+        // (банк из сумки — только Comeback): там возможность честно недоступна, с причиной
         var profile = _catalog.Load(id);
+        var hasRemoteBank = id != "pwclassic136";
 
-        Assert.Equal(_catalog.Load("comeback136").Data.Functions.Keys.OrderBy(k => k), profile.Data.Functions.Keys.OrderBy(k => k));
-        Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>(), c => Assert.Null(profile.Capabilities.WhyNot(c)));
+        Assert.Equal(
+            _catalog.Load("comeback136").Data.Functions.Keys.Where(k => hasRemoteBank || k != GameFunctions.OpenRemotePanel).OrderBy(k => k),
+            profile.Data.Functions.Keys.OrderBy(k => k));
+        Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>().Where(c => hasRemoteBank || c != Capability.RemoteBank),
+            c => Assert.Null(profile.Capabilities.WhyNot(c)));
+        Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteBank));
         // Группы лута — данные игры, одни на всех; их названия хранятся в настройках персонажа
         Assert.NotEmpty(profile.Data.LootGroups);
         static IEnumerable<string> Groups(ServerProfile p) =>
