@@ -21,7 +21,9 @@ public class KillerLogTests
         public void Write(LogEntry entry) => entries.Add(entry);
     }
 
-    public KillerLogTests() => _killer = new KillerLog(new Logger().AddSink(new ListSink(_log)).For(LogSources.Brain), KilledBy);
+    private const uint Widow = 0x8010_5457;
+
+    public KillerLogTests() => _killer = new KillerLog(new Logger().AddSink(new ListSink(_log)).For(LogSources.Brain), KilledBy, "Питомец погиб.");
 
     private void Say(string text) => _chat.Add(new ChatMessage(_chat.Max(m => m.Number) + 1, 8, text, uint.MaxValue));
 
@@ -75,6 +77,61 @@ public class KillerLogTests
         Say("^BED293Моб. Запомните это имя. Так зовут вашего убийцу.");
 
         Assert.Equal(["Вас убил Моб"], Lines());
+    }
+
+    private void PetDies()
+    {
+        _world.Attacks.Clear();
+        _world.SetPet(1, hpRatio: 0, summoned: false);
+        Say("^BED293Питомец погиб.");
+    }
+
+    [Fact]
+    public void PetKillerIsTheLastHitOnThePet()
+    {
+        // Опыт 31.10: вдова травит пчелу ядом (без урона), потом бьёт на 123 — и через 0,4 с «Питомец погиб.»
+        _world.SetPet(1);
+        _world.AddMob(Widow, "Паучья вдова", 5, FakeWorld.PetWid);
+        Lines();
+        _world.Attacks.Add(new AttackEvent(1, 30, Widow, 25, [new AttackHit(FakeWorld.PetWid, -2, 0)]) { SkillName = "Змеиный яд" });
+        Lines();
+        _world.Wait(2).Attacks.Add(new AttackEvent(2, 30, Widow, 0, [new AttackHit(FakeWorld.PetWid, 123, 0)]));
+        Lines();
+        _world.Wait(1);
+        PetDies();
+
+        var line = Assert.Single(Lines());
+        Assert.StartsWith("Пет погиб: последний удар — Паучья вдова: 123, за 1", line);
+    }
+
+    [Fact]
+    public void PetPoisonedToDeathNamesThePoison()
+    {
+        _world.SetPet(1);
+        _world.AddMob(Widow, "Паучья вдова", 5, FakeWorld.PetWid);
+        Lines();
+        _world.Attacks.Add(new AttackEvent(1, 30, Widow, 25, [new AttackHit(FakeWorld.PetWid, -2, 0)]) { SkillName = "Змеиный яд" });
+        Lines();
+        _world.Wait(5);
+        PetDies();
+
+        Assert.StartsWith("Пет погиб: последний удар — Паучья вдова (Змеиный яд), за 5", Assert.Single(Lines()));
+    }
+
+    [Fact]
+    public void PetDeathWithoutVisibleHits()
+    {
+        // Удар давно (дольше 10 с) или не по пету — не в счёт
+        _world.SetPet(1);
+        _world.AddMob(Widow, "Паучья вдова", 5, FakeWorld.PetWid);
+        Lines();
+        _world.Attacks.Add(new AttackEvent(1, 30, Widow, 0, [new AttackHit(FakeWorld.PetWid, 123, 0)]));
+        _world.Attacks.Add(new AttackEvent(2, 30, Widow, 0, [new AttackHit(FakeWorld.HostWid, 50, 0)]));
+        Lines();
+        _world.Wait(11);
+        PetDies();
+
+        Assert.Equal(["Пет погиб, удара не видно (яд или невидимый игрок?)"], Lines());
     }
 
     [Fact]

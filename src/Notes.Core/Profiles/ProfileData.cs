@@ -283,6 +283,8 @@ public sealed class ChatOffsets
     /// Фраза игры после смерти персонажа, «%s» — кто убил (игрок или моб), без кодов цвета. Пусто — не знаем.
     /// </summary>
     public string KilledBy { get; init; } = "";
+    /// <summary>Фраза игры после гибели пета (кто убил, не пишет). Пусто — не знаем.</summary>
+    public string PetDied { get; init; } = "";
 }
 
 /// <summary>

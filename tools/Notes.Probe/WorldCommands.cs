@@ -190,7 +190,7 @@ internal static class WorldCommands
         };
 
         // «Кто убил» — как в боте: строка после фразы игры о смерти
-        var killer = new KillerLog(new Logger().AddSink(new KillerSink()).For(LogSources.Brain), c.KilledBy);
+        var killer = new KillerLog(new Logger().AddSink(new KillerSink()).For(LogSources.Brain), c.KilledBy, c.PetDied);
         var shown = int.MinValue;
         var first = true;
         do

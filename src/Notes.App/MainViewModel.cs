@@ -593,7 +593,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             // Блокноту ресурсов, логу урона и «кто убил» — каждый снимок, прямо в потоке снимков; окну — только последний
             connection.WorldUpdated += _spots.Observe;
             connection.WorldUpdated += new DamageLog(_logger.For(LogSources.Damage)).Observe;
-            connection.WorldUpdated += new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy).Observe;
+            connection.WorldUpdated += new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied).Observe;
             connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => UiThread.Run(() => ShowFailure(message));
             connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));

@@ -84,7 +84,7 @@ public sealed class DamageLog(ILogger log)
     private static int After(int hp, int damage) => Math.Max(0, hp - damage);
 
     // Моб или NPC из снимка, игрок — по нику; не в снимке: у игроков WID без старшего бита
-    private static string Who(WorldState w, uint wid)
+    internal static string Who(WorldState w, uint wid)
     {
         if (w.Npcs.FirstOrDefault(n => n.Wid == wid) is { } n)
             return n.Name;
