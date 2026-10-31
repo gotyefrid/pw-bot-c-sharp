@@ -272,6 +272,8 @@ public sealed class PlayerOffsets
     public uint MaxHp { get; init; }
     /// <summary>WID того, кого игрок держит в цели; 0 — никого или неизвестно.</summary>
     public uint Target { get; init; }
+    /// <summary>Класс (int, номер как в игре: 0 воин … 5 убийца … 7 жрец, см. <see cref="World.PlayerClasses"/>).</summary>
+    public uint Class { get; init; }
 }
 
 /// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам и с какого расстояния.</summary>

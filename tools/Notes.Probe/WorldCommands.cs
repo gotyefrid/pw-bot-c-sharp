@@ -410,7 +410,7 @@ internal static class WorldCommands
             {
                 var aim = p.TargetWid == 0 ? "" : p.TargetWid == h.Wid ? "  ⚔ цель — перс" : w.Pet?.ActiveWid == p.TargetWid ? "  ⚔ цель — пет" : $"  → 0x{p.TargetWid:X8}";
                 var hp = p.MaxHp > 0 ? $"  HP {p.Hp}/{p.MaxHp}" : "";
-                s.AppendLine($"       {p.Offset.Horizontal,6:0.0} м {Height(p.Offset),6}  {(p.Level > 0 ? $"ур.{p.Level,3}" : "      ")} {p.Name,-24} 0x{p.Wid:X8}{hp}{aim}");
+                s.AppendLine($"       {p.Offset.Horizontal,6:0.0} м {Height(p.Offset),6}  {(p.Level > 0 ? $"ур.{p.Level,3}" : "      ")} {PlayerClasses.Name(p.Class) ?? "",-9} {p.Name,-24} 0x{p.Wid:X8}{hp}{aim}");
             }
         }
 

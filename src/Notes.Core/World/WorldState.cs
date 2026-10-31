@@ -242,6 +242,12 @@ public sealed record PlayerInfo(uint Address, uint Wid, string Name, Position Po
 
     /// <summary>Кого держит в цели (WID); 0 — никого или неизвестно.</summary>
     public uint TargetWid { get; init; }
+
+    /// <summary>Класс, номер как в игре (<see cref="PlayerClasses"/>); null — поле не найдено для сервера.</summary>
+    public int? Class { get; init; }
+
+    /// <summary>Убийца: умеет уходить в инвиз — пока он невидим, игра его не показывает вовсе.</summary>
+    public bool IsAssassin => Class == PlayerClasses.Assassin;
 }
 
 public sealed record NpcInfo(

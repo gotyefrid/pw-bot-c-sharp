@@ -61,7 +61,7 @@ public sealed class WorldReader
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
         var pl = profile.Player;
-        _playerSize = BlockSize(pl.Wid, pl.NamePointer, pl.Location + 8, pl.Level, pl.Hp, pl.MaxHp, pl.Target);
+        _playerSize = BlockSize(pl.Wid, pl.NamePointer, pl.Location + 8, pl.Level, pl.Hp, pl.MaxHp, pl.Target, pl.Class);
         var a = profile.Attacks;
         _attackSize = BlockSize(a.Lived, a.Attacker, a.Skill, a.Targets, a.TargetCount);
     }
@@ -284,6 +284,7 @@ public sealed class WorldReader
             Hp = (int)Field(b, p.Hp),
             MaxHp = (int)Field(b, p.MaxHp),
             TargetWid = Field(b, p.Target),
+            Class = p.Class == 0 ? null : b.Int32(p.Class),
         };
     }
 

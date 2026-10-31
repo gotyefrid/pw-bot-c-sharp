@@ -45,10 +45,12 @@ public sealed class DamageLog(ILogger log)
         _aiming = aiming;
     }
 
-    // Ник и что о нём известно: «ГДЗшница (ур. 6, HP 150/150)»
+    // Ник и что о нём известно: «ГДЗшница (жрец, ур. 6, HP 150/150)»
     private static string Describe(PlayerInfo p)
     {
         var known = new List<string>();
+        if (PlayerClasses.Name(p.Class) is { } name)
+            known.Add(name);
         if (p.Level > 0)
             known.Add($"ур. {p.Level}");
         if (p.MaxHp > 0)
