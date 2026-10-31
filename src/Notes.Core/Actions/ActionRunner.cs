@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Notes.Core.Calls;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Notes.Core.World;
@@ -71,7 +72,16 @@ public sealed record SubmitResult(SubmitStatus Status, ActionOutcome? Outcome = 
 public sealed class ActionRunner(GameControl control, ILogger log) : IPendingActions
 {
     private readonly object _lock = new();
-    private readonly List<(GameAction Action, WorldState Start)> _pending = [];
+    private readonly List<Waiting> _pending = [];
+
+    /// <summary>Ждущее действие: снимок при первой отправке, сколько раз уже нажато и когда последний раз.</summary>
+    private sealed class Waiting(GameAction action, WorldState start)
+    {
+        public GameAction Action { get; } = action;
+        public WorldState Start { get; } = start;
+        public int Pressed { get; set; } = 1;
+        public DateTime LastPress { get; set; } = start.Time;
+    }
 
     /// <summary>Чем действия управляют игрой.</summary>
     public GameControl Control { get; } = control;
@@ -176,7 +186,7 @@ public sealed class ActionRunner(GameControl control, ILogger log) : IPendingAct
             var call = action.Send(Control, now);
             if (call.Ok)
             {
-                _pending.Add((action, now));
+                _pending.Add(new Waiting(action, now));
                 log.Debug($"→ {action.Name}");
                 return new SubmitResult(SubmitStatus.Sent);
             }
@@ -222,7 +232,7 @@ public sealed class ActionRunner(GameControl control, ILogger log) : IPendingAct
             return digging ? "персонаж копает" : "персонаж кастует";
         }
 
-        _pending.Add((cancel, now));
+        _pending.Add(new Waiting(cancel, now));
         log.Info($"Прерываю {cancel.What} ради «{action.Name}»");
         return $"прерываю {cancel.What}";
     }
@@ -233,12 +243,13 @@ public sealed class ActionRunner(GameControl control, ILogger log) : IPendingAct
     /// </summary>
     private string? Displace(int index, GameAction action, WorldState now, List<ActionOutcome> reports)
     {
-        var (holder, start) = _pending[index];
+        var waiting = _pending[index];
+        var holder = waiting.Action;
         if (holder.Priority >= action.Priority)
             return holder.Name;
 
         _pending.RemoveAt(index);
-        reports.Add(new ActionOutcome(holder, ActionStatus.Cancelled, $"важнее: {action.Name}", now.Time - start.Time));
+        reports.Add(new ActionOutcome(holder, ActionStatus.Cancelled, $"важнее: {action.Name}", now.Time - waiting.Start.Time));
         return null;
     }
 
@@ -250,15 +261,24 @@ public sealed class ActionRunner(GameControl control, ILogger log) : IPendingAct
         {
             for (var i = _pending.Count - 1; i >= 0; i--)
             {
-                var (action, start) = _pending[i];
-                var elapsed = now.Time - start.Time;
-                var verdict = action.Check(start, now);
+                var waiting = _pending[i];
+                var action = waiting.Action;
+                // Ещё не все нажатия: жмём снова, когда прошла пауза; проверять — только после последнего
+                if (waiting.Pressed < action.Presses)
+                {
+                    if (now.Time - waiting.LastPress >= action.PressInterval)
+                        PressAgain(waiting, now);
+                    continue;
+                }
+
+                var elapsed = now.Time - waiting.Start.Time;
+                var verdict = action.Check(waiting.Start, now);
                 ActionOutcome? outcome = verdict.Kind switch
                 {
                     VerdictKind.Confirmed => new(action, ActionStatus.Confirmed, verdict.Details, elapsed),
                     VerdictKind.Rejected => new(action, ActionStatus.Rejected, verdict.Details, elapsed),
                     VerdictKind.Cancelled => new(action, ActionStatus.Cancelled, verdict.Details, elapsed),
-                    _ when elapsed >= action.Timeout => new(action, action.TimeoutStatus,
+                    _ when now.Time - waiting.LastPress >= action.Timeout => new(action, action.TimeoutStatus,
                         action.TimeoutStatus == ActionStatus.Rejected ? "игра не приняла" : $"нет подтверждения за {action.Timeout.TotalSeconds:0} с", elapsed),
                     _ => null,
                 };
@@ -275,6 +295,25 @@ public sealed class ActionRunner(GameControl control, ILogger log) : IPendingAct
         foreach (var outcome in done)
             Report(outcome);
         return done;
+    }
+
+    /// <summary>
+    /// Повторное нажатие ждущего действия. Не ушло (условие, вызов отказал) — больше не жмём, ждём итога уже отправленных.
+    /// </summary>
+    private void PressAgain(Waiting waiting, WorldState now)
+    {
+        var action = waiting.Action;
+        var call = action.Precondition(now) is { } reason ? CallResult.Refused(reason) : action.Send(Control, now);
+        if (!call.Ok)
+        {
+            log.Warning($"{action.Name}: нажатие {waiting.Pressed + 1} не ушло — {call.Details}");
+            waiting.Pressed = action.Presses;
+            return;
+        }
+
+        waiting.Pressed++;
+        waiting.LastPress = now.Time;
+        log.Debug($"→ {action.Name}: нажатие {waiting.Pressed}");
     }
 
     /// <summary>

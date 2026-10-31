@@ -38,6 +38,17 @@ public class BrainScenarioTests
 
     private string LastCall => _actions.Calls.Last();
 
+    private int PetPresses => _actions.Calls.Count(c => c.StartsWith("pet-attack"));
+
+    /// <summary>Приказ пету жмётся 2–3 раза по снимкам: дожать до конца, вернуть, сколько нажатий ушло.</summary>
+    private int FinishPetOrder()
+    {
+        Tick();
+        Tick();
+        Assert.InRange(PetPresses, 2, 3);
+        return PetPresses;
+    }
+
     public BrainScenarioTests()
     {
         // По умолчанию — только то, что проверяет сценарий
@@ -771,12 +782,13 @@ public class BrainScenarioTests
         Tick();
         Tick(0.5);
         Assert.Equal("pet-attack 80000001", LastCall);
+        var presses = FinishPetOrder();
 
         // Побежал к мобу — приказ принят, больше не повторяем
         _world.Replace(pet, p => p with { State = NpcState.Moving });
         Tick(1);
         Tick(6);
-        Assert.Single(_actions.Calls, c => c.StartsWith("pet-attack"));
+        Assert.Equal(presses, PetPresses);
     }
 
     [Fact]
@@ -792,17 +804,18 @@ public class BrainScenarioTests
         Tick();
         Tick(0.5);
         Assert.Equal("pet-attack 80000001", LastCall);
+        var presses = FinishPetOrder();
 
         _world.Replace(pet, p => p with { State = NpcState.Moving });
         for (var i = 0; i < 9; i++)
             Tick(1);
-        Assert.Single(_actions.Calls, c => c.StartsWith("pet-attack"));
+        Assert.Equal(presses, PetPresses);
 
         // Добежал и бьёт — цель у пета наш моб: приказ подтверждён, повторов нет
         _world.Replace(pet, p => p with { State = NpcState.Casting, TargetWid = 0x80000001 });
         Tick(1);
         Tick(6);
-        Assert.Single(_actions.Calls, c => c.StartsWith("pet-attack"));
+        Assert.Equal(presses, PetPresses);
     }
 
     [Fact]
@@ -816,10 +829,12 @@ public class BrainScenarioTests
 
         Tick();
         Tick(0.5);
+        var presses = FinishPetOrder();
         Tick(4.25);
         Tick(1);
 
-        Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("pet-attack")));
+        // Новый приказ — его первое нажатие
+        Assert.Equal(presses + 1, PetPresses);
     }
 
     [Fact]

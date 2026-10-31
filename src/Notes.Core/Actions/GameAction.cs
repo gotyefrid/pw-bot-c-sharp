@@ -127,6 +127,15 @@ public abstract class GameAction
     /// <summary>Какой скилл кастует это действие (0 — не скилл): пока кастуется он же, действие не сбивает само себя.</summary>
     public virtual int CastsSkill => 0;
 
+    /// <summary>
+    /// Сколько раз отправить: команда иногда теряется в игре. Повторы шлёт исполнитель на снимках, не чаще
+    /// <see cref="PressInterval"/>; подтверждение проверяется только после последнего, срок — от него же.
+    /// </summary>
+    public virtual int Presses => 1;
+
+    /// <summary>Пауза между повторами (<see cref="Presses"/>); на деле — до ближайшего снимка после неё.</summary>
+    public virtual TimeSpan PressInterval => TimeSpan.FromMilliseconds(200);
+
     /// <summary>Сколько ждать подтверждения.</summary>
     public abstract TimeSpan Timeout { get; }
 
@@ -751,11 +760,13 @@ public sealed class RevivePetAction(int cage, int skill) : GameAction
 /// <summary>
 /// Приказ пету атаковать. Подтверждение — у пета в списке мобов цель = этот моб. Цель у пета меняется, только когда он
 /// добежал до моба (замер на 1.3.6 и 1.4.6: перед первым ударом или через ~1.5 с после него), поэтому срок — по тому,
-/// сколько пету бежать.
+/// сколько пету бежать. Приказ иногда теряется — жмём его 2–3 раза (наугад), подтверждение ждём после последнего.
 /// </summary>
 /// <param name="distance">Сколько метров от пета до моба при приказе; null — пет не найден в списке, срок обычный.</param>
-public sealed class PetAttackAction(uint targetWid, float? distance = null) : GameAction
+/// <param name="presses">Сколько раз нажать; null — наугад 2 или 3.</param>
+public sealed class PetAttackAction(uint targetWid, float? distance = null, int? presses = null) : GameAction
 {
+    private static readonly Random Dice = new();
     // Пет бежит 4.5–5 м/с — считаем медленнее, с запасом; плюс на разворот и на то, что цель меняется после первого удара
     private const float PetSpeed = 4f;
     private static readonly TimeSpan Reserve = TimeSpan.FromSeconds(2);
@@ -764,8 +775,15 @@ public sealed class PetAttackAction(uint targetWid, float? distance = null) : Ga
 
     public uint TargetWid { get; } = targetWid;
     public float? Distance { get; } = distance;
-    public override string Name => $"пет атакует 0x{TargetWid:X8}{(Distance is { } d ? $" ({d:0} м от пета)" : "")}";
+    public override string Name => $"пет атакует 0x{TargetWid:X8}{(Distance is { } d ? $" ({d:0} м от пета)" : "")}, нажатий {Presses}";
     public override ActionSlot Slot => ActionSlot.PetOrder;
+    public override int Presses { get; } = presses ?? NextPresses();
+
+    private static int NextPresses()
+    {
+        lock (Dice)
+            return Dice.Next(2, 4);
+    }
 
     public override TimeSpan Timeout => Distance is { } d
         ? TimeSpan.FromSeconds(Math.Max(MinTimeout.TotalSeconds, d / PetSpeed + Reserve.TotalSeconds))

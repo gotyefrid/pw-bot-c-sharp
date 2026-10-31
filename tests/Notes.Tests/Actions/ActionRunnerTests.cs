@@ -462,6 +462,72 @@ public class ActionRunnerTests
         Assert.True(_runner.Submit(Bot, new PetAttackAction(1), _world.Snapshot()).Sent);
     }
 
+    private void PetFights(uint mob)
+        => _world.Replace(_world.Npcs.Single(n => n.Kind == NpcKind.Pet), p => p with { TargetWid = mob, State = NpcState.Attacking });
+
+    [Fact]
+    public void PetOrderPressedEverySnapshotThenChecked()
+    {
+        // Приказ иногда теряется: жмём все нажатия, даже если пет уже взялся, и только потом проверяем
+        _world.SetPet(1);
+        var mob = _world.AddMob(0x80000001, "Волк", 10);
+        Assert.True(_runner.Submit(Bot, new PetAttackAction(mob.Wid, presses: 3), _world.Snapshot()).Sent);
+        PetFights(mob.Wid);
+
+        Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        Assert.Equal(3, _actions.Calls.Count);
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.25).Snapshot())).Status);
+        Assert.Equal(Enumerable.Repeat("pet-attack 80000001", 3), _actions.Calls);
+    }
+
+    [Fact]
+    public void PetOrderNotPressedAgainBeforeInterval()
+    {
+        _world.SetPet(1);
+        _runner.Submit(Bot, new PetAttackAction(1, presses: 2), _world.Snapshot());
+
+        _runner.Update(_world.Wait(0.1).Snapshot());
+        Assert.Single(_actions.Calls);
+        _runner.Update(_world.Wait(0.1).Snapshot());
+        Assert.Equal(2, _actions.Calls.Count);
+    }
+
+    [Fact]
+    public void PetOrderTimeoutCountsFromLastPress()
+    {
+        // Срок 6 с (расстояние не известно) — от третьего нажатия, а не от первого
+        _world.SetPet(1);
+        _runner.Submit(Bot, new PetAttackAction(1, presses: 3), _world.Snapshot());
+        _runner.Update(_world.Wait(0.25).Snapshot());
+        _runner.Update(_world.Wait(0.25).Snapshot());
+
+        Assert.Empty(_runner.Update(_world.Wait(5.75).Snapshot()));
+        Assert.Equal(ActionStatus.Timeout, Single(_runner.Update(_world.Wait(0.25).Snapshot())).Status);
+    }
+
+    [Fact]
+    public void PetOrderStopsPressingWhenPetIsRecalled()
+    {
+        _world.SetPet(1);
+        _runner.Submit(Bot, new PetAttackAction(1, presses: 3), _world.Snapshot());
+        _world.SetPet(1, summoned: false);
+
+        _runner.Update(_world.Wait(0.25).Snapshot());
+        _runner.Update(_world.Wait(0.25).Snapshot());
+
+        Assert.Single(_actions.Calls);
+        Assert.True(_runner.IsPending(ActionSlot.PetOrder));
+    }
+
+    [Fact]
+    public void PetOrderPressesTwoOrThreeTimes()
+    {
+        var presses = Enumerable.Range(0, 200).Select(_ => new PetAttackAction(1).Presses).Distinct().OrderBy(n => n);
+        Assert.Equal([2, 3], presses);
+    }
+
     [Fact]
     public void BodyFreesWhenActionCompletes()
     {
