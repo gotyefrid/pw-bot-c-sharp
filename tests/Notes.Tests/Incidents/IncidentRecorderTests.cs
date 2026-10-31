@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Incidents;
+using Notes.Core.Logging;
 using Notes.Core.World;
 using Notes.Tests.Fakes;
 using Xunit;
@@ -126,6 +127,37 @@ public class IncidentRecorderTests
         Assert.Equal(["первое", "второе"], _closed.Select(i => i.Events.Single().Text));
         // У второго — свои 10 с до события, хотя часть из них была «после» первого
         Assert.Equal(TimeSpan.FromSeconds(10), _closed[1].Events[0].Time - _closed[1].Start);
+    }
+
+    private void Log(string text) => _recorder.Write(new LogEntry(_world.Time.ToLocalTime(), LogLevel.Info, LogSources.Brain, text));
+
+    [Fact]
+    public void BotLogOfSameMinute()
+    {
+        Log("давно");
+        Tick(60);
+        Log("бью Летягу");
+        Tick(4);
+        _recorder.Mark(Tick(), "Вас убил Летяга");
+        Tick(2);
+        Log("встаю");
+        Tick(20);
+
+        Assert.Equal(["бью Летягу", "встаю"], Assert.Single(_closed).Log.Select(e => e.Message));
+    }
+
+    [Fact]
+    public void FlushForgetsHistory()
+    {
+        Tick(20);
+        Log("с прошлым клиентом");
+        _recorder.Flush();
+        _recorder.Mark(Tick(), "Вас убил Моб");
+        _recorder.Flush();
+
+        var incident = Assert.Single(_closed);
+        Assert.Single(incident.Snapshots);
+        Assert.Empty(incident.Log);
     }
 
     [Fact]

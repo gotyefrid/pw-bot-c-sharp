@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using Notes.Core.Logging;
 using Notes.Core.World;
 
 namespace Notes.Core.Incidents;
 
 /// <summary>
 /// Случай текстом — для человека: что случилось и всё, что бот знал о мире в момент каждого события (перс, пет, мобы,
-/// игроки, NPC, лут, удары, чат), потом хроника: начало записи целиком и по времени всё, что менялось. Время — местное.
+/// игроки, NPC, лут, удары, чат), потом хроника: начало записи целиком и по времени всё, что менялось, вместе со строками
+/// лога бота. Время — местное.
 /// </summary>
 public static class IncidentReport
 {
@@ -49,13 +51,26 @@ public static class IncidentReport
 
         var chronicle = new Chronicle();
         var events = incident.Events.ToLookup(e => e.World);
+        // Строки бота — между снимками, по своему времени: до снимка, который прочитан позже них
+        var log = new Queue<LogEntry>(incident.Log.Where(e => e.Time.ToUniversalTime() >= incident.Start));
         foreach (var w in incident.Snapshots)
         {
+            while (log.Count > 0 && log.Peek().Time.ToUniversalTime() <= w.Time)
+                Bot(text, log.Dequeue());
             foreach (var line in chronicle.Changes(w))
                 text.AppendLine($"{Clock(w.Time)}  {line}");
             foreach (var e in events[w])
                 text.AppendLine($"{Clock(w.Time)}  ☠ {e.Text}");
         }
+
+        while (log.Count > 0 && log.Peek().Time.ToUniversalTime() <= incident.End)
+            Bot(text, log.Dequeue());
+    }
+
+    private static void Bot(StringBuilder text, LogEntry e)
+    {
+        var level = e.Level switch { LogLevel.Warning => " (!)", LogLevel.Error => " (ошибка)", _ => "" };
+        text.AppendLine($"{Clock(e.Time)}  бот [{e.Source}]{level}: {e.Message}");
     }
 
     /// <summary>Местное время с миллисекундами: «21:11:37.250».</summary>

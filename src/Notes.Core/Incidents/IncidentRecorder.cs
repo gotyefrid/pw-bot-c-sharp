@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Notes.Core.Logging;
 using Notes.Core.World;
 
 namespace Notes.Core.Incidents;
@@ -11,11 +12,13 @@ namespace Notes.Core.Incidents;
 /// ещё <see cref="After"/>, потом случай целиком уходит в <see cref="Closed"/>. Новое событие, пока запись идёт, попадает в
 /// тот же случай и продлевает её (пет погиб, через 20 с — перс), но не дольше <see cref="MaxLength"/> от начала.
 /// Память игры сам не читает: смотрит те же снимки, что и бот, — игру не нагружает. Вызывается из потока снимков.
+/// Он же приёмник лога (<see cref="ILogSink"/>): строки бота за то же время попадают в случай.
 /// </summary>
-public sealed class IncidentRecorder
+public sealed class IncidentRecorder : ILogSink
 {
     private readonly object _lock = new();
     private readonly Queue<WorldState> _history = new();
+    private readonly Queue<LogEntry> _log = new();
     private WorldState? _last;
     private Recording? _open;
 
@@ -59,14 +62,36 @@ public sealed class IncidentRecorder
         }
     }
 
-    /// <summary>Закончить запись сейчас (отключение от клиента): что успели — уходит в <see cref="Closed"/>.</summary>
+    /// <summary>
+    /// Закончить запись сейчас (отключение от клиента): что успели — уходит в <see cref="Closed"/>. Прошлое забывается: у
+    /// следующего клиента — своя история.
+    /// </summary>
     public void Flush()
     {
         Incident? closed;
         lock (_lock)
+        {
             closed = _open is null ? null : CloseLocked();
+            _history.Clear();
+            _log.Clear();
+            _last = null;
+        }
+
         if (closed is not null)
             Closed?.Invoke(closed);
+    }
+
+    /// <summary>Строка лога бота. Время в логе местное — храним как есть, сравниваем во всемирном.</summary>
+    public void Write(LogEntry entry)
+    {
+        lock (_lock)
+        {
+            _open?.Log.Add(entry);
+            _log.Enqueue(entry);
+            var now = entry.Time.ToUniversalTime();
+            while (_log.Count > 0 && now - _log.Peek().Time.ToUniversalTime() > Before)
+                _log.Dequeue();
+        }
     }
 
     // Один снимок — один раз: «кто убил» может отметить событие тем же снимком, который придёт сюда следом
@@ -84,7 +109,7 @@ public sealed class IncidentRecorder
 
     private void MarkLocked(WorldState world, string text)
     {
-        var open = _open ??= new Recording([.. _history]);
+        var open = _open ??= new Recording([.. _history], [.. _log]);
         open.Events.Add(new IncidentEvent(world.Time, text, world));
         var start = open.Snapshots.Count > 0 ? open.Snapshots[0].Time : world.Time;
         var until = world.Time + After;
@@ -95,12 +120,13 @@ public sealed class IncidentRecorder
     {
         var open = _open!;
         _open = null;
-        return new Incident(open.Events.ToList(), open.Snapshots.ToList());
+        return new Incident(open.Events.ToList(), open.Snapshots.ToList()) { Log = open.Log.ToList() };
     }
 
-    private sealed class Recording(List<WorldState> snapshots)
+    private sealed class Recording(List<WorldState> snapshots, List<LogEntry> log)
     {
         public List<WorldState> Snapshots { get; } = snapshots;
+        public List<LogEntry> Log { get; } = log;
         public List<IncidentEvent> Events { get; } = [];
         public DateTime Until { get; set; }
     }

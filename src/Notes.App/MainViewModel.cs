@@ -44,7 +44,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // Подключение к клиенту: снимки и бот (он принадлежит подключению — окно только просит запустить и остановить)
     private ClientConnection? _connection;
-    private IncidentRecorder? _incidents;
+    // Запись мира вокруг смерти: одна на всё время работы — она же приёмник лога
+    private readonly IncidentRecorder _incidents = new();
     private ServerProfile _profile;
     private bool _refreshing;
 
@@ -66,7 +67,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _dialogs = dialogs;
         _logsDirectory = Path.Combine(appDirectory, "logs");
         var ring = new RingBufferSink(LogPanel.MaxLines);
-        var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(_logsDirectory));
+        var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(_logsDirectory)).AddSink(_incidents);
+        _incidents.Closed += SaveIncident;
         ring.Added += entry => UiThread.Run(() => Log.Add(entry));
         _logger = logger;
         _log = logger.For(LogSources.Window);
@@ -596,11 +598,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             connection.WorldUpdated += _spots.Observe;
             connection.WorldUpdated += new DamageLog(_logger.For(LogSources.Damage)).Observe;
             // Запись мира вокруг смерти — первой: «кто убил» отмечает событие снимком, который она уже видела
-            var incidents = _incidents = new IncidentRecorder();
-            incidents.Closed += SaveIncident;
-            connection.WorldUpdated += incidents.Observe;
+            connection.WorldUpdated += _incidents.Observe;
             var killer = new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied);
-            killer.Noted += incidents.Mark;
+            killer.Noted += _incidents.Mark;
             connection.WorldUpdated += killer.Observe;
             connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => UiThread.Run(() => ShowFailure(message));
@@ -633,8 +633,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsRunning = false;
         _connection?.Dispose();
         _connection = null;
-        _incidents?.Flush();
-        _incidents = null;
+        _incidents.Flush();
         Interlocked.Exchange(ref _latest, null);
         if (wasRunning)
             _log.Info("Стоп");

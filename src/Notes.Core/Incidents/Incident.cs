@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Notes.Core.Logging;
 using Notes.Core.World;
 
 namespace Notes.Core.Incidents;
@@ -14,6 +15,9 @@ public sealed record IncidentEvent(DateTime Time, string Text, WorldState World)
 /// <param name="Snapshots">Все снимки от начала записи до конца, старые первыми.</param>
 public sealed record Incident(IReadOnlyList<IncidentEvent> Events, IReadOnlyList<WorldState> Snapshots)
 {
+    /// <summary>Лог бота за то же время: что он решал и делал.</summary>
+    public IReadOnlyList<LogEntry> Log { get; init; } = [];
+
     public DateTime Start => Snapshots.Count > 0 ? Snapshots[0].Time : Events[0].Time;
 
     public DateTime End => Snapshots.Count > 0 ? Snapshots[Snapshots.Count - 1].Time : Events[Events.Count - 1].Time;

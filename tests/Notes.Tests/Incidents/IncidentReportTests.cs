@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Notes.Core.Incidents;
+using Notes.Core.Logging;
 using Notes.Core.World;
 using Notes.Tests.Fakes;
 using Xunit;
@@ -51,11 +52,14 @@ public class IncidentReportTests
         _world.AddMob(Bat, "Летяга-разбойница", 3, FakeWorld.HostWid);
         var death = _world.Wait(0.25).Snapshot();
 
-        var text = IncidentReport.Text(new Incident([new IncidentEvent(death.Time, "Вас убил Летяга-разбойница", death)], [start, death]));
+        var log = new LogEntry(start.Time.AddSeconds(0.1).ToLocalTime(), LogLevel.Info, LogSources.Brain, "бью Летягу-разбойницу");
+        var text = IncidentReport.Text(new Incident([new IncidentEvent(death.Time, "Вас убил Летяга-разбойница", death)], [start, death]) { Log = [log] });
 
         var chronicle = text.Substring(text.IndexOf("=== Хроника: что менялось", StringComparison.Ordinal));
         Assert.Contains($"{IncidentReport.Clock(death.Time)}  появился моб Летяга-разбойница, 3,0 м, цель → вас", chronicle);
         Assert.Contains($"{IncidentReport.Clock(death.Time)}  ☠ Вас убил Летяга-разбойница", chronicle);
+        // Строка бота — между снимками, по своему времени
+        Assert.StartsWith($"{IncidentReport.Clock(log.Time)}  бот [мозг]: бью Летягу-разбойницу", chronicle.Split('\n')[1]);
         Assert.Contains("=== Хроника: в начале записи", text);
     }
 
