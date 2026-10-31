@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Notes.Core.GameFiles;
+using Notes.Core.Logging;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
 using Notes.Core.World;
@@ -188,11 +189,15 @@ internal static class WorldCommands
             stop = true;
         };
 
+        // «Кто убил» — как в боте: строка после фразы игры о смерти
+        var killer = new KillerLog(new Logger().AddSink(new KillerSink()).For(LogSources.Brain), c.KilledBy);
         var shown = int.MinValue;
         var first = true;
         do
         {
-            var chat = reader.Read().Chat;
+            var world = reader.Read();
+            killer.Observe(world);
+            var chat = world.Chat;
             var fresh = first ? chat.Skip(Math.Max(0, chat.Count - last)) : chat.Where(m => m.Number > shown);
             foreach (var m in fresh)
                 Console.WriteLine($"{DateTime.Now:HH:mm:ss}  №{m.Number,-6} канал {m.Channel,-2} {(m.SenderWid == uint.MaxValue ? "" : $"от 0x{m.SenderWid:X8} ")}{m.Plain}");
@@ -206,6 +211,11 @@ internal static class WorldCommands
         } while (watch && !stop && !game.HasExited);
 
         return 0;
+    }
+
+    private sealed class KillerSink : ILogSink
+    {
+        public void Write(LogEntry entry) => Console.WriteLine($"{DateTime.Now:HH:mm:ss}  ☠ {entry.Message}");
     }
 
     /// <summary>

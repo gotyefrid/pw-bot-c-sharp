@@ -279,6 +279,10 @@ public sealed class ChatOffsets
     public uint Number { get; init; }
     /// <summary>WID отправителя (у системных −1).</summary>
     public uint Sender { get; init; }
+    /// <summary>
+    /// Фраза игры после смерти персонажа, «%s» — кто убил (игрок или моб), без кодов цвета. Пусто — не знаем.
+    /// </summary>
+    public string KilledBy { get; init; } = "";
 }
 
 /// <summary>
