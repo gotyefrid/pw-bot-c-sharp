@@ -9,7 +9,7 @@ namespace Notes.Core.Incidents;
 
 /// <summary>
 /// Случай текстом — для человека: что случилось и всё, что бот знал о мире в момент каждого события (перс, пет, мобы,
-/// игроки, NPC, лут, удары, чат). Время — местное.
+/// игроки, NPC, лут, удары, чат), потом хроника: начало записи целиком и по времени всё, что менялось. Время — местное.
 /// </summary>
 public static class IncidentReport
 {
@@ -31,7 +31,31 @@ public static class IncidentReport
             Moment(text, e.World);
         }
 
+        Chronicle(text, incident);
         return text.ToString();
+    }
+
+    // Начало записи целиком, дальше — только изменения; события — на своих местах, со значком
+    private static void Chronicle(StringBuilder text, Incident incident)
+    {
+        if (incident.Snapshots.Count == 0)
+            return;
+
+        text.AppendLine();
+        text.AppendLine($"=== Хроника: в начале записи, {Clock(incident.Start)} ===");
+        Moment(text, incident.Snapshots[0]);
+        text.AppendLine();
+        text.AppendLine("=== Хроника: что менялось ===");
+
+        var chronicle = new Chronicle();
+        var events = incident.Events.ToLookup(e => e.World);
+        foreach (var w in incident.Snapshots)
+        {
+            foreach (var line in chronicle.Changes(w))
+                text.AppendLine($"{Clock(w.Time)}  {line}");
+            foreach (var e in events[w])
+                text.AppendLine($"{Clock(w.Time)}  ☠ {e.Text}");
+        }
     }
 
     /// <summary>Местное время с миллисекундами: «21:11:37.250».</summary>
@@ -64,13 +88,17 @@ public static class IncidentReport
         if (h.InWater == true)
             parts.Add("в воде");
         if (h.IsCasting)
-            parts.Add(h.CastingSkillId is > 0 and var id ? $"кастует {w.Skill(id)?.Name ?? id.ToString(CultureInfo.InvariantCulture)}" : "кастует");
+            parts.Add(Casting(w));
         if (h.Gather is { Active: true })
             parts.Add("копает");
         text.AppendLine($"Персонаж {h.Name}: {string.Join(", ", parts)}, {h.Position}{Target(w, h.TargetWid, ", цель: ")}");
         if (w.InventorySlots > 0)
             text.AppendLine($"Сумка: занято {w.Inventory.Count} из {w.InventorySlots}");
     }
+
+    /// <summary>«кастует Огненный шар»; скилл неизвестен — «кастует».</summary>
+    internal static string Casting(WorldState w)
+        => w.Host.CastingSkillId is > 0 and var id ? $"кастует {w.Skill(id)?.Name ?? id.ToString(CultureInfo.InvariantCulture)}" : "кастует";
 
     private static void Pet(StringBuilder text, WorldState w)
     {
@@ -107,7 +135,7 @@ public static class IncidentReport
         return string.Join(", ", parts) + Target(w, m.TargetWid, ", цель → ");
     }
 
-    private static string Player(WorldState w, PlayerInfo p)
+    internal static string Player(WorldState w, PlayerInfo p)
     {
         var parts = new List<string> { p.Name };
         if (PlayerClasses.Name(p.Class) is { } cls)
@@ -119,14 +147,14 @@ public static class IncidentReport
         return string.Join(", ", parts) + Target(w, p.TargetWid, ", цель → ");
     }
 
-    private static string Ground(GroundItem i) => i.Kind switch
+    internal static string Ground(GroundItem i) => i.Kind switch
     {
         GroundItemKind.Resource => $"{i.Name} (ресурс)",
         GroundItemKind.Money => $"{i.Name} (деньги)",
         _ => i.Name,
     };
 
-    private static string Hit(WorldState w, AttackEvent a, AttackHit h)
+    internal static string Hit(WorldState w, AttackEvent a, AttackHit h)
     {
         var skill = string.IsNullOrEmpty(a.SkillName) ? "" : $" ({a.SkillName})";
         var damage = h.Damage > 0 ? $": {h.Damage}" : "";
@@ -134,8 +162,10 @@ public static class IncidentReport
     }
 
     /// <summary>«, цель → вас» / «пета» / имя; пусто — цели нет.</summary>
-    private static string Target(WorldState w, uint wid, string prefix)
-        => wid == 0 ? "" : prefix + (wid == w.Host.Wid ? "вас" : wid == PetWid(w) ? "пета" : DamageLog.Who(w, wid));
+    internal static string Target(WorldState w, uint wid, string prefix) => wid == 0 ? "" : prefix + Target(w, wid);
+
+    /// <summary>Кого держат в цели: «вас», «пета», имя.</summary>
+    internal static string Target(WorldState w, uint wid) => wid == w.Host.Wid ? "вас" : wid != 0 && wid == PetWid(w) ? "пета" : DamageLog.Who(w, wid);
 
     private static string Whom(WorldState w, uint wid)
     {
@@ -146,7 +176,7 @@ public static class IncidentReport
         return DamageLog.Who(w, wid);
     }
 
-    private static uint PetWid(WorldState w) => w.Pet is { IsSummoned: true } p ? p.ActiveWid : 0;
+    internal static uint PetWid(WorldState w) => w.Pet is { IsSummoned: true } p ? p.ActiveWid : 0;
 
     private static void Section(StringBuilder text, string title, IEnumerable<string> lines)
     {

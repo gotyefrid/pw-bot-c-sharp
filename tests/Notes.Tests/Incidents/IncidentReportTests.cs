@@ -45,6 +45,21 @@ public class IncidentReportTests
     }
 
     [Fact]
+    public void ChronicleHasStartChangesAndEvent()
+    {
+        var start = _world.Snapshot();
+        _world.AddMob(Bat, "Летяга-разбойница", 3, FakeWorld.HostWid);
+        var death = _world.Wait(0.25).Snapshot();
+
+        var text = IncidentReport.Text(new Incident([new IncidentEvent(death.Time, "Вас убил Летяга-разбойница", death)], [start, death]));
+
+        var chronicle = text.Substring(text.IndexOf("=== Хроника: что менялось", StringComparison.Ordinal));
+        Assert.Contains($"{IncidentReport.Clock(death.Time)}  появился моб Летяга-разбойница, 3,0 м, цель → вас", chronicle);
+        Assert.Contains($"{IncidentReport.Clock(death.Time)}  ☠ Вас убил Летяга-разбойница", chronicle);
+        Assert.Contains("=== Хроника: в начале записи", text);
+    }
+
+    [Fact]
     public void ChatOnlyLastLines()
     {
         var w = _world.Snapshot() with { Chat = Enumerable.Range(1, 200).Select(n => new ChatMessage(n, 1, $"сообщение {n}", 1)).ToList() };
