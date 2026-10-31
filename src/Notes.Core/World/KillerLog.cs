@@ -33,6 +33,9 @@ public sealed class KillerLog
             _killedBy = new Regex("^" + Regex.Escape(killedBy).Replace("%s", "(.+)") + "$", RegexOptions.Compiled);
     }
 
+    /// <summary>Записали «Вас убил …» или «Пет погиб …»: снимок, в котором заметили, и та же строка, что в логе.</summary>
+    public event Action<WorldState, string>? Noted;
+
     public void Observe(WorldState world)
     {
         if (_killedBy is null && _petDied.Length == 0)
@@ -54,12 +57,18 @@ public sealed class KillerLog
         {
             var text = message.Plain;
             if (_killedBy?.Match(text) is { Success: true } match)
-                _log.Warning($"Вас убил {Who(world, match.Groups[1].Value.Trim())}");
+                Note(world, $"Вас убил {Who(world, match.Groups[1].Value.Trim())}");
             else if (_petDied.Length > 0 && text == _petDied)
-                _log.Warning(PetDeath(world.Time));
+                Note(world, PetDeath(world.Time));
         }
 
         _last = newest;
+    }
+
+    private void Note(WorldState world, string line)
+    {
+        _log.Warning(line);
+        Noted?.Invoke(world, line);
     }
 
     // Удары по пету — пока он призван: после гибели пет уже не в снимке, а фраза в чате приходит позже удара

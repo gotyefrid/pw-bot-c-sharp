@@ -15,6 +15,7 @@ using Notes.Core.Clicker;
 using Notes.Core.Calls;
 using Notes.Core.Clients;
 using Notes.Core.GameFiles;
+using Notes.Core.Incidents;
 using Notes.Core.Logging;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
@@ -43,6 +44,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // Подключение к клиенту: снимки и бот (он принадлежит подключению — окно только просит запустить и остановить)
     private ClientConnection? _connection;
+    private IncidentRecorder? _incidents;
     private ServerProfile _profile;
     private bool _refreshing;
 
@@ -593,7 +595,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             // Блокноту ресурсов, логу урона и «кто убил» — каждый снимок, прямо в потоке снимков; окну — только последний
             connection.WorldUpdated += _spots.Observe;
             connection.WorldUpdated += new DamageLog(_logger.For(LogSources.Damage)).Observe;
-            connection.WorldUpdated += new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied).Observe;
+            // Запись мира вокруг смерти — первой: «кто убил» отмечает событие снимком, который она уже видела
+            var incidents = _incidents = new IncidentRecorder();
+            incidents.Closed += SaveIncident;
+            connection.WorldUpdated += incidents.Observe;
+            var killer = new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied);
+            killer.Noted += incidents.Mark;
+            connection.WorldUpdated += killer.Observe;
             connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => UiThread.Run(() => ShowFailure(message));
             connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));
@@ -625,6 +633,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsRunning = false;
         _connection?.Dispose();
         _connection = null;
+        _incidents?.Flush();
+        _incidents = null;
         Interlocked.Exchange(ref _latest, null);
         if (wasRunning)
             _log.Info("Стоп");
@@ -635,6 +645,21 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ConnectionExpanded = true;
         ClearWorld();
     }
+
+    // Файл — не в потоке снимков: текст случая собирается из сотен снимков
+    private void SaveIncident(Incident incident) => Task.Run(() =>
+    {
+        var log = _logger.For(LogSources.Brain);
+        try
+        {
+            var path = new IncidentFiles(Path.Combine(_logsDirectory, "смерти")).Write(incident);
+            log.Info($"Что было вокруг: {path}");
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            log.Error($"Не удалось записать, что было вокруг: {e.Message}");
+        }
+    });
 
     // Снимок, который окно ещё не показало. Окно не успевает (4 снимка в секунду) — промежуточные пропускаем: очередь
     // в поток окна не копится, показывается свежее
