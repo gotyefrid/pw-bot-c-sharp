@@ -190,6 +190,30 @@ public sealed class OpenBankAction : GameAction
 }
 
 /// <summary>
+/// Отделить часть стопки в сумке: <c>count</c> штук из ячейки <c>from</c> уходят в ПУСТУЮ ячейку <c>to</c> (что она пуста, проверяет
+/// тот, кто ставит действие). Подтверждение — в ячейке <c>to</c> лежит такой предмет.
+/// </summary>
+public sealed class SplitStackAction(InventoryItem item, int toSlot, int count) : GameAction
+{
+    public InventoryItem Item { get; } = item;
+    public int ToSlot { get; } = toSlot;
+    public int Count { get; } = count;
+    public override string Name => $"отделить {Count} из {Item.Tid}×{Item.Count}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override uint SlotId => (uint)Item.Slot + 3001;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    public override string? Precondition(WorldState now)
+        => now.Inventory.Any(i => i.Slot == ToSlot) ? "ячейка сумки занята"
+            : now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count > Count) ? null : "в ячейке нет столько";
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.BagMove(Item.Slot, ToSlot, Count);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Inventory.Any(i => i.Slot == ToSlot && i.Tid == Item.Tid) ? Verdict.Confirmed() : Verdict.Pending;
+}
+
+/// <summary>
 /// Положить стопку из ячейки сумки в ПУСТУЮ ячейку банка (основная вкладка). Банк должен быть открыт (<see cref="OpenBankAction"/>);
 /// что ячейка банка пуста, проверяет тот, кто ставит действие (банк в снимок мира не входит): в занятую ячейку это был бы обмен.
 /// Подтверждение — в ячейке сумки больше нет этого предмета.

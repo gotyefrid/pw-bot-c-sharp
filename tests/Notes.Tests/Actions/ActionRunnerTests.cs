@@ -990,6 +990,7 @@ public class ActionRunnerTests
         public CallResult ApplyMacro(int macro) => Slow();
         public CallResult CancelAction() => Slow();
         public CallResult OpenBank() => Slow();
+        public CallResult BagMove(int fromSlot, int toSlot, int count) => Slow();
         public CallResult BankExchange(int bagSlot, int bankSlot) => Slow();
         public CallResult PickupObject(GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();

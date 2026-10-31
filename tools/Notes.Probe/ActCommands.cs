@@ -24,6 +24,7 @@ internal static class ActCommands
           act target            выбрать ближайшего живого моба
           act untarget          снять цель
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
+          act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА   положить стопку из сумки в пустую ячейку банка (банк открыт)
           act bank-take ЯЧ_БАНКА ЯЧ_СУМКИ  взять стопку из банка в пустую ячейку сумки (банк открыт)
           act attack            обычная атака текущей цели
@@ -194,6 +195,17 @@ internal static class ActCommands
                 var mob = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
                 problem = "рядом нет живых мобов";
                 return mob is null ? null : new SelectTargetAction(mob);
+
+            case "bag-split":
+                var sp = args.Select(a => int.TryParse(a, out var v) && v is >= 0 and < 100000 && a.Length < 5 ? v : (int?)null).Where(v => v is not null).Select(v => v!.Value).ToList();
+                if (sp.Count > 3)
+                    sp = sp.Skip(sp.Count - 3).ToList();
+                problem = "нужно: act bag-split ЯЧЕЙКА ПУСТАЯ_ЯЧЕЙКА ЧИСЛО";
+                var src = sp.Count < 3 ? null : w.Inventory.FirstOrDefault(i => i.Slot == sp[0]);
+                if (src is null)
+                    return null;
+
+                return new SplitStackAction(src, sp[1], sp[2]);
 
             case "bank-put":
             case "bank-take":

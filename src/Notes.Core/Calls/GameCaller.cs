@@ -52,6 +52,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NormalAttack] = ["pvpMask"],
         [GameFunctions.UseItem] = ["where", "slot", "tid", "count"],
         [GameFunctions.OpenRemotePanel] = ["panel"],
+        [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
@@ -135,6 +136,10 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Номер вкладки банка в командах переноса: основная (данные игры, одинаковы на всех клиентах Comeback).</summary>
     private const uint BankMainTab = 3;
+
+    /// <summary>Перенести <paramref name="count"/> штук из ячейки сумки в другую ячейку сумки; в пустую — разделить стопку.</summary>
+    public CallResult BagMove(int fromSlot, int toSlot, int count)
+        => Call(GameFunctions.BagMove, null, ("from", (uint)fromSlot), ("to", (uint)toSlot), ("count", (uint)count));
 
     /// <summary>
     /// Поменять местами ячейку сумки и ячейку банка (основная вкладка): стопка уходит целиком; в пустую ячейку — это перенос.

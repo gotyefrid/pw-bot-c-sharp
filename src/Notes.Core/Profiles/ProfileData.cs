@@ -540,6 +540,7 @@ public static class GameFunctions
     public const string NormalAttack = "normalAttack";
     public const string UseItem = "useItem";
     public const string OpenRemotePanel = "openRemotePanel";
+    public const string BagMove = "bagMove";
     public const string BankExchange = "bankExchange";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
