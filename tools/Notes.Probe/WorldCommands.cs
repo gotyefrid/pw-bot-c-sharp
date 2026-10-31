@@ -190,9 +190,9 @@ internal static class WorldCommands
             stop = true;
         };
 
-        // «Кто убил» и запись мира вокруг смерти — как в боте; файлы — в logs\смерти рядом с Probe
+        // «Кто убил» и запись мира вокруг смерти — как в боте; файлы — в logs\deaths рядом с Probe
         var incidents = new IncidentRecorder();
-        var files = new IncidentFiles(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", "смерти"));
+        var files = new IncidentFiles(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", IncidentFiles.FolderName));
         incidents.Closed += incident => Console.WriteLine($"{DateTime.Now:HH:mm:ss}  📄 Что было вокруг: {files.Write(incident)}");
         var killer = new KillerLog(new Logger().AddSink(new KillerSink()).AddSink(incidents).For(LogSources.Brain), c.KilledBy, c.PetDied);
         killer.Noted += incidents.Mark;

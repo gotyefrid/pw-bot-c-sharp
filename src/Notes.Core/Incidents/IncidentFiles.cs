@@ -11,6 +11,9 @@ namespace Notes.Core.Incidents;
 /// </summary>
 public sealed class IncidentFiles(string directory, int keep = 50)
 {
+    /// <summary>Папка случаев внутри папки логов. Имя по-английски: путь без кириллицы.</summary>
+    public const string FolderName = "deaths";
+
     public string Directory { get; } = directory;
 
     /// <returns>Путь к записанному файлу.</returns>

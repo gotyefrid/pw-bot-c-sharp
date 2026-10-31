@@ -651,7 +651,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         var log = _logger.For(LogSources.Brain);
         try
         {
-            var path = new IncidentFiles(Path.Combine(_logsDirectory, "смерти")).Write(incident);
+            var path = new IncidentFiles(Path.Combine(_logsDirectory, IncidentFiles.FolderName)).Write(incident);
             log.Info($"Что было вокруг: {path}");
         }
         catch (Exception e) when (e is not OutOfMemoryException)
