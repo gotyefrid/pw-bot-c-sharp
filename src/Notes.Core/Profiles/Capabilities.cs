@@ -76,7 +76,7 @@ public sealed class Capabilities
         Set(Capability.FlyTo, move ?? (profile.MoveTypes.Fly == 0 ? "полёт в точку с высотой не найден для этого сервера" : null));
         Set(Capability.Cancel, First(GameFunctions.CancelAction));
         Set(Capability.RecallPet, First(GameFunctions.RecallPet));
-        Set(Capability.RemoteBank, First(GameFunctions.OpenRemotePanel, GameFunctions.BankExchange, GameFunctions.BagMove)
+        Set(Capability.RemoteBank, First(GameFunctions.OpenRemotePanel, GameFunctions.BankExchange)
                                    ?? (profile.Host.Bank == 0 ? "в профиле нет банка" : null));
         Set(Capability.Macro, First(GameFunctions.HostApplyComboSkill)
                               ?? (profile.Macros.List == 0 || profile.Base.Configs == 0 ? "в профиле нет макросов" : null));
