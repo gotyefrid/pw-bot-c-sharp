@@ -85,13 +85,17 @@ public class ProfileCatalogTests
     }
 
     [Fact]
-    public void ChatListOnlyWhereChecked()
+    public void ChatOnEveryServer()
     {
-        // Пустая строка вместо сигнатуры — «не проверено»: списка чата нет, а не ошибка разбора профиля
-        Assert.NotNull(_catalog.Load("comeback146").Data.Chat.Find);
-        Assert.Equal(7u, _catalog.Load("comeback146").Data.Chat.At);
-        Assert.Null(_catalog.Load("comeback136").Data.Chat.Find);
-        Assert.Null(_catalog.Load("pwclassic136").Data.Chat.Find);
+        // Список чата и фразы «кто убил» / «пет погиб» проверены на всех трёх клиентах
+        foreach (var id in new[] { "comeback146", "comeback136", "pwclassic136" })
+        {
+            var chat = _catalog.Load(id).Data.Chat;
+            Assert.NotNull(chat.Find);
+            Assert.Equal(7u, chat.At);
+            Assert.Contains("%s", chat.KilledBy);
+            Assert.Equal("Питомец погиб.", chat.PetDied);
+        }
     }
 
     [Fact]
@@ -158,6 +162,15 @@ public class ProfileJsonTests
         var data = ProfileJson.Parse("""{ "host": { "hp": "", "mp": "0x470" } }""");
 
         Assert.Equal((0u, 0x470u), (data.Host.Hp, data.Host.Mp));
+    }
+
+    [Fact]
+    public void EmptySignatureIsNotFound()
+    {
+        // Пустая строка вместо сигнатуры — тоже «не проверено»: искать нечего, а не ошибка разбора профиля
+        var data = ProfileJson.Parse("""{ "chat": { "find": "", "at": "" } }""");
+
+        Assert.Null(data.Chat.Find);
     }
 
     [Fact]
