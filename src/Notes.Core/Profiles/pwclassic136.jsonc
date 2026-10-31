@@ -114,7 +114,9 @@
     "slotCount": 769,
     "objectInSlot": "0x4",
     "npcs": { "manager": "0x24", "slotArray": "0x20", "count": "0x18" },
-    "groundItems": { "manager": "0x28", "slotArray": "0x1C", "count": "0x14" }
+    "groundItems": { "manager": "0x28", "slotArray": "0x1C", "count": "0x14" },
+    // Другие игроки — не проверено (судя по Probe port, [мир + 0x20]; в comeback146 — [мир + 0x1C], раскладка как у мобов)
+    "players": { "manager": "", "slotArray": "", "count": "" }
   },
 
   // Удары: кто, кого, сколько урона — менеджер атак мира (CECAttacksMan, имя класса есть в exe). Игра кладёт туда каждый удар
@@ -137,6 +139,17 @@
     "targetSize": "0x18",
     "targetFlags": "0x8",
     "targetDamage": "0xC"
+  },
+
+  // Другой игрок — не проверено на этом клиенте (найдено в comeback146: там поля как у перса)
+  "player": {
+    "wid": "",
+    "namePointer": "",
+    "location": "",
+    "level": "",
+    "hp": "",
+    "maxHp": "",
+    "target": ""
   },
 
   // Probe port 08.10: название (+0x244), расстояние (+0x26C) и запись справочника (+0x384) — сдвиг -0x20..-0x28 от comeback136;

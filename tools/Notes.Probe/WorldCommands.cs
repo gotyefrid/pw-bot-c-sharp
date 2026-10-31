@@ -270,6 +270,7 @@ internal static class WorldCommands
                                   + Bad(off.Select(n => $"{n.Name} {n.Offset.Horizontal:0.0}≠{game.ReadFloat(n.Address + data.Npc.Distance):0.0}")));
         }
 
+        Check(world.PlayerCountInGame is null || world.Players.Count == world.PlayerCountInGame, $"игроков прочитано {world.Players.Count}, в игре {world.PlayerCountInGame}");
         Check(world.GroundItemCountInGame is null || world.GroundItems.Count == world.GroundItemCountInGame, $"предметов на земле прочитано {world.GroundItems.Count}, в игре {world.GroundItemCountInGame}");
         var badItems = world.GroundItems.Where(i => i.Kind is not (GroundItemKind.Item or GroundItemKind.Resource or GroundItemKind.Money) || !i.Position.IsFinite).ToList();
         Check(badItems.Count == 0, $"у предметов на земле вид 1/2/3 и нормальные координаты{Bad(badItems.Select(i => $"{i.Name}={(int)i.Kind}"))}");
@@ -400,6 +401,17 @@ internal static class WorldCommands
         {
             var names = w.Mobs.GroupBy(n => n.Name).OrderByDescending(g => g.Count()).Select(g => $"{g.Key} ×{g.Count()}");
             s.AppendLine($"       мобы по названиям: {string.Join(", ", names)}");
+        }
+
+        if (w.PlayerCountInGame is not null || w.Players.Count > 0)
+        {
+            s.AppendLine($"Игроки {w.Players.Count} (в игре {w.PlayerCountInGame?.ToString() ?? "?"}), ближайшие:");
+            foreach (var p in w.Players.OrderBy(p => p.Offset.Direct).Take(full ? 10 : 5))
+            {
+                var aim = p.TargetWid == 0 ? "" : p.TargetWid == h.Wid ? "  ⚔ цель — перс" : w.Pet?.ActiveWid == p.TargetWid ? "  ⚔ цель — пет" : $"  → 0x{p.TargetWid:X8}";
+                var hp = p.MaxHp > 0 ? $"  HP {p.Hp}/{p.MaxHp}" : "";
+                s.AppendLine($"       {p.Offset.Horizontal,6:0.0} м {Height(p.Offset),6}  {(p.Level > 0 ? $"ур.{p.Level,3}" : "      ")} {p.Name,-24} 0x{p.Wid:X8}{hp}{aim}");
+            }
         }
 
         s.AppendLine($"Лут    {w.GroundItems.Count} (в игре {w.GroundItemCountInGame?.ToString() ?? "?"})");

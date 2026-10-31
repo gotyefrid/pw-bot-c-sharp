@@ -19,6 +19,7 @@ public sealed class ProfileData
     public PetOffsets Pet { get; init; } = new();
     public WorldOffsets World { get; init; } = new();
     public NpcOffsets Npc { get; init; } = new();
+    public PlayerOffsets Player { get; init; } = new();
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
     /// <summary>Раскладки записей предметов с типом (оружие, банки, снаряды…) — для групп лута. Пусто — групп нет.</summary>
@@ -200,6 +201,8 @@ public sealed class WorldOffsets
     public WorldListOffsets Npcs { get; init; } = new();
     /// <summary>Предметы на земле.</summary>
     public WorldListOffsets GroundItems { get; init; } = new();
+    /// <summary>Другие игроки рядом (без нашего персонажа).</summary>
+    public WorldListOffsets Players { get; init; } = new();
 }
 
 /// <summary>Один список мира — хэш-таблица в своём менеджере. У разных списков раскладка менеджера может отличаться.</summary>
@@ -254,6 +257,21 @@ public sealed class NpcOffsets
     /// <summary>Поле флагов, где <see cref="ReturningFlag"/> — «бросил цель, возвращается (неуязвим)»; 0 — не найдено.</summary>
     public uint Returning { get; init; }
     public uint ReturningFlag { get; init; }
+}
+
+/// <summary>
+/// Другой игрок рядом. Уровень, HP и цель игра знает не про всех (у остальных 0) — сервер присылает их не всегда.
+/// </summary>
+public sealed class PlayerOffsets
+{
+    public uint Wid { get; init; }
+    public uint NamePointer { get; init; }
+    public uint Location { get; init; }
+    public uint Level { get; init; }
+    public uint Hp { get; init; }
+    public uint MaxHp { get; init; }
+    /// <summary>WID того, кого игрок держит в цели; 0 — никого или неизвестно.</summary>
+    public uint Target { get; init; }
 }
 
 /// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам и с какого расстояния.</summary>

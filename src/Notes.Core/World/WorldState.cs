@@ -74,9 +74,19 @@ public sealed record WorldState(
     /// <summary>Предметы и ресурсы на земле — с расстояниями от персонажа в этом снимке.</summary>
     public IReadOnlyList<GroundItem> GroundItems { get; init; } = GroundItems.Select(i => i with { Origin = Host.Position }).ToList();
 
+    private readonly IReadOnlyList<PlayerInfo> _players = [];
+
+    /// <summary>Другие игроки рядом — с расстояниями от персонажа в этом снимке; пусто — нет или на этом сервере не найдены.</summary>
+    public IReadOnlyList<PlayerInfo> Players
+    {
+        get => _players;
+        init => _players = value.Select(p => p with { Origin = Host.Position }).ToList();
+    }
+
     /// <summary>Сколько объектов в списках по данным самой игры (для самопроверки: прочитали всё ли); null — поле не найдено.</summary>
     public int? NpcCountInGame { get; init; }
     public int? GroundItemCountInGame { get; init; }
+    public int? PlayerCountInGame { get; init; }
 
     public NpcInfo? Target => Host.TargetWid == 0 ? null : Npcs.FirstOrDefault(n => n.Wid == Host.TargetWid);
 
@@ -84,7 +94,7 @@ public sealed record WorldState(
 
     /// <summary>
     /// Кого можно взять в цель кликом: живые мобы, NPC и чужие петы. Свой пет — нет: он всегда рядом, и «ближайшей целью»
-    /// всегда был бы он. Других игроков снимок не читает.
+    /// всегда был бы он. Игроков (<see cref="Players"/>) здесь нет.
     /// </summary>
     public IEnumerable<NpcInfo> Targetable
         => Npcs.Where(n => (n.Kind is NpcKind.Mob or NpcKind.Npc or NpcKind.Pet) && !n.IsDead && n.Wid != Pet?.ActiveWid);
@@ -210,6 +220,28 @@ public static class NpcStates
         NpcState.Moving => "идёт",
         _ => null,
     };
+}
+
+/// <summary>
+/// Другой игрок рядом. Уровень, HP и цель игра знает не про всех — у остальных 0.
+/// </summary>
+public sealed record PlayerInfo(uint Address, uint Wid, string Name, Position Position)
+{
+    /// <summary>Откуда считается <see cref="Offset"/> — где персонаж в этом снимке. Ставит только сборка снимка.</summary>
+    internal Position Origin { get; init; }
+
+    /// <summary>Где игрок относительно персонажа.</summary>
+    public Offset Offset => Offset.Between(Origin, Position);
+
+    /// <summary>0 — неизвестен.</summary>
+    public int Level { get; init; }
+
+    /// <summary>0 — неизвестно.</summary>
+    public int Hp { get; init; }
+    public int MaxHp { get; init; }
+
+    /// <summary>Кого держит в цели (WID); 0 — никого или неизвестно.</summary>
+    public uint TargetWid { get; init; }
 }
 
 public sealed record NpcInfo(

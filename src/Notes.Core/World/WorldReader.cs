@@ -32,6 +32,7 @@ public sealed class WorldReader
     private readonly int _hostSize;
     private readonly int _npcSize;
     private readonly int _itemSize;
+    private readonly int _playerSize;
     private readonly int _attackSize;
     private readonly Dictionary<uint, MineInfo?> _mines = [];
     private readonly Dictionary<uint, string?> _groups = [];
@@ -59,6 +60,8 @@ public sealed class WorldReader
             n.Returning);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
+        var pl = profile.Player;
+        _playerSize = BlockSize(pl.Wid, pl.NamePointer, pl.Location + 8, pl.Level, pl.Hp, pl.MaxHp, pl.Target);
         var a = profile.Attacks;
         _attackSize = BlockSize(a.Lived, a.Attacker, a.Skill, a.Targets, a.TargetCount);
     }
@@ -76,6 +79,7 @@ public sealed class WorldReader
         var w = _p.World;
         var npcs = ReadList(world, w.Npcs, _npcSize, ReadNpc, out var npcCount);
         var items = ReadList(world, w.GroundItems, _itemSize, ReadGroundItem, out var itemCount);
+        var players = ReadList(world, w.Players, _playerSize, ReadPlayer, out var playerCount);
         var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
         var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
         var pet = ReadPet(Field(hostBlock, _p.Host.PetManager));
@@ -84,6 +88,8 @@ public sealed class WorldReader
         {
             NpcCountInGame = npcCount,
             GroundItemCountInGame = itemCount,
+            Players = players,
+            PlayerCountInGame = playerCount,
             InventorySlots = slots,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
@@ -267,6 +273,18 @@ public sealed class WorldReader
         if (!_memory.TryReadUInt32(record + m.Aggressive, out var aggressive) || !_memory.TryReadUInt32(record + m.AggroRadius, out var radius))
             return null;
         return _monsters[record] = (aggressive != 0, unchecked((int)radius));
+    }
+
+    private PlayerInfo? ReadPlayer(MemoryBlock b)
+    {
+        var p = _p.Player;
+        return new PlayerInfo(b.Address, b.UInt32(p.Wid), ReadName(b.UInt32(p.NamePointer)), ReadPosition(b, p.Location))
+        {
+            Level = (int)Field(b, p.Level),
+            Hp = (int)Field(b, p.Hp),
+            MaxHp = (int)Field(b, p.MaxHp),
+            TargetWid = Field(b, p.Target),
+        };
     }
 
     private GroundItem? ReadGroundItem(MemoryBlock b)
