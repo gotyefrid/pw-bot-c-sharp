@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using Notes.Core.GameFiles;
+using Notes.Core.Incidents;
 using Notes.Core.Logging;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
@@ -189,13 +190,19 @@ internal static class WorldCommands
             stop = true;
         };
 
-        // «Кто убил» — как в боте: строка после фразы игры о смерти
-        var killer = new KillerLog(new Logger().AddSink(new KillerSink()).For(LogSources.Brain), c.KilledBy, c.PetDied);
+        // «Кто убил» и запись мира вокруг смерти — как в боте; файлы — в logs\смерти рядом с Probe
+        var incidents = new IncidentRecorder();
+        var files = new IncidentFiles(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", "смерти"));
+        incidents.Closed += incident => Console.WriteLine($"{DateTime.Now:HH:mm:ss}  📄 Что было вокруг: {files.Write(incident)}");
+        var killer = new KillerLog(new Logger().AddSink(new KillerSink()).AddSink(incidents).For(LogSources.Brain), c.KilledBy, c.PetDied);
+        killer.Noted += incidents.Mark;
         var shown = int.MinValue;
         var first = true;
         do
         {
             var world = reader.Read();
+            if (watch)
+                incidents.Observe(world);
             killer.Observe(world);
             var chat = world.Chat;
             var fresh = first ? chat.Skip(Math.Max(0, chat.Count - last)) : chat.Where(m => m.Number > shown);
@@ -210,6 +217,7 @@ internal static class WorldCommands
                 Thread.Sleep(250);
         } while (watch && !stop && !game.HasExited);
 
+        incidents.Flush();
         return 0;
     }
 
