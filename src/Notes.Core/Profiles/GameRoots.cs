@@ -12,18 +12,21 @@ public sealed class GameRoots
 {
     private readonly IMemory _memory;
     private readonly Lazy<uint> _pointer;
+    private readonly Lazy<uint?> _chatList;
     private readonly ProfileData _profile;
 
     /// <param name="pointer">Где лежит указатель на базу — адрес в данных exe.</param>
-    public GameRoots(IMemory memory, uint pointer, ProfileData profile)
-        : this(memory, new Lazy<uint>(() => pointer), profile)
+    /// <param name="chatList">Где список сообщений чата (null — не искать).</param>
+    public GameRoots(IMemory memory, uint pointer, ProfileData profile, uint? chatList = null)
+        : this(memory, new Lazy<uint>(() => pointer), new Lazy<uint?>(() => chatList), profile)
     {
     }
 
-    private GameRoots(IMemory memory, Lazy<uint> pointer, ProfileData profile)
+    private GameRoots(IMemory memory, Lazy<uint> pointer, Lazy<uint?> chatList, ProfileData profile)
     {
         _memory = memory;
         _pointer = pointer;
+        _chatList = chatList;
         _profile = profile;
     }
 
@@ -42,10 +45,28 @@ public sealed class GameRoots
             {
                 throw new MemoryAccessException(moduleBase, e.Message);
             }
-        }), profile);
+        }), new Lazy<uint?>(() => FindChat(memory, moduleBase, profile)), profile);
+
+    // Список чата — по коду, один раз. Не нашёлся — чат просто не читается (остальное работает)
+    private static uint? FindChat(IMemory memory, uint moduleBase, ProfileData profile)
+    {
+        if (profile.Chat.Find is not { } find)
+            return null;
+        try
+        {
+            return CodeDataSearch.Find(memory, moduleBase, find, profile.Chat.At);
+        }
+        catch (Exception e) when (e is InvalidOperationException or MemoryAccessException)
+        {
+            return null;
+        }
+    }
 
     /// <summary>Где лежит указатель на базу; не нашёлся — <see cref="MemoryAccessException"/>.</summary>
     public uint Pointer => _pointer.Value;
+
+    /// <summary>Где список сообщений чата; null — на этом сервере не найден.</summary>
+    public uint? ChatList() => _chatList.Value;
 
     /// <summary>База; не читается — <see cref="MemoryAccessException"/>.</summary>
     public uint Base() => _memory.ReadUInt32(Pointer);

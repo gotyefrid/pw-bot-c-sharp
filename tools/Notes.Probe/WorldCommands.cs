@@ -152,6 +152,63 @@ internal static class WorldCommands
     }
 
     /// <summary>
+    /// Сообщения окна чата: где список (найден по коду), последние сообщения; с watch — новые по мере появления.
+    /// </summary>
+    public static int Chat(ServerProfile profile, GameProcess game, string[] args)
+    {
+        var c = profile.Data.Chat;
+        if (c.Find is null)
+        {
+            Console.Error.WriteLine($"❌ {profile.Name}: в профиле нет списка чата (chat)");
+            return 1;
+        }
+
+        uint list;
+        try
+        {
+            list = CodeDataSearch.Find(game, game.MainModuleBase, c.Find, c.At);
+        }
+        catch (InvalidOperationException e)
+        {
+            Console.Error.WriteLine($"❌ Список чата не найден: {e.Message}");
+            return 1;
+        }
+
+        Console.WriteLine($"Список чата: 0x{list:X8} (модуль + 0x{list - game.MainModuleBase:X})");
+        var watch = args.Contains("watch");
+        var last = args.Select(a => int.TryParse(a, out var n) && n != game.Pid ? n : 0).FirstOrDefault(n => n is > 0 and <= 256);
+        if (last == 0)
+            last = 20;
+
+        var reader = CreateReader(profile, game, out _);
+        var stop = false;
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            stop = true;
+        };
+
+        var shown = int.MinValue;
+        var first = true;
+        do
+        {
+            var chat = reader.Read().Chat;
+            var fresh = first ? chat.Skip(Math.Max(0, chat.Count - last)) : chat.Where(m => m.Number > shown);
+            foreach (var m in fresh)
+                Console.WriteLine($"{DateTime.Now:HH:mm:ss}  №{m.Number,-6} канал {m.Channel,-2} {(m.SenderWid == uint.MaxValue ? "" : $"от 0x{m.SenderWid:X8} ")}{m.Plain}");
+            if (chat.Count > 0)
+                shown = Math.Max(shown, chat.Max(m => m.Number));
+            if (first && chat.Count == 0)
+                Console.WriteLine("Сообщений нет");
+            first = false;
+            if (watch)
+                Thread.Sleep(250);
+        } while (watch && !stop && !game.HasExited);
+
+        return 0;
+    }
+
+    /// <summary>
     /// Кто кого бьёт и на сколько: каждый новый удар из менеджера атак игры (снимок раз в 100 мс), в конце — итог по парам
     /// «кто → кого». Файл .tsv — те же удары таблицей, для разбора вне Probe.
     /// </summary>

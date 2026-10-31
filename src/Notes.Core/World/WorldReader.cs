@@ -24,6 +24,9 @@ public sealed class WorldReader
     private const int MaxAttacks = 64;
     // Скилл по площади задевает многих — больше в снимок не берём
     private const int MaxAttackTargets = 32;
+    // Окно чата держит до 200 сообщений; больше не читаем, даже если список прочитался криво
+    private const int MaxChat = 256;
+    private const int MaxChatText = 512;
 
     private readonly IMemory _memory;
     private readonly GameRoots _roots;
@@ -39,6 +42,8 @@ public sealed class WorldReader
     private readonly Dictionary<uint, PetEssence> _petEssences = [];
     private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
+    // Текст сообщения чата не меняется — у каждого номера читаем один раз
+    private Dictionary<int, ChatMessage> _chat = [];
 
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
     private const int MoveEnvWater = 1;
@@ -93,6 +98,7 @@ public sealed class WorldReader
             InventorySlots = slots,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
+            Chat = ReadChat(),
         };
     }
 
@@ -273,6 +279,39 @@ public sealed class WorldReader
         if (!_memory.TryReadUInt32(record + m.Aggressive, out var aggressive) || !_memory.TryReadUInt32(record + m.AggroRadius, out var radius))
             return null;
         return _monsters[record] = (aggressive != 0, unchecked((int)radius));
+    }
+
+    // Список чата: [список] — начало массива записей, [список + 4] — конец
+    private IReadOnlyList<ChatMessage> ReadChat()
+    {
+        var c = _p.Chat;
+        if (c.EntrySize == 0 || _roots.ChatList() is not { } list || !_memory.TryReadUInt32(list, out var begin)
+            || !_memory.TryReadUInt32(list + 4, out var end) || end < begin)
+            return [];
+
+        var count = (int)Math.Min((end - begin) / c.EntrySize, MaxChat);
+        if (count == 0 || !MemoryBlock.TryRead(_memory, begin, count * (int)c.EntrySize, out var block))
+            return [];
+
+        var messages = new List<ChatMessage>(count);
+        var known = new Dictionary<int, ChatMessage>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var at = (uint)i * c.EntrySize;
+            var number = block.Int32(at + c.Number);
+            if (!_chat.TryGetValue(number, out var message))
+            {
+                var text = block.UInt32(at + c.Text);
+                message = new ChatMessage(number, block.Byte(at + c.Channel), ReadName(text, MaxChatText),
+                    block.UInt32(at + c.Sender));
+            }
+
+            messages.Add(message);
+            known[number] = message;
+        }
+
+        _chat = known;
+        return messages;
     }
 
     private PlayerInfo? ReadPlayer(MemoryBlock b)
@@ -550,13 +589,13 @@ public sealed class WorldReader
         return macros;
     }
 
-    private string ReadName(uint pointer)
+    private string ReadName(uint pointer, int maxChars = 64)
     {
         if (pointer == 0)
             return "";
         try
         {
-            return _memory.ReadUnicodeString(pointer);
+            return _memory.ReadUnicodeString(pointer, maxChars);
         }
         catch (MemoryAccessException)
         {

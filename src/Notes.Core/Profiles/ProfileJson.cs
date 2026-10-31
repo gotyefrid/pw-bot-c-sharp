@@ -62,7 +62,7 @@ public static class ProfileJson
     private sealed class SignatureConverter : JsonConverter<Signature?>
     {
         public override Signature? ReadJson(JsonReader reader, Type objectType, Signature? existingValue, bool hasExistingValue, JsonSerializer serializer)
-            => reader.TokenType == JsonToken.Null ? null : Signature.Parse((string)reader.Value!);
+            => reader.TokenType == JsonToken.Null || reader.Value is "" ? null : Signature.Parse((string)reader.Value!);
 
         public override void WriteJson(JsonWriter writer, Signature? value, JsonSerializer serializer) => writer.WriteValue(value?.ToString());
     }

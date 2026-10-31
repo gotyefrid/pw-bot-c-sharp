@@ -119,6 +119,9 @@ public sealed record WorldState(
     /// <summary>Макросы персонажа (только непустые); пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<MacroInfo> Macros { get; init; } = [];
 
+    /// <summary>Сообщения окна чата, старые первыми; пусто — нет или на этом сервере не найдены.</summary>
+    public IReadOnlyList<ChatMessage> Chat { get; init; } = [];
+
     /// <summary>Удары, которые игра сейчас показывает; пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<AttackEvent> Attacks { get; init; } = [];
 

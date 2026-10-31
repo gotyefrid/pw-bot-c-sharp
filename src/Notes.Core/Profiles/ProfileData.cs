@@ -34,6 +34,7 @@ public sealed class ProfileData
     public SkillOffsets Skill { get; init; } = new();
     public MacroOffsets Macros { get; init; } = new();
     public AttackOffsets Attacks { get; init; } = new();
+    public ChatOffsets Chat { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
@@ -257,6 +258,27 @@ public sealed class NpcOffsets
     /// <summary>Поле флагов, где <see cref="ReturningFlag"/> — «бросил цель, возвращается (неуязвим)»; 0 — не найдено.</summary>
     public uint Returning { get; init; }
     public uint ReturningFlag { get; init; }
+}
+
+/// <summary>
+/// Сообщения чата — список, который показывает окно чата (последние ~200). Где он, бот находит по коду клиента
+/// (<see cref="CodeDataSearch"/>): [список] — начало массива записей, [список + 4] — конец.
+/// </summary>
+public sealed class ChatOffsets
+{
+    /// <summary>Код, который работает со списком; в нём на месте <see cref="At"/> — адрес списка. null — не найдено для сервера.</summary>
+    public Signature? Find { get; init; }
+    public uint At { get; init; }
+    /// <summary>Размер записи о сообщении.</summary>
+    public uint EntrySize { get; init; }
+    /// <summary>Канал (младший байт).</summary>
+    public uint Channel { get; init; }
+    /// <summary>Указатель на текст (UTF-16, с кодами цвета «^RRGGBB»).</summary>
+    public uint Text { get; init; }
+    /// <summary>Номер сообщения: у каждого следующего на 1 больше.</summary>
+    public uint Number { get; init; }
+    /// <summary>WID отправителя (у системных −1).</summary>
+    public uint Sender { get; init; }
 }
 
 /// <summary>

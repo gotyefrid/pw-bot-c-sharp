@@ -85,6 +85,16 @@ public class ProfileCatalogTests
     }
 
     [Fact]
+    public void ChatListOnlyWhereChecked()
+    {
+        // Пустая строка вместо сигнатуры — «не проверено»: списка чата нет, а не ошибка разбора профиля
+        Assert.NotNull(_catalog.Load("comeback146").Data.Chat.Find);
+        Assert.Equal(7u, _catalog.Load("comeback146").Data.Chat.At);
+        Assert.Null(_catalog.Load("comeback136").Data.Chat.Find);
+        Assert.Null(_catalog.Load("pwclassic136").Data.Chat.Find);
+    }
+
+    [Fact]
     public void Comeback136IsPortedFrom146()
     {
         // Та же ветка клиента, что 1.4.6, другая сборка: все функции 1.4.6 на новых адресах, у перса сдвинуты поля
