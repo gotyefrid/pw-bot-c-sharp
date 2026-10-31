@@ -42,6 +42,10 @@ public interface IGameActions
     /// <summary>Открыть банк (хранилище) из сумки — где угодно, в том числе в бою.</summary>
     CallResult OpenBank();
 
+    /// <summary>Поменять местами ячейку сумки и ячейку банка (основная вкладка): в пустую ячейку — перенос стопки целиком.</summary>
+    CallResult BankExchange(int bagSlot, int bankSlot);
+
+
     /// <summary>Подобрать как кликом мыши: клиент подходит сам.</summary>
     CallResult PickupObject(GroundItem item);
 

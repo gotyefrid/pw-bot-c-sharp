@@ -153,6 +153,27 @@ internal static class WorldCommands
         return 0;
     }
 
+    /// <summary>Содержимое основной вкладки банка и сумки — сверить с тем, что видно в игре.</summary>
+    public static int Bank(ServerProfile profile, GameProcess game)
+    {
+        var reader = CreateReader(profile, game, out _);
+        var bank = reader.ReadBank(out var slots);
+        if (bank is null)
+        {
+            Console.Error.WriteLine($"❌ {profile.Name}: в профиле нет банка (host.bank)");
+            return 1;
+        }
+
+        Console.WriteLine($"Банк: ячеек {slots}, предметов {bank.Count}");
+        foreach (var item in bank)
+            Console.WriteLine($"  ячейка {item.Slot,3}: tid {item.Tid}, категория {item.Category}, ×{item.Count}");
+        var world = reader.Read();
+        Console.WriteLine($"Сумка: ячеек {world.InventorySlots}, предметов {world.Inventory.Count}");
+        foreach (var item in world.Inventory)
+            Console.WriteLine($"  ячейка {item.Slot,3}: tid {item.Tid}, категория {item.Category}, ×{item.Count}");
+        return 0;
+    }
+
     /// <summary>
     /// Сообщения окна чата: где список (найден по коду), последние сообщения; с watch — новые по мере появления.
     /// </summary>

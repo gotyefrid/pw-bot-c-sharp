@@ -144,6 +144,8 @@ public sealed class HostOffsets
     public uint WorkMan { get; init; }
     /// <summary>[перс + Inventory] — сумка.</summary>
     public uint Inventory { get; init; }
+    /// <summary>[перс + Bank] — основная вкладка банка (хранилища); устроена как сумка. 0 — не найдено.</summary>
+    public uint Bank { get; init; }
     /// <summary>[перс + Skills] — массив указателей на скиллы.</summary>
     public uint Skills { get; init; }
     public uint SkillsCount { get; init; }
@@ -538,6 +540,7 @@ public static class GameFunctions
     public const string NormalAttack = "normalAttack";
     public const string UseItem = "useItem";
     public const string OpenRemotePanel = "openRemotePanel";
+    public const string BankExchange = "bankExchange";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";

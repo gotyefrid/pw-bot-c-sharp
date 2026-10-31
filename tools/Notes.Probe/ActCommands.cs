@@ -24,6 +24,8 @@ internal static class ActCommands
           act target            выбрать ближайшего живого моба
           act untarget          снять цель
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
+          act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА   положить стопку из сумки в пустую ячейку банка (банк открыт)
+          act bank-take ЯЧ_БАНКА ЯЧ_СУМКИ  взять стопку из банка в пустую ячейку сумки (банк открыт)
           act attack            обычная атака текущей цели
           act skill [id]        скилл пакетом по текущей цели (по умолчанию атакующий)
           act skill-approach [id]  скилл «как кнопкой»: подойти и скастовать
@@ -74,7 +76,7 @@ internal static class ActCommands
         var runner = new ActionRunner(new GameControl(calls.Caller), log);
 
         var world = reader.Read();
-        var action = Build(name, rest, world, data, out var problem);
+        var action = Build(name, rest, world, data, reader, out var problem);
         if (action is null)
         {
             Console.WriteLine($"❌ {problem}");
@@ -130,7 +132,56 @@ internal static class ActCommands
         return $"{cast}; скилл {skill}; пет в клетке {revive.Cage}: {pet}{(w.Pet is { IsSummoned: true } ? ", призван" : "")}";
     }
 
-    private static GameAction? Build(string name, string[] args, WorldState w, ProfileData data, out string problem)
+    // Номера ячеек: первые числа до 1000 (PID клиента, если указан, больше)
+    private static GameAction? BuildBank(bool put, string[] args, WorldState w, WorldReader reader, out string problem)
+    {
+        problem = "";
+        var n = args.Select(a => int.TryParse(a, out var v) && v is >= 0 and < 1000 ? v : (int?)null).Where(v => v is not null).Select(v => v!.Value).ToList();
+        if (n.Count < 2)
+        {
+            problem = put ? "нужно: act bank-put ЯЧЕЙКА_СУМКИ ЯЧЕЙКА_БАНКА" : "нужно: act bank-take ЯЧЕЙКА_БАНКА ЯЧЕЙКА_СУМКИ";
+            return null;
+        }
+
+        var bank = reader.ReadBank(out var bankSlots);
+        if (bank is null)
+        {
+            problem = "в профиле нет банка";
+            return null;
+        }
+
+        var bankSlot = put ? n[1] : n[0];
+        if (bankSlot >= bankSlots)
+        {
+            problem = $"в банке только {bankSlots} ячеек (банк открыт? act bank)";
+            return null;
+        }
+
+        if (put)
+        {
+            var item = w.Inventory.FirstOrDefault(i => i.Slot == n[0]);
+            problem = $"в ячейке сумки {n[0]} ничего нет";
+            if (item is null)
+                return null;
+
+            problem = $"ячейка банка {n[1]} занята — в неё нельзя положить (это был бы обмен)";
+            if (bank.Any(i => i.Slot == n[1]))
+                return null;
+
+            Console.WriteLine($"Положить: сумка {n[0]} (tid {item.Tid} ×{item.Count}) → банк {n[1]}");
+            return new BankPutAction(item, n[1]);
+        }
+
+        var stored = bank.FirstOrDefault(i => i.Slot == n[0]);
+        problem = $"в ячейке банка {n[0]} ничего нет (банк открыт? act bank)";
+        if (stored is null)
+            return null;
+
+        Console.WriteLine($"Взять: банк {n[0]} (tid {stored.Tid} ×{stored.Count}) → сумка {n[1]}");
+        return new BankTakeAction(stored.Tid, n[0], n[1]);
+    }
+
+    private static GameAction? Build(string name, string[] args, WorldState w, ProfileData data, WorldReader reader, out string problem)
     {
         problem = "";
         var number = args.Select(a => int.TryParse(a, out var n) ? n : (int?)null).FirstOrDefault(n => n is not null);
@@ -143,6 +194,10 @@ internal static class ActCommands
                 var mob = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
                 problem = "рядом нет живых мобов";
                 return mob is null ? null : new SelectTargetAction(mob);
+
+            case "bank-put":
+            case "bank-take":
+                return BuildBank(name == "bank-put", args, w, reader, out problem);
 
             case "bank":
                 return new OpenBankAction();

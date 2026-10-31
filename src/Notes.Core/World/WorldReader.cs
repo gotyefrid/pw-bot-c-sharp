@@ -58,7 +58,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
+            h.Location + 8, h.Inventory, h.Bank, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
@@ -421,6 +421,20 @@ public sealed class WorldReader
         if (group is not null || !unread)
             _groups[tid] = group;
         return group;
+    }
+
+    /// <summary>
+    /// Основная вкладка банка. Не входит в снимок мира: нужна по требованию (перед переносом предметов), а не четыре раза в
+    /// секунду. null — банка в профиле нет; список пуст — клиент ещё не получил его от сервера (банк открывают первый раз за вход).
+    /// </summary>
+    public IReadOnlyList<InventoryItem>? ReadBank(out int slots)
+    {
+        slots = 0;
+        if (_p.Host.Bank == 0)
+            return null;
+
+        ReadHost(GameAddress(), out var hostBlock);
+        return ReadInventory(Field(hostBlock, _p.Host.Bank), out slots);
     }
 
     private List<InventoryItem> ReadInventory(uint inventory, out int slots)

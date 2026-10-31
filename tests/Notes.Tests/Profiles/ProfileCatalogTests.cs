@@ -62,7 +62,7 @@ public class ProfileCatalogTests
         var hasRemoteBank = id != "pwclassic136";
 
         Assert.Equal(
-            _catalog.Load("comeback136").Data.Functions.Keys.Where(k => hasRemoteBank || k != GameFunctions.OpenRemotePanel).OrderBy(k => k),
+            _catalog.Load("comeback136").Data.Functions.Keys.Where(k => hasRemoteBank || k is not (GameFunctions.OpenRemotePanel or GameFunctions.BankExchange)).OrderBy(k => k),
             profile.Data.Functions.Keys.OrderBy(k => k));
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>().Where(c => hasRemoteBank || c != Capability.RemoteBank),
             c => Assert.Null(profile.Capabilities.WhyNot(c)));

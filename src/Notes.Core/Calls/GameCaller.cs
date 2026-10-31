@@ -52,6 +52,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NormalAttack] = ["pvpMask"],
         [GameFunctions.UseItem] = ["where", "slot", "tid", "count"],
         [GameFunctions.OpenRemotePanel] = ["panel"],
+        [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -131,6 +132,15 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Открыть банк, как кнопкой в сумке: сервер сам отвечает окном, работает и в бою.</summary>
     public CallResult OpenBank() => Call(GameFunctions.OpenRemotePanel, null, ("panel", 1));
+
+    /// <summary>Номер вкладки банка в командах переноса: основная (данные игры, одинаковы на всех клиентах Comeback).</summary>
+    private const uint BankMainTab = 3;
+
+    /// <summary>
+    /// Поменять местами ячейку сумки и ячейку банка (основная вкладка): стопка уходит целиком; в пустую ячейку — это перенос.
+    /// </summary>
+    public CallResult BankExchange(int bagSlot, int bankSlot)
+        => Call(GameFunctions.BankExchange, null, ("tab", BankMainTab), ("bankSlot", (uint)bankSlot), ("slot", (uint)bagSlot));
 
     /// <summary>Призвать пета из клетки 1..N (N — число клеток в профиле).</summary>
     public CallResult SummonPet(int cage)

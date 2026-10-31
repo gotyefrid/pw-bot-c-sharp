@@ -160,6 +160,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult ApplyMacro(int macro) => Record($"macro {macro}");
     public CallResult CancelAction() => Record("cancel");
     public CallResult OpenBank() => Record("bank");
+    public CallResult BankExchange(int bagSlot, int bankSlot) => Record($"bank-exchange {bagSlot} {bankSlot}");
     public CallResult PickupObject(GroundItem item) => Record($"pickup-approach {item.Id:X}");
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");

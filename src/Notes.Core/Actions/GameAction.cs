@@ -190,6 +190,52 @@ public sealed class OpenBankAction : GameAction
 }
 
 /// <summary>
+/// Положить стопку из ячейки сумки в ПУСТУЮ ячейку банка (основная вкладка). Банк должен быть открыт (<see cref="OpenBankAction"/>);
+/// что ячейка банка пуста, проверяет тот, кто ставит действие (банк в снимок мира не входит): в занятую ячейку это был бы обмен.
+/// Подтверждение — в ячейке сумки больше нет этого предмета.
+/// </summary>
+public sealed class BankPutAction(InventoryItem item, int bankSlot) : GameAction
+{
+    public InventoryItem Item { get; } = item;
+    public int BankSlot { get; } = bankSlot;
+    public override string Name => $"положить в банк {Item.Tid}×{Item.Count}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override uint SlotId => (uint)Item.Slot + 1;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    public override string? Precondition(WorldState now)
+        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid) ? null : "в ячейке сумки нет этого предмета";
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.BankExchange(Item.Slot, BankSlot);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid) ? Verdict.Pending : Verdict.Confirmed();
+}
+
+/// <summary>
+/// Взять стопку из ячейки банка (основная вкладка) в ПУСТУЮ ячейку сумки. Банк должен быть открыт (<see cref="OpenBankAction"/>).
+/// Подтверждение — в ячейке сумки лежит этот предмет.
+/// </summary>
+public sealed class BankTakeAction(uint tid, int bankSlot, int bagSlot) : GameAction
+{
+    public uint Tid { get; } = tid;
+    public int BankSlot { get; } = bankSlot;
+    public int BagSlot { get; } = bagSlot;
+    public override string Name => $"взять из банка {Tid}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override uint SlotId => (uint)BagSlot + 1001;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    public override string? Precondition(WorldState now)
+        => now.Inventory.Any(i => i.Slot == BagSlot) ? "ячейка сумки занята" : null;
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.BankExchange(BagSlot, BankSlot);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Inventory.Any(i => i.Slot == BagSlot && i.Tid == Tid) ? Verdict.Confirmed() : Verdict.Pending;
+}
+
+/// <summary>
 /// Прервать каст или копание — как Esc (нужно срочно лечить пета) — и идущий макрос: иначе игра сразу начнёт его следующий
 /// каст. Тело не занимает: оно его освобождает.
 /// Подтверждение — персонаж больше не кастует и не копает.
