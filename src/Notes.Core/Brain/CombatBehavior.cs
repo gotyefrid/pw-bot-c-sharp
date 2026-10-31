@@ -19,11 +19,13 @@ namespace Notes.Core.Brain;
 /// скилл «как кнопкой» или макрос персонажа; меч раз в ~5 с. Через N с (120) моба бросаем, а если его HP не падает 30 с — раньше. Убит — лут (ход переходит к <see cref="LootBehavior"/>
 /// на том же снимке).</item>
 /// <item>Лут: бой важнее — напали во время лута, лут бросаем и бьём напавшего.</item>
+/// <item>Каждый снимок, даже когда ход занял кто-то до боя, — лог нападений (<see cref="AttackWatch"/>): кто напал, что решил
+/// бой и почему.</item>
 /// </list>
 /// </summary>
 /// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета, —
 /// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма).</param>
-public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
+public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchingBehavior
 {
     // Обычная атака: перс бьёт сам, пока не собьют; повтор раз в секунду — сбили (подход, каст) — снова бьёт почти сразу
     private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(1);
@@ -45,6 +47,9 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     private static readonly TimeSpan RetargetPeriod = TimeSpan.FromSeconds(1);
 
     private readonly Dictionary<uint, DateTime> _gaveUp = [];
+    private readonly AttackWatch _attacks = new();
+    // Когда бой последний раз получал ход: не получил — ход занял кто-то до него
+    private DateTime _tickedAt;
 
     private DateTime _fightStarted;
     // Самое низкое HP цели за бой и когда оно было; 0 — HP не читается (на сервере не найдено) — проверки нет
@@ -61,6 +66,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
 
     public bool Tick(BrainContext c)
     {
+        _tickedAt = c.Now;
         var fight = c.Fight;
         if (!defendOnly && !c.Settings.Target.KillMobs)
         {
@@ -366,6 +372,44 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     {
     }
 
+    public void Observe(BrainContext c, IBehavior? acted) => _attacks.Observe(c, mob => Verdict(c, mob, acted));
+
+    /// <summary>
+    /// Что бой делает с напавшим и почему — для лога нападений. Те же правила, что в <see cref="Search"/>, <see cref="Fight"/>
+    /// и <see cref="AttackedWhileLooting"/>: поменялись там — поменять и здесь.
+    /// </summary>
+    private string Verdict(BrainContext c, NpcInfo mob, IBehavior? acted)
+    {
+        var fight = c.Fight;
+        if (fight.Phase == FightPhase.Fighting && fight.Mob == mob.Wid)
+            return "бой с ним";
+        if (_tickedAt != c.Now)
+            return $"ход занят: {acted?.Name}{(acted?.Status is { } status ? " — " + status : "")}";
+        if (!defendOnly && !c.Settings.Target.KillMobs)
+            return "«Бить мобов» выключено — не отвечаю";
+        if (!mob.Engaging)
+            return "стоит с нашей целью, но не бьёт — не нападение";
+
+        var threat = ThreatOf(c, mob);
+        if (threat == Threat.None)
+            return "«сначала тех, кто бьёт» выключено — не отвлекаюсь";
+        if (MostDangerous(c, out var top) is { } first && first.Wid != mob.Wid)
+            return $"сначала {(fight.Phase == FightPhase.Fighting && fight.Mob == first.Wid ? "добиваю " : "")}{first.Name}: "
+                   + (top > threat ? "он бьёт меня, этот — пета" : "он ближе");
+
+        switch (fight.Phase)
+        {
+            case FightPhase.Fighting:
+                return c.World.Npcs.FirstOrDefault(n => n.Wid == fight.Mob) is { } current && threat <= ThreatOf(c, current)
+                    ? $"{fight.MobName} не менее опасен — сначала добиваю его"
+                    : "переключаюсь на него";
+            case FightPhase.Looting:
+                return c.Settings.Loot.Enabled && HitsUsFirst(c) ? "бросаю лут — сначала бой" : "сначала лут";
+            default:
+                return c.World.Host.TargetWid == mob.Wid ? "в цели — начинаю бой" : "беру в цель";
+        }
+    }
+
     private bool BackToSearch(BrainContext c)
     {
         c.Fight.Abort();
@@ -384,6 +428,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior
     public void Reset()
     {
         _gaveUp.Clear();
+        _attacks.Reset();
         Status = null;
     }
 }

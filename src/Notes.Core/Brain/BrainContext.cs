@@ -152,3 +152,10 @@ public interface IBehavior : IActionOwner
     /// <summary>Что делает сейчас — для окна. null — ничего.</summary>
     string? Status { get; }
 }
+
+/// <summary>Поведение, которое смотрит каждый снимок после хода — и когда ход занял кто-то до него (лог нападений у боя).</summary>
+public interface IWatchingBehavior
+{
+    /// <param name="acted">Кто занял ход; null — никто.</param>
+    void Observe(BrainContext context, IBehavior? acted);
+}

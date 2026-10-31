@@ -85,6 +85,8 @@ public sealed class BotBrain : IBotRunner
                 }
 
                 _context.Owner = null;
+                foreach (var watcher in _behaviors.OfType<IWatchingBehavior>())
+                    watcher.Observe(_context, acted);
                 Deliver();
                 SetStatus((acted ?? _main).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
                 if (_context.StopReason is { } reason)
