@@ -97,10 +97,20 @@ public sealed class ServerCodeLog : IDisposable
         if (offsets is null || offsets.MapHead == 0)
             return null;
 
-        var watcher = new ServerCodeLog(memory, moduleBase + offsets.MapHead, offsets.OwnKeyMin, directory, log);
+        var watcher = Create(memory, moduleBase, offsets, directory, log);
         watcher.Start();
         return watcher;
     }
+
+    /// <summary>
+    /// Следящий без фонового потока — проходы делает сам вызывающий (<see cref="Scan"/>). Отдельный вход для тестов:
+    /// <see cref="Start"/> сразу поднимает поток, тот сканирует по текущим часам и пишет сегодняшний файл, а тест
+    /// проверяет вчерашний — получалась гонка, из-за которой тест падал примерно раз на семь прогонов.
+    /// Прибавление базы модуля живёт здесь: тест проверяет ровно тот код, который работает в игре.
+    /// </summary>
+    internal static ServerCodeLog Create(IMemory memory, uint moduleBase, Profiles.ServerCodeOffsets offsets,
+        string directory, Logging.ILogger log)
+        => new(memory, moduleBase + offsets.MapHead, offsets.OwnKeyMin, directory, log);
 
     public void Start()
     {

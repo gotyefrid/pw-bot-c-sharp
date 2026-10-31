@@ -54,10 +54,18 @@ public class ServerCodeLogTests : IDisposable
     }
 
     /// <summary>Пустая карта; дальше тест добавляет записи, переписывая корень.</summary>
-    private void EmptyMap()
+    private void EmptyMap(uint moduleBase = 0)
     {
-        _image.WriteUInt32(Head, HeadNode);
-        Node(HeadNode, HeadNode, HeadNode, HeadNode, 0, 0, 0);
+        _image.WriteUInt32(moduleBase + Head, moduleBase + HeadNode);
+        Node(moduleBase + HeadNode, moduleBase + HeadNode, moduleBase + HeadNode, moduleBase + HeadNode, 0, 0, 0);
+    }
+
+    /// <summary>Один узел карты в дереве над пустым корнем. Адреса узлов — от базы модуля, адрес кода — настоящий.</summary>
+    private void OnlyEntry(uint moduleBase, uint node, ushort key, uint code, byte flags)
+    {
+        var headNode = moduleBase + HeadNode;
+        Node(headNode, moduleBase + node, moduleBase + node, moduleBase + node, 0, 0, 0);
+        Node(moduleBase + node, 0, headNode, 0, key, code, flags);
     }
 
     [Fact]
@@ -313,17 +321,38 @@ public class ServerCodeLogTests : IDisposable
     {
         // В профиле смещение от начала модуля (у клиента ASLR); читать надо базу + смещение.
         // Ошибка, которую этот тест закрывает: карту искали по самому смещению, и на живом клиенте она «не читалась».
-        var offsets = new Notes.Core.Profiles.ServerCodeOffsets { MapHead = 0x1000, OwnKeyMin = OwnKeyMin };
-        EmptyMap();
-        Node(HeadNode, 0x2100, 0x2100, 0x2100, 0, 0, 0);
-        Node(0x2100, 0, HeadNode, 0, 7, 0x3000, 0x07);
+        // База здесь ненулевая: при нулевой сложение ничего не проверяет — 0 + 0x1000 и просто 0x1000 совпадают.
+        const uint moduleBase = 0x10000000;
+        var offsets = new Notes.Core.Profiles.ServerCodeOffsets { MapHead = Head, OwnKeyMin = OwnKeyMin };
+        EmptyMap(moduleBase);
+        OnlyEntry(moduleBase, 0x2100, 7, 0x3000, 0x07);
         _image.WriteBytes(0x3000, [0x55]);
 
-        // База 0 — карта по адресу 0x1000, как в профиле; с ненулевой базой читалось бы мимо
-        using var watcher = ServerCodeLog.Start(_image, 0x0, offsets, _directory, NullLogger.Instance);
+        // Без потока: Start поднял бы фоновый проход по текущим часам, тот записал бы сегодняшний файл,
+        // а проверяем мы вчерашний — тест падал примерно раз на семь прогонов.
+        using var watcher = ServerCodeLog.Create(_image, moduleBase, offsets, _directory, NullLogger.Instance);
 
-        Assert.NotNull(watcher);
-        watcher!.Scan(Noon);
+        watcher.Scan(Noon);
+        Assert.Contains("\tновый\t", Contents());
+    }
+
+    [Fact]
+    public void MapHeadIsNotReadWithoutTheModuleBase()
+    {
+        // Обратная сторона того же: если карту искать по одному смещению, мимо базы, читается чужая память.
+        // Так было до 31.10 — и на живом клиенте карта «не читалась».
+        const uint moduleBase = 0x10000000;
+        var offsets = new Notes.Core.Profiles.ServerCodeOffsets { MapHead = Head, OwnKeyMin = OwnKeyMin };
+        EmptyMap(moduleBase);
+        OnlyEntry(moduleBase, 0x2100, 7, 0x3000, 0x07);
+        _image.WriteBytes(0x3000, [0x55]);
+
+        // По самому смещению (без базы) головы нет — именно отсюда бралась ошибка «карта не читается»
+        using (var wrong = new ServerCodeLog(_image, Head, OwnKeyMin, _directory, NullLogger.Instance))
+            Assert.Throws<MemoryAccessException>(() => wrong.Scan(Noon));
+
+        using var watcher = ServerCodeLog.Create(_image, moduleBase, offsets, _directory, NullLogger.Instance);
+        watcher.Scan(Noon);
         Assert.Contains("\tновый\t", Contents());
     }
 
