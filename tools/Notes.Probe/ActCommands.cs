@@ -24,6 +24,7 @@ internal static class ActCommands
           act target            выбрать ближайшего живого моба
           act untarget          снять цель
           act npc-hello         начать разговор с NPC в цели (откроется его окно)
+          act npc-bank          открыть банк у банкира, с которым начат разговор (после npc-hello)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА   положить стопку из сумки в пустую ячейку банка (банк открыт)
@@ -215,6 +216,9 @@ internal static class ActCommands
             case "npc-hello":
                 problem = "возьмите NPC в цель";
                 return w.Host.TargetWid == 0 ? null : new NpcHelloAction(w.Host.TargetWid);
+
+            case "npc-bank":
+                return new NpcOpenBankAction();
 
             case "bank":
                 return new OpenBankAction();

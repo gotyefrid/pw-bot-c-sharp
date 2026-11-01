@@ -87,6 +87,18 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void NpcBankSendsEmptyPassword()
+    {
+        // Как клиент без пароля на банк: строка пароля — пустая, по адресу данных
+        var result = Caller().NpcOpenBank();
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        Assert.Equal(new byte[4], run.Data);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.NpcOpenStorage), CallingConvention.Stdcall, 0, [DataAddress]), run.Stub);
+    }
+
+    [Fact]
     public void ChangedBytesBeforeCallCancelIt()
     {
         var caller = Caller();

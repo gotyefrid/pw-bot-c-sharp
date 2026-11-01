@@ -199,6 +199,16 @@ public sealed class NpcHelloAction(uint wid) : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Открыть банк у банкира, с которым уже начат разговор: окно открывает ответ сервера, итог не ждём.</summary>
+public sealed class NpcOpenBankAction : GameAction
+{
+    public override string Name => "банк у банкира";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcOpenBank();
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>
 /// Отделить часть стопки в сумке: <c>count</c> штук из ячейки <c>from</c> уходят в ПУСТУЮ ячейку <c>to</c> (что она пуста, проверяет
 /// тот, кто ставит действие). Подтверждение — в ячейке <c>to</c> лежит такой предмет.
