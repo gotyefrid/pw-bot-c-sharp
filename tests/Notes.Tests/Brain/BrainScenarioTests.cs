@@ -753,7 +753,7 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void PetOrderedToAttackTargetHalfSecondAfterSelecting()
+    public void PetOrderedToAttackTargetSecondAfterSelecting()
     {
         _settings.Target.KillMobs = true;
         _settings.Pet.Enabled = true;
@@ -762,6 +762,9 @@ public class BrainScenarioTests
 
         // Цель только что выбрана — пету пока не приказываем
         Tick();
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("pet-attack"));
+
+        Tick(0.5);
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("pet-attack"));
 
         Tick(0.5);
@@ -780,7 +783,7 @@ public class BrainScenarioTests
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 10).Wid;
 
         Tick();
-        Tick(0.5);
+        Tick(1);
         Assert.Equal("pet-attack 80000001", LastCall);
         var presses = FinishPetOrder();
 
@@ -802,7 +805,7 @@ public class BrainScenarioTests
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 40, hp: 100).Wid;
 
         Tick();
-        Tick(0.5);
+        Tick(1);
         Assert.Equal("pet-attack 80000001", LastCall);
         var presses = FinishPetOrder();
 
@@ -828,7 +831,7 @@ public class BrainScenarioTests
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 3, hp: 100).Wid;
 
         Tick();
-        Tick(0.5);
+        Tick(1);
         var presses = FinishPetOrder();
         Tick(4.25);
         Tick(1);
@@ -1674,7 +1677,7 @@ public class BrainScenarioTests
 
         _world.TargetWid = 0x80000002;
         Tick();
-        Tick(0.5);
+        Tick(1);
         Assert.Contains("pet-attack 80000002", _actions.Calls);
     }
 
