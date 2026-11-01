@@ -100,6 +100,11 @@ public sealed class GameFilesData
 {
     /// <summary>Ключи архивов .pck; нет в профиле — стандартные.</summary>
     public PckFormat Pck { get; init; } = new();
+    /// <summary>
+    /// Тексты дополнительных свойств вещей: тип свойства (из item_ext_prop.txt) → [фраза клиента, как получить каждое число].
+    /// Пусто — не найдено (бот покажет номер свойства и числа).
+    /// </summary>
+    public Dictionary<int, List<string>> AddonTexts { get; init; } = new();
 }
 
 /// <summary>От базы. Где она сама, бот находит в коде клиента (<see cref="BasePointerSearch"/>) — в профиле её нет.</summary>

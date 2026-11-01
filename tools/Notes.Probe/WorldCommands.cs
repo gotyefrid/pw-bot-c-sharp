@@ -495,6 +495,10 @@ internal static class WorldCommands
         if (problem is not null)
             Console.WriteLine("⚠️ " + problem);
 
+        Addons = ItemAddonTexts.LoadFromGameDirectory(Path.GetDirectoryName(game.MainModulePath)!, profile.Data.GameFiles, out var addonsProblem);
+        if (addonsProblem is not null)
+            Console.WriteLine("⚠️ свойства вещей: " + addonsProblem);
+
         var loaded = names;
         return new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data, loaded.Get);
     }
@@ -579,14 +583,17 @@ internal static class WorldCommands
         return s.ToString();
     }
 
-    // Ячейки и свойства вещи — номерами, как их хранит клиент (названия свойств — следующим шагом)
+    /// <summary>Тексты свойств вещей — читает <see cref="CreateReader"/> вместе с названиями скиллов.</summary>
+    private static ItemAddonTexts Addons = ItemAddonTexts.Empty;
+
+    // Ячейки и свойства вещи, как в подсказке игры
     private static string Gear(InventoryItem i)
     {
         var parts = new List<string>();
         if (i.Sockets.Count > 0)
             parts.Add($"ячеек {i.Sockets.Count}" + (i.Sockets.Any(s => s != 0) ? $" (камни {string.Join(", ", i.Sockets.Where(s => s != 0))})" : ""));
         if (i.Addons.Count > 0)
-            parts.Add("свойства " + string.Join(", ", i.Addons.Select(a => $"{a.Id}={string.Join("/", a.Params)}")));
+            parts.Add(string.Join(", ", i.Addons.Select(a => Addons.Describe(a))));
         return parts.Count == 0 ? "" : "; " + string.Join("; ", parts);
     }
 
