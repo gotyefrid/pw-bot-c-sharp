@@ -466,7 +466,7 @@
                  "signature": "56 8B F1 57 8B 8E 04 1C 00 00 85 C9" },
     // (0x3484D0)
     // Работа «подойти» — цель задают два метода работы, как в 1.4.6 (там подробно: причины, как найти). Те же сигнатуры, одно место
-    // в exe; зовутся подряд из CECHostPlayer::PickupObject (hostPickupObject). В игре здесь не проверено.
+    // в exe; зовутся подряд из CECHostPlayer::PickupObject (hostPickupObject). Проверено в игре (банкир).
     "workTraceTarget": { "rva": "0x333710", "convention": "thiscall",
                          "signature": "55 8B EC 53 56 57 8B 7D 08 8B D9 85 FF 74 ?? 78 ?? 6A 1C E8" },
     "workTraceSetTarget": { "rva": "0x333580", "convention": "thiscall",

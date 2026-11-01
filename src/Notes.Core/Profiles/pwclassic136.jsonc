@@ -467,7 +467,7 @@
     // (0x326850)
     // Работа «подойти» — цель задают два метода работы, как в Comeback 1.4.6 (там подробно: причины, как найти). NewTarget здесь
     // выделяет память своим распределителем (mov ecx, … перед call) — своя сигнатура; SetTarget — как в Comeback. Оба зовутся подряд
-    // из CECHostPlayer::PickupObject (hostPickupObject), с причиной 2 — по выбранной цели (push 2; push [перс+0x114]). В игре не проверено.
+    // из CECHostPlayer::PickupObject (hostPickupObject), с причиной 2 — по выбранной цели (push 2; push [перс+0x114]). Проверено в игре (банкир).
     "workTraceTarget": { "rva": "0x3FDCD0", "convention": "thiscall",
                          "signature": "55 8B EC 56 8B 75 08 57 8B F9 85 F6 74 ?? 78 ?? 6A 1C B9 ?? ?? ?? ?? E8" },
     "workTraceSetTarget": { "rva": "0x3FDB60", "convention": "thiscall",
