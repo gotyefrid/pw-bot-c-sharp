@@ -623,7 +623,7 @@
                 <TextBlock Text="Банка" VerticalAlignment="Center" />
                 <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Potions.HpPotions}" DisplayMemberPath="Title"
                           SelectedValuePath="Value" SelectedValue="{Binding Potions.HpPotion}"
-                          ToolTip="В списке — банки HP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто»" />
+                          ToolTip="В списке — банки HP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто». Не хватает уровня — пока пьёт «Авто», с нужного уровня — выбранную" />
               </DockPanel>
             </StackPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Использовать банки MP" IsChecked="{Binding Settings.Potions.UseMp}" Margin="0,8,0,0"
@@ -637,7 +637,7 @@
                 <TextBlock Text="Банка" VerticalAlignment="Center" />
                 <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Potions.MpPotions}" DisplayMemberPath="Title"
                           SelectedValuePath="Value" SelectedValue="{Binding Potions.MpPotion}"
-                          ToolTip="В списке — банки MP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто»" />
+                          ToolTip="В списке — банки MP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто». Не хватает уровня — пока пьёт «Авто», с нужного уровня — выбранную" />
               </DockPanel>
             </StackPanel>
           </StackPanel>

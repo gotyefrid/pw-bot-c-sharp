@@ -68,8 +68,8 @@ public sealed class PotionsPanel : ObservableObject
             OnPropertyChanged(kind == PotionKind.Hp ? nameof(HpPotion) : nameof(MpPotion));
         }
 
-        Sync(HpPotions, Choices(w.Inventory, PotionKind.Hp, HpPotion), nameof(HpPotion));
-        Sync(MpPotions, Choices(w.Inventory, PotionKind.Mp, MpPotion), nameof(MpPotion));
+        Sync(HpPotions, Choices(w.Inventory, w.Host.Level, PotionKind.Hp, HpPotion), nameof(HpPotion));
+        Sync(MpPotions, Choices(w.Inventory, w.Host.Level, PotionKind.Mp, MpPotion), nameof(MpPotion));
     }
 
     // Пересборка списка сбрасывает выбор — это не выбор пользователя
@@ -81,19 +81,24 @@ public sealed class PotionsPanel : ObservableObject
         _edited();
     }
 
-    // Банки из сумки по названию (стопки складываем), сначала самая слабая; выбранная, которой в сумке нет, — с пометкой
-    private static List<PotionChoice> Choices(IEnumerable<InventoryItem> bag, PotionKind kind, string chosen)
+    // Банки из сумки по названию (стопки складываем), сначала самая слабая; не по уровню — с пометкой «нужен ур.» (выбрать
+    // можно: бот начнёт её пить с этого уровня); выбранная, которой в сумке нет, — с пометкой «нет в сумке»
+    private static List<PotionChoice> Choices(IEnumerable<InventoryItem> bag, int level, PotionKind kind, string chosen)
     {
         var fit = bag.Where(i => PotionPolicy.Fits(i, kind) && i.Name is not null)
             .GroupBy(i => i.Name!.Trim(), StringComparer.OrdinalIgnoreCase)
             .OrderBy(g => g.Min(i => kind == PotionKind.Hp ? i.Potion!.Hp : i.Potion!.Mp))
             .ToList();
-        var list = new List<PotionChoice> { new("", fit.Count > 0 ? $"Авто — самая слабая ({fit[0].Key})" : "Авто — самая слабая") };
-        list.AddRange(fit.Select(g => new PotionChoice(g.Key, $"{g.Key} ×{g.Sum(i => i.Count)}")));
+        var auto = fit.FirstOrDefault(g => NeedsLevel(g) <= level);
+        var list = new List<PotionChoice> { new("", auto is not null ? $"Авто — самая слабая ({auto.Key})" : "Авто — самая слабая") };
+        list.AddRange(fit.Select(g => new PotionChoice(g.Key,
+            $"{g.Key} ×{g.Sum(i => i.Count)}{(NeedsLevel(g) > level ? $" — нужен ур. {NeedsLevel(g)}" : "")}")));
         if (chosen.Length > 0 && !list.Any(c => Same(c.Value, chosen)))
             list.Add(new PotionChoice(chosen, $"{chosen} — нет в сумке"));
         return list;
     }
+
+    private static int NeedsLevel(IEnumerable<InventoryItem> potions) => potions.Min(i => i.Potion!.RequiredLevel);
 
     private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 

@@ -120,6 +120,9 @@ public enum PotionKind
     Mp,
 }
 
+/// <summary>Что с выбранной банкой: <see cref="Missing"/> — её нет в сумке; <see cref="NeedsLevel"/> &gt; 0 — есть, но нужен этот уровень.</summary>
+public readonly record struct ChosenPotion(bool Missing, int NeedsLevel);
+
 /// <summary>
 /// Какую банку пить. Только банки с перезарядкой 10 с (время действия из описания банки; у малых 10 с — подтверждено в игре,
 /// это же перезарядка банки): выбранную по названию, а «Авто» (пустое название) — самую слабую подходящую по уровню.
@@ -136,17 +139,17 @@ public sealed class PotionPolicy
     public static bool Fits(InventoryItem item, PotionKind kind)
         => item.Potion is { } p && Amount(p, kind) > 0 && Seconds(p, kind) == CooldownSeconds;
 
-    /// <summary>Банка «Авто» — самая слабая подходящая (как <see cref="Choose(WorldState, PotionKind, string, out string, out bool)"/> без выбора).</summary>
+    /// <summary>Банка «Авто» — самая слабая подходящая (как <see cref="Choose(WorldState, PotionKind, string, out string, out ChosenPotion)"/> без выбора).</summary>
     public InventoryItem? Choose(WorldState world, PotionKind kind, out string why) => Choose(world, kind, "", out why, out _);
 
     /// <summary>
     /// Банка, которую пить сейчас, или null (причина в <paramref name="why"/>). <paramref name="chosen"/> — название выбранной,
-    /// пусто — «Авто». Выбранной нет в сумке (или не по уровню) — берём как «Авто», а <paramref name="chosenMissing"/> — да.
+    /// пусто — «Авто». Выбранной нет в сумке или не хватает уровня — берём как «Авто», а что с ней — в <paramref name="state"/>.
     /// </summary>
-    public InventoryItem? Choose(WorldState world, PotionKind kind, string chosen, out string why, out bool chosenMissing)
+    public InventoryItem? Choose(WorldState world, PotionKind kind, string chosen, out string why, out ChosenPotion state)
     {
         why = "";
-        chosenMissing = false;
+        state = default;
         if (_activeUntil.TryGetValue(kind, out var until) && world.Time < until)
         {
             why = $"банка {kind} ещё действует {(until - world.Time).TotalSeconds:0} с";
@@ -159,10 +162,14 @@ public sealed class PotionPolicy
             .ToList();
         if (chosen.Length > 0)
         {
-            if (usable.FirstOrDefault(i => string.Equals(i.Name?.Trim(), chosen, StringComparison.OrdinalIgnoreCase)) is { } picked)
-                return picked;
+            var named = world.Inventory
+                .Where(i => Fits(i, kind) && i.Count > 0 && string.Equals(i.Name?.Trim(), chosen, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(i => i.Potion!.RequiredLevel)
+                .FirstOrDefault();
+            if (named is not null && named.Potion!.RequiredLevel <= world.Host.Level)
+                return named;
             // Сумка не прочиталась — это не «банки нет»
-            chosenMissing = world.Inventory.Count > 0;
+            state = named is not null ? new ChosenPotion(false, named.Potion!.RequiredLevel) : new ChosenPotion(world.Inventory.Count > 0, 0);
         }
 
         var potion = usable.FirstOrDefault();

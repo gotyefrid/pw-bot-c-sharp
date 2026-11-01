@@ -158,6 +158,30 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void ChosenPotionAboveLevelWaitsForLevelAndKeepsChoice()
+    {
+        // «Малая микстура духа» с 40-го, персонаж 39-го: пьём «Авто», выбор не сбрасываем, в лог — один раз
+        _settings.Potions.MpBelow = 100;
+        _settings.Potions.MpPotion = "Малая микстура духа";
+        _world.Mp = 10;
+        _world.Level = 39;
+        _world.AddPotion(1, 8642, 10, mp: 730, level: 40, name: "Малая микстура духа");
+        _world.AddPotion(2, 8647, 10, mp: 40, name: "Малая микстура бодрости");
+
+        Tick();
+        Assert.Equal(["use 2"], _actions.Calls);
+        Assert.Single(_log, e => e.Message.Contains("нужен ур. 40"));
+        Assert.DoesNotContain(_log, e => e.Message.Contains("нет в сумке"));
+        Assert.False(Brain.Part<IPotionFallback>()!.TryTakeSwitch(out _, out _));
+
+        // Взял 40-й — пьём выбранную
+        _world.Level = 40;
+        Tick(11);
+        Assert.Equal("use 1", LastCall);
+        Assert.Single(_log, e => e.Message.Contains("нужен ур."));
+    }
+
+    [Fact]
     public void PotionsSwitchedOffAreNotDrunk()
     {
         _settings.Potions.UseHp = false;

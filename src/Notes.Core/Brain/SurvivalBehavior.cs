@@ -18,7 +18,8 @@ public interface IPotionFallback
 /// <summary>
 /// Выжить: банка HP, когда HP ниже порога в % (и банка HP готова); банка MP, когда MP ниже порога в единицах — если такие
 /// банки включены. Пьём выбранную банку, «Авто» — самую слабую подходящую по уровню (только банки с перезарядкой 10 с);
-/// пока выпитая действует — такую же не пить. Выбранной нет в сумке — пишем в лог (раз за сессию) и переходим на «Авто».
+/// пока выпитая действует — такую же не пить. Выбранной нет в сумке — пишем в лог (раз за сессию) и переходим на «Авто»;
+/// не хватает уровня — пишем (раз за сессию) и пьём «Авто», выбор не трогаем.
 /// </summary>
 public sealed class SurvivalBehavior : IBehavior, IPotionFallback
 {
@@ -46,9 +47,11 @@ public sealed class SurvivalBehavior : IBehavior, IPotionFallback
     {
         var potions = c.Settings.Potions;
         var chosen = kind == PotionKind.Hp ? potions.HpPotion : potions.MpPotion;
-        var potion = _policy.Choose(c.World, kind, chosen, out var why, out var chosenMissing);
-        if (chosenMissing)
+        var potion = _policy.Choose(c.World, kind, chosen, out var why, out var state);
+        if (state.Missing)
             SwitchToAuto(c, potions, kind, chosen);
+        else if (state.NeedsLevel > 0 && _toldMissing.Add($"{kind}|{chosen.ToLowerInvariant()}|ур"))
+            c.Log.Warning($"Банке {kind} «{chosen}» нужен ур. {state.NeedsLevel} — пока пью «Авто», с этого уровня — её");
 
         if (potion is null)
         {
