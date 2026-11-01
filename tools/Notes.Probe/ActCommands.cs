@@ -45,6 +45,7 @@ internal static class ActCommands
           act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
           act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
+          act npc-go [имя]      подойти к NPC и заговорить, как вторым кликом по нему (ведёт игра)
           act move-npc [имя]    дойти до NPC в цели или до ближайшего NPC, в имени которого есть «имя» (Банкир)
           act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
           act fly               взлететь (на земле) или сесть (в воздухе) — как кнопкой «Полёт»
@@ -361,6 +362,12 @@ internal static class ActCommands
                 var from = w.Host.Position;
                 Console.WriteLine($"Сейчас высота {from.Height:0.0}, лечу на {from.Height + shift[2]:0.0}");
                 return new MoveAction(new Position(from.X + shift[0], from.Height + shift[2], from.Y + shift[1]), fly: true);
+
+            case "npc-go":
+                var go = FindNpc(args, w, out problem);
+                if (go is not null)
+                    Console.WriteLine($"Подойти к {go.Name}: {go.Offset.Horizontal:0.0} м");
+                return go is null ? null : new TalkToAction(go.Wid);
 
             case "move-npc":
                 var npc = FindNpc(args, w, out problem);

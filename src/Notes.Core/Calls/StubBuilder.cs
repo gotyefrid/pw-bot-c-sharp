@@ -78,6 +78,40 @@ public static class StubBuilder
         return code.ToArray();
     }
 
+    /// <summary>
+    /// Подойти к объекту и действовать с ним, как вторым кликом по выбранной цели: work = WorkMan->CreateWork(2) («подойти»);
+    /// target = work->NewTarget(id, причина, 0); work->SetTarget(target, 0); WorkMan->StartWork(…). Нет работы или цели — выход.
+    /// </summary>
+    public static byte[] TraceTo(uint workMan, uint create, uint newTarget, uint id, uint reason, uint setTarget, uint start,
+        IReadOnlyList<uint?> startArgs)
+    {
+        var code = new List<byte> { 0x56 };                 // push esi
+        MovEcx(code, workMan);
+        code.AddRange([0x6A, 0x02]);                        // push 2 (работа «подойти»)
+        CallAbsolute(code, create);
+        code.AddRange([0x85, 0xC0]);                        // test eax, eax
+        var jz1 = code.Count;
+        code.AddRange([0x74, 0x00]);                        // jz end
+        code.AddRange([0x8B, 0xF0]);                        // mov esi, eax
+        PushArgs(code, [id, reason, 0]);
+        code.AddRange([0x8B, 0xCE]);                        // mov ecx, esi
+        CallAbsolute(code, newTarget);
+        code.AddRange([0x85, 0xC0]);                        // test eax, eax
+        var jz2 = code.Count;
+        code.AddRange([0x74, 0x00]);                        // jz end
+        code.AddRange([0x6A, 0x00, 0x50]);                  // push 0; push eax (цель)
+        code.AddRange([0x8B, 0xCE]);                        // mov ecx, esi
+        CallAbsolute(code, setTarget);
+        PushArgs(code, startArgs);
+        MovEcx(code, workMan);
+        CallAbsolute(code, start);
+        code[jz1 + 1] = (byte)(code.Count - (jz1 + 2));
+        code[jz2 + 1] = (byte)(code.Count - (jz2 + 2));
+        code.Add(0x5E);                                     // end: pop esi
+        Return(code);
+        return code.ToArray();
+    }
+
     // Справа налево; null — push esi (работа), маленькие числа — push imm8
     private static void PushArgs(List<byte> code, IReadOnlyList<uint?> args)
     {

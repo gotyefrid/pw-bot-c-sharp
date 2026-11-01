@@ -48,6 +48,9 @@ public interface IGameActions
     /// <summary>Открыть банк у банкира (пункт «Услуги хранения»): разговор с ним уже начат.</summary>
     CallResult NpcOpenBank();
 
+    /// <summary>Подойти к NPC и заговорить, как вторым кликом по нему (игра сама ведёт перса).</summary>
+    CallResult TalkTo(uint wid);
+
     /// <summary>Перенести N штук из ячейки сумки в другую ячейку сумки; в пустую — разделить стопку.</summary>
     CallResult BagMove(int fromSlot, int toSlot, int count);
 

@@ -557,4 +557,6 @@ public static class GameFunctions
     public const string WorkCreate = "workCreate";
     public const string WorkMoveSetDestination = "workMoveSetDestination";
     public const string WorkStart = "workStart";
+    public const string WorkTraceTarget = "workTraceTarget";
+    public const string WorkTraceSetTarget = "workTraceSetTarget";
 }

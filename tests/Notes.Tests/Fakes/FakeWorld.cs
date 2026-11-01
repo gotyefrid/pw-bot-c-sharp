@@ -162,6 +162,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult OpenBank() => Record("bank");
     public CallResult NpcHello(uint wid) => Record("npc-hello");
     public CallResult NpcOpenBank() => Record("npc-bank");
+    public CallResult TalkTo(uint wid) => Record($"talk {wid:X}");
     public CallResult BagMove(int fromSlot, int toSlot, int count) => Record($"bag-move {fromSlot} {toSlot} {count}");
     public CallResult BankExchange(int bagSlot, int bankSlot) => Record($"bank-exchange {bagSlot} {bankSlot}");
     public CallResult PickupObject(GroundItem item) => Record($"pickup-approach {item.Id:X}");

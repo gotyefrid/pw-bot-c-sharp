@@ -199,6 +199,17 @@ public sealed class NpcHelloAction(uint wid) : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Подойти к NPC и заговорить (второй клик по нему): ведёт игра, окно NPC откроется само; итог не ждём.</summary>
+public sealed class TalkToAction(uint wid) : GameAction
+{
+    public override string Name => "подойти и заговорить";
+    public override ActionSlot Slot => ActionSlot.Movement;
+    public override ActionResource Resource => ActionResource.Body;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.TalkTo(wid);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>Открыть банк у банкира, с которым уже начат разговор: окно открывает ответ сервера, итог не ждём.</summary>
 public sealed class NpcOpenBankAction : GameAction
 {

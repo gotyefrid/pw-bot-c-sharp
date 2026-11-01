@@ -550,6 +550,16 @@
     // «использовать предмет» из экипировки, ячейка 12 (0x27FE70, c2s 0x28). Сама работа «идти» тоже вызывает её при автопути
     "hostFly": { "rva": "0x30E340", "convention": "thiscall", "this": "host", "args": [ "force" ],
                  "signature": "56 8B F1 57 8B 8E 64 1C 00 00 85 C9 74 10 80 79 3C 00" },
+    // Работа «подойти» (CreateWork(2), CECHPWorkTrace) — так игра подходит к предмету (подбор), к цели скилла и к выбранной цели
+    // по второму клику. Цель работе задают два метода работы (this = работа):
+    // NewTarget(id, причина, флаг) — создаёт цель (для id 0x8… — NPC/моб, 0xC… — предмет), ret 0xC; причина: 0 — атака, 1 — подобрать,
+    // 2 — действовать с выбранной целью (NPC — заговорить: дойдя, работа сама зовёт npcHello; моб — атаковать), 3 — скилл, 4 — собрать.
+    // SetTarget(цель, флаг) — ставит её работе, ret 8. Как найти на другом клиенте: CECHostPlayer::PickupObject (hostPickupObject)
+    // создаёт работу 2 и зовёт подряд NewTarget (push причина 1/4) и SetTarget.
+    "workTraceTarget": { "rva": "0x355750", "convention": "thiscall",
+                         "signature": "55 8B EC 53 56 57 8B 7D 08 8B D9 85 FF 74 ?? 78 ?? 6A 1C E8" },
+    "workTraceSetTarget": { "rva": "0x3555C0", "convention": "thiscall",
+                            "signature": "55 8B EC 8A 45 0C 83 EC 18 56 8B F1 57 8B 7D 08 6A 00 88 46 3A" },
     "workStart": { "rva": "0x3484D0", "convention": "thiscall", "args": [ "1", "work", "0" ],
                    "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
   },

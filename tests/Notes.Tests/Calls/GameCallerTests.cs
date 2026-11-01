@@ -284,6 +284,23 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void TalkToStartsTraceWorkWithInteractReason()
+    {
+        // Как второй клик по NPC: работа «подойти» (2), цель — NPC с причиной 2 «действовать с целью»
+        const uint host = 0x1FA1F868, workMan = 0x2222_0000, npc = 0x801054DA;
+        PutHost(host);
+        _memory.WriteUInt32(host + Profile.Host.WorkMan, workMan);
+
+        var result = Caller().TalkTo(npc);
+
+        Assert.True(result.Ok, result.Details);
+        var run = _runner.Runs.Single();
+        Assert.Null(run.Data);
+        Assert.Equal(StubBuilder.TraceTo(workMan, Address(GameFunctions.WorkCreate), Address(GameFunctions.WorkTraceTarget), npc, 2,
+            Address(GameFunctions.WorkTraceSetTarget), Address(GameFunctions.WorkStart), [1, null, 0]), run.Stub);
+    }
+
+    [Fact]
     public void MoveToTakesStartArgsFromProfile()
     {
         // Comeback 1.4.6: SetDestination(5, &point) — автопуть, StartWork(1, work, 0) — на аргумент меньше, чем в 1.3.6

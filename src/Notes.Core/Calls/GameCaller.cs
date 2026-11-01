@@ -75,7 +75,11 @@ public sealed class GameCaller : IGameActions
     };
 
     /// <summary>Методы, у которых this подставляет сам бот (менеджер работ, созданная работа), а не профиль.</summary>
-    private static readonly HashSet<string> OwnThis = [GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart];
+    private static readonly HashSet<string> OwnThis =
+        [GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart, GameFunctions.WorkTraceTarget, GameFunctions.WorkTraceSetTarget];
+
+    /// <summary>Причина работы «подойти»: действовать с выбранной целью — с NPC заговорить, моба атаковать (второй клик по цели).</summary>
+    private const uint TraceInteract = 2;
 
     /// <summary>Откуда взять аргумент: имя значения бота (в том числе адрес данных и работа) или число (<see cref="Name"/> = null).</summary>
     private readonly record struct Arg(string? Name, uint Number);
@@ -256,6 +260,34 @@ public sealed class GameCaller : IGameActions
             uint? Slot(Arg arg) => arg.Name == WorkArg ? null : Value(arg, values, address);
             return StubBuilder.MoveTo(workMan, _functions[names[0]].Address, _functions[names[1]].Address,
                 destination.Args.Select(a => Value(a, values, address)).ToArray(), _functions[names[2]].Address, start.Args.Select(Slot).ToArray());
+        }));
+    }
+
+    /// <summary>
+    /// Подойти к NPC и заговорить, как вторым кликом по нему: игра сама ведёт перса по прямой до расстояния разговора и начинает
+    /// разговор (окно NPC). Работа «подойти» с причиной «действовать с целью».
+    /// </summary>
+    public CallResult TalkTo(uint wid)
+    {
+        var names = new[] { GameFunctions.WorkCreate, GameFunctions.WorkTraceTarget, GameFunctions.WorkTraceSetTarget, GameFunctions.WorkStart };
+        foreach (var name in names)
+        {
+            if (Check(name) is { } refused)
+                return refused;
+        }
+
+        if (!_roots.TryHost(out var host))
+            return CallResult.Refused("персонаж не в мире");
+        if (_profile.Host.WorkMan == 0 || !_memory.TryReadUInt32(host + _profile.Host.WorkMan, out var workMan) || workMan == 0)
+            return CallResult.Refused("нет менеджера работ персонажа");
+
+        var start = _prepared[GameFunctions.WorkStart];
+        var values = new Dictionary<string, uint>();
+        return Result(_runner.Run(null, address =>
+        {
+            uint? Slot(Arg arg) => arg.Name == WorkArg ? null : Value(arg, values, address);
+            return StubBuilder.TraceTo(workMan, _functions[names[0]].Address, _functions[names[1]].Address, wid, TraceInteract,
+                _functions[names[2]].Address, _functions[names[3]].Address, start.Args.Select(Slot).ToArray());
         }));
     }
 
