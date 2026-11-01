@@ -25,6 +25,7 @@ internal static class ActCommands
           act untarget          снять цель
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, с которым начат разговор (после npc-hello)
+          act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА   положить стопку из сумки в пустую ячейку банка (банк открыт)
@@ -241,6 +242,11 @@ internal static class ActCommands
 
             case "npc-bank":
                 return new NpcOpenBankAction();
+
+            case "quest-return":
+                problem = "нужно: act quest-return НОМЕР_ЗАДАНИЯ (номер — из Probe quests)";
+                var task = args.Select(a => int.TryParse(a, out var v) && v > 0 && v < 65536 ? v : 0).FirstOrDefault(v => v != 0);
+                return task == 0 ? null : new NpcReturnTaskAction(task);
 
             case "bank":
                 return new OpenBankAction();

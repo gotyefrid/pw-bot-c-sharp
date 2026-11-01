@@ -585,6 +585,7 @@ public static class GameFunctions
     public const string OpenRemotePanel = "openRemotePanel";
     public const string NpcHello = "npcHello";
     public const string NpcOpenStorage = "npcOpenStorage";
+    public const string NpcReturnTask = "npcReturnTask";
     public const string BagMove = "bagMove";
     public const string BankExchange = "bankExchange";
     public const string CastSkill = "castSkill";

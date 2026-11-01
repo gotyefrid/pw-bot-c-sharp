@@ -220,6 +220,16 @@ public sealed class NpcOpenBankAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Сдать задание NPC, с которым уже начат разговор. Подтверждение — задания нет в списке принятых (смотрит вызывающий).</summary>
+public sealed class NpcReturnTaskAction(int taskId) : GameAction
+{
+    public override string Name => $"сдать задание {taskId}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcReturnTask(taskId);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>
 /// Отделить часть стопки в сумке: <c>count</c> штук из ячейки <c>from</c> уходят в ПУСТУЮ ячейку <c>to</c> (что она пуста, проверяет
 /// тот, кто ставит действие). Подтверждение — в ячейке <c>to</c> лежит такой предмет.
