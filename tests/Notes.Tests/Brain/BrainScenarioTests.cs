@@ -105,6 +105,76 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void OnlyTenSecondPotionsAreUsed()
+    {
+        // «Авто» — самая слабая, но только из банок с перезарядкой 10 с
+        _settings.Potions.HpPercent = 50;
+        _world.Hp = 150;
+        _world.AddPotion(1, 8617, 10, hp: 30, seconds: 30);
+        _world.AddPotion(2, 8616, 10, hp: 50);
+
+        Tick();
+
+        Assert.Equal(["use 2"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ChosenPotionIsDrunkInsteadOfWeakest()
+    {
+        _settings.Potions.HpPercent = 50;
+        _settings.Potions.HpPotion = "Средняя микстура жизни";
+        _world.Hp = 150;
+        _world.AddPotion(1, 8617, 10, hp: 30, name: "Малая микстура жизни");
+        _world.AddPotion(2, 8616, 10, hp: 50, name: "Средняя микстура жизни");
+
+        Tick();
+
+        Assert.Equal(["use 2"], _actions.Calls);
+    }
+
+    [Fact]
+    public void MissingChosenPotionSwitchesToAutoAndIsLoggedOnce()
+    {
+        _settings.Potions.HpPercent = 50;
+        _settings.Potions.HpPotion = "Большая микстура жизни";
+        _world.Hp = 150;
+        _world.AddPotion(1, 8617, 10, hp: 30, name: "Малая микстура жизни");
+
+        Tick();
+        Assert.Equal(["use 1"], _actions.Calls);
+        Assert.Single(_log, e => e.Message.Contains("«Большая микстура жизни» нет в сумке"));
+
+        // Окно узнаёт о переключении один раз
+        var fallback = Brain.Part<IPotionFallback>()!;
+        Assert.True(fallback.TryTakeSwitch(out var kind, out var name));
+        Assert.Equal((PotionKind.Hp, "Большая микстура жизни"), (kind, name));
+        Assert.False(fallback.TryTakeSwitch(out _, out _));
+
+        // Окно ещё не успело поставить «Авто» и прислало старый выбор — в лог второй раз не пишем
+        Brain.UpdateSettings(_settings);
+        _world.Consume(1);
+        Tick(11);
+        Assert.Single(_log, e => e.Message.Contains("нет в сумке"));
+    }
+
+    [Fact]
+    public void PotionsSwitchedOffAreNotDrunk()
+    {
+        _settings.Potions.UseHp = false;
+        _settings.Potions.UseMp = false;
+        _settings.Potions.HpPercent = 50;
+        _settings.Potions.MpBelow = 100;
+        _world.Hp = 100;
+        _world.Mp = 10;
+        _world.AddPotion(1, 8617, 10, hp: 30);
+        _world.AddPotion(2, 8618, 10, mp: 30);
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
     public void HostDeadStopsBot()
     {
         string? stop = null;

@@ -1,15 +1,30 @@
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
+using Notes.Core.Settings;
 
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Выжить: банка HP, когда HP ниже порога в % (и банка HP готова); банка MP, когда MP ниже порога в единицах.
-/// Самая слабая подходящая по уровню; пока выпитая действует — такую же не пить.
+/// Бот сам переключил выбранную банку на «Авто» (её нет в сумке): окно ставит «Авто» и в своих настройках.
 /// </summary>
-public sealed class SurvivalBehavior : IBehavior
+public interface IPotionFallback
+{
+    /// <summary>Очередное переключение: вид банки и название, которое было выбрано; false — переключений нет.</summary>
+    bool TryTakeSwitch(out PotionKind kind, out string name);
+}
+
+/// <summary>
+/// Выжить: банка HP, когда HP ниже порога в % (и банка HP готова); банка MP, когда MP ниже порога в единицах — если такие
+/// банки включены. Пьём выбранную банку, «Авто» — самую слабую подходящую по уровню (только банки с перезарядкой 10 с);
+/// пока выпитая действует — такую же не пить. Выбранной нет в сумке — пишем в лог (раз за сессию) и переходим на «Авто».
+/// </summary>
+public sealed class SurvivalBehavior : IBehavior, IPotionFallback
 {
     private readonly PotionPolicy _policy = new();
+    private readonly HashSet<string> _toldMissing = [];
+    private readonly ConcurrentQueue<(PotionKind Kind, string Name)> _switches = new();
 
     public string Name => "банки";
     public string? Status { get; private set; }
@@ -20,15 +35,21 @@ public sealed class SurvivalBehavior : IBehavior
         var host = c.World.Host;
         var potions = c.Settings.Potions;
 
-        if (host.HpPercent < potions.HpPercent && TryDrink(c, PotionKind.Hp, $"HP {host.HpPercent} % < {potions.HpPercent} %"))
+        if (potions.UseHp && host.HpPercent < potions.HpPercent
+            && TryDrink(c, PotionKind.Hp, $"HP {host.HpPercent} % < {potions.HpPercent} %"))
             return true;
 
-        return host.Mp < potions.MpBelow && TryDrink(c, PotionKind.Mp, $"MP {host.Mp} < {potions.MpBelow}");
+        return potions.UseMp && host.Mp < potions.MpBelow && TryDrink(c, PotionKind.Mp, $"MP {host.Mp} < {potions.MpBelow}");
     }
 
     private bool TryDrink(BrainContext c, PotionKind kind, string reason)
     {
-        var potion = _policy.Choose(c.World, kind, out var why);
+        var potions = c.Settings.Potions;
+        var chosen = kind == PotionKind.Hp ? potions.HpPotion : potions.MpPotion;
+        var potion = _policy.Choose(c.World, kind, chosen, out var why, out var chosenMissing);
+        if (chosenMissing)
+            SwitchToAuto(c, potions, kind, chosen);
+
         if (potion is null)
         {
             if (why.StartsWith("нет банок"))
@@ -40,12 +61,31 @@ public sealed class SurvivalBehavior : IBehavior
         if (c.Runner.IsPending(action.Key))
             return false;
 
-        c.Log.Info($"{reason} — пью банку tid {potion.Tid}");
+        c.Log.Info($"{reason} — пью банку {potion.Name ?? "tid " + potion.Tid}");
         if (!c.Submit(action))
             return false;
 
         Status = $"пью банку {kind}";
         return true;
+    }
+
+    // Своя копия настроек — сразу «Авто»; окно узнает через IPotionFallback и поставит «Авто» у себя (и сохранит)
+    private void SwitchToAuto(BrainContext c, PotionSettings potions, PotionKind kind, string chosen)
+    {
+        if (kind == PotionKind.Hp)
+            potions.HpPotion = "";
+        else
+            potions.MpPotion = "";
+        if (_toldMissing.Add(kind + "|" + chosen.ToLowerInvariant()))
+            c.Log.Warning($"Банки {kind} «{chosen}» нет в сумке — переключаю на «Авто»");
+        _switches.Enqueue((kind, chosen));
+    }
+
+    public bool TryTakeSwitch(out PotionKind kind, out string name)
+    {
+        var taken = _switches.TryDequeue(out var s);
+        (kind, name) = (s.Kind, s.Name ?? "");
+        return taken;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)

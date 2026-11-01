@@ -89,9 +89,9 @@ internal sealed class FakeWorld
         Npcs[index] = change(Npcs[index]);
     }
 
-    public InventoryItem AddPotion(int slot, uint tid, int count, int hp = 0, int mp = 0, int level = 0, int seconds = 10)
+    public InventoryItem AddPotion(int slot, uint tid, int count, int hp = 0, int mp = 0, int level = 0, int seconds = 10, string? name = null)
     {
-        var item = new InventoryItem(slot, tid, 9, count, new PotionInfo(level, hp, hp > 0 ? seconds : 0, mp, mp > 0 ? seconds : 0), null);
+        var item = new InventoryItem(slot, tid, 9, count, new PotionInfo(level, hp, hp > 0 ? seconds : 0, mp, mp > 0 ? seconds : 0), null) { Name = name };
         Bag.Add(item);
         return item;
     }

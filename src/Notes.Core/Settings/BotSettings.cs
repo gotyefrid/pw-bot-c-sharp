@@ -104,6 +104,8 @@ public sealed class BotSettings
         Loot.Radius = Clamp(Loot.Radius, 1, 30);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
         Potions.MpBelow = Math.Max(0, Potions.MpBelow);
+        Potions.HpPotion = Potions.HpPotion?.Trim() ?? "";
+        Potions.MpPotion = Potions.MpPotion?.Trim() ?? "";
         // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
@@ -433,13 +435,29 @@ public enum LootListMode
 
 public sealed class PotionSettings : SettingsPart
 {
+    private bool _useHp = true;
+    /// <summary>Пить банки HP.</summary>
+    public bool UseHp { get => _useHp; set => Set(ref _useHp, value); }
+
     private int _hpPercent = 80;
     /// <summary>Пить банку HP, когда HP ниже этого процента.</summary>
     public int HpPercent { get => _hpPercent; set => Set(ref _hpPercent, value); }
 
+    private string _hpPotion = "";
+    /// <summary>Какую банку HP пить — название; пусто — «Авто»: самую слабую из банок с перезарядкой 10 с.</summary>
+    public string HpPotion { get => _hpPotion; set => Set(ref _hpPotion, value); }
+
+    private bool _useMp = true;
+    /// <summary>Пить банки MP.</summary>
+    public bool UseMp { get => _useMp; set => Set(ref _useMp, value); }
+
     private int _mpBelow = 100;
     /// <summary>Пить банку MP, когда MP ниже этого числа (абсолютные единицы, как в старом боте).</summary>
     public int MpBelow { get => _mpBelow; set => Set(ref _mpBelow, value); }
+
+    private string _mpPotion = "";
+    /// <summary>Какую банку MP пить — название; пусто — «Авто», как у <see cref="HpPotion"/>.</summary>
+    public string MpPotion { get => _mpPotion; set => Set(ref _mpPotion, value); }
 }
 
 public sealed class PetSettings : SettingsPart
