@@ -426,15 +426,15 @@
   "functions": {
     // CECHostPlayer::SelectTarget(int id) — то, что делает клик по мобу (this = перс, ret 4). Сама пишет цель в перс +0x5B4
     // и отправляет c2s 0x02 (6 байт); повтор той же цели не шлёт. Перед этим проверяет, можно ли сейчас выбирать (0x73C4F0(0x12))
-    "selectTarget": { "rva": "0x3411F0", "convention": "thiscall", "this": "host", "args": [ "wid" ],
+    "selectTarget": { "rva": "0x3437C0", "convention": "thiscall", "this": "host", "args": [ "wid" ],
                       "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
     // Та же функция с id 0 — отправляет c2s 0x08 (снять цель), отдельной функции в клиенте нет
-    "unselect": { "rva": "0x3411F0", "convention": "thiscall", "this": "host", "args": [ "0" ],
+    "unselect": { "rva": "0x3437C0", "convention": "thiscall", "this": "host", "args": [ "0" ],
                   "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
 
     // c2s_SendCmdNormalAttack(byte pvpMask), команда 0x03, пакет 3 байта — как в 1.3.6, только ret 4.
     // Единственное место в exe, где отправляется 0x03. Перед отправкой — критическая секция и необязательный обработчик клиента
-    "normalAttack": { "rva": "0x351D30", "convention": "stdcall",
+    "normalAttack": { "rva": "0x354300", "convention": "stdcall",
                       "signature": "55 8B EC 83 EC 08 56 68 ?? ?? ?? ?? FF 15 ?? ??" },
 
     // Открыть удалённую панель, как кнопки «Банк / Почта / Лавка» в окне сумки (Btn_RemoteBank, Btn_RemoteMail, Btn_RemoteShop):
@@ -482,12 +482,12 @@
     // CECHostPlayer::PickupObject(int id, bool gather) — this = перс, ret 8. Проверяет id 0xC..., что вид предмета (+0x150, 2 = ресурс)
     // совпадает с gather, и через фабрику работ 0x353180 создаёт «подойти» с причиной 1 (подобрать) или 4 (собрать).
     // Найдено: CECTracedMatter → конструктор/фабрика 0x353180 → её вызывающие с причиной 1/4
-    "hostPickupObject": { "rva": "0x33BE00", "convention": "thiscall", "this": "host",
+    "hostPickupObject": { "rva": "0x33E3D0", "convention": "thiscall", "this": "host",
                           "signature": "55 8B EC 51 53 56 57 8B F9 8B 87 14" },
 
     // CECHostPlayer::ApplySkill(int id, bool fromMacro, int target, int pvp) — нажатие кнопки скилла, this = перс, ret 0x10.
     // Та же фабрика 0x353180 с причиной 3 (скилл), внутри особая проверка на ID 167 (0xA7, «Городской портал») — как в 1.3.6
-    "hostApplySkill": { "rva": "0x3324F0", "convention": "thiscall", "this": "host",
+    "hostApplySkill": { "rva": "0x334AC0", "convention": "thiscall", "this": "host",
                         "signature": "55 8B EC 83 EC 0C 53 56 57 68 ?? ?? ?? ?? 8B F9" },
     // Запустить макрос (номер с 0, 0, -1) — как кнопка макроса на панели. Как найти: таблица методов класса CECSCSkillGrp
     // (имя есть в exe), метод 2 — «нажать»: зовёт эту функцию у персонажа. Она удаляет идущий макрос [перс + 0x1988] и
@@ -502,30 +502,30 @@
 
     // c2s_SendCmdUseItem, команда 0x28, пакет 10 байт [0x28][where][count][index:2][tid:4] — как в 1.3.6, но часть аргументов
     // в регистрах: cl = where (0 — сумка), dl = ячейка, в стеке tid и count, стек чистит вызывающий (так вызывает клиент: add esp, 8)
-    "useItem": { "rva": "0x3F6FD0", "convention": "cdecl", "args": [ "tid", "count" ],
+    "useItem": { "rva": "0x3F9580", "convention": "cdecl", "args": [ "tid", "count" ],
                  "registers": { "ecx": "where", "edx": "slot" },
                  "signature": "55 8B EC 53 56 6A 0A 8A DA 8A F9 FF" },
 
     // Скилл пакетом, команда 0x29: метод объекта связи (this = [[база]+0x20], ret 0x10), args (skill, pvpMask, —, &цель).
     // Число целей в пакете клиент всегда пишет 1 (третий аргумент не читает), цель — *&цель. Перед отправкой — ограничитель частоты.
     // Вызывают: ApplySkill (особые 167 и 0x720) и логика скилла 0x33B000
-    "castSkill": { "rva": "0x32B160", "convention": "thiscall", "this": "session",
+    "castSkill": { "rva": "0x32D690", "convention": "thiscall", "this": "session",
                    "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
 
     // Отменить действие (каст, копание) — как Esc: команда 0x2A, пакет 2 байта. Метод объекта связи без аргументов
     // (this = [[база]+0x20], ret), с тем же ограничителем частоты, что у castSkill (чаще — молча не шлёт). Вызывают 12 мест клиента
-    "cancelAction": { "rva": "0x12FC90", "convention": "thiscall", "this": "session",
+    "cancelAction": { "rva": "0x1301A0", "convention": "thiscall", "this": "session",
                       "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 2A 00 00 00" },
 
     // c2s_SendCmdPetCtrl(int target, int cmd, void* data, int size), команда 0x67, пакет 10 + size — как в 1.3.6, но метод объекта
     // связи (this = [[база]+0x20], ret 0x10) с ограничителем частоты. Рядом 0x1E3BA0… — готовые приказы с постоянными данными
-    "petCtrl": { "rva": "0x1E3820", "convention": "thiscall", "this": "session",
+    "petCtrl": { "rva": "0x1E46F0", "convention": "thiscall", "this": "session",
                  "signature": "55 8B EC 51 53 56 57 8D 45 FC C7 45" },
 
     // Кнопка «призвать пета»: CECHostPlayer::SummonPet(int index), this = перс, ret 4. Пет — [менеджер петов + 0x10 + index*4]
     // (по ней и нашли менеджер). Не призывает мёртвого и неподходящего по уровню, шлёт c2s 0x64.
     // Отзыв (0x65) — отдельная функция 0x33FED0, сюда не входит
-    "summonPet": { "rva": "0x33FD20", "convention": "thiscall", "this": "host",
+    "summonPet": { "rva": "0x3422F0", "convention": "thiscall", "this": "host",
                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E 64 1C 00" },
 
     // Кнопка «отозвать пета»: CECHostPlayer::RecallPet(), this = перс, без аргументов, ret (стек не трогает).
@@ -533,22 +533,22 @@
     // («mov eax, 0x65; mov word [esi], ax», пакет 2 байта, только номер команды). Начало функции — как у summonPet:
     // [перс + 0x1C64] (окно/диалог, закрывается вызовом 0x6687E0), затем «можно действовать» (0x732D00), потом отправка.
     // Лежит сразу за summonPet (0x33FED0 = конец 0x33FD20 + выравнивание). Вызывают: 0x1C898E и 0x4023E7 (кнопки окна петов).
-    "recallPet": { "rva": "0x33FED0", "convention": "thiscall", "this": "host",
+    "recallPet": { "rva": "0x3424A0", "convention": "thiscall", "this": "host",
                    "signature": "56 8B F1 8B 8E 64 1C 00 00 85 C9 74 10 80 79 3C 00 74 0A 6A" },
 
     // Идти в точку — как в 1.3.6: work = WorkMan->CreateWork(1); work->SetDestination(0, &point); WorkMan->StartWork(1, work, 0).
     // Так клиент делает ход с клавиатуры (0x3358D0, там тип 2 — направление); клик по земле (0x31BAC6) — то же, но SetDestination
     // вписан прямо в код. Отличие от 1.3.6 — у StartWork на один аргумент меньше (ret 0xC).
     // CreateWork(type) — switch по 0..0x14, тип 1 = CECHPWorkMove (vtable 0xBFC9DC), ret 4
-    "workCreate": { "rva": "0x347A70", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 14 0F 87" },
+    "workCreate": { "rva": "0x34A040", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 14 0F 87" },
     // SetDestination(type, &point): пишет точку в +0x20, тип в +0x2C, направление в +0x34 (нормированное), ret 8.
     // Тип («type») — из moveTypes: 0 по прямой, 5 — автопуть
-    "workMoveSetDestination": { "rva": "0x34DDF0", "convention": "thiscall", "args": [ "type", "data" ],
+    "workMoveSetDestination": { "rva": "0x3503C0", "convention": "thiscall", "args": [ "type", "data" ],
                                 "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
     // Кнопка «Полёт» — CECHostPlayer::CmdFly(bool force), this = перс, ret 4. Переключатель: сидит — встаёт (и всё);
     // проверяет «можно действовать», полётник в экипировке (ячейка 12) и не заблокирован; в воде нельзя; потом
     // «использовать предмет» из экипировки, ячейка 12 (0x27FE70, c2s 0x28). Сама работа «идти» тоже вызывает её при автопути
-    "hostFly": { "rva": "0x30E340", "convention": "thiscall", "this": "host", "args": [ "force" ],
+    "hostFly": { "rva": "0x3106E0", "convention": "thiscall", "this": "host", "args": [ "force" ],
                  "signature": "56 8B F1 57 8B 8E 64 1C 00 00 85 C9 74 10 80 79 3C 00" },
     // Работа «подойти» (CreateWork(2), CECHPWorkTrace) — так игра подходит к предмету (подбор), к цели скилла и к выбранной цели
     // по второму клику. Цель работе задают два метода работы (this = работа):
@@ -560,7 +560,7 @@
                          "signature": "55 8B EC 53 56 57 8B 7D 08 8B D9 85 FF 74 ?? 78 ?? 6A 1C E8" },
     "workTraceSetTarget": { "rva": "0x3555C0", "convention": "thiscall",
                             "signature": "55 8B EC 8A 45 0C 83 EC 18 56 8B F1 57 8B 7D 08 6A 00 88 46 3A" },
-    "workStart": { "rva": "0x3484D0", "convention": "thiscall", "args": [ "1", "work", "0" ],
+    "workStart": { "rva": "0x34AAA0", "convention": "thiscall", "args": [ "1", "work", "0" ],
                    "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
   },
 
