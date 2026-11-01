@@ -844,8 +844,9 @@ public class WorldReaderTests
     }
 
     [Fact]
-    public void NoEquipmentWhereItIsNotFound()
+    public void NoEquipmentWhenContainerIsMissing()
     {
+        // В мире нет контейнера надетого (персонаж ещё не в игре) — пусто, а не ошибка
         var p = new ProfileCatalog().Load("comeback146").Data;
         ComebackWorldWithMob(p);
 
