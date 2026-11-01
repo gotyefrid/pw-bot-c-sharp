@@ -434,6 +434,10 @@ public sealed class InventoryOffsets
     public uint FoodEssence { get; init; }
     public int CategoryPotion { get; init; }
     public int CategoryPetFood { get; init; }
+    /// <summary>Сколько байт предмета просматривать в поисках указателя на его описание (0 — названий и групп у предметов нет).</summary>
+    public uint EssenceSearch { get; init; }
+    /// <summary>Где название в описании без типа (tid +0, название сразу за ним).</summary>
+    public uint PlainName { get; init; }
 }
 
 /// <summary>Описание банки.</summary>

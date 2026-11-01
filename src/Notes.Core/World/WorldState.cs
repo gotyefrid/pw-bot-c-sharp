@@ -340,8 +340,11 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
     /// <summary>Максимум в стопке (0 — неизвестно).</summary>
     public int MaxCount { get; init; }
 
-    /// <summary>Название из справочника игры; читается только у корма пета (null — неизвестно).</summary>
+    /// <summary>Название из справочника игры (null — неизвестно).</summary>
     public string? Name { get; init; }
+
+    /// <summary>Группа лута («Предметы ДК», «Банки»); null — не из группы или неизвестно.</summary>
+    public string? Group { get; init; }
 
     public bool IsPetFood => FoodLoyalty is not null;
 }

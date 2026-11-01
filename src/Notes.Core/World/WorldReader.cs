@@ -45,6 +45,7 @@ public sealed class WorldReader
     private readonly Dictionary<uint, string?> _groups = [];
     private readonly Dictionary<uint, PetEssence> _petEssences = [];
     private readonly Dictionary<uint, (int, string?)> _foods = [];
+    private readonly Dictionary<uint, (string? Name, string? Group)> _itemInfo = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
     // Текст сообщения чата не меняется — у каждого номера читаем один раз
     private Dictionary<int, ChatMessage> _chat = [];
@@ -518,7 +519,8 @@ public sealed class WorldReader
         var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemMaxCount, inv.ItemEssence, inv.FoodEssence);
         for (var slot = 0; slot < size; slot++)
         {
-            if (!MemoryBlock.TryRead(_memory, cells.UInt32((uint)slot * 4), itemSize, out var item))
+            var address = cells.UInt32((uint)slot * 4);
+            if (!MemoryBlock.TryRead(_memory, address, itemSize, out var item))
                 continue;
 
             var category = item.Int32(inv.ItemCategory);
@@ -530,15 +532,70 @@ public sealed class WorldReader
             else if (category == inv.CategoryPetFood)
                 food = ReadFood(tid, item.UInt32(inv.FoodEssence));
 
+            var info = ReadItemInfo(tid, address);
             result.Add(new InventoryItem(slot, tid, category, item.Int32(inv.ItemCount), potion, food?.Loyalty)
             {
                 MaxCount = inv.ItemMaxCount == 0 ? 0 : item.Int32(inv.ItemMaxCount),
-                Name = food?.Name,
+                Name = food?.Name ?? info.Name,
+                Group = info.Group,
             });
         }
 
         return result;
     }
+
+    // Название и группа предмета сумки или банка. Описание — запись справочника, на которую указывает предмет (+0x0 — его tid);
+    // где лежит указатель, у разных классов предметов разное, поэтому ищем его в начале предмета. Запись не меняется, пока клиент
+    // запущен, — по tid ищем один раз (не прочли предмет — попробуем в другой раз)
+    private (string? Name, string? Group) ReadItemInfo(uint tid, uint item)
+    {
+        var search = (int)_p.Inventory.EssenceSearch;
+        if (search == 0)
+            return default;
+        if (_itemInfo.TryGetValue(tid, out var known))
+            return known;
+        if (!MemoryBlock.TryRead(_memory, item, search, out var b) && !MemoryBlock.TryRead(_memory, item, search /= 2, out b))
+            return default;
+
+        var listed = _p.LootGroups.FirstOrDefault(g => g.Tids.Contains(tid))?.Name;
+        for (var offset = 0u; offset + 4 <= search; offset += 4)
+        {
+            var record = b.UInt32(offset);
+            if (record < 0x10000 || record == item || !_memory.TryReadUInt32(record, out var id) || id != tid)
+                continue;
+            if (RecordName(record, out var essence) is not { } name)
+                continue;
+
+            var group = listed;
+            if (group is null && essence is not null && _memory.TryReadUInt32(record + essence.Type, out var type))
+                group = _p.LootGroups.FirstOrDefault(g => g.Types.Contains(type))?.Name;
+            return _itemInfo[tid] = (name, group);
+        }
+
+        return _itemInfo[tid] = (null, listed);
+    }
+
+    // Название в записи справочника. Раскладки с типом (itemEssences) — название сразу за числом (тип, подтип), поэтому перед ним
+    // два нулевых байта (старшие байты числа); у записи без типа название — сразу за tid. Пробуем с самого дальнего места: ближе
+    // попадаются хвост названия или тип, прочитанный как буква
+    private string? RecordName(uint record, out ItemEssenceOffsets? essence)
+    {
+        foreach (var e in _p.ItemEssences.Where(e => e.NameInRecord >= 2).OrderByDescending(e => e.NameInRecord))
+        {
+            if (_memory.TryReadUInt32(record + e.NameInRecord - 2, out var before) && (before & 0xFFFF) == 0
+                && Printable(ReadName(record + e.NameInRecord, 32)) is { } typed)
+            {
+                essence = e;
+                return typed;
+            }
+        }
+
+        essence = null;
+        return _p.Inventory.PlainName == 0 ? null : Printable(ReadName(record + _p.Inventory.PlainName, 32));
+    }
+
+    private static string? Printable(string text)
+        => text.Trim().Length > 0 && text.All(ch => ch >= ' ' && ch != '\uFFFD') ? text.Trim() : null;
 
     // Описание корма в справочнике не меняется, пока клиент запущен, — по tid читаем один раз (не прочли — попробуем в другой раз)
     private (int Loyalty, string? Name)? ReadFood(uint tid, uint address)

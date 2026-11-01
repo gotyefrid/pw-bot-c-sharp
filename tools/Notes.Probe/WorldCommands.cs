@@ -560,7 +560,8 @@ internal static class WorldCommands
         foreach (var i in w.Inventory.Where(i => i.IsPetFood))
             s.AppendLine($"       корм   ячейка {i.Slot,2}: {i.Name ?? "?"} (tid {i.Tid}) ×{i.Count}, верность {i.FoodLoyalty}");
 
-        s.AppendLine($"       прочее: {string.Join(", ", w.Inventory.Where(i => i.Potion is null && !i.IsPetFood).Select(i => $"{i.Tid}×{i.Count}"))}");
+        foreach (var i in w.Inventory.Where(i => i.Potion is null && !i.IsPetFood))
+            s.AppendLine($"       прочее ячейка {i.Slot,2}: {i.Name ?? "?"}{(i.Group is { } group ? $" [{group}]" : "")} (tid {i.Tid}) ×{i.Count}");
 
         s.AppendLine($"Скиллы {w.Skills.Count}");
         foreach (var k in w.Skills)
