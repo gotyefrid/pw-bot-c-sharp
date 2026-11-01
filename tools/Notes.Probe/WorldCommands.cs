@@ -174,6 +174,39 @@ internal static class WorldCommands
         return 0;
     }
 
+    /// <summary>Принятые задания — сверить с окном «Задания» в игре: дерево, цель, прогресс, кому сдать.</summary>
+    public static int Quests(ServerProfile profile, GameProcess game)
+    {
+        var reader = CreateReader(profile, game, out _);
+        var quests = reader.ReadQuests();
+        if (quests is null)
+        {
+            Console.Error.WriteLine($"❌ {profile.Name}: в профиле нет заданий (host.quests)");
+            return 1;
+        }
+
+        var world = reader.Read();
+        Console.WriteLine($"Заданий в списке: {quests.Count}, верхнего уровня: {quests.Count(q => q.ParentId == 0)}");
+        foreach (var q in quests)
+        {
+            var depth = 0;
+            for (var p = q.ParentId; p != 0 && depth < 8; depth++)
+                p = quests.FirstOrDefault(x => x.Id == p)?.ParentId ?? 0;
+            var indent = new string(' ', 2 + depth * 2);
+            var award = q.AwardNpc == 0 ? "" : $", сдать: NPC {q.AwardNpc}";
+            Console.WriteLine($"{indent}{q.Id} «{q.Name}» — цель: {QuestGoals.Text(q.Goal)}{award}");
+            foreach (var m in q.Monsters)
+                Console.WriteLine($"{indent}    моб {m.Tid}: {(m.Done is { } d ? $"{d}/" : "")}{m.Need}");
+            foreach (var i in q.Items)
+            {
+                var have = world.Inventory.Where(x => x.Tid == i.Tid).Sum(x => x.Count);
+                Console.WriteLine($"{indent}    предмет {i.Tid}: в сумке {have}/{i.Need}");
+            }
+        }
+
+        return 0;
+    }
+
     /// <summary>
     /// Сообщения окна чата: где список (найден по коду), последние сообщения; с watch — новые по мере появления.
     /// </summary>

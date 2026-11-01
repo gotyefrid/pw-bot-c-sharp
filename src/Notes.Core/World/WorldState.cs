@@ -348,6 +348,35 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
 
 public sealed record PotionInfo(int RequiredLevel, int Hp, int HpSeconds, int Mp, int MpSeconds);
 
+/// <summary>Принятое задание, как в окне «Задания».</summary>
+/// <param name="ParentId">Номер задания-родителя (в окне — строка выше), 0 — задание верхнего уровня.</param>
+/// <param name="Goal">Тип цели, см. <see cref="QuestGoals"/>.</param>
+/// <param name="AwardNpc">Кому сдать — tid NPC; 0 — некому.</param>
+public sealed record QuestInfo(int Id, string Name, int ParentId, int Goal, uint AwardNpc, IReadOnlyList<QuestTarget> Monsters,
+    IReadOnlyList<QuestTarget> Items);
+
+/// <summary>Кого убить или что собрать: tid, сколько нужно и сколько уже (у предметов null — считать по сумке).</summary>
+public sealed record QuestTarget(uint Tid, int Need, int? Done);
+
+/// <summary>Типы цели задания (номера — как в клиенте).</summary>
+public static class QuestGoals
+{
+    /// <summary>Своей цели нет — задание из подзаданий (в окне у него ветка ниже).</summary>
+    public const int Parts = 0;
+    public const int Kill = 1;
+    public const int Collect = 2;
+    public const int Talk = 3;
+
+    public static string Text(int goal) => goal switch
+    {
+        Parts => "подзадания",
+        Kill => "убить",
+        Collect => "собрать",
+        Talk => "поговорить с NPC",
+        _ => $"тип {goal}",
+    };
+}
+
 /// <summary>Макрос персонажа: номер 1..N и номер иконки (в наборе iconlist_skillgrp — клетка номер + 1).</summary>
 public sealed record MacroInfo(int Number, int Icon);
 

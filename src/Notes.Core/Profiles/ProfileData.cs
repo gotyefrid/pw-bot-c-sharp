@@ -35,6 +35,7 @@ public sealed class ProfileData
     public MacroOffsets Macros { get; init; } = new();
     public AttackOffsets Attacks { get; init; } = new();
     public ChatOffsets Chat { get; init; } = new();
+    public QuestOffsets Quests { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
@@ -146,6 +147,8 @@ public sealed class HostOffsets
     public uint Inventory { get; init; }
     /// <summary>[перс + Bank] — основная вкладка банка (хранилища); устроена как сумка. 0 — не найдено.</summary>
     public uint Bank { get; init; }
+    /// <summary>[перс + Quests] — объект заданий персонажа (<see cref="QuestOffsets"/>). 0 — не найдено.</summary>
+    public uint Quests { get; init; }
     /// <summary>[перс + Skills] — массив указателей на скиллы.</summary>
     public uint Skills { get; init; }
     public uint SkillsCount { get; init; }
@@ -260,6 +263,46 @@ public sealed class NpcOffsets
     /// <summary>Поле флагов, где <see cref="ReturningFlag"/> — «бросил цель, возвращается (неуязвим)»; 0 — не найдено.</summary>
     public uint Returning { get; init; }
     public uint ReturningFlag { get; init; }
+}
+
+/// <summary>
+/// Принятые задания: [перс + <see cref="HostOffsets.Quests"/>] — объект заданий, в нём список принятых (как в окне «Задания»).
+/// Запись списка ссылается на запись задания из tasks.data, которую игра держит в памяти: название, цель, кому сдать.
+/// Смещения в записи списка не выровнены (поля подряд, без пропусков).
+/// </summary>
+public sealed class QuestOffsets
+{
+    /// <summary>[объект заданий + Active] — список принятых: байт +0 — сколько в нём записей.</summary>
+    public uint Active { get; init; }
+    /// <summary>С какого места списка идут записи.</summary>
+    public uint Entries { get; init; }
+    public uint EntrySize { get; init; }
+    /// <summary>Номер задания (ushort).</summary>
+    public uint EntryId { get; init; }
+    /// <summary>Байт: номер записи-родителя в списке (0xFF — задание верхнего уровня).</summary>
+    public uint EntryParent { get; init; }
+    /// <summary>Указатель на запись задания.</summary>
+    public uint EntryTemplate { get; init; }
+    /// <summary>Сколько убито: ushort на каждого моба из цели, по порядку.</summary>
+    public uint EntryKills { get; init; }
+
+    /// <summary>Номер задания в записи — для проверки, что попали в нужную.</summary>
+    public uint Id { get; init; }
+    /// <summary>Название (UTF-16, может начинаться с кода цвета «^RRGGBB»).</summary>
+    public uint Name { get; init; }
+    /// <summary>Тип цели (int): 1 — убить мобов, 2 — собрать предметы, 3 — поговорить с NPC (<see cref="World.QuestGoals"/>).</summary>
+    public uint Goal { get; init; }
+    /// <summary>Кому сдать — tid NPC (как «Персонаж, дающий награду» в окне); 0 — некому.</summary>
+    public uint AwardNpc { get; init; }
+    /// <summary>Мобы цели: число (int) и указатель на массив записей по <see cref="MonsterSize"/> байт: +0 tid моба, +4 сколько убить.</summary>
+    public uint MonsterCount { get; init; }
+    public uint Monsters { get; init; }
+    public uint MonsterSize { get; init; }
+    /// <summary>Предметы цели: число (int) и указатель на массив записей по <see cref="ItemSize"/> байт: +0 tid, +<see cref="ItemNeed"/> сколько.</summary>
+    public uint ItemCount { get; init; }
+    public uint Items { get; init; }
+    public uint ItemSize { get; init; }
+    public uint ItemNeed { get; init; }
 }
 
 /// <summary>

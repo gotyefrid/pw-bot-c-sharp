@@ -20,6 +20,10 @@ public sealed class WorldReader
     private const uint NextNode = 0x0;
     private const int MaxChain = 64;
     private const int MaxInventory = 256;
+    // Больше в списке принятых не бывает (в окне «Активные N/60», с родителями — до 2×); и мобов/предметов в цели
+    private const int MaxQuests = 128;
+    private const int MaxQuestTargets = 8;
+    private static readonly System.Text.RegularExpressions.Regex Color = new(@"\^[0-9A-Fa-f]{6}");
     private const int MaxSkills = 256;
     private const int MaxAttacks = 64;
     // Скилл по площади задевает многих — больше в снимок не берём
@@ -435,6 +439,67 @@ public sealed class WorldReader
 
         ReadHost(GameAddress(), out var hostBlock);
         return ReadInventory(Field(hostBlock, _p.Host.Bank), out slots);
+    }
+
+    /// <summary>
+    /// Принятые задания, по порядку списка игры (родитель раньше своих подзаданий). Не входит в снимок мира — по требованию.
+    /// null — заданий в профиле нет.
+    /// </summary>
+    public IReadOnlyList<QuestInfo>? ReadQuests()
+    {
+        var q = _p.Quests;
+        if (_p.Host.Quests == 0 || q.EntrySize == 0)
+            return null;
+
+        var result = new List<QuestInfo>();
+        ReadHost(GameAddress(), out var hostBlock);
+        var book = Field(hostBlock, _p.Host.Quests);
+        if (book == 0 || !_memory.TryReadUInt32(book + q.Active, out var list) || !MemoryBlock.TryRead(_memory, list, 1, out var head))
+            return result;
+
+        var count = Math.Min((int)head.Byte(0), MaxQuests);
+        if (count == 0 || !MemoryBlock.TryRead(_memory, list + q.Entries, count * (int)q.EntrySize, out var entries))
+            return result;
+
+        var ids = new int[count];
+        for (var i = 0; i < count; i++)
+            ids[i] = entries.UInt16((uint)i * q.EntrySize + q.EntryId);
+
+        var templateSize = BlockSize(q.Id, q.Goal, q.AwardNpc, q.MonsterCount, q.Monsters, q.ItemCount, q.Items);
+        for (var i = 0; i < count; i++)
+        {
+            var entry = (uint)i * q.EntrySize;
+            var address = entries.UInt32(entry + q.EntryTemplate);
+            // Запись не та (задание сдано, место в списке занято другим) — номер в ней не совпадёт
+            if (!MemoryBlock.TryRead(_memory, address, templateSize, out var t) || t.Int32(q.Id) != ids[i])
+                continue;
+
+            var parent = entries.Byte(entry + q.EntryParent);
+            var goal = t.Int32(q.Goal);
+            var monsters = ReadQuestTargets(t.Int32(q.MonsterCount), t.UInt32(q.Monsters), q.MonsterSize, 4,
+                k => goal == QuestGoals.Kill ? entries.UInt16(entry + q.EntryKills + (uint)k * 2) : null);
+            var items = ReadQuestTargets(t.Int32(q.ItemCount), t.UInt32(q.Items), q.ItemSize, q.ItemNeed, _ => null);
+            var name = Color.Replace(_memory.ReadUnicodeString(address + q.Name, 32), "");
+            result.Add(new QuestInfo(ids[i], name, parent < count ? ids[parent] : 0, goal, Field(t, q.AwardNpc), monsters, items));
+        }
+
+        return result;
+    }
+
+    private List<QuestTarget> ReadQuestTargets(int count, uint array, uint size, uint need, Func<int, int?> done)
+    {
+        var result = new List<QuestTarget>();
+        count = Math.Min(count, MaxQuestTargets);
+        if (count <= 0 || size == 0 || !MemoryBlock.TryRead(_memory, array, count * (int)size, out var block))
+            return result;
+
+        for (var k = 0; k < count; k++)
+        {
+            var at = (uint)k * size;
+            result.Add(new QuestTarget(block.UInt32(at), block.Int32(at + need), done(k)));
+        }
+
+        return result;
     }
 
     private List<InventoryItem> ReadInventory(uint inventory, out int slots)

@@ -25,6 +25,7 @@ public readonly struct MemoryBlock(uint address, byte[] data)
     public int Int32(uint offset) => BitConverter.ToInt32(data, Check(offset, 4));
     public float Float(uint offset) => BitConverter.ToSingle(data, Check(offset, 4));
     public byte Byte(uint offset) => data[Check(offset, 1)];
+    public ushort UInt16(uint offset) => BitConverter.ToUInt16(data, Check(offset, 2));
 
     private int Check(uint offset, int size)
         => offset + size <= data.Length
