@@ -120,7 +120,8 @@ public class GameCallerTests
     {
         // Comeback 1.3.6: отправка пакета — метод связи с сервером, как в профиле
         var send = new ProfileCatalog().Load("comeback136").Data.Functions[GameFunctions.SendPacket];
-        return (new ProfileData { Base = Profile.Base, Host = Profile.Host, Functions = new() { [GameFunctions.SendPacket] = send } }, send);
+        return (new ProfileData { Base = Profile.Base, Host = Profile.Host, Packets = new() { SellEntrySize = 0x10 },
+            Functions = new() { [GameFunctions.SendPacket] = send } }, send);
     }
 
     [Fact]
@@ -168,6 +169,44 @@ public class GameCallerTests
         Assert.False(result.Ok);
         Assert.Contains(why, result.Details);
         Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
+    public void SellWithoutPriceIsLikePwClassicClient()
+    {
+        // PW Classic: запись 12 байт без цены, отправка — (0xA9, длина + 0xA9, пакет); цена не нужна
+        PutHost();
+        var classic = new ProfileCatalog().Load("pwclassic136").Data;
+        var send = classic.Functions[GameFunctions.SendPacket];
+        var profile = new ProfileData { Base = Profile.Base, Host = Profile.Host, Packets = classic.Packets,
+            Functions = new() { [GameFunctions.SendPacket] = send } };
+        _memory.WriteBytes(ModuleBase + send.Rva, CodeFor(send.Signature!));
+        var item = new InventoryItem(31, 8796, 0, 1, null, null);
+
+        var result = Caller(profile).NpcSell([(item, 1)]);
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        var expected = new List<byte> { 0x25, 0x00 };
+        foreach (var value in new uint[] { 2, 16, 1, 8796, 31, 1 })
+            expected.AddRange(BitConverter.GetBytes(value));
+        Assert.Equal(expected, run.Data);
+        Assert.Equal(StubBuilder.Call(ModuleBase + send.Rva, CallingConvention.Thiscall, Session, [0xA9, 26 + 0xA9, DataAddress]),
+            run.Stub);
+    }
+
+    [Fact]
+    public void SellIsRefusedWhereEntryIsUnknown()
+    {
+        PutHost();
+        var (profile, send) = SendPacketProfile();
+        _memory.WriteBytes(ModuleBase + send.Rva, CodeFor(send.Signature!));
+
+        var result = Caller(new ProfileData { Base = profile.Base, Host = profile.Host, Functions = profile.Functions })
+            .NpcSell([(new InventoryItem(5, 831, 0, 20, null, null) { Price = 7 }, 1)]);
+
+        Assert.False(result.Ok);
+        Assert.Contains("sellEntrySize", result.Details);
     }
 
     [Fact]

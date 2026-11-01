@@ -41,6 +41,7 @@ public sealed class ProfileData
     public List<uint> GatherTools { get; init; } = new();
     public GatherWorkOffsets GatherWork { get; init; } = new();
     public MoveTypes MoveTypes { get; init; } = new();
+    public PacketFormats Packets { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
     /// <summary>Карта пришедшего с сервера кода (<see cref="ServerCodeOffsets"/>): null — на этом клиенте не проверяли.</summary>
     public ServerCodeOffsets? ServerCode { get; init; }
@@ -58,6 +59,15 @@ public sealed class ProfileData
     /// Сторож клиента (pwprotector) для проверки перед подключением: null — файл не проверен на этом клиенте.
     /// </summary>
     public ProtectorSpec? Protector { get; init; }
+}
+
+/// <summary>Устройство пакетов, которые бот собирает сам (где у команды нет своей функции в клиенте).</summary>
+public sealed class PacketFormats
+{
+    /// <summary>
+    /// Размер записи в пакете продажи: 0x10 — tid, ячейка, сколько, цена штуки; 0xC — без цены. 0 — не найдено (продажа недоступна).
+    /// </summary>
+    public uint SellEntrySize { get; init; }
 }
 
 /// <summary>

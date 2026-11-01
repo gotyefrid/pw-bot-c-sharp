@@ -60,13 +60,11 @@ public class ProfileCatalogTests
         // (банк из сумки — только Comeback; на PW Classic банк открывается у банкира): там возможность честно недоступна, с причиной
         var profile = _catalog.Load(id);
         var hasRemoteBank = id != "pwclassic136";
-        // Отправка пакета (продажа в лавке) на PW Classic другая: свои аргументы и пакет продажи без цены — пока не перенесена
-        string[] onlyComeback = [GameFunctions.SendPacket];
 
         Assert.Equal(
             _catalog.Load("comeback136").Data.Functions.Keys
                 .Where(k => hasRemoteBank || k != GameFunctions.OpenRemotePanel)
-                .Where(k => hasRemoteBank || !onlyComeback.Contains(k)).OrderBy(k => k),
+                .OrderBy(k => k),
             profile.Data.Functions.Keys.OrderBy(k => k));
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>().Where(c => hasRemoteBank || c != Capability.RemoteBank),
             c => Assert.Null(profile.Capabilities.WhyNot(c)));

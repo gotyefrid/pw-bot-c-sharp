@@ -190,47 +190,54 @@ public sealed class GameCaller : IGameActions
     private const ushort NpcServiceCommand = 0x25;
     private const uint NpcServiceSell = 2;
 
+    /// <summary>Размер записи продажи с ценой штуки и без неё (<see cref="PacketFormats.SellEntrySize"/>).</summary>
+    public const int SellEntryWithPrice = 0x10, SellEntryNoPrice = 0xC;
+
     /// <summary>
-    /// Продать в лавке: по строке на ячейку сумки — сколько штук. Лавка должна быть открыта (<see cref="OpenShop"/> или у
-    /// торговца). Как кнопка «Продать» с «Да»: корзину окна клиент серверу не шлёт, только этот пакет; цена одной штуки — из
-    /// предмета (<see cref="InventoryItem.Price"/>), как у клиента.
+    /// Продать в лавке: по строке на ячейку сумки — сколько штук. Как кнопка «Продать» с «Да»: корзину окна клиент серверу не
+    /// шлёт, только этот пакет; цена одной штуки — из предмета (<see cref="InventoryItem.Price"/>), как у клиента (если запись
+    /// продажи её несёт). Сервер Comeback принимает пакет и без открытой лавки, вдали от NPC (проверено в игре).
     /// </summary>
     public CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items)
     {
+        var entry = (int)_profile.Packets.SellEntrySize;
+        if (entry is not (SellEntryWithPrice or SellEntryNoPrice))
+            return CallResult.Refused("продать: устройство пакета продажи не найдено (packets.sellEntrySize)");
         if (items.Count == 0)
             return CallResult.Refused("продать: пустой список");
         foreach (var (item, count) in items)
         {
             if (count <= 0 || count > item.Count)
                 return CallResult.Refused($"продать: в ячейке {item.Slot} нет {count} шт.");
-            if (item.Price <= 0)
+            if (entry == SellEntryWithPrice && item.Price <= 0)
                 return CallResult.Refused($"продать: цена предмета в ячейке {item.Slot} неизвестна");
         }
 
-        var packet = SellPacket(items);
+        var packet = SellPacket(items, entry);
         return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
     }
 
     /// <summary>
-    /// Пакет продажи, как у клиента: [0x25:2][услуга 2:4][длина данных = 4 + 16·N:4][N:4], дальше N записей
-    /// (tid, ячейка сумки, сколько, цена одной штуки) по 4 байта.
+    /// Пакет продажи, как у клиента: [0x25:2][услуга 2:4][длина данных = 4 + запись·N:4][N:4], дальше N записей по 4 байта:
+    /// tid, ячейка сумки, сколько и — если запись 0x10 — цена одной штуки.
     /// </summary>
-    public static byte[] SellPacket(IReadOnlyList<(InventoryItem Item, int Count)> items)
+    public static byte[] SellPacket(IReadOnlyList<(InventoryItem Item, int Count)> items, int entry = SellEntryWithPrice)
     {
-        var packet = new byte[14 + 16 * items.Count];
+        var packet = new byte[14 + entry * items.Count];
         void Put(int offset, uint value) => Buffer.BlockCopy(BitConverter.GetBytes(value), 0, packet, offset, 4);
         Buffer.BlockCopy(BitConverter.GetBytes(NpcServiceCommand), 0, packet, 0, 2);
         Put(2, NpcServiceSell);
-        Put(6, (uint)(4 + 16 * items.Count));
+        Put(6, (uint)(4 + entry * items.Count));
         Put(10, (uint)items.Count);
         for (var i = 0; i < items.Count; i++)
         {
             var (item, count) = items[i];
-            var at = 14 + 16 * i;
+            var at = 14 + entry * i;
             Put(at, item.Tid);
             Put(at + 4, (uint)item.Slot);
             Put(at + 8, (uint)count);
-            Put(at + 12, (uint)item.Price);
+            if (entry == SellEntryWithPrice)
+                Put(at + 12, (uint)item.Price);
         }
 
         return packet;
@@ -385,6 +392,10 @@ public sealed class GameCaller : IGameActions
         {
             if (given.Contains(text))
                 return new Arg(text, 0);
+            // «size+0xA9» — значение бота плюс число
+            var plus = text.IndexOf('+');
+            if (plus > 0 && given.Contains(text.Substring(0, plus)) && TryParseNumber(text.Substring(plus + 1), out var add))
+                return new Arg(text.Substring(0, plus), add);
             if (TryParseNumber(text, out var number))
                 return new Arg(null, number);
             problem ??= $"в профиле аргумент «{text}», а бот его не даёт";
@@ -404,8 +415,9 @@ public sealed class GameCaller : IGameActions
         return new Prepared(definition, args, ecx, edx, problem);
     }
 
+    // Имя без числа — значение как есть; «имя+число» — значение плюс число (Number); без имени — само число
     private static uint Value(Arg arg, IReadOnlyDictionary<string, uint> values, uint data)
-        => arg.Name is null ? arg.Number : arg.Name == DataArg ? data : values[arg.Name];
+        => arg.Name is null ? arg.Number : (arg.Name == DataArg ? data : values[arg.Name]) + arg.Number;
 
     /// <param name="values">Значения, которые бот даёт этой функции, по именам (все имена из <see cref="Defaults"/>).</param>
     private CallResult Call(string name, byte[]? data, params (string Name, uint Value)[] values)
