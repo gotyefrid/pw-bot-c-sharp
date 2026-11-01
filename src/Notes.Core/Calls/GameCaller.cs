@@ -52,6 +52,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NormalAttack] = ["pvpMask"],
         [GameFunctions.UseItem] = ["where", "slot", "tid", "count"],
         [GameFunctions.OpenRemotePanel] = ["panel"],
+        [GameFunctions.NpcHello] = ["wid"],
         [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.SummonPet] = ["index"],
@@ -133,6 +134,9 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Открыть банк, как кнопкой в сумке: сервер сам отвечает окном, работает и в бою.</summary>
     public CallResult OpenBank() => Call(GameFunctions.OpenRemotePanel, null, ("panel", 1));
+
+    /// <summary>Начать разговор с NPC, как кликом по нему: сервер отвечает списком услуг, клиент открывает окно NPC.</summary>
+    public CallResult NpcHello(uint wid) => Call(GameFunctions.NpcHello, null, ("wid", wid));
 
     /// <summary>Номер вкладки банка в командах переноса: основная (данные игры, одинаковы на всех клиентах Comeback).</summary>
     private const uint BankMainTab = 3;

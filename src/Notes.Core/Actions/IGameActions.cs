@@ -42,6 +42,9 @@ public interface IGameActions
     /// <summary>Открыть банк (хранилище) из сумки — где угодно, в том числе в бою.</summary>
     CallResult OpenBank();
 
+    /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
+    CallResult NpcHello(uint wid);
+
     /// <summary>Перенести N штук из ячейки сумки в другую ячейку сумки; в пустую — разделить стопку.</summary>
     CallResult BagMove(int fromSlot, int toSlot, int count);
 

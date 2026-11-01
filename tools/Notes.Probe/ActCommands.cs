@@ -23,6 +23,7 @@ internal static class ActCommands
     public const string Usage = """
           act target            выбрать ближайшего живого моба
           act untarget          снять цель
+          act npc-hello         начать разговор с NPC в цели (откроется его окно)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА   положить стопку из сумки в пустую ячейку банка (банк открыт)
@@ -210,6 +211,10 @@ internal static class ActCommands
             case "bank-put":
             case "bank-take":
                 return BuildBank(name == "bank-put", args, w, reader, out problem);
+
+            case "npc-hello":
+                problem = "возьмите NPC в цель";
+                return w.Host.TargetWid == 0 ? null : new NpcHelloAction(w.Host.TargetWid);
 
             case "bank":
                 return new OpenBankAction();
