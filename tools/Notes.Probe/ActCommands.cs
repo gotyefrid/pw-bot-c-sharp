@@ -185,6 +185,9 @@ internal static class ActCommands
         return new BankTakeAction(stored.Tid, n[0], n[1]);
     }
 
+    /// <summary>За сколько метров до NPC остановиться: рядом, но не вплотную.</summary>
+    private const float NpcStop = 2.5f;
+
     /// <summary>NPC для действия: ближайший, в имени которого есть слово из аргументов, а без слова — тот, что в цели.</summary>
     private static NpcInfo? FindNpc(string[] args, WorldState w, out string problem)
     {
@@ -361,10 +364,19 @@ internal static class ActCommands
 
             case "move-npc":
                 var npc = FindNpc(args, w, out problem);
-                if (npc is not null)
-                    Console.WriteLine($"Идти к {npc.Name}: {npc.Offset.Horizontal:0.0} м");
-                // По прямой: автопуть до NPC в городе петляет (под мост и т. п.); 3 м — рядом, не упираясь в NPC
-                return npc is null ? null : new MoveAction(npc.Position, tolerance: 3f);
+                if (npc is null)
+                    return null;
+
+                // По прямой (автопуть до NPC в городе петляет — под мост и т. п.) в точку рядом с NPC: на линии от перса к нему,
+                // не доходя NpcStop метров, — не упираться в него. Высота — NPC (земля у него)
+                var hostAt = w.Host.Position;
+                var dx = npc.Position.X - hostAt.X;
+                var dy = npc.Position.Y - hostAt.Y;
+                var length = (float)Math.Sqrt(dx * dx + dy * dy);
+                var keep = length <= NpcStop ? 0f : (length - NpcStop) / length;
+                var stopAt = new Position(hostAt.X + dx * keep, npc.Position.Height, hostAt.Y + dy * keep);
+                Console.WriteLine($"Идти к {npc.Name}: до него {length:0.0} м, точка {stopAt} — в {npc.Position.DistanceTo(stopAt):0.0} м от него");
+                return new MoveAction(stopAt, tolerance: 1f);
 
             case "move-mob":
                 var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
