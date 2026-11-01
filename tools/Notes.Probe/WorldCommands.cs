@@ -563,6 +563,12 @@ internal static class WorldCommands
         foreach (var i in w.Inventory.Where(i => i.Potion is null && !i.IsPetFood))
             s.AppendLine($"       прочее ячейка {i.Slot,2}: {i.Name ?? "?"}{(i.Group is { } group ? $" [{group}]" : "")} (tid {i.Tid}) ×{i.Count}");
 
+        s.AppendLine($"Надето {w.Equipment.Count}{(w.NeedsRepair ? " — ЕСТЬ ПОНОШЕННОЕ" : "")}");
+        foreach (var i in w.Equipment)
+            s.AppendLine($"       место {i.Slot,2}: {i.Name ?? "?"} (tid {i.Tid}), прочность "
+                         + (i.MaxDurability == 0 ? "нет" : $"{i.Durability / 100.0:0.##}/{i.MaxDurability / 100.0:0.##}")
+                         + (i.NoRepair ? ", не чинится" : i.NeedsRepair ? ", починить" : ""));
+
         s.AppendLine($"Скиллы {w.Skills.Count}");
         foreach (var k in w.Skills)
             s.AppendLine($"       {k.Id,5} ур. {k.Level,2}  {k.Name ?? "(нет названия)",-28} {(k.IsReady ? "готов" : $"перезарядка {k.CooldownLeftMs / 1000.0:0.0}/{k.CooldownFullMs / 1000.0:0.0} с")}"

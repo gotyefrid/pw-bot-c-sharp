@@ -63,7 +63,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Bank, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
+            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
@@ -98,6 +98,7 @@ public sealed class WorldReader
         var pet = ReadPet(Field(hostBlock, _p.Host.PetManager));
         var bankSlots = 0;
         var bank = Requests.Bank && _p.Host.Bank != 0 ? ReadInventory(Field(hostBlock, _p.Host.Bank), out bankSlots) : null;
+        var equipment = _p.Host.Equipment != 0 ? ReadInventory(Field(hostBlock, _p.Host.Equipment), out _, durability: true) : [];
 
         return new WorldState(time, watch.Elapsed, host, npcs, items, inventory, skills, pet)
         {
@@ -108,6 +109,7 @@ public sealed class WorldReader
             InventorySlots = slots,
             Bank = bank,
             BankSlots = bankSlots,
+            Equipment = equipment,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
             Chat = ReadChat(),
@@ -510,7 +512,8 @@ public sealed class WorldReader
         return result;
     }
 
-    private List<InventoryItem> ReadInventory(uint inventory, out int slots)
+    /// <param name="durability">Читать ещё прочность (у надетых вещей): у мелких предметов сумки этих полей нет.</param>
+    private List<InventoryItem> ReadInventory(uint inventory, out int slots, bool durability = false)
     {
         var result = new List<InventoryItem>();
         slots = 0;
@@ -540,16 +543,33 @@ public sealed class WorldReader
                 food = ReadFood(tid, item.UInt32(inv.FoodEssence));
 
             var info = ReadItemInfo(tid, address);
+            var (now, max, noRepair) = durability ? ReadDurability(address) : default;
             result.Add(new InventoryItem(slot, tid, category, item.Int32(inv.ItemCount), potion, food?.Loyalty)
             {
                 MaxCount = inv.ItemMaxCount == 0 ? 0 : item.Int32(inv.ItemMaxCount),
                 Price = inv.ItemPrice == 0 ? 0 : item.Int32(inv.ItemPrice),
+                Durability = now,
+                MaxDurability = max,
+                NoRepair = noRepair,
                 Name = food?.Name ?? info.Name,
                 Group = info.Group,
             });
         }
 
         return result;
+    }
+
+    // Прочность надетой вещи (текущая, наибольшая, «не чинится»); полей нет в профиле или не прочлись — 0/0
+    private (int Now, int Max, bool NoRepair) ReadDurability(uint item)
+    {
+        var inv = _p.Inventory;
+        if (inv.ItemMaxDurability == 0 || !_memory.TryReadUInt32(item + inv.ItemDurability, out var now)
+            || !_memory.TryReadUInt32(item + inv.ItemMaxDurability, out var max))
+            return default;
+
+        var noRepair = inv.ItemFlags != 0 && inv.FlagNoRepair != 0 && _memory.TryReadUInt32(item + inv.ItemFlags, out var flags)
+            && (flags & inv.FlagNoRepair) != 0;
+        return ((int)now, (int)max, noRepair);
     }
 
     // Название и группа предмета сумки или банка. Описание — запись справочника, на которую указывает предмет (+0x0 — его tid);

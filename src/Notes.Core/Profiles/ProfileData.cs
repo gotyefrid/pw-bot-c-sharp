@@ -147,6 +147,8 @@ public sealed class HostOffsets
     public uint Inventory { get; init; }
     /// <summary>[перс + Bank] — основная вкладка банка (хранилища); устроена как сумка. 0 — не найдено.</summary>
     public uint Bank { get; init; }
+    /// <summary>[перс + Equipment] — надетые вещи (ячейка = место: 0 — оружие…); устроены как сумка. 0 — не найдено.</summary>
+    public uint Equipment { get; init; }
     /// <summary>[перс + Quests] — объект заданий персонажа (<see cref="QuestOffsets"/>). 0 — не найдено.</summary>
     public uint Quests { get; init; }
     /// <summary>[перс + Skills] — массив указателей на скиллы.</summary>
@@ -430,6 +432,12 @@ public sealed class InventoryOffsets
     public uint ItemMaxCount { get; init; }
     /// <summary>Цена продажи одной штуки в лавке (0 — поле не найдено).</summary>
     public uint ItemPrice { get; init; }
+    /// <summary>Прочность вещи — текущая и наибольшая, в сотых (в игре 46/66 — здесь 4600/6600); 0 — поле не найдено.</summary>
+    public uint ItemDurability { get; init; }
+    public uint ItemMaxDurability { get; init; }
+    /// <summary>Флаги вещи и бит «не чинится» в них (клиент пропускает такую вещь в «Починить все»); 0 — не найдено.</summary>
+    public uint ItemFlags { get; init; }
+    public uint FlagNoRepair { get; init; }
     /// <summary>Описание (шаблон) банки и большинства предметов.</summary>
     public uint ItemEssence { get; init; }
     /// <summary>Описание корма пета (у него другой класс предмета).</summary>

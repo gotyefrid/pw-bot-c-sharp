@@ -137,6 +137,12 @@ public sealed record WorldState(
     /// <summary>Сколько ячеек в основной вкладке банка (0 — неизвестно).</summary>
     public int BankSlots { get; init; }
 
+    /// <summary>Надетые вещи (ячейка — место: 0 — оружие…); пусто — ничего не надето или на этом сервере не найдены.</summary>
+    public IReadOnlyList<InventoryItem> Equipment { get; init; } = [];
+
+    /// <summary>Есть надетая поношенная вещь, которую можно починить.</summary>
+    public bool NeedsRepair => Equipment.Any(i => i.NeedsRepair);
+
     /// <summary>Все ячейки сумки заняты.</summary>
     public bool BagFull => InventorySlots > 0 && Inventory.Count >= InventorySlots;
 
@@ -351,6 +357,16 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
 
     /// <summary>Цена продажи одной штуки в лавке, как её шлёт клиент (0 — неизвестно).</summary>
     public int Price { get; init; }
+
+    /// <summary>Прочность надетой вещи, текущая и наибольшая, в сотых, как в памяти (в игре 46/66 — здесь 4600/6600); 0/0 — нет или неизвестно.</summary>
+    public int Durability { get; init; }
+    public int MaxDurability { get; init; }
+
+    /// <summary>Вещь не чинится (клиент пропускает её в «Починить все»).</summary>
+    public bool NoRepair { get; init; }
+
+    /// <summary>Надетая вещь поношена и её можно починить.</summary>
+    public bool NeedsRepair => !NoRepair && MaxDurability > 0 && Durability < MaxDurability;
 
     /// <summary>Название из справочника игры (null — неизвестно).</summary>
     public string? Name { get; init; }

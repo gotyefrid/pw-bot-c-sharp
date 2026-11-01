@@ -787,6 +787,55 @@ public class WorldReaderTests
         Assert.Equal(0, Reader(p).Read().Host.CastingSkillId);
     }
 
+    [Fact]
+    public void EquipmentIsReadWithDurability()
+    {
+        // Comeback 1.3.6: надетое устроено как сумка; прочность в сотых, бит «не чинится» во флагах
+        var p = new ProfileCatalog().Load("comeback136").Data;
+        ComebackWorldWithMob(p);
+        const uint host = 0x1002_0000, equip = 0x6000_0000, cells = 0x6001_0000, sword = 0x6002_0000, charm = 0x6003_0000;
+        var inv = p.Inventory;
+        _memory.WriteUInt32(host + p.Host.Equipment, equip);
+        _memory.Map(equip, 0x40);
+        _memory.WriteUInt32(equip + inv.Items, cells);
+        _memory.WriteUInt32(equip + inv.Size, 38);
+        _memory.Map(cells, 38 * 4);
+        _memory.WriteUInt32(cells, sword);
+        _memory.WriteUInt32(cells + 20 * 4, charm);
+        foreach (var (item, tid, now, max, flags) in new[] { (sword, 24386u, 4600u, 6600u, 0x13u), (charm, 26647u, 50u, 100u, 0x1000u) })
+        {
+            _memory.Map(item, 0x300);
+            _memory.WriteUInt32(item + inv.ItemTid, tid);
+            _memory.WriteUInt32(item + inv.ItemCount, 1);
+            _memory.WriteUInt32(item + inv.ItemDurability, now);
+            _memory.WriteUInt32(item + inv.ItemMaxDurability, max);
+            _memory.WriteUInt32(item + inv.ItemFlags, flags);
+        }
+
+        var w = Reader(p).Read();
+
+        Assert.Equal([(0, 24386u, 4600, 6600, false), (20, 26647u, 50, 100, true)],
+            w.Equipment.Select(i => (i.Slot, i.Tid, i.Durability, i.MaxDurability, i.NoRepair)));
+        Assert.True(w.Equipment[0].NeedsRepair);
+        Assert.False(w.Equipment[1].NeedsRepair);
+        Assert.True(w.NeedsRepair);
+
+        _memory.WriteUInt32(sword + inv.ItemDurability, 6600);
+        Assert.False(Reader(p).Read().NeedsRepair);
+    }
+
+    [Fact]
+    public void NoEquipmentWhereItIsNotFound()
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        ComebackWorldWithMob(p);
+
+        var w = Reader(p).Read();
+
+        Assert.Empty(w.Equipment);
+        Assert.False(w.NeedsRepair);
+    }
+
     // Мир Comeback 1.4.6 с одним мобом; возвращает адрес моба
     private uint ComebackWorldWithMob(ProfileData p)
     {
