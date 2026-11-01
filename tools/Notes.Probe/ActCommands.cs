@@ -23,7 +23,7 @@ internal static class ActCommands
     public const string Usage = """
           act target            выбрать ближайшего живого моба
           act untarget          снять цель
-          act npc-hello         начать разговор с NPC в цели (откроется его окно)
+          act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, с которым начат разговор (после npc-hello)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
@@ -45,6 +45,7 @@ internal static class ActCommands
           act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
           act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
+          act move-npc [имя]    дойти до NPC в цели или до ближайшего NPC, в имени которого есть «имя» (Банкир)
           act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
           act fly               взлететь (на земле) или сесть (в воздухе) — как кнопкой «Полёт»
           act fly-to <dx> <dy> <dh>  в воздухе: лететь на dx, dy метров в сторону и dh вверх (минус — вниз), не дальше 100 м
@@ -184,6 +185,23 @@ internal static class ActCommands
         return new BankTakeAction(stored.Tid, n[0], n[1]);
     }
 
+    /// <summary>NPC для действия: ближайший, в имени которого есть слово из аргументов, а без слова — тот, что в цели.</summary>
+    private static NpcInfo? FindNpc(string[] args, WorldState w, out string problem)
+    {
+        // Слово — аргумент, который не PID, не ключ и не значение ключа (--server comeback146)
+        var word = args.Where((a, i) => !a.StartsWith("--") && !uint.TryParse(a, out _) && (i == 0 || !args[i - 1].StartsWith("--")))
+            .FirstOrDefault();
+        if (word is null)
+        {
+            problem = "возьмите NPC в цель или напишите часть его имени";
+            return w.Target is { Kind: NpcKind.Npc } target ? target : null;
+        }
+
+        problem = $"рядом нет NPC «{word}»";
+        return w.Npcs.Where(n => n.Kind == NpcKind.Npc && n.Name.IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0)
+            .OrderBy(n => n.Offset.Horizontal).FirstOrDefault();
+    }
+
     private static GameAction? Build(string name, string[] args, WorldState w, ProfileData data, WorldReader reader, out string problem)
     {
         problem = "";
@@ -214,8 +232,8 @@ internal static class ActCommands
                 return BuildBank(name == "bank-put", args, w, reader, out problem);
 
             case "npc-hello":
-                problem = "возьмите NPC в цель";
-                return w.Host.TargetWid == 0 ? null : new NpcHelloAction(w.Host.TargetWid);
+                var talk = FindNpc(args, w, out problem);
+                return talk is null ? null : new NpcHelloAction(talk.Wid);
 
             case "npc-bank":
                 return new NpcOpenBankAction();
@@ -340,6 +358,13 @@ internal static class ActCommands
                 var from = w.Host.Position;
                 Console.WriteLine($"Сейчас высота {from.Height:0.0}, лечу на {from.Height + shift[2]:0.0}");
                 return new MoveAction(new Position(from.X + shift[0], from.Height + shift[2], from.Y + shift[1]), fly: true);
+
+            case "move-npc":
+                var npc = FindNpc(args, w, out problem);
+                if (npc is not null)
+                    Console.WriteLine($"Идти к {npc.Name}: {npc.Offset.Horizontal:0.0} м");
+                // По прямой: автопуть до NPC в городе петляет (под мост и т. п.); 3 м — рядом, не упираясь в NPC
+                return npc is null ? null : new MoveAction(npc.Position, tolerance: 3f);
 
             case "move-mob":
                 var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
