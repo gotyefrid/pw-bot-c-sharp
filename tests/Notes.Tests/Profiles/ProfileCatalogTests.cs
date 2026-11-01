@@ -60,11 +60,9 @@ public class ProfileCatalogTests
         // (банк из сумки — только Comeback; на PW Classic банк открывается у банкира): там возможность честно недоступна, с причиной
         var profile = _catalog.Load(id);
         var hasRemoteBank = id != "pwclassic136";
-        // Закрыть окно NPC — пока найдено только на PW Classic; на Comeback найти и убрать отсюда
-        string[] onlyPwClassic = [GameFunctions.NpcDialogClose];
 
         Assert.Equal(
-            _catalog.Load("comeback136").Data.Functions.Keys.Concat(hasRemoteBank ? [] : onlyPwClassic)
+            _catalog.Load("comeback136").Data.Functions.Keys
                 .Where(k => hasRemoteBank || k != GameFunctions.OpenRemotePanel)
                 .OrderBy(k => k),
             profile.Data.Functions.Keys.OrderBy(k => k));
