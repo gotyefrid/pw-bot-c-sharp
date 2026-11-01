@@ -327,6 +327,19 @@ public sealed class BankTakeAction(uint tid, int bankSlot, int bagSlot) : GameAc
 }
 
 /// <summary>
+/// Закрыть окно банка — «отменой», как Esc (она же прервала бы каст или копание: зовущий ждёт, пока тело свободно). Окна в снимке
+/// нет — итог не ждём: ушла команда — сделано.
+/// </summary>
+public sealed class CloseBankAction : GameAction
+{
+    public override string Name => "закрыть банк";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.CancelAction();
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
+/// <summary>
 /// Прервать каст или копание — как Esc (нужно срочно лечить пета) — и идущий макрос: иначе игра сразу начнёт его следующий
 /// каст. Тело не занимает: оно его освобождает.
 /// Подтверждение — персонаж больше не кастует и не копает.

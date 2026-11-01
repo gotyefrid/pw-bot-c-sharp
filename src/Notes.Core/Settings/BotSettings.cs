@@ -99,6 +99,7 @@ public sealed class BotSettings
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
         Loot.ResourceNames = MobNameFilter.Clean(Loot.ResourceNames);
+        Loot.StashNames = MobNameFilter.Clean(Loot.StashNames);
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
         Loot.Radius = Clamp(Loot.Radius, 1, 30);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
@@ -407,6 +408,17 @@ public sealed class LootSettings : SettingsPart
     private List<string> _resourceNames = [];
     /// <summary>Названия ресурсов для <see cref="ResourceMode"/> («Железная руда»).</summary>
     public List<string> ResourceNames { get => _resourceNames; set => Set(ref _resourceNames, value); }
+
+    private bool _stashToBank;
+    /// <summary>
+    /// Убирать в банк предметы из <see cref="StashNames"/>: открыть банк из сумки, переложить, закрыть. Только где банк открывается из
+    /// сумки (Comeback). Не зависит от <see cref="Enabled"/>.
+    /// </summary>
+    public bool StashToBank { get => _stashToBank; set => Set(ref _stashToBank, value); }
+
+    private List<string> _stashNames = [];
+    /// <summary>Что убирать в банк: названия предметов или группы лута («Предметы ДК»). Пусто — ничего.</summary>
+    public List<string> StashNames { get => _stashNames; set => Set(ref _stashNames, value); }
 }
 
 public enum LootListMode
@@ -494,6 +506,10 @@ public static class LootFilter
     }
 
     public static bool Allows(LootSettings loot, GroundItem item) => Allows(loot, item.Kind, item.Name, item.Group);
+
+    /// <summary>Убрать ли предмет сумки в банк: «Убирать в банк» включено, и предмет (название или группа) в его списке.</summary>
+    public static bool Stashes(LootSettings loot, InventoryItem item)
+        => loot.StashToBank && Listed(loot.StashNames, item.Name, item.Group);
 
     /// <summary>Копать ли ресурс в радиусе фарма: «Копать ресурсы» включено, и список ресурсов разрешает (подбор лута ни при чём).</summary>
     public static bool AllowsGather(LootSettings loot, string? name)
