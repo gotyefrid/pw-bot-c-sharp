@@ -996,6 +996,7 @@ public class ActionRunnerTests
         public CallResult TalkTo(uint wid) => Slow();
         public CallResult BagMove(int fromSlot, int toSlot, int count) => Slow();
         public CallResult BankExchange(int bagSlot, int bankSlot) => Slow();
+        public CallResult BankPutCount(int bagSlot, int bankSlot, int count) => Slow();
         public CallResult PickupObject(GroundItem item) => Slow();
         public CallResult UseItem(InventoryItem item) => Slow();
         public CallResult SummonPet(int cage) => Slow();

@@ -166,6 +166,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult TalkTo(uint wid) => Record($"talk {wid:X}");
     public CallResult BagMove(int fromSlot, int toSlot, int count) => Record($"bag-move {fromSlot} {toSlot} {count}");
     public CallResult BankExchange(int bagSlot, int bankSlot) => Record($"bank-exchange {bagSlot} {bankSlot}");
+    public CallResult BankPutCount(int bagSlot, int bankSlot, int count) => Record($"bank-put-count {bagSlot} {bankSlot} {count}");
     public CallResult PickupObject(GroundItem item) => Record($"pickup-approach {item.Id:X}");
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");

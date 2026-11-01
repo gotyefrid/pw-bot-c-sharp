@@ -58,6 +58,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NpcReturnTask] = ["task", "choice"],
         [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
+        [GameFunctions.BankPutCount] = ["tab", "bankSlot", "slot", "count"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -169,6 +170,14 @@ public sealed class GameCaller : IGameActions
     /// </summary>
     public CallResult BankExchange(int bagSlot, int bankSlot)
         => Call(GameFunctions.BankExchange, null, ("tab", BankMainTab), ("bankSlot", (uint)bankSlot), ("slot", (uint)bagSlot));
+
+    /// <summary>
+    /// Доложить <paramref name="count"/> штук из ячейки сумки на стопку того же предмета в ячейке банка (основная вкладка):
+    /// стопки сливаются, как мышкой.
+    /// </summary>
+    public CallResult BankPutCount(int bagSlot, int bankSlot, int count)
+        => Call(GameFunctions.BankPutCount, null, ("tab", BankMainTab), ("bankSlot", (uint)bankSlot), ("slot", (uint)bagSlot),
+            ("count", (uint)count));
 
     /// <summary>Призвать пета из клетки 1..N (N — число клеток в профиле).</summary>
     public CallResult SummonPet(int cage)

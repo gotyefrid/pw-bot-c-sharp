@@ -60,6 +60,9 @@ public interface IGameActions
     /// <summary>Поменять местами ячейку сумки и ячейку банка (основная вкладка): в пустую ячейку — перенос стопки целиком.</summary>
     CallResult BankExchange(int bagSlot, int bankSlot);
 
+    /// <summary>Доложить N штук из ячейки сумки на стопку того же предмета в банке (основная вкладка): стопки сливаются.</summary>
+    CallResult BankPutCount(int bagSlot, int bankSlot, int count);
+
 
     /// <summary>Подобрать как кликом мыши: клиент подходит сам.</summary>
     CallResult PickupObject(GroundItem item);

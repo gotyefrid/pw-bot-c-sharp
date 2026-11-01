@@ -28,7 +28,8 @@ internal static class ActCommands
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
-          act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА   положить стопку из сумки в пустую ячейку банка (банк открыт)
+          act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА [ЧИСЛО]   положить стопку из сумки в пустую ячейку банка или доложить (ЧИСЛО штук,
+                                по умолчанию сколько влезет) на стопку того же предмета (банк открыт)
           act bank-take ЯЧ_БАНКА ЯЧ_СУМКИ  взять стопку из банка в пустую ячейку сумки (банк открыт)
           act attack            обычная атака текущей цели
           act skill [id]        скилл пакетом по текущей цели (по умолчанию атакующий)
@@ -170,12 +171,29 @@ internal static class ActCommands
             if (item is null)
                 return null;
 
-            problem = $"ячейка банка {n[1]} занята — в неё нельзя положить (это был бы обмен)";
-            if (bank.Any(i => i.Slot == n[1]))
+            // В занятую ячейку — только на стопку того же предмета (докладывание); чужой предмет — был бы обмен
+            var target = bank.FirstOrDefault(i => i.Slot == n[1]);
+            problem = $"в ячейке банка {n[1]} другой предмет — в неё нельзя положить (это был бы обмен)";
+            if (target is not null && target.Tid != item.Tid)
                 return null;
 
-            Console.WriteLine($"Положить: сумка {n[0]} (tid {item.Tid} ×{item.Count}) → банк {n[1]}");
-            return new BankPutAction(item, n[1]);
+            if (target is null)
+            {
+                Console.WriteLine($"Положить: сумка {n[0]} (tid {item.Tid} ×{item.Count}) → банк {n[1]}");
+                return new BankPutAction(item, n[1]);
+            }
+
+            // Докладывание: сколько влезет в стопку банка (предел стопки — у предмета)
+            var room = target.MaxCount - target.Count;
+            problem = $"стопка в ячейке банка {n[1]} полная (×{target.Count} из {target.MaxCount})";
+            if (room <= 0)
+                return null;
+
+            // Третье число — сколько доложить (по умолчанию — сколько влезет)
+            var count = Math.Min(n.Count > 2 && n[2] > 0 ? n[2] : item.Count, Math.Min(item.Count, room));
+            Console.WriteLine($"Доложить: сумка {n[0]} (tid {item.Tid} ×{item.Count}) → {count} шт. на стопку банка {n[1]} "
+                              + $"×{target.Count} из {target.MaxCount}");
+            return new BankMergeAction(item, n[1], count);
         }
 
         var stored = bank.FirstOrDefault(i => i.Slot == n[0]);

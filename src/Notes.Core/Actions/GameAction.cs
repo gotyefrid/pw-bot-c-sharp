@@ -278,6 +278,32 @@ public sealed class BankPutAction(InventoryItem item, int bankSlot) : GameAction
 }
 
 /// <summary>
+/// Доложить <c>count</c> штук из ячейки сумки на стопку того же предмета в ячейке банка (основная вкладка), как мышкой бросить
+/// стопку на такую же. Банк должен быть открыт; что в ячейке банка тот же предмет и в стопку влезет <c>count</c>, проверяет тот,
+/// кто ставит действие. Подтверждение — в ячейке сумки стало на <c>count</c> меньше (или она опустела).
+/// </summary>
+public sealed class BankMergeAction(InventoryItem item, int bankSlot, int count) : GameAction
+{
+    public InventoryItem Item { get; } = item;
+    public int BankSlot { get; } = bankSlot;
+    public int Count { get; } = count;
+    public override string Name => $"доложить в банк {Count} из {Item.Tid}×{Item.Count}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override uint SlotId => (uint)Item.Slot + 2001;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    public override string? Precondition(WorldState now)
+        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count >= Count) ? null : "в ячейке сумки нет столько";
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.BankPutCount(Item.Slot, BankSlot, Count);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count > Item.Count - Count)
+            ? Verdict.Pending
+            : Verdict.Confirmed();
+}
+
+/// <summary>
 /// Взять стопку из ячейки банка (основная вкладка) в ПУСТУЮ ячейку сумки. Банк должен быть открыт (<see cref="OpenBankAction"/>).
 /// Подтверждение — в ячейке сумки лежит этот предмет.
 /// </summary>

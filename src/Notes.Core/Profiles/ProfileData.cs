@@ -588,6 +588,7 @@ public static class GameFunctions
     public const string NpcReturnTask = "npcReturnTask";
     public const string BagMove = "bagMove";
     public const string BankExchange = "bankExchange";
+    public const string BankPutCount = "bankPutCount";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";
