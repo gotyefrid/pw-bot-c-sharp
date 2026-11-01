@@ -612,14 +612,34 @@
         <Border Style="{StaticResource Card}">
           <StackPanel>
             <TextBlock Text="БАНКИ" Style="{StaticResource CardTitle}" />
-            <DockPanel Style="{StaticResource SettingRow}">
-              <TextBlock Text="Банка HP, когда HP ниже, %" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.HpPercent, UpdateSourceTrigger=PropertyChanged}" />
-            </DockPanel>
-            <DockPanel Style="{StaticResource SettingRow}">
-              <TextBlock Text="Банка MP, когда MP ниже (единиц)" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.MpBelow, UpdateSourceTrigger=PropertyChanged}" />
-            </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Использовать банки HP" IsChecked="{Binding Settings.Potions.UseHp}"
+                      ToolTip="Выключено — бот банки HP не пьёт" />
+            <StackPanel Visibility="{Binding Settings.Potions.UseHp, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Когда HP ниже, %" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.HpPercent, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Банка" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Potions.HpPotions}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Potions.HpPotion}"
+                          ToolTip="В списке — банки HP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто»" />
+              </DockPanel>
+            </StackPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Использовать банки MP" IsChecked="{Binding Settings.Potions.UseMp}" Margin="0,8,0,0"
+                      ToolTip="Выключено — бот банки MP не пьёт" />
+            <StackPanel Visibility="{Binding Settings.Potions.UseMp, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Когда MP ниже (единиц)" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.MpBelow, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Банка" VerticalAlignment="Center" />
+                <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Potions.MpPotions}" DisplayMemberPath="Title"
+                          SelectedValuePath="Value" SelectedValue="{Binding Potions.MpPotion}"
+                          ToolTip="В списке — банки MP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто»" />
+              </DockPanel>
+            </StackPanel>
           </StackPanel>
         </Border>
 

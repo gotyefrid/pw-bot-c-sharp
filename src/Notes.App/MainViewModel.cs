@@ -108,12 +108,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         };
 
         Pets = new PetsPanel(() => Settings, SettingsEdited);
+        Potions = new PotionsPanel(() => Settings, SettingsEdited);
         Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, id => _connection?.SkillIcons.Get(id),
             macro => _connection?.MacroIcon(macro), _log, SettingsEdited, () =>
         {
             // Список скиллов пересобран — выбор в окне перечитать заново
             OnPropertyChanged(nameof(Settings));
             Pets.Rebind();
+            Potions.Rebind();
         });
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
@@ -406,6 +408,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Кого звать петом по среде.</summary>
     public PetsPanel Pets { get; }
+    public PotionsPanel Potions { get; }
 
     // ── Маршрут обхода (режим «Собирать ресурсы») ─────────────────────────────
 
@@ -685,6 +688,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _lastWorld = w;
         Pets.Observe(w);
+        Potions.Observe(w, _connection.Bot?.Brain.Part<IPotionFallback>());
         Farm.Observe(w);
         var h = w.Host;
         if (h.Name.Length > 0)
@@ -739,6 +743,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
         Pets.Rebind();
+        Potions.Rebind();
         Farm.Load();
         Route.Load();
         Clicker.Load();
