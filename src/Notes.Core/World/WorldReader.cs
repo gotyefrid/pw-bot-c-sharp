@@ -523,7 +523,7 @@ public sealed class WorldReader
         if (size <= 0 || !MemoryBlock.TryRead(_memory, bag.UInt32(inv.Items), size * 4, out var cells))
             return result;
 
-        var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemMaxCount, inv.ItemEssence, inv.FoodEssence);
+        var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemMaxCount, inv.ItemPrice, inv.ItemEssence, inv.FoodEssence);
         for (var slot = 0; slot < size; slot++)
         {
             var address = cells.UInt32((uint)slot * 4);
@@ -543,6 +543,7 @@ public sealed class WorldReader
             result.Add(new InventoryItem(slot, tid, category, item.Int32(inv.ItemCount), potion, food?.Loyalty)
             {
                 MaxCount = inv.ItemMaxCount == 0 ? 0 : item.Int32(inv.ItemMaxCount),
+                Price = inv.ItemPrice == 0 ? 0 : item.Int32(inv.ItemPrice),
                 Name = food?.Name ?? info.Name,
                 Group = info.Group,
             });

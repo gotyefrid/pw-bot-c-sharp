@@ -349,6 +349,9 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
     /// <summary>Максимум в стопке (0 — неизвестно).</summary>
     public int MaxCount { get; init; }
 
+    /// <summary>Цена продажи одной штуки в лавке, как её шлёт клиент (0 — неизвестно).</summary>
+    public int Price { get; init; }
+
     /// <summary>Название из справочника игры (null — неизвестно).</summary>
     public string? Name { get; init; }
 

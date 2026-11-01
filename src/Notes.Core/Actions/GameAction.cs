@@ -199,6 +199,30 @@ public sealed class OpenShopAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>
+/// Продать <c>count</c> штук из ячейки сумки в открытой лавке. Подтверждение — в ячейке стало на <c>count</c> меньше (или она
+/// опустела); лавка закрыта — сервер откажет, и действие кончится по времени.
+/// </summary>
+public sealed class NpcSellAction(InventoryItem item, int count) : GameAction
+{
+    public InventoryItem Item { get; } = item;
+    public int Count { get; } = count;
+    public override string Name => $"продать {Count} из {Item.Tid}×{Item.Count}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override uint SlotId => (uint)Item.Slot + 3001;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    public override string? Precondition(WorldState now)
+        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count >= Count) ? null : "в ячейке сумки нет столько";
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcSell([(Item, Count)]);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count > Item.Count - Count)
+            ? Verdict.Pending
+            : Verdict.Confirmed();
+}
+
 /// <summary>Начать разговор с NPC в цели: окно открывает ответ сервера, итог не ждём.</summary>
 public sealed class NpcHelloAction(uint wid) : GameAction
 {

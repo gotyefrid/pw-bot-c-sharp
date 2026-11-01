@@ -170,7 +170,7 @@ internal static class WorldCommands
         var world = reader.Read();
         Console.WriteLine($"Сумка: ячеек {world.InventorySlots}, предметов {world.Inventory.Count}");
         foreach (var item in world.Inventory)
-            Console.WriteLine($"  ячейка {item.Slot,3}: tid {item.Tid}, категория {item.Category}, ×{item.Count}");
+            Console.WriteLine($"  ячейка {item.Slot,3}: tid {item.Tid}, категория {item.Category}, ×{item.Count}, цена в лавке {item.Price}");
         return 0;
     }
 

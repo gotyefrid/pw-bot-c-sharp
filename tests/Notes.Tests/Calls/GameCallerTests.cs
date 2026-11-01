@@ -116,6 +116,60 @@ public class GameCallerTests
         Assert.Equal(StubBuilder.Call(ModuleBase + open.Rva, CallingConvention.Stdcall, 0, [panel]), run.Stub);
     }
 
+    private static (ProfileData Profile, GameFunction Send) SendPacketProfile()
+    {
+        // Comeback 1.3.6: отправка пакета — метод связи с сервером, как в профиле
+        var send = new ProfileCatalog().Load("comeback136").Data.Functions[GameFunctions.SendPacket];
+        return (new ProfileData { Base = Profile.Base, Host = Profile.Host, Functions = new() { [GameFunctions.SendPacket] = send } }, send);
+    }
+
+    [Fact]
+    public void SellPacketIsLikeClientOne()
+    {
+        // Как у клиента: 0x25, услуга 2, длина данных, число строк, строки (tid, ячейка, сколько, цена штуки)
+        var packet = GameCaller.SellPacket([(new InventoryItem(5, 831, 0, 20, null, null) { Price = 7 }, 3),
+            (new InventoryItem(9, 36309, 0, 1, null, null) { Price = 1500 }, 1)]);
+
+        var expected = new List<byte> { 0x25, 0x00 };
+        foreach (var value in new uint[] { 2, 36, 2, 831, 5, 3, 7, 36309, 9, 1, 1500 })
+            expected.AddRange(BitConverter.GetBytes(value));
+        Assert.Equal(expected, packet);
+    }
+
+    [Fact]
+    public void SellSendsPacketThroughSession()
+    {
+        PutHost();
+        var (profile, send) = SendPacketProfile();
+        _memory.WriteBytes(ModuleBase + send.Rva, CodeFor(send.Signature!));
+        var item = new InventoryItem(5, 831, 0, 20, null, null) { Price = 7 };
+
+        var result = Caller(profile).NpcSell([(item, 20)]);
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        Assert.Equal(GameCaller.SellPacket([(item, 20)]), run.Data);
+        Assert.Equal(StubBuilder.Call(ModuleBase + send.Rva, CallingConvention.Thiscall, Session, [DataAddress, 30]), run.Stub);
+    }
+
+    [Theory]
+    [InlineData(7, 21, "нет 21")]
+    [InlineData(7, 0, "нет 0")]
+    [InlineData(0, 5, "цена")]
+    public void SellIsRefusedWithoutPriceOrCount(int price, int count, string why)
+    {
+        // Цена неизвестна (поле не найдено) или в ячейке нет столько — пакет не уходит
+        PutHost();
+        var (profile, send) = SendPacketProfile();
+        _memory.WriteBytes(ModuleBase + send.Rva, CodeFor(send.Signature!));
+
+        var result = Caller(profile).NpcSell([(new InventoryItem(5, 831, 0, 20, null, null) { Price = price }, count)]);
+
+        Assert.False(result.Ok);
+        Assert.Contains(why, result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
     [Fact]
     public void NpcBankSendsEmptyPassword()
     {

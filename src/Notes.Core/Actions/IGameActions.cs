@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Notes.Core.Calls;
 using Notes.Core.Profiles;
 using Notes.Core.World;
@@ -44,6 +45,9 @@ public interface IGameActions
 
     /// <summary>Открыть лавку (торговля и ремонт) из сумки, как кнопкой в сумке.</summary>
     CallResult OpenShop();
+
+    /// <summary>Продать в открытой лавке: ячейка сумки — сколько штук.</summary>
+    CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items);
 
     /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
     CallResult NpcHello(uint wid);

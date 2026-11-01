@@ -267,6 +267,8 @@
     "itemTid": "0xC",
     "itemCount": "0x14",
     "itemMaxCount": "0x18",
+    // Цена продажи одной штуки — не проверено здесь; как найти — в comeback136.jsonc
+    "itemPrice": "",
     "itemEssence": "0x60",
     "foodEssence": "0x58",
     "categoryPotion": 9,

@@ -428,6 +428,8 @@ public sealed class InventoryOffsets
     public uint ItemCount { get; init; }
     /// <summary>Сколько всего влезает в стопку (0 — поле не найдено).</summary>
     public uint ItemMaxCount { get; init; }
+    /// <summary>Цена продажи одной штуки в лавке (0 — поле не найдено).</summary>
+    public uint ItemPrice { get; init; }
     /// <summary>Описание (шаблон) банки и большинства предметов.</summary>
     public uint ItemEssence { get; init; }
     /// <summary>Описание корма пета (у него другой класс предмета).</summary>
@@ -593,6 +595,7 @@ public static class GameFunctions
     public const string BagMove = "bagMove";
     public const string BankExchange = "bankExchange";
     public const string BankPutCount = "bankPutCount";
+    public const string SendPacket = "sendPacket";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";

@@ -59,6 +59,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.BankPutCount] = ["tab", "bankSlot", "slot", "count"],
+        // Пакет по адресу данных и его длина
+        [GameFunctions.SendPacket] = [DataArg, "size"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -181,6 +183,56 @@ public sealed class GameCaller : IGameActions
     public CallResult BankPutCount(int bagSlot, int bankSlot, int count)
         => Call(GameFunctions.BankPutCount, null, ("tab", BankMainTab), ("bankSlot", (uint)bankSlot), ("slot", (uint)bagSlot),
             ("count", (uint)count));
+
+    /// <summary>Команда «услуга NPC» и номер услуги «продать» (данные игры).</summary>
+    private const ushort NpcServiceCommand = 0x25;
+    private const uint NpcServiceSell = 2;
+
+    /// <summary>
+    /// Продать в лавке: по строке на ячейку сумки — сколько штук. Лавка должна быть открыта (<see cref="OpenShop"/> или у
+    /// торговца). Как кнопка «Продать» с «Да»: корзину окна клиент серверу не шлёт, только этот пакет; цена одной штуки — из
+    /// предмета (<see cref="InventoryItem.Price"/>), как у клиента.
+    /// </summary>
+    public CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items)
+    {
+        if (items.Count == 0)
+            return CallResult.Refused("продать: пустой список");
+        foreach (var (item, count) in items)
+        {
+            if (count <= 0 || count > item.Count)
+                return CallResult.Refused($"продать: в ячейке {item.Slot} нет {count} шт.");
+            if (item.Price <= 0)
+                return CallResult.Refused($"продать: цена предмета в ячейке {item.Slot} неизвестна");
+        }
+
+        var packet = SellPacket(items);
+        return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
+    }
+
+    /// <summary>
+    /// Пакет продажи, как у клиента: [0x25:2][услуга 2:4][длина данных = 4 + 16·N:4][N:4], дальше N записей
+    /// (tid, ячейка сумки, сколько, цена одной штуки) по 4 байта.
+    /// </summary>
+    public static byte[] SellPacket(IReadOnlyList<(InventoryItem Item, int Count)> items)
+    {
+        var packet = new byte[14 + 16 * items.Count];
+        void Put(int offset, uint value) => Buffer.BlockCopy(BitConverter.GetBytes(value), 0, packet, offset, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes(NpcServiceCommand), 0, packet, 0, 2);
+        Put(2, NpcServiceSell);
+        Put(6, (uint)(4 + 16 * items.Count));
+        Put(10, (uint)items.Count);
+        for (var i = 0; i < items.Count; i++)
+        {
+            var (item, count) = items[i];
+            var at = 14 + 16 * i;
+            Put(at, item.Tid);
+            Put(at + 4, (uint)item.Slot);
+            Put(at + 8, (uint)count);
+            Put(at + 12, (uint)item.Price);
+        }
+
+        return packet;
+    }
 
     /// <summary>Призвать пета из клетки 1..N (N — число клеток в профиле).</summary>
     public CallResult SummonPet(int cage)

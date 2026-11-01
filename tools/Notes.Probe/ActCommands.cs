@@ -28,6 +28,7 @@ internal static class ActCommands
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
+          act sell ЯЧ [ЧИСЛО]   продать из ячейки сумки ЧИСЛО штук (по умолчанию всю стопку) — лавка открыта (act shop-open)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА [ЧИСЛО]   положить стопку из сумки в пустую ячейку банка или доложить (ЧИСЛО штук,
                                 по умолчанию сколько влезет) на стопку того же предмета (банк открыт)
@@ -141,6 +142,27 @@ internal static class ActCommands
     }
 
     // Номера ячеек: первые числа до 1000 (PID клиента, если указан, больше)
+    private static GameAction? BuildSell(string[] args, WorldState w, out string problem)
+    {
+        var n = args.Select(a => int.TryParse(a, out var v) && v >= 0 ? v : (int?)null).Where(v => v is not null).Select(v => v!.Value).ToList();
+        problem = "нужно: act sell ЯЧЕЙКА_СУМКИ [ЧИСЛО]";
+        if (n.Count < 1)
+            return null;
+
+        var item = w.Inventory.FirstOrDefault(i => i.Slot == n[0]);
+        problem = $"в ячейке сумки {n[0]} ничего нет";
+        if (item is null)
+            return null;
+
+        var count = n.Count > 1 ? n[1] : item.Count;
+        problem = $"в ячейке {n[0]} только {item.Count} шт.";
+        if (count <= 0 || count > item.Count)
+            return null;
+
+        Console.WriteLine($"Продать: сумка {n[0]} — {item.Name ?? "?"} (tid {item.Tid}), {count} из {item.Count}, цена за штуку {item.Price}");
+        return new NpcSellAction(item, count);
+    }
+
     private static GameAction? BuildBank(bool put, string[] args, WorldState w, WorldReader reader, out string problem)
     {
         problem = "";
@@ -272,6 +294,9 @@ internal static class ActCommands
 
             case "shop-open":
                 return new OpenShopAction();
+
+            case "sell":
+                return BuildSell(args, w, out problem);
 
             case "untarget":
                 return new UnselectAction();
