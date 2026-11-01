@@ -561,13 +561,14 @@ internal static class WorldCommands
             s.AppendLine($"       корм   ячейка {i.Slot,2}: {i.Name ?? "?"} (tid {i.Tid}) ×{i.Count}, верность {i.FoodLoyalty}");
 
         foreach (var i in w.Inventory.Where(i => i.Potion is null && !i.IsPetFood))
-            s.AppendLine($"       прочее ячейка {i.Slot,2}: {i.Name ?? "?"}{(i.Group is { } group ? $" [{group}]" : "")} (tid {i.Tid}) ×{i.Count}");
+            s.AppendLine($"       прочее ячейка {i.Slot,2}: {i.Name ?? "?"}{(i.Group is { } group ? $" [{group}]" : "")} (tid {i.Tid}) ×{i.Count}{Gear(i)}");
 
         s.AppendLine($"Надето {w.Equipment.Count}{(w.NeedsRepair ? " — ЕСТЬ ПОНОШЕННОЕ" : "")}");
         foreach (var i in w.Equipment)
             s.AppendLine($"       место {i.Slot,2}: {i.Name ?? "?"} (tid {i.Tid}), прочность "
                          + (i.MaxDurability == 0 ? "нет" : $"{i.Durability / 100.0:0.##}/{i.MaxDurability / 100.0:0.##}")
-                         + (i.NoRepair ? ", не чинится" : i.NeedsRepair ? ", починить" : ""));
+                         + (i.NoRepair ? ", не чинится" : i.NeedsRepair ? ", починить" : "")
+                         + Gear(i));
 
         s.AppendLine($"Скиллы {w.Skills.Count}");
         foreach (var k in w.Skills)
@@ -576,6 +577,17 @@ internal static class WorldCommands
         s.AppendLine($"Макросы {(w.Macros.Count == 0 ? "нет" : string.Join(", ", w.Macros.Select(m => $"{m.Number} (иконка {m.Icon})")))}");
 
         return s.ToString();
+    }
+
+    // Ячейки и свойства вещи — номерами, как их хранит клиент (названия свойств — следующим шагом)
+    private static string Gear(InventoryItem i)
+    {
+        var parts = new List<string>();
+        if (i.Sockets.Count > 0)
+            parts.Add($"ячеек {i.Sockets.Count}" + (i.Sockets.Any(s => s != 0) ? $" (камни {string.Join(", ", i.Sockets.Where(s => s != 0))})" : ""));
+        if (i.Addons.Count > 0)
+            parts.Add("свойства " + string.Join(", ", i.Addons.Select(a => $"{a.Id}={string.Join("/", a.Params)}")));
+        return parts.Count == 0 ? "" : "; " + string.Join("; ", parts);
     }
 
     private static string State(NpcInfo n) => n.State.Text() ?? $"состояние {(int)n.State}";

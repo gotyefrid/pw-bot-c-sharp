@@ -98,7 +98,7 @@ public sealed class WorldReader
         var pet = ReadPet(Field(hostBlock, _p.Host.PetManager));
         var bankSlots = 0;
         var bank = Requests.Bank && _p.Host.Bank != 0 ? ReadInventory(Field(hostBlock, _p.Host.Bank), out bankSlots) : null;
-        var equipment = _p.Host.Equipment != 0 ? ReadInventory(Field(hostBlock, _p.Host.Equipment), out _, durability: true) : [];
+        var equipment = _p.Host.Equipment != 0 ? ReadInventory(Field(hostBlock, _p.Host.Equipment), out _) : [];
 
         return new WorldState(time, watch.Elapsed, host, npcs, items, inventory, skills, pet)
         {
@@ -512,8 +512,7 @@ public sealed class WorldReader
         return result;
     }
 
-    /// <param name="durability">Читать ещё прочность (у надетых вещей): у мелких предметов сумки этих полей нет.</param>
-    private List<InventoryItem> ReadInventory(uint inventory, out int slots, bool durability = false)
+    private List<InventoryItem> ReadInventory(uint inventory, out int slots)
     {
         var result = new List<InventoryItem>();
         slots = 0;
@@ -526,7 +525,8 @@ public sealed class WorldReader
         if (size <= 0 || !MemoryBlock.TryRead(_memory, bag.UInt32(inv.Items), size * 4, out var cells))
             return result;
 
-        var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemMaxCount, inv.ItemPrice, inv.ItemEssence, inv.FoodEssence);
+        var itemSize = BlockSize(inv.ItemCategory, inv.ItemTid, inv.ItemCount, inv.ItemMaxCount, inv.ItemPrice,
+            inv.ItemEquipMask == 0 ? 0 : inv.ItemEquipMask + 4, inv.ItemEssence, inv.FoodEssence);
         for (var slot = 0; slot < size; slot++)
         {
             var address = cells.UInt32((uint)slot * 4);
@@ -543,7 +543,9 @@ public sealed class WorldReader
                 food = ReadFood(tid, item.UInt32(inv.FoodEssence));
 
             var info = ReadItemInfo(tid, address);
-            var (now, max, noRepair) = durability ? ReadDurability(address) : default;
+            // Вещь (оружие, броня, украшение) — есть места, куда она надевается; у остальных предметов полей вещи нет
+            var gear = inv.ItemEquipMask != 0 && (item.UInt32(inv.ItemEquipMask) | item.UInt32(inv.ItemEquipMask + 4)) != 0;
+            var (now, max, noRepair) = gear ? ReadDurability(address) : default;
             result.Add(new InventoryItem(slot, tid, category, item.Int32(inv.ItemCount), potion, food?.Loyalty)
             {
                 MaxCount = inv.ItemMaxCount == 0 ? 0 : item.Int32(inv.ItemMaxCount),
@@ -551,6 +553,8 @@ public sealed class WorldReader
                 Durability = now,
                 MaxDurability = max,
                 NoRepair = noRepair,
+                Sockets = gear ? ReadSockets(address) : [],
+                Addons = gear ? ReadAddons(address) : [],
                 Name = food?.Name ?? info.Name,
                 Group = info.Group,
             });
@@ -559,7 +563,7 @@ public sealed class WorldReader
         return result;
     }
 
-    // Прочность надетой вещи (текущая, наибольшая, «не чинится»); полей нет в профиле или не прочлись — 0/0
+    // Прочность вещи (текущая, наибольшая, «не чинится»); полей нет в профиле или не прочлись — 0/0
     private (int Now, int Max, bool NoRepair) ReadDurability(uint item)
     {
         var inv = _p.Inventory;
@@ -570,6 +574,41 @@ public sealed class WorldReader
         var noRepair = inv.ItemFlags != 0 && inv.FlagNoRepair != 0 && _memory.TryReadUInt32(item + inv.ItemFlags, out var flags)
             && (flags & inv.FlagNoRepair) != 0;
         return ((int)now, (int)max, noRepair);
+    }
+
+    /// <summary>Сколько самое большее ячеек, свойств и чисел у свойства: больше — значит, прочли не то.</summary>
+    private const int MaxSockets = 8, MaxAddons = 32, MaxAddonParams = 3;
+
+    // Ячейки вещи: tid камня, 0 — пустая
+    private IReadOnlyList<uint> ReadSockets(uint item)
+    {
+        var inv = _p.Inventory;
+        if (inv.ItemSockets == 0 || !_memory.TryReadUInt32(item + inv.ItemSockets, out var data)
+            || !_memory.TryReadUInt32(item + inv.ItemSocketCount, out var count) || count == 0 || count > MaxSockets
+            || !MemoryBlock.TryRead(_memory, data, (int)count * 4, out var block))
+            return [];
+
+        return Enumerable.Range(0, (int)count).Select(i => block.UInt32((uint)i * 4)).ToList();
+    }
+
+    // Дополнительные свойства вещи: номер свойства и его числа
+    private IReadOnlyList<ItemAddon> ReadAddons(uint item)
+    {
+        var inv = _p.Inventory;
+        if (inv.ItemAddons == 0 || inv.AddonSize == 0 || !_memory.TryReadUInt32(item + inv.ItemAddons, out var data)
+            || !_memory.TryReadUInt32(item + inv.ItemAddonCount, out var count) || count == 0 || count > MaxAddons
+            || !MemoryBlock.TryRead(_memory, data, (int)(count * inv.AddonSize), out var block))
+            return [];
+
+        var result = new List<ItemAddon>();
+        for (var i = 0u; i < count; i++)
+        {
+            var at = i * inv.AddonSize;
+            var n = Math.Min(Math.Max(block.Int32(at + inv.AddonParamCount), 0), MaxAddonParams);
+            result.Add(new ItemAddon(block.Int32(at), Enumerable.Range(0, n).Select(p => block.Int32(at + inv.AddonParams + (uint)p * 4)).ToList()));
+        }
+
+        return result;
     }
 
     // Название и группа предмета сумки или банка. Описание — запись справочника, на которую указывает предмет (+0x0 — его tid);

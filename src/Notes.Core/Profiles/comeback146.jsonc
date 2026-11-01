@@ -294,6 +294,15 @@
     "itemMaxDurability": "",
     "itemFlags": "",
     "flagNoRepair": "",
+    // Вещь, ячейки и свойства — не проверено здесь; как найти — в comeback136.jsonc
+    "itemEquipMask": "",
+    "itemSockets": "",
+    "itemSocketCount": "",
+    "itemAddons": "",
+    "itemAddonCount": "",
+    "addonSize": "",
+    "addonParamCount": "",
+    "addonParams": "",
     // Указатель на описание (в нём +0x0 тот же tid). У банки и у корма разные классы предметов
     "itemEssence": "0x78",
     "foodEssence": "0x70",

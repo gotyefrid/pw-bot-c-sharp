@@ -810,9 +810,28 @@ public class WorldReaderTests
             _memory.WriteUInt32(item + inv.ItemDurability, now);
             _memory.WriteUInt32(item + inv.ItemMaxDurability, max);
             _memory.WriteUInt32(item + inv.ItemFlags, flags);
+            _memory.WriteUInt32(item + inv.ItemEquipMask, item == sword ? 1u : 0x100000u);
+        }
+
+        // У меча одна пустая ячейка и два свойства (номер, сколько чисел, числа)
+        const uint sockets = 0x6004_0000, addons = 0x6005_0000;
+        _memory.Map(sockets, 4);
+        _memory.WriteUInt32(sword + inv.ItemSockets, sockets);
+        _memory.WriteUInt32(sword + inv.ItemSocketCount, 1);
+        _memory.Map(addons, (int)(2 * inv.AddonSize));
+        _memory.WriteUInt32(sword + inv.ItemAddons, addons);
+        _memory.WriteUInt32(sword + inv.ItemAddonCount, 2);
+        foreach (var (i, id, value) in new[] { (0u, 441u, 3u), (1u, 815u, 29u) })
+        {
+            _memory.WriteUInt32(addons + i * inv.AddonSize, id);
+            _memory.WriteUInt32(addons + i * inv.AddonSize + inv.AddonParamCount, 1);
+            _memory.WriteUInt32(addons + i * inv.AddonSize + inv.AddonParams, value);
         }
 
         var w = Reader(p).Read();
+        Assert.Equal([0u], w.Equipment[0].Sockets);
+        Assert.Equal(["441=3", "815=29"], w.Equipment[0].Addons.Select(a => $"{a.Id}={string.Join("/", a.Params)}"));
+        Assert.Empty(w.Equipment[1].Addons);
 
         Assert.Equal([(0, 24386u, 4600, 6600, false), (20, 26647u, 50, 100, true)],
             w.Equipment.Select(i => (i.Slot, i.Tid, i.Durability, i.MaxDurability, i.NoRepair)));

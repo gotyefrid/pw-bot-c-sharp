@@ -365,6 +365,12 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
     /// <summary>Вещь не чинится (клиент пропускает её в «Починить все»).</summary>
     public bool NoRepair { get; init; }
 
+    /// <summary>Ячейки вещи под камни: tid камня, 0 — пустая; пусто — ячеек нет или это не вещь.</summary>
+    public IReadOnlyList<uint> Sockets { get; init; } = [];
+
+    /// <summary>Дополнительные свойства вещи (в подсказке: «Магическая атака +29»); пусто — нет или это не вещь.</summary>
+    public IReadOnlyList<ItemAddon> Addons { get; init; } = [];
+
     /// <summary>Надетая вещь поношена и её можно починить.</summary>
     public bool NeedsRepair => !NoRepair && MaxDurability > 0 && Durability < MaxDurability;
 
@@ -376,6 +382,9 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
 
     public bool IsPetFood => FoodLoyalty is not null;
 }
+
+/// <summary>Дополнительное свойство вещи: номер свойства в справочнике игры и его числа (как хранит клиент).</summary>
+public sealed record ItemAddon(int Id, IReadOnlyList<int> Params);
 
 public sealed record PotionInfo(int RequiredLevel, int Hp, int HpSeconds, int Mp, int MpSeconds);
 

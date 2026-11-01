@@ -438,6 +438,17 @@ public sealed class InventoryOffsets
     /// <summary>Флаги вещи и бит «не чинится» в них (клиент пропускает такую вещь в «Починить все»); 0 — не найдено.</summary>
     public uint ItemFlags { get; init; }
     public uint FlagNoRepair { get; init; }
+    /// <summary>Куда надевается (маска мест, 8 байт): не 0 — это вещь, у неё прочность, ячейки и свойства; 0 — поле не найдено.</summary>
+    public uint ItemEquipMask { get; init; }
+    /// <summary>Ячейки под камни: указатель на массив tid (по 4 байта, 0 — пустая) и их число.</summary>
+    public uint ItemSockets { get; init; }
+    public uint ItemSocketCount { get; init; }
+    /// <summary>Дополнительные свойства: указатель на массив записей и их число; в записи — номер свойства (+0), сколько чисел, числа.</summary>
+    public uint ItemAddons { get; init; }
+    public uint ItemAddonCount { get; init; }
+    public uint AddonSize { get; init; }
+    public uint AddonParamCount { get; init; }
+    public uint AddonParams { get; init; }
     /// <summary>Описание (шаблон) банки и большинства предметов.</summary>
     public uint ItemEssence { get; init; }
     /// <summary>Описание корма пета (у него другой класс предмета).</summary>
