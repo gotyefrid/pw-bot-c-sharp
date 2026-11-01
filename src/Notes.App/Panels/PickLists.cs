@@ -21,7 +21,21 @@ public static class PickLists
         return options;
     }
 
-    /// <summary>Виды действий или условий кликера — для выбора с поиском: имя — вид в файле, текст — название в окне.</summary>
+    /// <summary>
+    /// Что убирать в банк: предметы сумки по названиям со счётом, потом встреченные в сумке раньше, в конце — группы лута.
+    /// </summary>
+    public static IReadOnlyList<PickOption> BagItems(IEnumerable<InventoryItem> bag, IEnumerable<string> seen, IEnumerable<string> groups)
+    {
+        var options = bag.Where(i => i.Name is not null)
+            .GroupBy(i => i.Name!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new PickOption(g.Key, $"{g.Key} ×{g.Sum(i => i.Count)}"))
+            .ToList();
+        var inBag = new HashSet<string>(options.Select(o => o.Name), StringComparer.OrdinalIgnoreCase);
+        options.AddRange(seen.Where(n => !inBag.Contains(n)).OrderBy(n => n).Select(n => new PickOption(n, $"{n} — не в сумке")));
+        options.AddRange(groups.Select(g => new PickOption(g, $"{g} — все предметы группы")));
+        return options;
+    }
+
     /// <summary>Корм пета из сумки: «любой» и названия со счётом, сначала самый простой (меньше даёт верности).</summary>
     public static List<PickOption> Foods(IEnumerable<InventoryItem> bag)
     {

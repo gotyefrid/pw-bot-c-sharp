@@ -159,6 +159,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             SaveSettings();
             OnPropertyChanged(nameof(CanChoosePath));
             OnPropertyChanged(nameof(CanRecallPet));
+            OnPropertyChanged(nameof(CanStashToBank));
             OnPropertyChanged(nameof(Summary));
             // Читать клиента теперь по другим смещениям — старое подключение не годится
             Disconnect();
@@ -416,6 +417,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
     public bool CanRecallPet => _profile.Capabilities.Has(Capability.RecallPet);
+
+    /// <summary>«Убирать в банк» — только у сервера, где банк открывается из сумки (Comeback).</summary>
+    public bool CanStashToBank => _profile.Capabilities.Has(Capability.RemoteBank);
 
     /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
     public bool CanChoosePath => _profile.Capabilities.Has(Capability.SmartMove);

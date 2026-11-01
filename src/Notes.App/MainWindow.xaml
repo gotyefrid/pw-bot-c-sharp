@@ -598,6 +598,14 @@
             <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.LootNames}" Options="{Binding Farm.LootOptions}"
                            Placeholder="Предметы не выбраны" EmptyOptionsText="На земле ничего нет — дождитесь лута"
                            ToolTip="Только лут с мобов. Варианты — предметы на земле вокруг, те, что встречались за сессию, и группы: «Оружие», «Броня», «Украшения», «Банки», «Снаряды», «Предметы ДК», «Корм пета» — все предметы такого вида. Ресурсы — в режиме фарма, под «Копать ресурсы»" />
+            <StackPanel Visibility="{Binding CanStashToBank, Converter={StaticResource Visible}}">
+              <CheckBox Style="{StaticResource Switch}" Content="Убирать в банк" IsChecked="{Binding Settings.Loot.StashToBank}" Margin="0,8,0,0"
+                        ToolTip="Выбранное появилось в сумке — бот откроет банк из сумки, доложит на неполные стопки того же предмета, остальное положит в пустые ячейки и закроет банк. Только основная вкладка, банк без пароля. Банк полон — пишет в лог" />
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.StashNames}" Options="{Binding Farm.StashOptions}"
+                             Visibility="{Binding Settings.Loot.StashToBank, Converter={StaticResource Visible}}"
+                             Placeholder="Предметы не выбраны" EmptyOptionsText="Сумка пуста"
+                             ToolTip="Варианты — предметы в сумке, те, что лежали в ней за сессию, и группы: «Предметы ДК», «Оружие», «Броня»… — все предметы такого вида. Надетое и квестовое не трогается. Банки, стрелы и корм, которыми пользуется бот, тоже уберутся, если их выбрать" />
+            </StackPanel>
           </StackPanel>
         </Border>
 

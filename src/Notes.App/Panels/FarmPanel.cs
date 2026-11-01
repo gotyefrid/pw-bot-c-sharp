@@ -37,6 +37,7 @@ public sealed class FarmPanel : ObservableObject
     private readonly Dictionary<string, NameCount> _seenMobs = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, NameCount> _seenTargets = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _seenItems = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _seenBagItems = new(StringComparer.OrdinalIgnoreCase);
     // Одна картинка окна на иконку: список скиллов пересобирается, только когда что-то в нём правда поменялось
     private readonly Dictionary<IconImage, ImageSource> _icons = new();
     private bool _syncingLists;
@@ -64,6 +65,7 @@ public sealed class FarmPanel : ObservableObject
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
         FarmResourceNames.CollectionChanged += (_, _) => NameListsEdited();
+        StashNames.CollectionChanged += (_, _) => NameListsEdited();
         AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _world() is not null);
         RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
     }
@@ -114,6 +116,12 @@ public sealed class FarmPanel : ObservableObject
 
     /// <summary>Ресурсы для белого/чёрного списка копания в радиусе фарма (варианты — как у точки обхода).</summary>
     public ObservableCollection<string> FarmResourceNames { get; } = new();
+
+    /// <summary>Что убирать в банк: названия предметов или группы.</summary>
+    public ObservableCollection<string> StashNames { get; } = new();
+
+    public Func<IReadOnlyList<PickOption>> StashOptions
+        => () => PickLists.BagItems(_world()?.Inventory ?? [], _seenBagItems, _profile().Data.LootGroups.Select(g => g.Name));
 
     public Func<IReadOnlyList<PickOption>> MobOptions
         => () => PickLists.Options(_world() is { } w ? NearbyNames.Mobs(w) : [], _seenMobs.Values);
@@ -201,6 +209,9 @@ public sealed class FarmPanel : ObservableObject
             Remember(_seenTargets, kind);
         foreach (var item in w.GroundItems.Where(NearbyNames.IsLootItem))
             _seenItems.Add(item.Name.Trim());
+        foreach (var item in w.Inventory)
+            if (item.Name is { } name)
+                _seenBagItems.Add(name.Trim());
     }
 
     // Уровни вида копятся за сессию: «Волк (ур. 10–12)», даже если сейчас рядом только один
@@ -279,6 +290,7 @@ public sealed class FarmPanel : ObservableObject
             Fill(MobNames, Settings.Target.MobNames);
             Fill(LootNames, Settings.Loot.ItemNames);
             Fill(FarmResourceNames, Settings.Loot.ResourceNames);
+            Fill(StashNames, Settings.Loot.StashNames);
         }
         finally
         {
@@ -302,6 +314,7 @@ public sealed class FarmPanel : ObservableObject
         Settings.Target.MobNames = MobNameFilter.Clean(MobNames);
         Settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
         Settings.Loot.ResourceNames = MobNameFilter.Clean(FarmResourceNames);
+        Settings.Loot.StashNames = MobNameFilter.Clean(StashNames);
         _edited();
     }
 
