@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Calls;
 using Notes.Core.World;
@@ -200,25 +201,24 @@ public sealed class OpenShopAction : GameAction
 }
 
 /// <summary>
-/// Продать <c>count</c> штук из ячейки сумки в открытой лавке. Подтверждение — в ячейке стало на <c>count</c> меньше (или она
-/// опустела); лавка закрыта — сервер откажет, и действие кончится по времени.
+/// Продать в открытой лавке одним пакетом: по строке на ячейку сумки — сколько штук. Подтверждение — в каждой ячейке стало
+/// на столько меньше (или она опустела); лавка закрыта — сервер откажет, и действие кончится по времени.
 /// </summary>
-public sealed class NpcSellAction(InventoryItem item, int count) : GameAction
+public sealed class NpcSellAction(IReadOnlyList<(InventoryItem Item, int Count)> items) : GameAction
 {
-    public InventoryItem Item { get; } = item;
-    public int Count { get; } = count;
-    public override string Name => $"продать {Count} из {Item.Tid}×{Item.Count}";
+    public IReadOnlyList<(InventoryItem Item, int Count)> Items { get; } = items;
+    public override string Name => "продать " + string.Join(", ", Items.Select(i => $"{i.Count} из {i.Item.Tid}×{i.Item.Count}"));
     public override ActionSlot Slot => ActionSlot.Bank;
-    public override uint SlotId => (uint)Item.Slot + 3001;
+    public override uint SlotId => (uint)(Items.Count == 0 ? 0 : Items[0].Item.Slot) + 3001;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
 
     public override string? Precondition(WorldState now)
-        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count >= Count) ? null : "в ячейке сумки нет столько";
+        => Items.All(s => now.Inventory.Any(i => i.Slot == s.Item.Slot && i.Tid == s.Item.Tid && i.Count >= s.Count)) ? null : "в ячейке сумки нет столько";
 
-    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcSell([(Item, Count)]);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcSell(Items);
 
     public override Verdict Check(WorldState start, WorldState now)
-        => now.Inventory.Any(i => i.Slot == Item.Slot && i.Tid == Item.Tid && i.Count > Item.Count - Count)
+        => Items.Any(s => now.Inventory.Any(i => i.Slot == s.Item.Slot && i.Tid == s.Item.Tid && i.Count > s.Item.Count - s.Count))
             ? Verdict.Pending
             : Verdict.Confirmed();
 }
