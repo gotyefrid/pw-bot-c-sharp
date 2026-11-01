@@ -67,6 +67,8 @@ internal static class ActCommands
         var name = args[0];
         var rest = args.Skip(1).ToArray();
         using var game = Program.OpenClient(rest, GameProcessRights.Execute);
+        // PID клиента — не аргумент действия (иначе «act sell 24 PID» продаёт PID штук)
+        rest = rest.Where(a => a != game.Pid.ToString(CultureInfo.InvariantCulture)).ToArray();
         var data = profile.Data;
         var roots = GameRoots.Find(game, game.MainModuleBase, data);
         var reader = new WorldReader(game, roots, data);
