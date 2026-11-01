@@ -102,7 +102,7 @@ public sealed class ItemAddonTexts
     /// <summary>
     /// Подставить числа свойства в фразу клиента (%+d, %d, %+.2f, %.2f, %%). Как получить число — по <paramref name="args"/>:
     /// p0…p2 — число как есть, «-» впереди — с обратным знаком, «f» — в памяти дробное (float), «*100» — умножить и округлить,
-    /// «*0.05» — умножить. null — чисел не хватает или вид неизвестен.
+    /// «*0.05» — умножить, «/2» — разделить нацело (дробь отбросить). null — чисел не хватает или вид неизвестен.
     /// </summary>
     internal static string? Format(string format, IReadOnlyList<string> args, IReadOnlyList<int> values)
     {
@@ -126,7 +126,7 @@ public sealed class ItemAddonTexts
         return failed ? null : result;
     }
 
-    private static readonly Regex Arg = new(@"^(-?)p([0-2])(f?)(?:\*([\d.]+))?$", RegexOptions.Compiled);
+    private static readonly Regex Arg = new(@"^(-?)p([0-2])(f?)(?:\*([\d.]+)|/(\d+))?$", RegexOptions.Compiled);
 
     private static double? Value(string arg, IReadOnlyList<int> values)
     {
@@ -138,6 +138,8 @@ public sealed class ItemAddonTexts
         double value = m.Groups[3].Value == "f" ? BitConverter.ToSingle(BitConverter.GetBytes(values[index]), 0) : values[index];
         if (m.Groups[4].Success)
             value *= double.Parse(m.Groups[4].Value, CultureInfo.InvariantCulture);
+        if (m.Groups[5].Success)
+            value = Math.Truncate(value / int.Parse(m.Groups[5].Value, CultureInfo.InvariantCulture));
         return m.Groups[1].Value == "-" ? -value : value;
     }
 }
