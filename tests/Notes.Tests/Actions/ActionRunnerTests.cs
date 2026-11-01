@@ -990,6 +990,7 @@ public class ActionRunnerTests
         public CallResult ApplyMacro(int macro) => Slow();
         public CallResult CancelAction() => Slow();
         public CallResult OpenBank() => Slow();
+        public CallResult OpenShop() => Slow();
         public CallResult NpcHello(uint wid) => Slow();
         public CallResult NpcOpenBank() => Slow();
         public CallResult NpcReturnTask(int taskId) => Slow();

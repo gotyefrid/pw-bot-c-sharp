@@ -165,6 +165,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult ApplyMacro(int macro) => Record($"macro {macro}");
     public CallResult CancelAction() => Record("cancel");
     public CallResult OpenBank() => Record("bank");
+    public CallResult OpenShop() => Record("shop");
     public CallResult NpcHello(uint wid) => Record("npc-hello");
     public CallResult NpcOpenBank() => Record("npc-bank");
     public CallResult NpcReturnTask(int taskId) => Record($"return-task {taskId}");

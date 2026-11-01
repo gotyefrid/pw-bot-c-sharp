@@ -189,6 +189,16 @@ public sealed class OpenBankAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Открыть лавку (торговля и ремонт) из сумки. Окно открывает ответ сервера, в снимке мира его нет — итог не ждём.</summary>
+public sealed class OpenShopAction : GameAction
+{
+    public override string Name => "открыть лавку";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.OpenShop();
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>Начать разговор с NPC в цели: окно открывает ответ сервера, итог не ждём.</summary>
 public sealed class NpcHelloAction(uint wid) : GameAction
 {

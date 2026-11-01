@@ -143,6 +143,9 @@ public sealed class GameCaller : IGameActions
     /// <summary>Открыть банк, как кнопкой в сумке: сервер сам отвечает окном, работает и в бою.</summary>
     public CallResult OpenBank() => Call(GameFunctions.OpenRemotePanel, null, ("panel", 1));
 
+    /// <summary>Открыть лавку (торговля и ремонт), как кнопкой в сумке: та же команда, панель 3; окно открывает ответ сервера.</summary>
+    public CallResult OpenShop() => Call(GameFunctions.OpenRemotePanel, null, ("panel", 3));
+
     /// <summary>Начать разговор с NPC, как кликом по нему: сервер отвечает списком услуг, клиент открывает окно NPC.</summary>
     public CallResult NpcHello(uint wid) => Call(GameFunctions.NpcHello, null, ("wid", wid));
 

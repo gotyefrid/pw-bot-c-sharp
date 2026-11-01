@@ -42,6 +42,9 @@ public interface IGameActions
     /// <summary>Открыть банк (хранилище) из сумки — где угодно, в том числе в бою.</summary>
     CallResult OpenBank();
 
+    /// <summary>Открыть лавку (торговля и ремонт) из сумки, как кнопкой в сумке.</summary>
+    CallResult OpenShop();
+
     /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
     CallResult NpcHello(uint wid);
 

@@ -87,6 +87,36 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void OpenShopIsRefusedWhereClientHasNoSuchButton()
+    {
+        // Лавка — та же кнопка в сумке, что и банк: где её нет, отказ с причиной
+        PutHost();
+
+        var result = Caller().OpenShop();
+
+        Assert.False(result.Ok);
+        Assert.Contains(GameFunctions.OpenRemotePanel, result.Details);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Theory]
+    [InlineData(false, 1u)]
+    [InlineData(true, 3u)]
+    public void RemotePanelNumberSaysBankOrShop(bool shop, uint panel)
+    {
+        // Comeback 1.3.6: одна функция на кнопки сумки, панель 1 — банк, 3 — лавка
+        var open = new ProfileCatalog().Load("comeback136").Data.Functions[GameFunctions.OpenRemotePanel];
+        var profile = new ProfileData { Functions = new() { [GameFunctions.OpenRemotePanel] = open } };
+        _memory.WriteBytes(ModuleBase + open.Rva, CodeFor(open.Signature!));
+
+        var result = shop ? Caller(profile).OpenShop() : Caller(profile).OpenBank();
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        Assert.Equal(StubBuilder.Call(ModuleBase + open.Rva, CallingConvention.Stdcall, 0, [panel]), run.Stub);
+    }
+
+    [Fact]
     public void NpcBankSendsEmptyPassword()
     {
         // Как клиент без пароля на банк: строка пароля — пустая, по адресу данных

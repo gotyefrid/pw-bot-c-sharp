@@ -27,6 +27,7 @@ internal static class ActCommands
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
+          act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА [ЧИСЛО]   положить стопку из сумки в пустую ячейку банка или доложить (ЧИСЛО штук,
                                 по умолчанию сколько влезет) на стопку того же предмета (банк открыт)
@@ -268,6 +269,9 @@ internal static class ActCommands
 
             case "bank":
                 return new OpenBankAction();
+
+            case "shop-open":
+                return new OpenShopAction();
 
             case "untarget":
                 return new UnselectAction();
