@@ -83,11 +83,16 @@ public class ItemAddonTextsTests
         Assert.Null(ItemAddonTexts.Format("Защита %+d, Физическая атака %+d", ["p0", "-p1"], [5]));
     }
 
-    [Fact]
-    public void EveryProfileTextHasAsManyNumbersAsPlaceholders()
+    [Theory]
+    [InlineData("comeback136")]
+    [InlineData("comeback146")]
+    [InlineData("pwclassic136")]
+    public void EveryProfileTextHasAsManyNumbersAsPlaceholders(string id)
     {
         // Ошибка в таблице профиля видна сразу: на каждое %d / %f — свой способ получить число
-        foreach (var pair in new ProfileCatalog().Load("comeback136").Data.GameFiles.AddonTexts)
+        var texts = new ProfileCatalog().Load(id).Data.GameFiles.AddonTexts;
+        Assert.NotEmpty(texts);
+        foreach (var pair in texts)
         {
             var (type, text) = (pair.Key, pair.Value);
             var values = Enumerable.Repeat(1, 3).ToArray();

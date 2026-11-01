@@ -17,6 +17,7 @@ namespace Notes.Core.GameFiles;
 /// </summary>
 public sealed class ItemAddonTexts
 {
+    // Порядок важен: что прочитано позже, то и верно (configs2 — поверх configs)
     private static readonly string[] Archives = ["configs.pck", "configs2.pck"];
     private static readonly Regex TypeBlock = new(@"type:\s*(\d+)\s*\{([^}]*)\}", RegexOptions.Compiled);
     private static readonly Regex Comment = new(@"/\*.*?\*/|//[^\n]*", RegexOptions.Singleline | RegexOptions.Compiled);
@@ -58,6 +59,8 @@ public sealed class ItemAddonTexts
             return Empty;
         }
 
+        // Файл бывает в обоих архивах (PW Classic): configs2 клиент открывает первым, его номера главнее
+        Dictionary<int, int>? types = null;
         foreach (var archive in Archives)
         {
             var path = Path.Combine(gameDirectory, archive);
@@ -69,21 +72,25 @@ public sealed class ItemAddonTexts
                 var data = PckArchive.ReadFile(path, "\\item_ext_prop.txt", files.Pck);
                 if (data is null)
                 {
-                    problem = $"В {archive} нет item_ext_prop.txt";
+                    if (types is null)
+                        problem = $"В {archive} нет item_ext_prop.txt";
                     continue;
                 }
 
-                problem = null;
                 // Комментарии в файле — по-китайски (GBK); нам нужны только числа, поэтому кодировка не важна
-                return new ItemAddonTexts(ParseTypes(Encoding.GetEncoding(28591).GetString(data)), files.AddonTexts);
+                types ??= [];
+                foreach (var pair in ParseTypes(Encoding.GetEncoding(28591).GetString(data)))
+                    types[pair.Key] = pair.Value;
+                problem = null;
             }
             catch (Exception e) when (e is IOException or InvalidDataException)
             {
-                problem = $"{archive}: {e.Message}";
+                if (types is null)
+                    problem = $"{archive}: {e.Message}";
             }
         }
 
-        return Empty;
+        return types is null ? Empty : new ItemAddonTexts(types, files.AddonTexts);
     }
 
     internal static Dictionary<int, int> ParseTypes(string text)
