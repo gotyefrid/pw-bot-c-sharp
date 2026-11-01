@@ -1,3 +1,5 @@
+using Notes.Core.World;
+
 namespace Notes.Core.Actions;
 
 /// <summary>
@@ -5,8 +7,11 @@ namespace Notes.Core.Actions;
 /// нажатия клавиш в её окно (<see cref="Keys"/>, основа кликера: всё, что клиент делает клавишей). Новый способ — новым
 /// свойством и новым действием, без правки исполнителя, мозга и остальных действий.
 /// </summary>
-public sealed class GameControl(IGameActions calls, IGameKeys? keys = null)
+public sealed class GameControl(IGameActions calls, IGameKeys? keys = null, WorldRequests? requests = null)
 {
+    /// <summary>Что читать в снимок сверх обычного (банк, пока с ним работаем). Не дали — просьбы никто не читает.</summary>
+    public WorldRequests Requests { get; } = requests ?? new();
+
     /// <summary>Вызовы функций игры: пакеты и «работы» персонажа.</summary>
     public IGameActions Calls { get; } = calls;
 

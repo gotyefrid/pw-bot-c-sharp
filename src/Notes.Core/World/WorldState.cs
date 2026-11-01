@@ -128,6 +128,15 @@ public sealed record WorldState(
     /// <summary>Сколько ячеек в сумке (0 — неизвестно).</summary>
     public int InventorySlots { get; init; }
 
+    /// <summary>
+    /// Основная вкладка банка. null — не читали (не просили, см. <see cref="WorldRequests"/>, или банка в профиле нет); пусто при
+    /// <see cref="BankSlots"/> = 0 — клиент ещё не получил банк от сервера (его открывают первый раз за вход).
+    /// </summary>
+    public IReadOnlyList<InventoryItem>? Bank { get; init; }
+
+    /// <summary>Сколько ячеек в основной вкладке банка (0 — неизвестно).</summary>
+    public int BankSlots { get; init; }
+
     /// <summary>Все ячейки сумки заняты.</summary>
     public bool BagFull => InventorySlots > 0 && Inventory.Count >= InventorySlots;
 

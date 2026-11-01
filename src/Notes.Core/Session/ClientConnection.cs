@@ -58,6 +58,7 @@ public sealed class ClientConnection : IDisposable
     private volatile IconAtlas _macroIcons = IconAtlas.Empty;
     private RunningBot? _bot;
     private Task _stopping = Task.CompletedTask;
+    private readonly WorldRequests _requests;
     private bool _disposed;
 
     private ClientConnection(GameProcess game, ClientLock? clientLock, ProfileData profile, Logger logger,
@@ -85,6 +86,7 @@ public sealed class ClientConnection : IDisposable
         var reader = new WorldReader(game, _roots, profile, id => _skillNames.Get(id));
         // Читатель — факты из памяти, трекер — то, что требует истории (застрявшая цель, «идёт к нам»)
         var tracker = new NpcTracker();
+        _requests = reader.Requests;
         _monitor = new WorldMonitor(() => tracker.Track(reader.Read()), SnapshotPeriod);
         _monitor.Updated += world => WorldUpdated?.Invoke(world);
         _monitor.Failed += message => WorldFailed?.Invoke(message);
@@ -199,7 +201,7 @@ public sealed class ClientConnection : IDisposable
             foreach (var (name, why) in calls.Caller.Problems)
                 _log.Warning($"Функция {name} недоступна: {why}");
 
-            var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid)), _logger.For(LogSources.Actions));
+            var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid), _requests), _logger.For(LogSources.Actions));
             var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For(LogSources.Brain), _profile.GatherTools, routeStart);
             var memoryLog = _logger.For(LogSources.Memory);
             var inspector = new ProcessInspector(_game);

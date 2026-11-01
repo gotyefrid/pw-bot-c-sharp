@@ -76,6 +76,9 @@ public sealed class WorldReader
         _attackSize = BlockSize(a.Lived, a.Attacker, a.Skill, a.Targets, a.TargetCount);
     }
 
+    /// <summary>Что читать сверх обычного (банк) — просит мозг.</summary>
+    public WorldRequests Requests { get; } = new();
+
     public WorldState Read()
     {
         var watch = Stopwatch.StartNew();
@@ -93,6 +96,8 @@ public sealed class WorldReader
         var inventory = ReadInventory(Field(hostBlock, _p.Host.Inventory), out var slots);
         var skills = ReadSkills(Field(hostBlock, _p.Host.Skills), (int)Field(hostBlock, _p.Host.SkillsCount));
         var pet = ReadPet(Field(hostBlock, _p.Host.PetManager));
+        var bankSlots = 0;
+        var bank = Requests.Bank && _p.Host.Bank != 0 ? ReadInventory(Field(hostBlock, _p.Host.Bank), out bankSlots) : null;
 
         return new WorldState(time, watch.Elapsed, host, npcs, items, inventory, skills, pet)
         {
@@ -101,6 +106,8 @@ public sealed class WorldReader
             Players = players,
             PlayerCountInGame = playerCount,
             InventorySlots = slots,
+            Bank = bank,
+            BankSlots = bankSlots,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
             Chat = ReadChat(),
