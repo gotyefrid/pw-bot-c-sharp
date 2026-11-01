@@ -210,7 +210,7 @@ public sealed class TalkToAction(uint wid) : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
-/// <summary>Открыть банк у банкира, с которым уже начат разговор: окно открывает ответ сервера, итог не ждём.</summary>
+/// <summary>Открыть банк у банкира, стоя рядом с ним (разговор не нужен): окно открывает ответ сервера, итог не ждём.</summary>
 public sealed class NpcOpenBankAction : GameAction
 {
     public override string Name => "банк у банкира";

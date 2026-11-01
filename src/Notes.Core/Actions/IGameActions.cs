@@ -45,7 +45,7 @@ public interface IGameActions
     /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
     CallResult NpcHello(uint wid);
 
-    /// <summary>Открыть банк у банкира (пункт «Услуги хранения»): разговор с ним уже начат.</summary>
+    /// <summary>Открыть банк у банкира (пункт «Услуги хранения»): стоя рядом с ним, разговор не нужен.</summary>
     CallResult NpcOpenBank();
 
     /// <summary>Сдать задание NPC, с которым начат разговор.</summary>

@@ -147,7 +147,7 @@ public sealed class GameCaller : IGameActions
     public CallResult NpcHello(uint wid) => Call(GameFunctions.NpcHello, null, ("wid", wid));
 
     /// <summary>
-    /// Открыть банк у банкира, как пунктом «Услуги хранения» в его окне: разговор с ним уже начат (<see cref="NpcHello"/>).
+    /// Открыть банк у банкира, как пунктом «Услуги хранения» в его окне: стоя рядом с ним, разговор (<see cref="NpcHello"/>) не нужен.
     /// Пароль пустой — как у клиента, когда пароль на банк не стоит; окно открывает ответ сервера.
     /// </summary>
     public CallResult NpcOpenBank() => Call(GameFunctions.NpcOpenStorage, new byte[4]);
