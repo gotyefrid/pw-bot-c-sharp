@@ -554,7 +554,7 @@ internal static class WorldCommands
         foreach (var i in w.Inventory.Where(i => i.Potion is not null))
         {
             var p = i.Potion!;
-            s.AppendLine($"       банка  ячейка {i.Slot,2}: tid {i.Tid} ×{i.Count}, ур. {p.RequiredLevel}, HP {p.Hp}/{p.HpSeconds} с, MP {p.Mp}/{p.MpSeconds} с");
+            s.AppendLine($"       банка  ячейка {i.Slot,2}: {(i.Name is null ? "" : i.Name + " (")}tid {i.Tid}{(i.Name is null ? "" : ")")} ×{i.Count}, ур. {p.RequiredLevel}, HP {p.Hp}/{p.HpSeconds} с, MP {p.Mp}/{p.MpSeconds} с");
         }
 
         foreach (var i in w.Inventory.Where(i => i.IsPetFood))
