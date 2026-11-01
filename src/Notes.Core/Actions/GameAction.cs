@@ -223,6 +223,16 @@ public sealed class NpcSellAction(IReadOnlyList<(InventoryItem Item, int Count)>
             : Verdict.Confirmed();
 }
 
+/// <summary>Починить всё в открытой лавке. Прочность в снимок мира не входит — итог не ждём: ушла команда — сделано.</summary>
+public sealed class RepairAllAction : GameAction
+{
+    public override string Name => "починить всё";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.RepairAll();
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>Начать разговор с NPC в цели: окно открывает ответ сервера, итог не ждём.</summary>
 public sealed class NpcHelloAction(uint wid) : GameAction
 {

@@ -30,6 +30,7 @@ internal static class ActCommands
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
           act sell ЯЧ[xЧИСЛО] ...  продать одним пакетом: ячейка — вся стопка, 28x1 — часть (лавка открыта: act shop-open)
+          act repair-all        починить всё, как кнопкой «Починить все» (лавка открыта: act shop-open)
           act bag-split ЯЧ ПУСТАЯ_ЯЧ ЧИСЛО   отделить часть стопки в сумке в пустую ячейку
           act bank-put ЯЧ_СУМКИ ЯЧ_БАНКА [ЧИСЛО]   положить стопку из сумки в пустую ячейку банка или доложить (ЧИСЛО штук,
                                 по умолчанию сколько влезет) на стопку того же предмета (банк открыт)
@@ -309,6 +310,9 @@ internal static class ActCommands
 
             case "shop-open":
                 return new OpenShopAction();
+
+            case "repair-all":
+                return new RepairAllAction();
 
             case "sell":
                 return BuildSell(args, w, out problem);

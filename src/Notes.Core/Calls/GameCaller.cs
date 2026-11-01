@@ -61,6 +61,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.BankPutCount] = ["tab", "bankSlot", "slot", "count"],
         // Пакет по адресу данных и его длина
         [GameFunctions.SendPacket] = [DataArg, "size"],
+        // Что чинить: tid предмета (-1 — всё), где он и в какой ячейке
+        [GameFunctions.RepairItem] = ["where", "slot", "tid"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -233,6 +235,12 @@ public sealed class GameCaller : IGameActions
 
         return packet;
     }
+
+    /// <summary>
+    /// Починить всё в открытой лавке, как кнопкой «Починить все» с «Да»: команда ремонта с предметом -1 (так её шлёт клиент).
+    /// Чинить нечего или не хватает денег — откажет сервер.
+    /// </summary>
+    public CallResult RepairAll() => Call(GameFunctions.RepairItem, null, ("where", 0), ("slot", 0), ("tid", 0xFFFFFFFF));
 
     /// <summary>Призвать пета из клетки 1..N (N — число клеток в профиле).</summary>
     public CallResult SummonPet(int cage)

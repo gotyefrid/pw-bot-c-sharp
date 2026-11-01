@@ -171,6 +171,21 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void RepairAllAsksForItemMinusOne()
+    {
+        // Как «Да» в окне «Починить все»: предмет -1, где и ячейка — нули (в ecx и edx)
+        var repair = new ProfileCatalog().Load("comeback136").Data.Functions[GameFunctions.RepairItem];
+        var profile = new ProfileData { Functions = new() { [GameFunctions.RepairItem] = repair } };
+        _memory.WriteBytes(ModuleBase + repair.Rva, CodeFor(repair.Signature!));
+
+        var result = Caller(profile).RepairAll();
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        Assert.Equal(StubBuilder.Call(ModuleBase + repair.Rva, CallingConvention.Cdecl, 0, [0xFFFFFFFF], 0, 0), run.Stub);
+    }
+
+    [Fact]
     public void NpcBankSendsEmptyPassword()
     {
         // Как клиент без пароля на банк: строка пароля — пустая, по адресу данных

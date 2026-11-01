@@ -596,6 +596,7 @@ public static class GameFunctions
     public const string BankExchange = "bankExchange";
     public const string BankPutCount = "bankPutCount";
     public const string SendPacket = "sendPacket";
+    public const string RepairItem = "repairItem";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";

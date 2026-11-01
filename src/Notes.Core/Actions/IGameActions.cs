@@ -49,6 +49,9 @@ public interface IGameActions
     /// <summary>Продать в открытой лавке: ячейка сумки — сколько штук.</summary>
     CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items);
 
+    /// <summary>Починить всё в открытой лавке.</summary>
+    CallResult RepairAll();
+
     /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
     CallResult NpcHello(uint wid);
 
