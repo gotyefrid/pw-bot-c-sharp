@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Notes.Core.Actions;
 using Notes.Core.Clicker;
@@ -70,20 +70,20 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Фарм мобов: выжить → (прервать каст без цели) → пет → копать ресурсы в радиусе фарма → бой → лут → вернуться в центр фарма.
-    /// Первыми — запись центра фарма в лог и «убрать в банк»; ни они, ни прерывание каста хода не занимают.
+    /// Фарм мобов: выжить → (прервать каст без цели) → пет → убрать в банк (после лута) → копать ресурсы в радиусе фарма → бой → лут →
+    /// вернуться в центр фарма. Первой — запись центра фарма в лог; ни она, ни прерывание каста хода не занимают.
     /// </summary>
     private static BotBrain FarmMobs(BrainContext context, IReadOnlyCollection<uint> tools)
     {
         var combat = new CombatBehavior();
         return new BotBrain(context,
-            [new FarmCenterLog(), new StashBehavior(), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new GatherBehavior(tools), combat,
+            [new FarmCenterLog(), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools), combat,
              new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }
 
     /// <summary>
-    /// Обход ресурсов: (убрать в банк — хода не занимает) → выжить → (прервать каст без цели) → уйти вверх от опасного моба → пет → копать у текущей точки → защита
+    /// Обход ресурсов: выжить → (прервать каст без цели) → уйти вверх от опасного моба → пет → убрать в банк (после лута) → копать у текущей точки → защита
     /// (бьём только напавших) → лут → к следующей точке.
     /// </summary>
     private static BotBrain GatherResources(BrainContext context, IReadOnlyCollection<uint> tools, int routeStart)
@@ -91,7 +91,7 @@ public static class BotModes
         var combat = new CombatBehavior(defendOnly: true);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
-            [new StashBehavior(), new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(), new GatherBehavior(tools, route), combat,
+            [new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools, route), combat,
              new LootBehavior(), route],
             main: combat);
     }

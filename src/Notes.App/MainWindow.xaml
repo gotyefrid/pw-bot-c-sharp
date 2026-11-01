@@ -1,4 +1,4 @@
-<Window x:Class="Notes.App.MainWindow"
+﻿<Window x:Class="Notes.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:Notes.App"
@@ -600,7 +600,7 @@
                            ToolTip="Только лут с мобов. Варианты — предметы на земле вокруг, те, что встречались за сессию, и группы: «Оружие», «Броня», «Украшения», «Банки», «Снаряды», «Предметы ДК», «Корм пета» — все предметы такого вида. Ресурсы — в режиме фарма, под «Копать ресурсы»" />
             <StackPanel Visibility="{Binding CanStashToBank, Converter={StaticResource Visible}}">
               <CheckBox Style="{StaticResource Switch}" Content="Убирать в банк" IsChecked="{Binding Settings.Loot.StashToBank}" Margin="0,8,0,0"
-                        ToolTip="Выбранное появилось в сумке — бот откроет банк из сумки, доложит на неполные стопки того же предмета, остальное положит в пустые ячейки и закроет банк. Только основная вкладка, банк без пароля. Банк полон — пишет в лог" />
+                        ToolTip="При запуске и после сбора лута с каждого моба, если выбранное лежит в сумке и на персонажа не нападают, бот откроет банк из сумки, доложит на неполные стопки того же предмета, остальное положит в пустые ячейки и закроет банк. Только основная вкладка, банк без пароля. Банк полон — пишет в лог" />
               <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.StashNames}" Options="{Binding Farm.StashOptions}"
                              Visibility="{Binding Settings.Loot.StashToBank, Converter={StaticResource Visible}}"
                              Placeholder="Предметы не выбраны" EmptyOptionsText="Сумка пуста"

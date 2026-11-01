@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
@@ -66,13 +66,21 @@ public class StashBehaviorTests
         Assert.False(_requests.Bank);
     }
 
+    // Банк открывается, когда персонаж постоял без дела секунду
+    private void Open()
+    {
+        Tick();
+        Assert.DoesNotContain("bank", _actions.Calls);
+        Tick(1);
+        Assert.Equal("bank", _actions.Calls.Last());
+        Assert.True(_requests.Bank);
+    }
+
     [Fact]
     public void TopsUpStackThenPutsRestIntoFreeSlotThenCloses()
     {
         Put(Item(8, 8137, 74, "Мягкое сухожилие", "Предметы ДК", max: 100));
-        Tick();
-        Assert.Equal(["bank"], _actions.Calls);
-        Assert.True(_requests.Bank);
+        Open();
 
         // В банке ячейка 0 — тот же предмет ×90 из 100, ячейка 1 занята другим
         BankArrives(Item(0, 8137, 90, "Мягкое сухожилие", "Предметы ДК", max: 100), Item(1, 805, 5, "Гравий"));
@@ -95,48 +103,86 @@ public class StashBehaviorTests
     }
 
     [Fact]
-    public void BankFull_LogsOnceClosesAndWaitsForBagChange()
+    public void BankFull_LogsAndClosesAndDoesNotReopenUntilNextLoot()
     {
         Put(Item(3, 36309, 14, "Карта жизни"));
-        Tick();
+        Open();
         BankArrives(Item(0, 1, 1, "а", max: 1), Item(1, 2, 1, "б", max: 1), Item(2, 3, 1, "в", max: 1), Item(3, 4, 1, "г", max: 1));
         Tick();
 
         Assert.Equal(["bank", "cancel"], _actions.Calls);
         Assert.Single(_log, e => e.Message.Contains("Банк полон — «Карта жизни» ×14"));
 
-        // Сумка та же — снова не открываем и через минуту
-        Tick(70);
-        Tick();
-        Assert.Equal(["bank", "cancel"], _actions.Calls);
-
-        // Сумка изменилась, минута прошла — пробуем снова, в лог второй раз не пишем
+        // Сумка изменилась, но нового лута не было — банк не открываем
         _world.Bag[0] = _world.Bag[0] with { Count = 15 };
-        Tick();
-        Assert.Equal("bank", _actions.Calls.Last());
-        Tick(2);
-        Tick();
-        Assert.Equal("cancel", _actions.Calls.Last());
-        Assert.Single(_log, e => e.Message.Contains("Банк полон"));
+        Tick(70);
+        Tick(1);
+        Assert.Equal(["bank", "cancel"], _actions.Calls);
     }
 
     [Fact]
-    public void ClosesOnlyWhenBodyIsFree()
+    public void ServerSaysBusy_GivesUpUntilNextLootWithoutClosing()
     {
         Put(Item(3, 36309, 14, "Карта жизни"));
-        Tick();
-        BankArrives();
-        Assert.Equal("bank-exchange 3 0", _actions.Calls.Last());
+        Open();
 
-        _world.Bag.Clear();
-        _world.Casting = true;
-        Tick(1);
+        _world.Chat.Add(new ChatMessage(5, 10, "Выполняется другая операция", 0));
         Tick();
-        Assert.DoesNotContain("cancel", _actions.Calls);
+        Tick(5);
+
+        Assert.Equal(["bank"], _actions.Calls);
+        Assert.False(_requests.Bank);
+        Assert.Contains(_log, e => e.Message.Contains("Банк не открылся: Выполняется другая операция"));
+    }
+
+    [Fact]
+    public void WaitsUntilBodyIsFreeForASecond()
+    {
+        Put(Item(3, 36309, 14, "Карта жизни"));
+        _world.Casting = true;
+        Tick();
+        Tick(2);
+        Assert.Empty(_actions.Calls);
 
         _world.Casting = false;
+        Open();
+    }
+
+    [Fact]
+    public void Attacked_DoesNotOpen()
+    {
+        Put(Item(3, 36309, 14, "Карта жизни"));
+        _world.AddMob(0x80100001, "Волк", 3, targetWid: FakeWorld.HostWid);
+
         Tick();
-        Assert.Equal("cancel", _actions.Calls.Last());
+        Tick(1);
+        Tick(1);
+
+        Assert.DoesNotContain("bank", _actions.Calls);
+    }
+
+    [Fact]
+    public void OpensAgainOnlyAfterLootFromKilledMob()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        Tick();
+        Tick(1);
+
+        // Предмет появился между циклами — ждём конца лута
+        Put(Item(3, 36309, 14, "Карта жизни"));
+        var mob = _world.AddMob(0x80000001, "Волк", 3, hp: 100);
+        _world.TargetWid = mob.Wid;
+        Tick();
+        Tick(1);
+        Assert.DoesNotContain("bank", _actions.Calls);
+
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
+        _world.TargetWid = 0;
+        Tick();
+        Tick();
+        Tick(1);
+        Assert.Equal("bank", _actions.Calls.Last());
     }
 
     [Fact]
