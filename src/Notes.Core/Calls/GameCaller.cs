@@ -63,6 +63,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.SendPacket] = [DataArg, "size"],
         // Что чинить: tid предмета (-1 — всё), где он и в какой ячейке
         [GameFunctions.RepairItem] = ["where", "slot", "tid"],
+        [GameFunctions.NpcDialogClose] = [],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -149,6 +150,12 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Открыть лавку (торговля и ремонт), как кнопкой в сумке: та же команда, панель 3; окно открывает ответ сервера.</summary>
     public CallResult OpenShop() => Call(GameFunctions.OpenRemotePanel, null, ("panel", 3));
+
+    /// <summary>
+    /// Закрыть окно разговора с NPC, как кнопкой «Назад» (или Esc): клиент прячет окно у себя, серверу ничего не шлёт —
+    /// разговор сервер помнит и дальше (продажа и ремонт проходят).
+    /// </summary>
+    public CallResult NpcDialogClose() => Call(GameFunctions.NpcDialogClose, null);
 
     /// <summary>Начать разговор с NPC, как кликом по нему: сервер отвечает списком услуг, клиент открывает окно NPC.</summary>
     public CallResult NpcHello(uint wid) => Call(GameFunctions.NpcHello, null, ("wid", wid));
@@ -432,6 +439,8 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"{name}: персонаж не в мире");
         if (prepared.Definition.This == FunctionThis.Session && !_roots.TrySession(out thisPointer))
             return CallResult.Refused($"{name}: нет связи с сервером");
+        if (prepared.Definition.This == FunctionThis.NpcDialog && !_roots.TryNpcDialog(out thisPointer))
+            return CallResult.Refused($"{name}: окно NPC не найдено (ui в профиле)");
         if (prepared.Definition.This != FunctionThis.None)
             thisPointer += prepared.Definition.ThisOffset;
 

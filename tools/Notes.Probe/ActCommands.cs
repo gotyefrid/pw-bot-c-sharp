@@ -26,6 +26,7 @@ internal static class ActCommands
           act untarget          снять цель
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
+          act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
@@ -296,6 +297,9 @@ internal static class ActCommands
             case "npc-hello":
                 var talk = FindNpc(args, w, out problem);
                 return talk is null ? null : new NpcHelloAction(talk.Wid);
+
+            case "npc-back":
+                return new NpcDialogCloseAction();
 
             case "npc-bank":
                 return new NpcOpenBankAction();

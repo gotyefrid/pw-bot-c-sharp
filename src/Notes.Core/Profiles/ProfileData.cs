@@ -42,6 +42,7 @@ public sealed class ProfileData
     public GatherWorkOffsets GatherWork { get; init; } = new();
     public MoveTypes MoveTypes { get; init; } = new();
     public PacketFormats Packets { get; init; } = new();
+    public UiOffsets Ui { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
     /// <summary>Карта пришедшего с сервера кода (<see cref="ServerCodeOffsets"/>): null — на этом клиенте не проверяли.</summary>
     public ServerCodeOffsets? ServerCode { get; init; }
@@ -59,6 +60,19 @@ public sealed class ProfileData
     /// Сторож клиента (pwprotector) для проверки перед подключением: null — файл не проверен на этом клиенте.
     /// </summary>
     public ProtectorSpec? Protector { get; init; }
+}
+
+/// <summary>
+/// Окна игры: менеджеры окон = [game + Managers]; окна в мире (CECGameUIMan) = [менеджеры + InGame], если
+/// [менеджеры + Active] = 1 (сейчас в мире, а не на экране входа); окно разговора с NPC = [окна в мире + NpcDialog].
+/// 0 — не найдено.
+/// </summary>
+public sealed class UiOffsets
+{
+    public uint Managers { get; init; }
+    public uint InGame { get; init; }
+    public uint Active { get; init; }
+    public uint NpcDialog { get; init; }
 }
 
 /// <summary>Устройство пакетов, которые бот собирает сам (где у команды нет своей функции в клиенте).</summary>
@@ -613,6 +627,8 @@ public enum FunctionThis
     Host,
     /// <summary>Объект связи с сервером: [[модуль + база] + base.session].</summary>
     Session,
+    /// <summary>Окно разговора с NPC (CDlgNPC): см. <see cref="UiOffsets"/>.</summary>
+    NpcDialog,
 }
 
 /// <summary>Имена функций в профиле.</summary>
@@ -631,6 +647,7 @@ public static class GameFunctions
     public const string BankPutCount = "bankPutCount";
     public const string SendPacket = "sendPacket";
     public const string RepairItem = "repairItem";
+    public const string NpcDialogClose = "npcDialogClose";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";

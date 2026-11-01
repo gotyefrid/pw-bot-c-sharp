@@ -97,6 +97,22 @@ public sealed class GameRoots
                && host != 0;
     }
 
+    /// <summary>Окно разговора с NPC; false — не в мире, не читается или <see cref="UiOffsets"/> нет в профиле.</summary>
+    public bool TryNpcDialog(out uint dialog)
+    {
+        dialog = 0;
+        var ui = _profile.Ui;
+        return ui.Managers != 0 && ui.NpcDialog != 0
+               && TryBase(out var root)
+               && _memory.TryReadUInt32(root + _profile.Base.Game, out var game)
+               && _memory.TryReadUInt32(game + ui.Managers, out var managers) && managers != 0
+               // Активный менеджер 1 — окна мира (0 — экран входа)
+               && _memory.TryReadUInt32(managers + ui.Active, out var active) && active == 1
+               && _memory.TryReadUInt32(managers + ui.InGame, out var inGame) && inGame != 0
+               && _memory.TryReadUInt32(inGame + ui.NpcDialog, out dialog)
+               && dialog != 0;
+    }
+
     /// <summary>Объект связи с сервером; false — не читается или <see cref="BaseOffsets.Session"/> нет в профиле.</summary>
     public bool TrySession(out uint session)
     {

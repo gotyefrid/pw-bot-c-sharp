@@ -170,6 +170,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items)
         => Record("sell " + string.Join(" ", items.Select(i => $"{i.Item.Slot}x{i.Count}")));
     public CallResult NpcHello(uint wid) => Record("npc-hello");
+    public CallResult NpcDialogClose() => Record("npc-back");
     public CallResult NpcOpenBank() => Record("npc-bank");
     public CallResult NpcReturnTask(int taskId) => Record($"return-task {taskId}");
     public CallResult TalkTo(uint wid) => Record($"talk {wid:X}");

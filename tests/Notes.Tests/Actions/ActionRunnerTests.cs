@@ -994,6 +994,7 @@ public class ActionRunnerTests
         public CallResult RepairAll() => Slow();
         public CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items) => Slow();
         public CallResult NpcHello(uint wid) => Slow();
+        public CallResult NpcDialogClose() => Slow();
         public CallResult NpcOpenBank() => Slow();
         public CallResult NpcReturnTask(int taskId) => Slow();
         public CallResult TalkTo(uint wid) => Slow();

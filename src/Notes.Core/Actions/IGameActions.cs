@@ -52,6 +52,9 @@ public interface IGameActions
     /// <summary>Починить всё в открытой лавке.</summary>
     CallResult RepairAll();
 
+    /// <summary>Закрыть окно разговора с NPC, как кнопкой «Назад».</summary>
+    CallResult NpcDialogClose();
+
     /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
     CallResult NpcHello(uint wid);
 
