@@ -2,22 +2,26 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
+using Notes.Core.Brain.Quests;
 using Notes.Core.GameFiles;
 using Notes.Core.Logging;
+using Notes.Core.Profiles;
 using Notes.Core.World;
 
 namespace Notes.Core.Brain;
 
-/// <summary>Что нужно заданиям, кроме снимка: где водятся мобы и стоят NPC.</summary>
+/// <summary>Что нужно заданиям, кроме снимка: где водятся мобы и стоят NPC, что сделать у NPC после сдачи.</summary>
 /// <param name="Points">Опорные точки по tid (configs\coord_data.txt).</param>
-public sealed record QuestGuide(GuidePoints Points);
+/// <param name="Scripts">Номер задания → скрипт: шаги сверх обычного (профиль сервера); null — нет.</param>
+public sealed record QuestGuide(GuidePoints Points, IReadOnlyDictionary<int, QuestScript>? Scripts = null);
 
 /// <summary>
 /// «Прокачать друида»: делает принятые задания по журналу. Убить — бьёт мобов цели скиллом издалека (без подхода «как кнопкой»):
 /// видит такого — выбирает и бьёт, далеко — подходит «умно» на дальность скилла, нет рядом — идёт к местам, где они водятся. Цель
 /// выполнена или задание «поговорить» — идёт «умно» к NPC, заговаривает, сдаёт и закрывает окно. Следующее задание игра выдаёт
 /// сама; принятых нет — берёт первое из «Доступных», которого нет в списке «не брать» (<see cref="Settings.QuestSettings"/>), у
-/// NPC, который его даёт; брать нечего — встаёт: задания закончились.
+/// NPC, который его даёт; брать нечего — встаёт: задания закончились. У задания со скриптом (<see cref="QuestScript"/>) после
+/// сдачи в том же разговоре выполняет шаги «after» (<see cref="QuestStep"/>: выучить скилл, вывести питомца…), потом закрывает окно.
 /// «Собрать» и прочие цели не умеет — встаёт с причиной.
 /// </summary>
 public sealed class QuestBehavior : IBehavior
@@ -38,9 +42,11 @@ public sealed class QuestBehavior : IBehavior
     private static readonly TimeSpan DealWait = TimeSpan.FromSeconds(4);
     // Одного моба бьём не дольше: застрял за камнем, не достать
     private static readonly TimeSpan MobLimit = TimeSpan.FromSeconds(40);
+    // Перед шагами после сдачи: награда (учебники, яйцо) доходит до сумки
+    private static readonly TimeSpan RewardWait = TimeSpan.FromSeconds(1.5);
     private const int DealTries = 3;
 
-    private enum Stage { Idle, Hello, Deal }
+    private enum Stage { Idle, Hello, Deal, After }
 
     private readonly QuestGuide _guide;
     private readonly HashSet<uint> _skip = [];
@@ -53,6 +59,8 @@ public sealed class QuestBehavior : IBehavior
     private int _tries;
     // Не дал (уже брали, не подходим) — больше не просить в этот запуск
     private readonly HashSet<int> _refused = [];
+    // Шаги скрипта после сдачи — по порядку, первый — текущий
+    private readonly Queue<QuestStep> _steps = new();
     private uint _mobWid;
     private DateTime _mobSince;
 
@@ -203,6 +211,9 @@ public sealed class QuestBehavior : IBehavior
     // Разговор начат: подождать окно → взять или сдать → дождаться списка → закрыть окно
     private bool Dialog(BrainContext c, IReadOnlyList<QuestInfo> quests)
     {
+        if (_stage == Stage.After)
+            return After(c);
+
         if (_stage == Stage.Hello)
         {
             Status = "задания: говорю с NPC";
@@ -223,6 +234,18 @@ public sealed class QuestBehavior : IBehavior
         {
             c.Log.Info(_dealAccept ? $"Взял задание {Title(quests, _dealTask)}" : $"Сдал задание {_dealTask}");
             _tries = 0;
+            if (!_dealAccept && _guide.Scripts?.TryGetValue(_dealTask, out var script) == true && script.After.Count > 0)
+            {
+                // Окно не закрываем: шаги — у того же NPC
+                var problems = new List<string>();
+                _steps.Clear();
+                foreach (var step in QuestStepKinds.ParseAll(script.After, problems))
+                    _steps.Enqueue(step);
+                foreach (var problem in problems)
+                    c.Log.Warning($"Скрипт задания {_dealTask}: {problem} — пропускаю");
+                (_stage, _stageAt) = (Stage.After, c.Now);
+                return true;
+            }
         }
         else if (++_tries >= DealTries)
         {
@@ -240,6 +263,25 @@ public sealed class QuestBehavior : IBehavior
         else
         {
             c.Log.Warning($"Задание {_dealTask}: NPC не {(_dealAccept ? "дал" : "принял")} — попробую ещё раз");
+        }
+
+        c.Send(new NpcDialogCloseAction());
+        _stage = Stage.Idle;
+        return true;
+    }
+
+    // После сдачи, в том же разговоре: шаги скрипта по порядку; кончились — закрыть окно
+    private bool After(BrainContext c)
+    {
+        Status = $"задания: после сдачи {_dealTask}{(_steps.Count > 0 ? $" — {_steps.Peek().Title}" : "")}";
+        if (c.Now - _stageAt < RewardWait)
+            return true;
+
+        while (_steps.Count > 0)
+        {
+            if (_steps.Peek().Tick(c, _dealTask) == QuestStepState.Running)
+                return true;
+            _steps.Dequeue();
         }
 
         c.Send(new NpcDialogCloseAction());
@@ -292,6 +334,7 @@ public sealed class QuestBehavior : IBehavior
     {
         _stage = Stage.Idle;
         _tries = 0;
+        _steps.Clear();
         _refused.Clear();
         _mobWid = 0;
         _skip.Clear();

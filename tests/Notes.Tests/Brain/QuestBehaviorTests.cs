@@ -8,6 +8,7 @@ using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Notes.Core.Settings;
 using Notes.Core.World;
+using Newtonsoft.Json.Linq;
 using Notes.Tests.Fakes;
 using Xunit;
 
@@ -35,6 +36,7 @@ public class QuestBehaviorTests
     private readonly BotSettings _settings = new();
     private readonly WorldRequests _requests = new();
     private readonly Dictionary<int, List<Position>> _points = [];
+    private readonly Dictionary<int, QuestScript> _scripts = [];
     private string? _stopped;
     private IBotRunner? _brain;
 
@@ -54,7 +56,7 @@ public class QuestBehaviorTests
 
             _brain = BotModes.Create(BotMode.LevelUp, new ActionRunner(new GameControl(_actions, requests: _requests), NullLogger.Instance),
                 new ClassSkills(), _settings, NullLogger.Instance, random: new Random(1),
-                quests: new QuestGuide(new GuidePoints(_points)));
+                quests: new QuestGuide(new GuidePoints(_points), _scripts));
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
         }
@@ -179,6 +181,55 @@ public class QuestBehaviorTests
         _world.Quests = [];
         Tick();
         Assert.Equal(["npc-hello", "return-task 1204", "npc-back"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ReturnedQuestWithScript_LearnsMissingSkillsHatchesEggThenClosesWindow()
+    {
+        const uint Trainer = 11534;
+        _scripts[5913] = new QuestScript
+        {
+            After =
+            [
+                JObject.Parse("""{ "kind": "LearnSkill", "skill": 330 }"""),
+                JObject.Parse("""{ "kind": "LearnSkill", "skill": 329 }"""),
+                JObject.Parse("""{ "kind": "HatchPets" }"""),
+            ],
+        };
+        _world.AddSkill(329);
+        _world.Quests = [new QuestInfo(5913, "Свирепый волк", 5910, QuestGoals.Kill, Trainer, [new QuestTarget(1047, 0, 0)], [])];
+        AddNpc(0x80104103, Trainer, "Дрессировщик Лисюэ", 3);
+
+        Tick();
+        Tick(1.1);
+        _world.Quests = [];
+        _world.Bag.Add(new InventoryItem(3, 10712, 0x1A, 1, null, null) { IsPetEgg = true, Name = "Яйцо Молодого свирепого волка" });
+        Tick();
+        Assert.Equal(["npc-hello", "return-task 5913"], _actions.Calls);
+
+        Tick(1.6);
+        Tick(1.6);
+        Tick(1.6);
+        Tick(1.6);
+
+        // 329 уже есть — не учим; окно закрыто после всех шагов
+        Assert.Equal(["npc-hello", "return-task 5913", "learn-skill 330", "hatch-pet 3 10712", "npc-back"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ScriptSkillNotLearned_AsksOnceThenClosesWindow()
+    {
+        _scripts[1204] = new QuestScript { After = [JObject.Parse("""{ "kind": "LearnSkill", "skill": 330 }""")] };
+        _world.Quests = [KillMoths(10)];
+        AddNpc(0x801000FD, Elder, "Старейшина Города Оборотней", 2);
+
+        Tick();
+        Tick(1.1);
+        _world.Quests = [];
+        for (var i = 0; i < 5; i++)
+            Tick(1.6);
+
+        Assert.Equal(["npc-hello", "return-task 1204", "learn-skill 330", "npc-back"], _actions.Calls);
     }
 
     [Fact]

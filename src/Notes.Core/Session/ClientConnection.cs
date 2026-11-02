@@ -254,7 +254,7 @@ public sealed class ClientConnection : IDisposable
             _log.Warning("Места мобов и NPC для заданий: " + problem);
         else
             _log.Debug($"Места мобов и NPC для заданий: {points.Count}");
-        return new QuestGuide(points);
+        return new QuestGuide(points, _profile.QuestScripts);
     }
 
     private void LoadSkillsInBackground()

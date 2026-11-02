@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using Notes.Core.GameFiles;
 
 namespace Notes.Core.Profiles;
@@ -42,6 +43,8 @@ public sealed class ProfileData
     public GatherWorkOffsets GatherWork { get; init; } = new();
     public MoveTypes MoveTypes { get; init; } = new();
     public PacketFormats Packets { get; init; } = new();
+    /// <summary>Что сделать у NPC сразу после сдачи задания: номер задания → шаги.</summary>
+    public Dictionary<int, QuestScript> QuestScripts { get; init; } = new();
     public UiOffsets Ui { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
     /// <summary>Карта пришедшего с сервера кода (<see cref="ServerCodeOffsets"/>): null — на этом клиенте не проверяли.</summary>
@@ -76,6 +79,16 @@ public sealed class UiOffsets
 }
 
 /// <summary>Устройство пакетов, которые бот собирает сам (где у команды нет своей функции в клиенте).</summary>
+/// <summary>
+/// Скрипт задания: шаги сверх обычного «взять — сделать — сдать». Шаг — <c>{ "kind": вид, поля }</c>; виды и их поля — в
+/// Brain/Quests (QuestStepKinds), здесь шаги хранятся как есть. Новый момент скрипта (например, «после взятия») — новое поле.
+/// </summary>
+public sealed class QuestScript
+{
+    /// <summary>Сразу после сдачи, пока окно разговора с NPC открыто; по порядку.</summary>
+    public List<JObject> After { get; init; } = new();
+}
+
 public sealed class PacketFormats
 {
     /// <summary>
