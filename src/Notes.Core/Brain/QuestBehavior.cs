@@ -86,9 +86,11 @@ public sealed class QuestBehavior : IBehavior
         {
             if (quests.Count > 0)
                 return c.RequestStop($"Задание «{quests[0].Name}» без цели, которую я понимаю — останавливаюсь");
-            if (!_started && _guide.StartTask != 0 && _guide.StartNpc != 0)
-                return Visit(c, _guide.StartNpc, _guide.StartTask, accept: true, "взять первое задание");
-            return c.RequestStop("Задания закончились");
+            if (_started)
+                return c.RequestStop("Задания закончились");
+            if (_guide.StartTask == 0 || _guide.StartNpc == 0)
+                return c.RequestStop("Для этого сервера первое задание не задано — возьмите задание в игре и нажмите «Старт»");
+            return Visit(c, _guide.StartNpc, _guide.StartTask, accept: true, "взять первое задание");
         }
 
         _started = true;

@@ -27,6 +27,7 @@ public class QuestBehaviorTests
     private readonly WorldRequests _requests = new();
     private readonly Dictionary<int, List<Position>> _points = [];
     private string? _stopped;
+    private int _startTask = StartTask;
     private IBotRunner? _brain;
 
     public QuestBehaviorTests()
@@ -45,7 +46,7 @@ public class QuestBehaviorTests
 
             _brain = BotModes.Create(BotMode.LevelUp, new ActionRunner(new GameControl(_actions, requests: _requests), NullLogger.Instance),
                 new ClassSkills(), _settings, NullLogger.Instance, random: new Random(1),
-                quests: new QuestGuide(new GuidePoints(_points), StartTask, Mentor));
+                quests: new QuestGuide(new GuidePoints(_points), _startTask, Mentor));
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
         }
@@ -211,6 +212,17 @@ public class QuestBehaviorTests
         Tick();
 
         Assert.Contains("закончились", _stopped);
+    }
+
+    [Fact]
+    public void NoQuestsNoStartForServer_StopsAskingToTakeOneInGame()
+    {
+        _startTask = 0;
+
+        Tick();
+
+        Assert.Contains("возьмите задание в игре", _stopped);
+        Assert.Empty(_actions.Calls);
     }
 
     [Fact]
