@@ -692,9 +692,12 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         _lastWorld = w;
-        // «Задания»: варианты списка «не брать» — из «Доступных», их читаем, пока выбран этот режим (бот тоже их просит)
+        // «Задания»: варианты списка «не брать» — из «Доступных», их читаем, пока выбран этот режим. Ушли из режима — не читаем,
+        // кроме запущенного бота: он сам просит задания каждый тик, пока работает
         if (Settings.Mode == BotMode.LevelUp)
             _connection.Requests.Quests = true;
+        else if (_connection.Bot is null)
+            _connection.Requests.Quests = false;
         Pets.Observe(w);
         Potions.Observe(w, _connection.Bot?.Brain.Part<IPotionFallback>());
         Farm.Observe(w);
