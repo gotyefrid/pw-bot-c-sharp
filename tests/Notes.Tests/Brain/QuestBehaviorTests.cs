@@ -281,6 +281,46 @@ public class QuestBehaviorTests
         Assert.Equal(1, _actions.QuestCheckCalls);
     }
 
+    private static QuestInfo Wolf() => new(5913, "Свирепый волк", 5910, QuestGoals.Kill, Trainer,
+        [new QuestTarget(1047, 0, 0) { DropItem = 11531, DropNeed = 1 }], []) { GiverNpc = Trainer };
+
+    [Fact]
+    public void ChooseOneQuest_TakesOptionTheGameAllows()
+    {
+        var scorpion = new QuestInfo(5914, "Узорчатый скорпион", 5910, QuestGoals.Kill, Trainer, [], []);
+        _world.QuestCandidates =
+        [
+            new QuestInfo(5910, "Умение управления", 0, QuestGoals.Parts, 0, [], []) { GiverNpc = Trainer, Options = [Wolf(), scorpion] },
+        ];
+        _actions.QuestCheckAnswers[5913] = 9;
+        AddNpc(0x80104103, Trainer, "Дрессировщик Лисюэ", 3);
+
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "accept-task 5914"], _actions.Calls);
+    }
+
+    [Fact]
+    public void DropQuest_HuntsUntilItemInQuestBag()
+    {
+        _world.Quests = [Wolf()];
+        _world.QuestItems = [];
+        var wolf = AddMob(0x80103F1C, 1047, "Молодой свирепый волк", 10);
+
+        Tick();
+        Assert.Equal([$"select {wolf.Wid:X}"], _actions.Calls);
+
+        _actions.Calls.Clear();
+        _world.Npcs.Remove(wolf);
+        _world.QuestItems = [new InventoryItem(0, 11531, 0, 1, null, null)];
+        AddNpc(0x80104103, Trainer, "Дрессировщик Лисюэ", 3);
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "return-task 5913"], _actions.Calls);
+    }
+
     [Fact]
     public void KillsDoneNobodyToReturn_WaitsForGame()
     {

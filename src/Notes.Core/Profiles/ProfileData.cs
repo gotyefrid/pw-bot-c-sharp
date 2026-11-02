@@ -377,6 +377,11 @@ public sealed class QuestOffsets
     public uint MinLevel { get; init; }
     public uint MaxLevel { get; init; }
     public uint RebirthLevel { get; init; }
+    /// <summary>В записи задания: указатели на первое подзадание и на следующее рядом (0 — нет).</summary>
+    public uint FirstChild { get; init; }
+    public uint NextSibling { get; init; }
+    /// <summary>В записи задания: байт «выполнить одно из подзаданий» — NPC выдаёт подзадание, а не само задание.</summary>
+    public uint ChooseOne { get; init; }
 }
 
 /// <summary>

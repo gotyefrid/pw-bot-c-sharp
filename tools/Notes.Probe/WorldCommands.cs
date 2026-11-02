@@ -185,6 +185,7 @@ internal static class WorldCommands
             return 1;
         }
 
+        reader.Requests.Quests = true;
         var world = reader.Read();
         Console.WriteLine($"Заданий в списке: {quests.Count}, верхнего уровня: {quests.Count(q => q.ParentId == 0)}");
         foreach (var q in quests)
@@ -196,7 +197,8 @@ internal static class WorldCommands
             var award = q.AwardNpc == 0 ? "" : $", сдать: NPC {q.AwardNpc}";
             Console.WriteLine($"{indent}{q.Id} «{q.Name}» — цель: {QuestGoals.Text(q.Goal)}{award}");
             foreach (var m in q.Monsters)
-                Console.WriteLine($"{indent}    моб {m.Tid}: {(m.Done is { } d ? $"{d}/" : "")}{m.Need}");
+                Console.WriteLine($"{indent}    моб {m.Tid}: {(m.Done is { } d ? $"{d}/" : "")}{m.Need}"
+                                  + (m.DropItem != 0 ? $", предмет {m.DropItem}: {world.QuestItemCount(m.DropItem)}/{m.DropNeed}" : ""));
             foreach (var i in q.Items)
             {
                 var have = world.Inventory.Where(x => x.Tid == i.Tid).Sum(x => x.Count);
@@ -218,7 +220,7 @@ internal static class WorldCommands
             var giver = q.GiverNpc == 0 ? "" : $", даёт: NPC {q.GiverNpc}";
             Console.WriteLine($"  {q.Id} «{q.Name}» — цель: {QuestGoals.Text(q.Goal)}{giver}{award}");
             foreach (var m in q.Monsters)
-                Console.WriteLine($"      моб {m.Tid}: {m.Need}");
+                Console.WriteLine($"      моб {m.Tid}: {m.Need}{(m.DropItem != 0 ? $", предмет {m.DropItem} ×{m.DropNeed}" : "")}");
             foreach (var i in q.Items)
                 Console.WriteLine($"      предмет {i.Tid}: {i.Need}");
         }

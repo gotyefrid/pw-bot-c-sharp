@@ -21,7 +21,9 @@ public sealed record QuestGuide(GuidePoints Points, IReadOnlyDictionary<int, Que
 /// выполнена или задание «поговорить» — идёт «умно» к NPC, заговаривает, сдаёт и закрывает окно. Следующее задание игра выдаёт
 /// сама; принятых нет — берёт первое из «Доступных», которого нет в списке «не брать» (<see cref="Settings.QuestSettings"/>), у
 /// NPC, который его даёт; «Доступные» — как у окна игры: задания по уровню и проверка игры «можно взять». Брать нечего — встаёт:
-/// задания закончились. Задание «выполняется при взятии» (в журнал не попадает) — засчитывает, когда игра перестала его давать. У задания со скриптом (<see cref="QuestScript"/>) после
+/// задания закончились. Задание «выполняется при взятии» (в журнал не попадает) — засчитывает, когда игра перестала его давать.
+/// «Выполнить одно из подзаданий» — берёт подзадание, которое разрешает игра. Убить ради предмета — бьёт, пока предметов в сумке
+/// заданий не хватает. У задания со скриптом (<see cref="QuestScript"/>) после
 /// сдачи в том же разговоре выполняет шаги «after» (<see cref="QuestStep"/>: выучить скилл, вывести питомца…), потом закрывает окно.
 /// «Собрать» и прочие цели не умеет — встаёт с причиной.
 /// </summary>
@@ -108,7 +110,7 @@ public sealed class QuestBehavior : IBehavior
         switch (quest.Goal)
         {
             case QuestGoals.Kill:
-                var left = quest.Monsters.Where(m => (m.Done ?? 0) < m.Need).ToList();
+                var left = quest.Monsters.Where(m => !Enough(c.World, m)).ToList();
                 if (left.Count > 0)
                     return Hunt(c, quest, left);
                 if (quest.AwardNpc == 0)
@@ -132,7 +134,7 @@ public sealed class QuestBehavior : IBehavior
     {
         var w = c.World;
         var tids = new HashSet<uint>(left.Select(t => t.Tid));
-        Status = $"задание «{quest.Name}»: {string.Join(", ", left.Select(t => $"{MobName(w, t.Tid)} {t.Done ?? 0}/{t.Need}"))}";
+        Status = $"задание «{quest.Name}»: {string.Join(", ", left.Select(t => $"{MobName(w, t.Tid)} {Progress(w, t)}"))}";
 
         if (w.Target is { Kind: NpcKind.Mob, IsDead: false } target && tids.Contains((uint)target.Tid) && !_skip.Contains(target.Wid))
         {
@@ -200,7 +202,27 @@ public sealed class QuestBehavior : IBehavior
                 c.Say("quest-check", $"Проверка «можно взять» не вышла ({check.Details}) — беру из списка игры", LogLevel.Warning, 60);
         }
 
-        return takeable.FirstOrDefault(q => q.GiverNpc != 0 && !_refused.Contains(q.Id) && !c.Settings.Quests.Skips(q.Name));
+        foreach (var quest in takeable.Where(q => q.GiverNpc != 0 && !_refused.Contains(q.Id) && !c.Settings.Quests.Skips(q.Name)))
+        {
+            if (quest.Options.Count == 0)
+                return quest;
+
+            // «Выполнить одно из подзаданий»: NPC выдаёт подзадание — первое, которое игра разрешает (как пункты его окна)
+            var check = c.Executor.Control.Calls.QuestChecks(quest.Options.Select(o => o.Id).ToList());
+            var option = check is { Ok: true, Values: { } codes } && codes.Count == quest.Options.Count
+                ? quest.Options.Where((_, i) => codes[i] == 0).FirstOrDefault()
+                : quest.Options[0];
+            if (option is null)
+            {
+                _refused.Add(quest.Id);
+                continue;
+            }
+
+            c.Log.Info($"«{quest.Name}» выдаётся подзаданием — беру «{option.Name}»");
+            return option with { GiverNpc = option.GiverNpc != 0 ? option.GiverNpc : quest.GiverNpc };
+        }
+
+        return null;
     }
 
     // Взятое задание не попало в журнал, а игра больше не даёт его взять — выполнилось сразу при взятии (тип 5)
@@ -346,6 +368,13 @@ public sealed class QuestBehavior : IBehavior
         var keep = length <= stop ? 0f : (length - stop) / length;
         return new Position(from.X + dx * keep, to.Height, from.Y + dy * keep);
     }
+
+    // Цель по мобу выполнена: с него падает предмет — хватает ли их в сумке заданий; иначе — убито ли сколько нужно
+    private static bool Enough(WorldState w, QuestTarget mob)
+        => mob.DropItem != 0 ? w.QuestItemCount(mob.DropItem) >= mob.DropNeed : (mob.Done ?? 0) >= mob.Need;
+
+    private static string Progress(WorldState w, QuestTarget mob)
+        => mob.DropItem != 0 ? $"предмет {w.QuestItemCount(mob.DropItem)}/{mob.DropNeed}" : $"{mob.Done ?? 0}/{mob.Need}";
 
     private static string MobName(WorldState w, uint tid) =>
         w.Npcs.FirstOrDefault(n => n.Tid == tid)?.Name ?? $"моб {tid}";

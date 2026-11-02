@@ -69,7 +69,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
+            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.QuestItems, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Tid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
@@ -118,6 +118,7 @@ public sealed class WorldReader
             Quests = Requests.Quests ? ReadQuests() : null,
             AvailableQuests = Requests.Quests ? ReadAvailableQuests() : null,
             QuestCandidates = Requests.Quests ? ReadQuestCandidates(host.Level) : null,
+            QuestItems = Requests.Quests && _p.Host.QuestItems != 0 ? ReadInventory(Field(hostBlock, _p.Host.QuestItems), out _) : null,
             Equipment = equipment,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
@@ -560,12 +561,33 @@ public sealed class WorldReader
             if (levels.Rebirth || (levels.Min > 0 && level < levels.Min) || (levels.Max > 0 && level > levels.Max))
                 continue;
             if (!_questTemplates.TryGetValue(address, out var quest))
-                _questTemplates[address] = quest = ReadQuestTemplate(address, null, 0, null);
+                _questTemplates[address] = quest = ReadQuestTemplate(address, null, 0, null) is { } read ? WithOptions(read, address) : null;
             if (quest is not null)
                 result.Add(quest);
         }
 
         return result;
+    }
+
+    // Задание «выполнить одно из подзаданий» — с подзаданиями-вариантами (по порядку, как в окне NPC)
+    private QuestInfo WithOptions(QuestInfo quest, uint address)
+    {
+        var q = _p.Quests;
+        if (q.ChooseOne == 0 || q.FirstChild == 0 || q.NextSibling == 0
+            || !MemoryBlock.TryRead(_memory, address, BlockSize(q.ChooseOne, q.FirstChild), out var t) || t.Byte(q.ChooseOne) == 0)
+            return quest;
+
+        var options = new List<QuestInfo>();
+        var child = t.UInt32(q.FirstChild);
+        while (child != 0 && options.Count < MaxQuestTargets)
+        {
+            if (ReadQuestTemplate(child, null, quest.Id, null) is { } option)
+                options.Add(option);
+            if (!_memory.TryReadUInt32(child + q.NextSibling, out child))
+                break;
+        }
+
+        return quest with { Options = options };
     }
 
     // Запись задания: номер (с проверкой, если он известен), название, цель, кому сдать, мобы и предметы цели; не читается — null
@@ -581,13 +603,14 @@ public sealed class WorldReader
 
         var goal = t.Int32(q.Goal);
         var monsters = ReadQuestTargets(t.Int32(q.MonsterCount), t.UInt32(q.Monsters), q.MonsterSize, 4,
-            k => goal == QuestGoals.Kill && kills is not null ? kills(k) : null);
+            k => goal == QuestGoals.Kill && kills is not null ? kills(k) : null, q.MonsterDrop, q.MonsterDropNeed);
         var items = ReadQuestTargets(t.Int32(q.ItemCount), t.UInt32(q.Items), q.ItemSize, q.ItemNeed, _ => null);
         var name = Color.Replace(_memory.ReadUnicodeString(address + q.Name, 32), "").Trim();
         return new QuestInfo(number, name, parent, goal, Field(t, q.AwardNpc), monsters, items) { GiverNpc = Field(t, q.GiverNpc) };
     }
 
-    private List<QuestTarget> ReadQuestTargets(int count, uint array, uint size, uint need, Func<int, int?> done)
+    private List<QuestTarget> ReadQuestTargets(int count, uint array, uint size, uint need, Func<int, int?> done, uint drop = 0,
+        uint dropNeed = 0)
     {
         var result = new List<QuestTarget>();
         count = Math.Min(count, MaxQuestTargets);
@@ -597,7 +620,12 @@ public sealed class WorldReader
         for (var k = 0; k < count; k++)
         {
             var at = (uint)k * size;
-            result.Add(new QuestTarget(block.UInt32(at), block.Int32(at + need), done(k)));
+            var item = drop != 0 && dropNeed != 0 && dropNeed + 4 <= size ? block.UInt32(at + drop) : 0;
+            result.Add(new QuestTarget(block.UInt32(at), block.Int32(at + need), done(k))
+            {
+                DropItem = item,
+                DropNeed = item != 0 ? block.Int32(at + dropNeed) : 0,
+            });
         }
 
         return result;

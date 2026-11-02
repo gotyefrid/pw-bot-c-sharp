@@ -153,6 +153,12 @@ public sealed record WorldState(
     /// </summary>
     public IReadOnlyList<QuestInfo>? QuestCandidates { get; init; }
 
+    /// <summary>Сумка заданий (предметы для заданий — не в обычной сумке); читается вместе с <see cref="Quests"/>; null — не читали.</summary>
+    public IReadOnlyList<InventoryItem>? QuestItems { get; init; }
+
+    /// <summary>Сколько предметов <paramref name="tid"/> в сумке заданий.</summary>
+    public int QuestItemCount(uint tid) => QuestItems?.Where(i => i.Tid == tid).Sum(i => i.Count) ?? 0;
+
     /// <summary>Надетые вещи (ячейка — место: 0 — оружие…); пусто — ничего не надето или на этом сервере не найдены.</summary>
     public IReadOnlyList<InventoryItem> Equipment { get; init; } = [];
 
@@ -419,10 +425,21 @@ public sealed record QuestInfo(int Id, string Name, int ParentId, int Goal, uint
 {
     /// <summary>Кто даёт задание — tid NPC; 0 — неизвестно.</summary>
     public uint GiverNpc { get; init; }
+
+    /// <summary>
+    /// Задание «выполнить одно из подзаданий»: NPC выдаёт не его, а одно из <see cref="Options"/> (взять само — отказ). Пусто —
+    /// обычное задание (берётся само, подзадания игра выдаёт по порядку).
+    /// </summary>
+    public IReadOnlyList<QuestInfo> Options { get; init; } = [];
 }
 
 /// <summary>Кого убить или что собрать: tid, сколько нужно и сколько уже (у предметов null — считать по сумке).</summary>
-public sealed record QuestTarget(uint Tid, int Need, int? Done);
+public sealed record QuestTarget(uint Tid, int Need, int? Done)
+{
+    /// <summary>У моба цели: предмет, который с него падает в сумку заданий (0 — нет: цель — число убийств), и сколько его нужно.</summary>
+    public uint DropItem { get; init; }
+    public int DropNeed { get; init; }
+}
 
 /// <summary>Типы цели задания (номера — как в клиенте).</summary>
 public static class QuestGoals

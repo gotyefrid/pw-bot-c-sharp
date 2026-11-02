@@ -86,7 +86,8 @@ internal static class ActCommands
         Console.WriteLine("Можно взять:");
         for (var i = 0; i < candidates.Count; i++)
             if (codes[i] == 0)
-                Console.WriteLine($"  {candidates[i].Id} «{candidates[i].Name}» — цель: {QuestGoals.Text(candidates[i].Goal)}, даёт: NPC {candidates[i].GiverNpc}");
+                Console.WriteLine($"  {candidates[i].Id} «{candidates[i].Name}» — цель: {QuestGoals.Text(candidates[i].Goal)}, даёт: NPC {candidates[i].GiverNpc}"
+                                  + (candidates[i].Options.Count > 0 ? $", NPC выдаёт одно из: {string.Join(", ", candidates[i].Options.Select(o => $"{o.Id} «{o.Name}»"))}" : ""));
         Console.WriteLine("Нельзя — сколько с каким кодом: " + string.Join(", ",
             codes.Where(c => c != 0).GroupBy(c => c).OrderBy(g => g.Key).Select(g => $"{g.Key}×{g.Count()}")));
         return 0;
