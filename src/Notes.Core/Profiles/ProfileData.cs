@@ -82,6 +82,12 @@ public sealed class PacketFormats
     /// Размер записи в пакете продажи: 0x10 — tid, ячейка, сколько, цена штуки; 0xC — без цены. 0 — не найдено (продажа недоступна).
     /// </summary>
     public uint SellEntrySize { get; init; }
+
+    /// <summary>Номер услуги NPC «выучить скилл» (данные — номер скилла). 0 — не найдено.</summary>
+    public uint LearnSkillService { get; init; }
+
+    /// <summary>Номер услуги NPC «вывести питомца из яйца» (данные — ячейка яйца в сумке и его tid). 0 — не найдено.</summary>
+    public uint HatchPetService { get; init; }
 }
 
 /// <summary>
@@ -502,6 +508,8 @@ public sealed class InventoryOffsets
     public uint FoodEssence { get; init; }
     public int CategoryPotion { get; init; }
     public int CategoryPetFood { get; init; }
+    /// <summary>Категория яйца питомца; 0 — не найдено.</summary>
+    public uint CategoryPetEgg { get; init; }
     /// <summary>Сколько байт предмета просматривать в поисках указателя на его описание (0 — названий и групп у предметов нет).</summary>
     public uint EssenceSearch { get; init; }
     /// <summary>Где название в описании без типа (tid +0, название сразу за ним).</summary>

@@ -294,6 +294,26 @@ public sealed class NpcAcceptTaskAction(int taskId) : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Выучить скилл у NPC, с которым уже начат разговор. Подтверждение — скилл появился у перса (смотрит вызывающий).</summary>
+public sealed class NpcLearnSkillAction(int skillId) : GameAction
+{
+    public override string Name => $"выучить скилл {skillId}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcLearnSkill(skillId);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
+/// <summary>Вывести питомца из яйца у NPC, с которым уже начат разговор. Подтверждение — яйца нет в сумке (смотрит вызывающий).</summary>
+public sealed class NpcHatchPetAction(int slot, uint eggTid) : GameAction
+{
+    public override string Name => $"вывести питомца из яйца {eggTid} (ячейка {slot})";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcHatchPet(slot, eggTid);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>
 /// Отделить часть стопки в сумке: <c>count</c> штук из ячейки <c>from</c> уходят в ПУСТУЮ ячейку <c>to</c> (что она пуста, проверяет
 /// тот, кто ставит действие). Подтверждение — в ячейке <c>to</c> лежит такой предмет.

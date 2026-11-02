@@ -393,6 +393,9 @@ public sealed record InventoryItem(int Slot, uint Tid, int Category, int Count, 
     public string? Group { get; init; }
 
     public bool IsPetFood => FoodLoyalty is not null;
+
+    /// <summary>Яйцо питомца: из него дрессировщик выводит питомца в клетку.</summary>
+    public bool IsPetEgg { get; init; }
 }
 
 /// <summary>Дополнительное свойство вещи: номер свойства в справочнике игры и его числа (как хранит клиент).</summary>

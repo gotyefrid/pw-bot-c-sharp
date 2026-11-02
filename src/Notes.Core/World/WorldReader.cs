@@ -598,6 +598,7 @@ public sealed class WorldReader
                 Addons = gear ? ReadAddons(address) : [],
                 Name = food?.Name ?? info.Name,
                 Group = info.Group,
+                IsPetEgg = inv.CategoryPetEgg != 0 && category == inv.CategoryPetEgg,
             });
         }
 

@@ -67,6 +67,12 @@ public interface IGameActions
     /// <summary>Взять задание у NPC, с которым начат разговор.</summary>
     CallResult NpcAcceptTask(int taskId);
 
+    /// <summary>Выучить скилл у NPC, с которым начат разговор.</summary>
+    CallResult NpcLearnSkill(int skillId);
+
+    /// <summary>Вывести питомца из яйца (ячейка сумки) у NPC, с которым начат разговор.</summary>
+    CallResult NpcHatchPet(int slot, uint eggTid);
+
     /// <summary>Подойти к NPC и заговорить, как вторым кликом по нему (игра сама ведёт перса).</summary>
     CallResult TalkTo(uint wid);
 

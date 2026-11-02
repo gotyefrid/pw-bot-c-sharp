@@ -1009,6 +1009,8 @@ public class ActionRunnerTests
         public CallResult NpcOpenBank() => Slow();
         public CallResult NpcReturnTask(int taskId) => Slow();
         public CallResult NpcAcceptTask(int taskId) => Slow();
+        public CallResult NpcLearnSkill(int skillId) => Slow();
+        public CallResult NpcHatchPet(int slot, uint eggTid) => Slow();
         public CallResult TalkTo(uint wid) => Slow();
         public CallResult BagMove(int fromSlot, int toSlot, int count) => Slow();
         public CallResult BankExchange(int bagSlot, int bankSlot) => Slow();

@@ -180,6 +180,8 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcOpenBank() => Record("npc-bank");
     public CallResult NpcReturnTask(int taskId) => Record($"return-task {taskId}");
     public CallResult NpcAcceptTask(int taskId) => Record($"accept-task {taskId}");
+    public CallResult NpcLearnSkill(int skillId) => Record($"learn-skill {skillId}");
+    public CallResult NpcHatchPet(int slot, uint eggTid) => Record($"hatch-pet {slot} {eggTid}");
     public CallResult TalkTo(uint wid) => Record($"talk {wid:X}");
     public CallResult BagMove(int fromSlot, int toSlot, int count) => Record($"bag-move {fromSlot} {toSlot} {count}");
     public CallResult BankExchange(int bagSlot, int bankSlot) => Record($"bank-exchange {bagSlot} {bankSlot}");

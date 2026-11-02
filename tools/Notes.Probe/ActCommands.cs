@@ -28,6 +28,8 @@ internal static class ActCommands
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
+          act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
+          act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
           act quest-take НОМЕР    взять задание у NPC, с которым начат разговор (после npc-hello)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
@@ -319,6 +321,25 @@ internal static class ActCommands
                 problem = "нужно: act quest-take НОМЕР_ЗАДАНИЯ (номер — из файла заданий клиента)";
                 var take = args.Select(a => int.TryParse(a, out var v) && v > 0 && v < 65536 ? v : 0).FirstOrDefault(v => v != 0);
                 return take == 0 ? null : new NpcAcceptTaskAction(take);
+
+            case "npc-learn":
+                problem = "нужно: act npc-learn НОМЕР_СКИЛЛА";
+                var learn = args.Select(a => int.TryParse(a, out var v) && v > 0 ? v : 0).FirstOrDefault(v => v != 0);
+                return learn == 0 ? null : new NpcLearnSkillAction(learn);
+
+            case "npc-hatch":
+                problem = "нужно: act npc-hatch ЯЧЕЙКА_СУМКИ — в ней яйцо питомца";
+                var eggSlot = args.Select(a => int.TryParse(a, out var v) && v >= 0 ? v : -1).Where(v => v >= 0).DefaultIfEmpty(-1).First();
+                var egg = w.Inventory.FirstOrDefault(i => i.Slot == eggSlot);
+                if (egg is null)
+                    return null;
+                if (!egg.IsPetEgg)
+                {
+                    problem = $"в ячейке {eggSlot} не яйцо питомца (категория {egg.Category})";
+                    return null;
+                }
+
+                return new NpcHatchPetAction(egg.Slot, egg.Tid);
 
             case "bank":
                 return new OpenBankAction();

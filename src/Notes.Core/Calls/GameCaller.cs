@@ -180,6 +180,45 @@ public sealed class GameCaller : IGameActions
     public CallResult NpcAcceptTask(int taskId) =>
         Call(GameFunctions.NpcAcceptTask, null, ("task", (uint)taskId), ("storage", 0), ("refresh", 0));
 
+    /// <summary>
+    /// Выучить скилл у NPC, с которым начат разговор, как в его окне навыков. Учебник (если скилл его требует) сервер берёт из
+    /// сумки сам.
+    /// </summary>
+    public CallResult NpcLearnSkill(int skillId)
+        => skillId <= 0
+            ? CallResult.Refused($"выучить скилл: неверный номер {skillId}")
+            : NpcService(_profile.Packets.LearnSkillService, "выучить скилл (packets.learnSkillService)", (uint)skillId);
+
+    /// <summary>
+    /// Вывести питомца из яйца у NPC, с которым начат разговор, как окном «Инкубация питомца»: яйцо — в ячейке сумки
+    /// <paramref name="slot"/>. Что это яйцо и что в клетке есть место, проверяет тот, кто зовёт.
+    /// </summary>
+    public CallResult NpcHatchPet(int slot, uint eggTid)
+        => slot < 0 || eggTid == 0
+            ? CallResult.Refused($"вывести питомца: неверная ячейка {slot} или яйцо {eggTid}")
+            : NpcService(_profile.Packets.HatchPetService, "вывести питомца (packets.hatchPetService)", (uint)slot, eggTid);
+
+    private CallResult NpcService(uint service, string what, params uint[] data)
+    {
+        if (service == 0)
+            return CallResult.Refused($"{what}: номер услуги NPC не найден");
+
+        var packet = NpcServicePacket(service, data);
+        return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
+    }
+
+    /// <summary>Пакет услуги NPC, как у клиента: [0x25:2][услуга:4][длина данных:4], дальше данные по 4 байта.</summary>
+    public static byte[] NpcServicePacket(uint service, params uint[] data)
+    {
+        var packet = new byte[10 + 4 * data.Length];
+        Buffer.BlockCopy(BitConverter.GetBytes(NpcServiceCommand), 0, packet, 0, 2);
+        Buffer.BlockCopy(BitConverter.GetBytes(service), 0, packet, 2, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes((uint)(4 * data.Length)), 0, packet, 6, 4);
+        for (var i = 0; i < data.Length; i++)
+            Buffer.BlockCopy(BitConverter.GetBytes(data[i]), 0, packet, 10 + 4 * i, 4);
+        return packet;
+    }
+
     /// <summary>Номер вкладки банка в командах переноса: основная (данные игры, одинаковы на всех клиентах Comeback).</summary>
     private const uint BankMainTab = 3;
 
