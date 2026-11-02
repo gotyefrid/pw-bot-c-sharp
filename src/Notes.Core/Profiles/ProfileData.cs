@@ -36,6 +36,7 @@ public sealed class ProfileData
     public AttackOffsets Attacks { get; init; } = new();
     public ChatOffsets Chat { get; init; } = new();
     public QuestOffsets Quests { get; init; } = new();
+    public QuestStart QuestStart { get; init; } = new();
     public ClassSkills Skills { get; init; } = new();
     /// <summary>Инструменты для сбора ресурсов (tid кирки): без них бот не копает. Пусто — неизвестно, не копаем.</summary>
     public List<uint> GatherTools { get; init; } = new();
@@ -296,6 +297,16 @@ public sealed class NpcOffsets
     /// <summary>Поле флагов, где <see cref="ReturningFlag"/> — «бросил цель, возвращается (неуязвим)»; 0 — не найдено.</summary>
     public uint Returning { get; init; }
     public uint ReturningFlag { get; init; }
+}
+
+/// <summary>
+/// С чего начать прокачку («Прокачать друида»): первое задание стартовой локации и NPC, который его даёт. Дальше задания игра
+/// выдаёт сама при сдаче. Номера — из файлов клиента (tasks.data, tid NPC); 0 — не задано для этого сервера.
+/// </summary>
+public sealed class QuestStart
+{
+    public uint Task { get; init; }
+    public uint Npc { get; init; }
 }
 
 /// <summary>

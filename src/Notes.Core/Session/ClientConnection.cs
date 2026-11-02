@@ -202,7 +202,8 @@ public sealed class ClientConnection : IDisposable
                 _log.Warning($"Функция {name} недоступна: {why}");
 
             var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid), _requests), _logger.For(LogSources.Actions));
-            var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For(LogSources.Brain), _profile.GatherTools, routeStart);
+            var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For(LogSources.Brain), _profile.GatherTools, routeStart,
+                quests: mode == BotMode.LevelUp ? LoadQuestGuide() : null);
             var memoryLog = _logger.For(LogSources.Memory);
             var inspector = new ProcessInspector(_game);
             var guard = new GameMemoryGuard(inspector.QueryFreeMemory, memoryLog);
@@ -239,6 +240,18 @@ public sealed class ClientConnection : IDisposable
             _stopping = Task.Run(bot.Dispose);
             return _stopping;
         }
+    }
+
+    // Прокачка: опорные точки мобов и NPC из файлов клиента и первое задание из профиля
+    private QuestGuide LoadQuestGuide()
+    {
+        var directory = Path.GetDirectoryName(_game.MainModulePath)!;
+        var points = GuidePoints.LoadFromGameDirectory(directory, _profile.GameFiles, out var problem);
+        if (problem is not null)
+            _log.Warning("Места мобов и NPC для заданий: " + problem);
+        else
+            _log.Debug($"Места мобов и NPC для заданий: {points.Count}");
+        return new QuestGuide(points, (int)_profile.QuestStart.Task, _profile.QuestStart.Npc);
     }
 
     private void LoadSkillsInBackground()

@@ -134,6 +134,8 @@ public enum BotMode
     GatherResources,
     /// <summary>Кликер: шаги сценария по кругу (<see cref="ClickerSettings"/>).</summary>
     Clicker,
+    /// <summary>Прокачать друида: стартовые задания «убить» и «поговорить» (<see cref="Brain.QuestBehavior"/>).</summary>
+    LevelUp,
 }
 
 public sealed class ConnectionSettings

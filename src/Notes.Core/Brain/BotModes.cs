@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using Notes.Core.Actions;
 using Notes.Core.Clicker;
+using Notes.Core.GameFiles;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Notes.Core.Settings;
@@ -42,14 +43,16 @@ public static class BotModes
     {
         BotMode.GatherResources => "Собирать ресурсы",
         BotMode.Clicker => "Кликер",
+        BotMode.LevelUp => "Прокачать друида",
         _ => "Бить мобов",
     };
 
     /// <summary>Собрать режим: мозг (<see cref="BotBrain"/>) один, режимы отличаются набором поведений и их порядком.</summary>
     /// <param name="routeStart">Обход: с какой точки начинать (с 0) — выбранная в окне.</param>
     /// <param name="random">Паузы и разброс; тесты задают свой, чтобы ход повторялся.</param>
+    /// <param name="quests">Прокачка: где мобы и NPC, с какого задания начать; нет — без точек и первого задания.</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
-        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null)
+        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null, QuestGuide? quests = null)
     {
         // Копия настроек: окно может менять свои дальше (новые мозг получит через UpdateSettings)
         var context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
@@ -58,6 +61,7 @@ public static class BotModes
         {
             BotMode.GatherResources => GatherResources(context, tools, routeStart),
             BotMode.Clicker => Clicker(context),
+            BotMode.LevelUp => LevelUp(context, quests ?? new QuestGuide(GuidePoints.Empty, 0, 0)),
             _ => FarmMobs(context, tools),
         };
     }
@@ -67,6 +71,18 @@ public static class BotModes
     {
         var clicker = new ClickerBehavior();
         return new BotBrain(context, [clicker], main: clicker);
+    }
+
+    /// <summary>
+    /// Прокачать друида: выжить → (прервать каст без цели) → пет → защита (бьём только напавших) → задания по журналу: бить мобов
+    /// цели издалека, ходить «умно», брать и сдавать у NPC.
+    /// </summary>
+    private static BotBrain LevelUp(BrainContext context, QuestGuide guide)
+    {
+        var quests = new QuestBehavior(guide);
+        return new BotBrain(context,
+            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), quests],
+            main: quests);
     }
 
     /// <summary>
