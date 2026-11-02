@@ -838,7 +838,9 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
 
     public override Verdict Check(WorldState start, WorldState now)
     {
-        var left = now.Host.Position.DistanceTo(Point);
+        // По земле — по горизонтали: высоту там выбирает земля, а у точки она бывает приблизительной (точка «на высоте перса», а
+        // город выше — с высотой перс стоял бы на месте с «не дошли 21 м»). В полёте и в воде высота точки — часть цели
+        var left = Fly || Swim ? now.Host.Position.DistanceTo(Point) : now.Host.Position.HorizontalDistanceTo(Point);
         if (left <= Tolerance)
             return Verdict.Confirmed($"дошли, {left:0.0} м до точки");
         if (Fly && now.Host.Flying == false)

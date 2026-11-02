@@ -292,6 +292,17 @@ public class ActionRunnerTests
         Assert.Equal(["move (10,0; 0,0; h 0,0)"], _actions.Calls);
     }
 
+    [Fact]
+    public void GroundMoveArrivesByHorizontalDistance()
+    {
+        // Точку задали на высоте старта, а земля там на 21 м выше (город на холме) — перс пришёл, это не «не дошли 21 м»
+        var move = new MoveAction(new Position(30, 0, 0));
+        Assert.True(_runner.Submit(Bot, move, _world.Snapshot()).Sent);
+        _world.Position = new Position(30, 21, 0);
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.3).Snapshot())).Status);
+    }
+
     // ── Полёт ──────────────────────────────────────────────────────────────────
 
     [Fact]
