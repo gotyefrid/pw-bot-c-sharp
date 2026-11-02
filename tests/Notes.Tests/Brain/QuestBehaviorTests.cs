@@ -21,13 +21,21 @@ public class QuestBehaviorTests
     private const uint Elder = 2206;
     private const uint Moth = 1000;
 
-    private readonly FakeWorld _world = new() { Quests = [] };
+    // «Рудокоп» — в списке «не брать» по умолчанию: первым берётся «Первое приключение»
+    private readonly FakeWorld _world = new()
+    {
+        Quests = [],
+        AvailableQuests =
+        [
+            new QuestInfo(64250, "Рудокоп", 0, QuestGoals.Parts, 0, [], []) { GiverNpc = 2222 },
+            new QuestInfo(StartTask, "Первое приключение", 0, QuestGoals.Parts, 0, [], []) { GiverNpc = Mentor },
+        ],
+    };
     private readonly FakeActions _actions = new();
     private readonly BotSettings _settings = new();
     private readonly WorldRequests _requests = new();
     private readonly Dictionary<int, List<Position>> _points = [];
     private string? _stopped;
-    private int _startTask = StartTask;
     private IBotRunner? _brain;
 
     public QuestBehaviorTests()
@@ -46,7 +54,7 @@ public class QuestBehaviorTests
 
             _brain = BotModes.Create(BotMode.LevelUp, new ActionRunner(new GameControl(_actions, requests: _requests), NullLogger.Instance),
                 new ClassSkills(), _settings, NullLogger.Instance, random: new Random(1),
-                quests: new QuestGuide(new GuidePoints(_points), _startTask, Mentor));
+                quests: new QuestGuide(new GuidePoints(_points)));
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
         }
@@ -203,26 +211,46 @@ public class QuestBehaviorTests
     }
 
     [Fact]
-    public void QuestsOverAfterStart_Stops()
+    public void NoAvailableQuestsOnServer_StopsAskingToTakeOneInGame()
     {
-        _world.Quests = [KillMoths(10, awardNpc: 0)];
-        Tick();
-        _world.Quests = [];
-
-        Tick();
-
-        Assert.Contains("закончились", _stopped);
-    }
-
-    [Fact]
-    public void NoQuestsNoStartForServer_StopsAskingToTakeOneInGame()
-    {
-        _startTask = 0;
+        _world.AvailableQuests = null;
 
         Tick();
 
         Assert.Contains("возьмите задание в игре", _stopped);
         Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void OnlySkippedQuestsAvailable_Stops()
+    {
+        _settings.Quests.SkipNames.Add("Первое приключение");
+
+        Tick();
+
+        Assert.Contains("закончились", _stopped);
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void NpcDoesNotGiveQuest_SkipsItAndTakesNext()
+    {
+        _world.AvailableQuests!.Add(new QuestInfo(5910, "Умение управления", 0, QuestGoals.Parts, 0, [], []) { GiverNpc = 11534 });
+        AddNpc(0x80103F91, Mentor, "Наставница", 3);
+        AddNpc(0x80104103, 11534, "Дрессировщик Лисюэ", 3);
+
+        for (var i = 0; i < 3; i++)
+        {
+            Tick();
+            Tick(1.1);
+            Tick(4.1);
+        }
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(3, _actions.Calls.Count(c => c == "accept-task 1177"));
+        Assert.Equal("accept-task 5910", _actions.Calls.Last());
+        Assert.Null(_stopped);
     }
 
     [Fact]

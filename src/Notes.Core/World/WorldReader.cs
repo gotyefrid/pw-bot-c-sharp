@@ -111,6 +111,7 @@ public sealed class WorldReader
             Bank = bank,
             BankSlots = bankSlots,
             Quests = Requests.Quests ? ReadQuests() : null,
+            AvailableQuests = Requests.Quests ? ReadAvailableQuests() : null,
             Equipment = equipment,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
@@ -532,7 +533,7 @@ public sealed class WorldReader
         var monsters = ReadQuestTargets(t.Int32(q.MonsterCount), t.UInt32(q.Monsters), q.MonsterSize, 4,
             k => goal == QuestGoals.Kill && kills is not null ? kills(k) : null);
         var items = ReadQuestTargets(t.Int32(q.ItemCount), t.UInt32(q.Items), q.ItemSize, q.ItemNeed, _ => null);
-        var name = Color.Replace(_memory.ReadUnicodeString(address + q.Name, 32), "");
+        var name = Color.Replace(_memory.ReadUnicodeString(address + q.Name, 32), "").Trim();
         return new QuestInfo(number, name, parent, goal, Field(t, q.AwardNpc), monsters, items) { GiverNpc = Field(t, q.GiverNpc) };
     }
 

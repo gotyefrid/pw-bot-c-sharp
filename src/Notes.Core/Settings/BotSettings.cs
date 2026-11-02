@@ -24,10 +24,11 @@ public sealed class BotSettings
     private PetSettings _pet = new();
     private RouteSettings _route = new();
     private ClickerSettings _clicker = new();
+    private QuestSettings _quests = new();
 
     public BotSettings()
     {
-        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker })
+        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests })
             part.PropertyChanged += PartChanged;
     }
 
@@ -58,6 +59,7 @@ public sealed class BotSettings
     public PetSettings Pet { get => _pet; set => Part(ref _pet, value); }
     public RouteSettings Route { get => _route; set => Part(ref _route, value); }
     public ClickerSettings Clicker { get => _clicker; set => Part(ref _clicker, value); }
+    public QuestSettings Quests { get => _quests; set => Part(ref _quests, value); }
 
     // Часть заменили целиком (чтение файла, Normalize): слушаем новую
     private void Part<T>(ref T field, T value) where T : SettingsPart
@@ -90,6 +92,7 @@ public sealed class BotSettings
         Pet ??= new();
         Route ??= new();
         Clicker ??= new();
+        Quests ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
@@ -119,6 +122,7 @@ public sealed class BotSettings
         Route.DangerMobs = MobNameFilter.Clean(Route.DangerMobs);
         Route.DangerMargin = Clamp(Route.DangerMargin, 1, 50);
         Clicker.Steps = ClickerStep.Clean(Clicker.Steps);
+        Quests.SkipNames = MobNameFilter.Clean(Quests.SkipNames);
         return this;
     }
 
@@ -300,6 +304,23 @@ public sealed class RoutePoint
             .GroupBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
             .Select(g => g.First())
             .ToList();
+}
+
+/// <summary>Прокачка (<see cref="Brain.QuestBehavior"/>): какие задания из «Доступных» не брать никогда.</summary>
+public sealed class QuestSettings : SettingsPart
+{
+    // Сбор тысяч ресурсов, задания других городов и «Функции» (расширения банка, сумки, гардероба)
+    private List<string> _skipNames =
+    [
+        "Рудокоп", "Небо иллюзий", "Небо наваждений", "Странствующий дух", "Пять стихий", "Сила зооморфов", "[24]Дилемма банкира",
+        "Расширение гардероба", "Склад", "[40]Увелич. сумки (отвяз.)", "[40]Увелич. сумки (привяз.)",
+    ];
+
+    /// <summary>Названия заданий, как в окне «Задания» (без учёта регистра).</summary>
+    public List<string> SkipNames { get => _skipNames; set => Set(ref _skipNames, value); }
+
+    /// <summary>Задание с таким названием не брать.</summary>
+    public bool Skips(string name) => SkipNames.Any(s => string.Equals(s.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>Кликер: сценарий — шаги по порядку, по кругу (<see cref="ClickerBehavior"/>).</summary>

@@ -143,6 +143,9 @@ public sealed record WorldState(
     /// </summary>
     public IReadOnlyList<QuestInfo>? Quests { get; init; }
 
+    /// <summary>Доступные задания (вкладка «Доступные»), читаются вместе с <see cref="Quests"/>; null — не читали или не найдены.</summary>
+    public IReadOnlyList<QuestInfo>? AvailableQuests { get; init; }
+
     /// <summary>Надетые вещи (ячейка — место: 0 — оружие…); пусто — ничего не надето или на этом сервере не найдены.</summary>
     public IReadOnlyList<InventoryItem> Equipment { get; init; } = [];
 

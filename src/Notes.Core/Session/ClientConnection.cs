@@ -242,7 +242,7 @@ public sealed class ClientConnection : IDisposable
         }
     }
 
-    // Прокачка: опорные точки мобов и NPC из файлов клиента и первое задание из профиля
+    // Прокачка: опорные точки мобов и NPC из файлов клиента
     private QuestGuide LoadQuestGuide()
     {
         var directory = Path.GetDirectoryName(_game.MainModulePath)!;
@@ -251,7 +251,7 @@ public sealed class ClientConnection : IDisposable
             _log.Warning("Места мобов и NPC для заданий: " + problem);
         else
             _log.Debug($"Места мобов и NPC для заданий: {points.Count}");
-        return new QuestGuide(points, (int)_profile.QuestStart.Task, _profile.QuestStart.Npc);
+        return new QuestGuide(points);
     }
 
     private void LoadSkillsInBackground()

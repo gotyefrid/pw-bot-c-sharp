@@ -50,7 +50,7 @@ public static class BotModes
     /// <summary>Собрать режим: мозг (<see cref="BotBrain"/>) один, режимы отличаются набором поведений и их порядком.</summary>
     /// <param name="routeStart">Обход: с какой точки начинать (с 0) — выбранная в окне.</param>
     /// <param name="random">Паузы и разброс; тесты задают свой, чтобы ход повторялся.</param>
-    /// <param name="quests">Прокачка: где мобы и NPC, с какого задания начать; нет — без точек и первого задания.</param>
+    /// <param name="quests">Прокачка: где мобы и NPC; нет — без точек (идти можно только к тем, кого видно).</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
         IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null, QuestGuide? quests = null)
     {
@@ -61,7 +61,7 @@ public static class BotModes
         {
             BotMode.GatherResources => GatherResources(context, tools, routeStart),
             BotMode.Clicker => Clicker(context),
-            BotMode.LevelUp => LevelUp(context, quests ?? new QuestGuide(GuidePoints.Empty, 0, 0)),
+            BotMode.LevelUp => LevelUp(context, quests ?? new QuestGuide(GuidePoints.Empty)),
             _ => FarmMobs(context, tools),
         };
     }

@@ -8,17 +8,16 @@ using Notes.Core.World;
 
 namespace Notes.Core.Brain;
 
-/// <summary>Что нужно заданиям, кроме снимка: где водятся мобы и стоят NPC, с какого задания начать.</summary>
+/// <summary>Что нужно заданиям, кроме снимка: где водятся мобы и стоят NPC.</summary>
 /// <param name="Points">Опорные точки по tid (configs\coord_data.txt).</param>
-/// <param name="StartTask">Первое задание, если принятых нет; 0 — не задано (тогда без заданий бот просто встанет).</param>
-/// <param name="StartNpc">tid NPC, который даёт первое задание.</param>
-public sealed record QuestGuide(GuidePoints Points, int StartTask, uint StartNpc);
+public sealed record QuestGuide(GuidePoints Points);
 
 /// <summary>
 /// «Прокачать друида»: делает принятые задания по журналу. Убить — бьёт мобов цели скиллом издалека (без подхода «как кнопкой»):
 /// видит такого — выбирает и бьёт, далеко — подходит «умно» на дальность скилла, нет рядом — идёт к местам, где они водятся. Цель
 /// выполнена или задание «поговорить» — идёт «умно» к NPC, заговаривает, сдаёт и закрывает окно. Следующее задание игра выдаёт
-/// сама; принятых нет — берёт первое (<see cref="QuestGuide.StartTask"/>), уже брал — встаёт: задания закончились.
+/// сама; принятых нет — берёт первое из «Доступных», которого нет в списке «не брать» (<see cref="Settings.QuestSettings"/>), у
+/// NPC, который его даёт; брать нечего — встаёт: задания закончились.
 /// «Собрать» и прочие цели не умеет — встаёт с причиной.
 /// </summary>
 public sealed class QuestBehavior : IBehavior
@@ -52,7 +51,8 @@ public sealed class QuestBehavior : IBehavior
     private int _dealTask;
     private bool _dealAccept;
     private int _tries;
-    private bool _started;
+    // Не дал (уже брали, не подходим) — больше не просить в этот запуск
+    private readonly HashSet<int> _refused = [];
     private uint _mobWid;
     private DateTime _mobSince;
 
@@ -86,14 +86,14 @@ public sealed class QuestBehavior : IBehavior
         {
             if (quests.Count > 0)
                 return c.RequestStop($"Задание «{quests[0].Name}» без цели, которую я понимаю — останавливаюсь");
-            if (_started)
-                return c.RequestStop("Задания закончились");
-            if (_guide.StartTask == 0 || _guide.StartNpc == 0)
-                return c.RequestStop("Для этого сервера первое задание не задано — возьмите задание в игре и нажмите «Старт»");
-            return Visit(c, _guide.StartNpc, _guide.StartTask, accept: true, "взять первое задание");
+            if (c.World.AvailableQuests is null)
+                return c.RequestStop("Не вижу доступных заданий (на этом сервере не найдены) — возьмите задание в игре и нажмите «Старт»");
+            var next = c.World.AvailableQuests.FirstOrDefault(q => q.GiverNpc != 0 && !_refused.Contains(q.Id) && !c.Settings.Quests.Skips(q.Name));
+            if (next is null)
+                return c.RequestStop("Задания закончились: в «Доступных» только те, что в списке «не брать»");
+            return Visit(c, next.GiverNpc, next.Id, accept: true, $"взять «{next.Name}»");
         }
 
-        _started = true;
         switch (quest.Goal)
         {
             case QuestGoals.Kill:
@@ -223,12 +223,18 @@ public sealed class QuestBehavior : IBehavior
         {
             c.Log.Info(_dealAccept ? $"Взял задание {Title(quests, _dealTask)}" : $"Сдал задание {_dealTask}");
             _tries = 0;
-            _started |= _dealAccept;
         }
         else if (++_tries >= DealTries)
         {
             c.Send(new NpcDialogCloseAction());
             _stage = Stage.Idle;
+            _tries = 0;
+            if (_dealAccept)
+            {
+                c.Log.Warning($"NPC не даёт задание {_dealTask} ({DealTries} раза) — пропускаю его");
+                _refused.Add(_dealTask);
+                return true;
+            }
             return c.RequestStop($"NPC не {(_dealAccept ? "даёт" : "принимает")} задание {_dealTask} ({DealTries} раза) — останавливаюсь");
         }
         else
@@ -286,7 +292,7 @@ public sealed class QuestBehavior : IBehavior
     {
         _stage = Stage.Idle;
         _tries = 0;
-        _started = false;
+        _refused.Clear();
         _mobWid = 0;
         _skip.Clear();
         _visited.Clear();
