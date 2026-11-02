@@ -178,6 +178,8 @@ public sealed class HostOffsets
     public uint Bank { get; init; }
     /// <summary>[перс + Equipment] — надетые вещи (ячейка = место: 0 — оружие…); устроены как сумка. 0 — не найдено.</summary>
     public uint Equipment { get; init; }
+    /// <summary>[перс + QuestItems] — сумка заданий (предметы заданий); устроена как сумка. 0 — не найдено.</summary>
+    public uint QuestItems { get; init; }
     /// <summary>[перс + Quests] — объект заданий персонажа (<see cref="QuestOffsets"/>). 0 — не найдено.</summary>
     public uint Quests { get; init; }
     /// <summary>[перс + Skills] — массив указателей на скиллы.</summary>
@@ -333,6 +335,9 @@ public sealed class QuestOffsets
     public uint MonsterCount { get; init; }
     public uint Monsters { get; init; }
     public uint MonsterSize { get; init; }
+    /// <summary>В записи моба цели: tid предмета, который падает с моба в сумку заданий, и сколько его нужно; 0 — не найдено.</summary>
+    public uint MonsterDrop { get; init; }
+    public uint MonsterDropNeed { get; init; }
     /// <summary>Предметы цели: число (int) и указатель на массив записей по <see cref="ItemSize"/> байт: +0 tid, +<see cref="ItemNeed"/> сколько.</summary>
     public uint ItemCount { get; init; }
     public uint Items { get; init; }
