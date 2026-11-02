@@ -52,9 +52,10 @@ internal static class ActCommands
           act cancel            прервать каст или копание (как Esc)
           act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
           act move <dx> <dy>    отойти на dx, dy метров от текущего места
-          act move-mob          дойти до ближайшего живого моба (его точка — точно на земле)
+          act move-mob [имя]    дойти «умно» до ближайшего живого моба (в названии которого есть «имя»)
           act npc-go [имя]      подойти к NPC и заговорить, как вторым кликом по нему (ведёт игра)
           act move-npc [имя]    дойти до NPC в цели или до ближайшего NPC, в имени которого есть «имя» (Банкир)
+          act walk-npc [имя]    то же «умно» — в обход препятствий, как клик по карте
           act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
           act fly               взлететь (на земле) или сесть (в воздухе) — как кнопкой «Полёт»
           act fly-to <dx> <dy> <dh>  в воздухе: лететь на dx, dy метров в сторону и dh вверх (минус — вниз), не дальше 100 м
@@ -250,11 +251,13 @@ internal static class ActCommands
     private const float NpcStop = 2.5f;
 
     /// <summary>NPC для действия: ближайший, в имени которого есть слово из аргументов, а без слова — тот, что в цели.</summary>
+    /// <summary>Слово — аргумент, который не PID, не ключ и не значение ключа (--server comeback146): часть имени NPC или моба.</summary>
+    private static string? Word(string[] args) =>
+        args.Where((a, i) => !a.StartsWith("--") && !uint.TryParse(a, out _) && (i == 0 || !args[i - 1].StartsWith("--"))).FirstOrDefault();
+
     private static NpcInfo? FindNpc(string[] args, WorldState w, out string problem)
     {
-        // Слово — аргумент, который не PID, не ключ и не значение ключа (--server comeback146)
-        var word = args.Where((a, i) => !a.StartsWith("--") && !uint.TryParse(a, out _) && (i == 0 || !args[i - 1].StartsWith("--")))
-            .FirstOrDefault();
+        var word = Word(args);
         if (word is null)
         {
             problem = "возьмите NPC в цель или напишите часть его имени";
@@ -276,9 +279,7 @@ internal static class ActCommands
         switch (name)
         {
             case "target":
-                // Слово — часть названия моба (не PID, не ключ и не значение ключа)
-                var mobWord = args.Where((a, i) => !a.StartsWith("--") && !uint.TryParse(a, out _) && (i == 0 || !args[i - 1].StartsWith("--")))
-                    .FirstOrDefault();
+                var mobWord = Word(args);
                 var mob = w.Mobs.Where(m => !m.IsDead && (mobWord is null || m.Name.IndexOf(mobWord, StringComparison.OrdinalIgnoreCase) >= 0))
                     .OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
                 problem = mobWord is null ? "рядом нет живых мобов" : $"рядом нет живых мобов «{mobWord}»";
@@ -456,6 +457,7 @@ internal static class ActCommands
                 return go is null ? null : new TalkToAction(go.Wid);
 
             case "move-npc":
+            case "walk-npc":
                 var npc = FindNpc(args, w, out problem);
                 if (npc is null)
                     return null;
@@ -469,11 +471,14 @@ internal static class ActCommands
                 var keep = length <= NpcStop ? 0f : (length - NpcStop) / length;
                 var stopAt = new Position(hostAt.X + dx * keep, npc.Position.Height, hostAt.Y + dy * keep);
                 Console.WriteLine($"Идти к {npc.Name}: до него {length:0.0} м, точка {stopAt} — в {npc.Position.DistanceTo(stopAt):0.0} м от него");
-                return new MoveAction(stopAt, tolerance: 1f);
+                // walk-npc — «умно» (автопуть в обход препятствий), move-npc — по прямой
+                return new MoveAction(stopAt, tolerance: 1f, smart: name == "walk-npc");
 
             case "move-mob":
-                var near = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
-                problem = near is null ? "рядом нет живых мобов" : $"{near.Name} дальше 50 м";
+                var nearWord = Word(args);
+                var near = w.Mobs.Where(m => !m.IsDead && (nearWord is null || m.Name.IndexOf(nearWord, StringComparison.OrdinalIgnoreCase) >= 0))
+                    .OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
+                problem = near is null ? "рядом нет живых мобов" + (nearWord is null ? "" : $" «{nearWord}»") : $"{near.Name} дальше 50 м";
                 return near is { Offset.Horizontal: <= 50 } ? new MoveAction(near.Position, smart: true) : null;
 
             default:
