@@ -109,6 +109,7 @@ public sealed class WorldReader
             InventorySlots = slots,
             Bank = bank,
             BankSlots = bankSlots,
+            Quests = Requests.Quests ? ReadQuests() : null,
             Equipment = equipment,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),

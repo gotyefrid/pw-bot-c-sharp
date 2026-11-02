@@ -137,6 +137,12 @@ public sealed record WorldState(
     /// <summary>Сколько ячеек в основной вкладке банка (0 — неизвестно).</summary>
     public int BankSlots { get; init; }
 
+    /// <summary>
+    /// Принятые задания, как в окне «Задания» (родитель раньше подзаданий). null — не читали (не просили, см.
+    /// <see cref="WorldRequests"/>, или заданий в профиле нет).
+    /// </summary>
+    public IReadOnlyList<QuestInfo>? Quests { get; init; }
+
     /// <summary>Надетые вещи (ячейка — место: 0 — оружие…); пусто — ничего не надето или на этом сервере не найдены.</summary>
     public IReadOnlyList<InventoryItem> Equipment { get; init; } = [];
 
