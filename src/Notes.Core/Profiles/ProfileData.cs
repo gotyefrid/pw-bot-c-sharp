@@ -257,6 +257,8 @@ public sealed class WorldListOffsets
 public sealed class NpcOffsets
 {
     public uint Wid { get; init; }
+    /// <summary>Вид моба или NPC (tid), как в заданиях и файлах клиента; 0 — не найдено для этого сервера.</summary>
+    public uint Tid { get; init; }
     /// <summary>6 моб, 7 NPC, 9 пет.</summary>
     public uint Type { get; init; }
     /// <summary>1 стоит, 2 физ. атака, 3 каст, 4 мёртв, 5 идёт (в боте — <see cref="World.NpcState"/>).</summary>

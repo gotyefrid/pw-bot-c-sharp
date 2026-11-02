@@ -289,6 +289,9 @@ public sealed record NpcInfo(
     /// <summary>Уровень; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Level { get; init; }
 
+    /// <summary>Вид (tid), как в заданиях и файлах клиента; 0 — неизвестен (поле не найдено для сервера).</summary>
+    public int Tid { get; init; }
+
     /// <summary>Нападает сам (агрессивный); null — неизвестно (запись моба не найдена для сервера).</summary>
     public bool? Aggressive { get; init; }
 

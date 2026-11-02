@@ -66,7 +66,7 @@ public sealed class WorldReader
             h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
-        _npcSize = BlockSize(n.Wid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
+        _npcSize = BlockSize(n.Wid, n.Tid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
             n.Returning);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
@@ -274,6 +274,7 @@ public sealed class WorldReader
             (int)Field(b, n.Hp))
         {
             Level = (int)Field(b, n.Level),
+            Tid = (int)Field(b, n.Tid),
             Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
         };
         return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
