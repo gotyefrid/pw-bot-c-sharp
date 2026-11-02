@@ -59,6 +59,9 @@ public sealed class ClientConnection : IDisposable
     private RunningBot? _bot;
     private Task _stopping = Task.CompletedTask;
     private readonly WorldRequests _requests;
+
+    /// <summary>Что читать в снимок сверх обычного (окно просит задания в режиме «Прокачать друида»).</summary>
+    public WorldRequests Requests => _requests;
     private bool _disposed;
 
     private ClientConnection(GameProcess game, ClientLock? clientLock, ProfileData profile, Logger logger,

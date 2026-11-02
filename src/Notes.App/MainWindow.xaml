@@ -184,6 +184,8 @@
                        Visibility="{Binding ShowClickerTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Мобы" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=1}"
                        Visibility="{Binding ShowMobsTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Задания" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=6}"
+                       Visibility="{Binding ShowQuestsTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Общее" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=5}" />
           <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
         </StackPanel>
@@ -406,6 +408,25 @@
           </DockPanel>
         </StackPanel>
       </Border>
+    </ScrollViewer>
+
+    <!-- Задания — режим «Прокачать друида»: какие задания из «Доступных» не брать -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=6}">
+      <StackPanel>
+        <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
+                   ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="НЕ БРАТЬ ЗАДАНИЯ" Style="{StaticResource CardTitle}" />
+            <TextBlock Text="Бот берёт первое задание из «Доступных», которого нет в этом списке" Style="{StaticResource Muted}"
+                       TextWrapping="Wrap" Margin="0,0,0,4" />
+            <app:TagPicker Selected="{Binding Quests.SkipNames}" Options="{Binding Quests.SkipOptions}"
+                           Placeholder="Список пуст — бот берёт любые" EmptyOptionsText="Нет доступных заданий — откройте окно «Задания» в игре"
+                           ToolTip="Названия — как во вкладке «Доступные» окна «Задания»" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
     </ScrollViewer>
 
     <!-- Лог: текст можно выделять и копировать -->

@@ -123,9 +123,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null,
             new ClickerChoices(() => Farm.LootOptions(), () => Route.RouteOptions(), () => Farm.TargetOptions(),
                 () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? [])), SettingsEdited, dialogs);
+        Quests = new QuestsPanel(() => Settings, () => _lastWorld, SettingsEdited);
         Farm.Load();
         Route.Load();
         Clicker.Load();
+        Quests.Load();
 
         // Пока подключены, список заперт: обновление могло бы выбрать в нём не того клиента, к которому подключены
         RefreshCommand = new RelayCommand(RefreshClients, () => !IsConnected);
@@ -418,6 +420,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Вкладка «Кликер»: сценарий — шаги по кругу, у каждого действие и условие.</summary>
     public ClickerPanel Clicker { get; }
 
+    /// <summary>Вкладка «Задания» режима «Прокачать друида».</summary>
+    public QuestsPanel Quests { get; }
+
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
     public bool CanRecallPet => _profile.Capabilities.Has(Capability.RecallPet);
 
@@ -687,6 +692,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         _lastWorld = w;
+        // «Задания»: варианты списка «не брать» — из «Доступных», их читаем, пока выбран этот режим (бот тоже их просит)
+        if (Settings.Mode == BotMode.LevelUp)
+            _connection.Requests.Quests = true;
         Pets.Observe(w);
         Potions.Observe(w, _connection.Bot?.Brain.Part<IPotionFallback>());
         Farm.Observe(w);
@@ -747,6 +755,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Farm.Load();
         Route.Load();
         Clicker.Load();
+        Quests.Load();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
     }
@@ -782,6 +791,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool ShowResourcesTab => Settings.Mode == BotMode.GatherResources;
     public bool ShowMobsTab => Settings.Mode == BotMode.FarmMobs;
     public bool ShowClickerTab => Settings.Mode == BotMode.Clicker;
+    public bool ShowQuestsTab => Settings.Mode == BotMode.LevelUp;
 
     private void ModeChanged()
     {
@@ -789,14 +799,17 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowResourcesTab));
         OnPropertyChanged(nameof(ShowClickerTab));
         OnPropertyChanged(nameof(ShowMobsTab));
+        OnPropertyChanged(nameof(ShowQuestsTab));
         // Вкладка исчезла — на «Бот»
-        if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab) || (Tab == TabMobs && !ShowMobsTab))
+        if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab) || (Tab == TabMobs && !ShowMobsTab)
+            || (Tab == TabQuests && !ShowQuestsTab))
             Tab = 0;
     }
 
     public const int TabMobs = 1;
     public const int TabResources = 3;
     public const int TabClicker = 4;
+    public const int TabQuests = 6;
 
     /// <summary>Чьи настройки сейчас на вкладках «Мобы» и «Общее».</summary>
     public string SettingsOwner => _config.Character is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_config.Character}";
