@@ -181,6 +181,16 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcReturnTask(int taskId) => Record($"return-task {taskId}");
     public CallResult NpcAcceptTask(int taskId) => Record($"accept-task {taskId}");
     public CallResult NpcLearnSkill(int skillId) => Record($"learn-skill {skillId}");
+
+    /// <summary>Ответы проверки «можно взять» по номеру задания; нет в словаре — 0 (можно).</summary>
+    public Dictionary<int, uint> QuestCheckAnswers { get; } = [];
+    public int QuestCheckCalls { get; private set; }
+
+    public CallResult QuestChecks(IReadOnlyList<int> taskIds)
+    {
+        QuestCheckCalls++;
+        return CallResult.Done with { Values = taskIds.Select(id => QuestCheckAnswers.TryGetValue(id, out var code) ? code : 0u).ToList() };
+    }
     public CallResult NpcHatchPet(int slot, uint eggTid) => Record($"hatch-pet {slot} {eggTid}");
     public CallResult TalkTo(uint wid) => Record($"talk {wid:X}");
     public CallResult BagMove(int fromSlot, int toSlot, int count) => Record($"bag-move {fromSlot} {toSlot} {count}");

@@ -67,6 +67,9 @@ public interface IGameActions
     /// <summary>Взять задание у NPC, с которым начат разговор.</summary>
     CallResult NpcAcceptTask(int taskId);
 
+    /// <summary>Можно ли взять задания сейчас (проверка игры): ответы в <see cref="CallResult.Values"/>, 0 — можно.</summary>
+    CallResult QuestChecks(IReadOnlyList<int> taskIds);
+
     /// <summary>Выучить скилл у NPC, с которым начат разговор.</summary>
     CallResult NpcLearnSkill(int skillId);
 

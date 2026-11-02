@@ -371,6 +371,12 @@ public sealed class QuestOffsets
     public uint AvailableAt { get; init; }
     /// <summary>[объект + Available] — доступные задания (вкладка «Доступные»): начало, +4 конец массива указателей на записи.</summary>
     public uint Available { get; init; }
+    /// <summary>[объект + All] — все задания верхнего уровня: начало, +4 конец массива указателей на записи (из них окно отбирает «Доступные»).</summary>
+    public uint All { get; init; }
+    /// <summary>В записи задания: уровень персонажа от и до (int, 0 — без границы), байт «уровень — перерождения» (не 0 — такие пропускаем).</summary>
+    public uint MinLevel { get; init; }
+    public uint MaxLevel { get; init; }
+    public uint RebirthLevel { get; init; }
 }
 
 /// <summary>
@@ -668,6 +674,8 @@ public enum FunctionThis
     Session,
     /// <summary>Окно разговора с NPC (CDlgNPC): см. <see cref="UiOffsets"/>.</summary>
     NpcDialog,
+    /// <summary>Объект заданий персонажа: [перс + host.quests].</summary>
+    Quests,
 }
 
 /// <summary>Имена функций в профиле.</summary>
@@ -682,6 +690,7 @@ public static class GameFunctions
     public const string NpcOpenStorage = "npcOpenStorage";
     public const string NpcReturnTask = "npcReturnTask";
     public const string NpcAcceptTask = "npcAcceptTask";
+    public const string QuestCheck = "questCheck";
     public const string BagMove = "bagMove";
     public const string BankExchange = "bankExchange";
     public const string BankPutCount = "bankPutCount";

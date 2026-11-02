@@ -11,7 +11,9 @@ namespace Notes.Core.Calls;
 public sealed class RemotePages
 {
     private const int PageSize = 0x1000;
-    private const int DataOffset = 0x100;
+    // Данные — на своей странице сразу за кодом: она остаётся на запись (функция игры может писать в данные — например,
+    // результаты), а страница кода — только чтение и выполнение
+    private const int DataOffset = PageSize;
 
     private readonly GameProcess _game;
 
@@ -23,16 +25,16 @@ public sealed class RemotePages
     }
 
     /// <summary>
-    /// Страница под вызов: данные со смещения 0x100, заглушка в начале, защита «чтение и выполнение».
+    /// Две страницы под вызов: заглушка в первой (защита «чтение и выполнение»), данные — во второй (чтение и запись).
     /// null — готово, адрес в <paramref name="page"/> (освободить <see cref="Free"/>, когда выполнится); иначе — отказ.
     /// </summary>
     public RemoteRunResult? Prepare(byte[]? data, Func<uint, byte[]> buildStub, out uint page)
     {
         page = 0;
-        if (data is { Length: > PageSize - DataOffset })
+        if (data is { Length: > PageSize })
             return new RemoteRunResult(RemoteRunStatus.Failed, "слишком много данных для вызова");
 
-        var memory = NativeMethods.VirtualAllocEx(_game.Handle, IntPtr.Zero, new IntPtr(PageSize),
+        var memory = NativeMethods.VirtualAllocEx(_game.Handle, IntPtr.Zero, new IntPtr(2 * PageSize),
             NativeMethods.MemCommit | NativeMethods.MemReserve, NativeMethods.PageReadWrite);
         if (memory == IntPtr.Zero)
             return Failed("VirtualAllocEx");
@@ -61,6 +63,13 @@ public sealed class RemotePages
 
         page = pageAddress;
         return null;
+    }
+
+    /// <summary>Данные вызова после выполнения (заглушка или функция игры могли их изменить); null — не прочитались.</summary>
+    public byte[]? ReadBack(uint page, int length)
+    {
+        var data = new byte[length];
+        return length == 0 || _game.TryRead(page + DataOffset, data, length) ? data : null;
     }
 
     public void Free(uint page) => NativeMethods.VirtualFreeEx(_game.Handle, GameProcess.ToPointer(page), IntPtr.Zero, NativeMethods.MemRelease);

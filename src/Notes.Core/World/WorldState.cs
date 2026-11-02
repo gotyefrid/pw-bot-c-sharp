@@ -146,6 +146,13 @@ public sealed record WorldState(
     /// <summary>Доступные задания (вкладка «Доступные»), читаются вместе с <see cref="Quests"/>; null — не читали или не найдены.</summary>
     public IReadOnlyList<QuestInfo>? AvailableQuests { get; init; }
 
+    /// <summary>
+    /// Кандидаты в «Доступные»: задания верхнего уровня, подходящие по уровню персонажа, по порядку окна. Что из них можно взять
+    /// сейчас, решает проверка игры (<see cref="Actions.IGameActions.QuestChecks"/>) — так окно и строит «Доступные». Читаются
+    /// вместе с <see cref="Quests"/>; null — не читали или не найдены.
+    /// </summary>
+    public IReadOnlyList<QuestInfo>? QuestCandidates { get; init; }
+
     /// <summary>Надетые вещи (ячейка — место: 0 — оружие…); пусто — ничего не надето или на этом сервере не найдены.</summary>
     public IReadOnlyList<InventoryItem> Equipment { get; init; } = [];
 

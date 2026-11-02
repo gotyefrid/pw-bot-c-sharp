@@ -19,6 +19,9 @@ public enum RemoteRunStatus
 public sealed record RemoteRunResult(RemoteRunStatus Status, string Details = "")
 {
     public bool IsDone => Status == RemoteRunStatus.Done;
+
+    /// <summary>Данные вызова после выполнения (так функции возвращают результаты); null — данных не было или не прочитались.</summary>
+    public byte[]? Data { get; init; }
 }
 
 /// <summary>

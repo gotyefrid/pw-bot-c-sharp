@@ -50,6 +50,39 @@ public static class StubBuilder
     }
 
     /// <summary>
+    /// Вызвать метод <paramref name="function"/> объекта <paramref name="thisPointer"/> (thiscall, один аргумент) для каждого
+    /// из <paramref name="count"/> чисел по адресу <paramref name="inputs"/> и сложить результаты (eax) подряд по адресу
+    /// <paramref name="outputs"/>: <c>for (i) outputs[i] = this->function(inputs[i])</c> — много проверок одним вызовом.
+    /// </summary>
+    public static byte[] CallEach(uint function, uint thisPointer, uint inputs, uint outputs, int count)
+    {
+        if (thisPointer == 0)
+            throw new ArgumentException("Нужен объект (this)", nameof(thisPointer));
+        if (count <= 0)
+            throw new ArgumentException("Нечего вызывать", nameof(count));
+
+        var code = new List<byte> { 0x53, 0x56, 0x57 };    // push ebx; push esi; push edi
+        code.Add(0xBE);                                     // mov esi, inputs
+        code.AddRange(BitConverter.GetBytes(inputs));
+        code.Add(0xBF);                                     // mov edi, outputs
+        code.AddRange(BitConverter.GetBytes(outputs));
+        code.Add(0xBB);                                     // mov ebx, count
+        code.AddRange(BitConverter.GetBytes((uint)count));
+        var loop = code.Count;
+        code.AddRange([0xFF, 0x36]);                        // loop: push dword [esi]
+        MovEcx(code, thisPointer);
+        CallAbsolute(code, function);
+        code.AddRange([0x89, 0x07]);                        // mov [edi], eax
+        code.AddRange([0x83, 0xC6, 0x04]);                  // add esi, 4
+        code.AddRange([0x83, 0xC7, 0x04]);                  // add edi, 4
+        code.Add(0x4B);                                     // dec ebx
+        code.AddRange([0x75, (byte)(loop - (code.Count + 2))]); // jnz loop
+        code.AddRange([0x5F, 0x5E, 0x5B]);                  // pop edi; pop esi; pop ebx
+        Return(code);
+        return code.ToArray();
+    }
+
+    /// <summary>
     /// Идти в точку, как кликом по земле:
     /// <c>work = WorkMan->CreateWork(1); if (work) { work->SetDestination(destinationArgs); WorkMan->StartWork(startArgs); }</c>.
     /// Аргументы — по порядку, null — сама работа. 1.3.6: SetDestination(0, &amp;point), StartWork(1, work, 1, 0);

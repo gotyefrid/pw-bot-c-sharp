@@ -24,6 +24,8 @@ public sealed class WorldReader
     private const int MaxQuests = 128;
     private const int MaxQuestTargets = 8;
     private const uint MaxAvailableQuests = 256;
+    // Всех заданий верхнего уровня у 1.4.6 — 2225
+    private const uint MaxAllQuests = 16384;
     private static readonly System.Text.RegularExpressions.Regex Color = new(@"\^[0-9A-Fa-f]{6}");
     private const int MaxSkills = 256;
     private const int MaxAttacks = 64;
@@ -48,6 +50,9 @@ public sealed class WorldReader
     private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (string? Name, string? Group)> _itemInfo = [];
     private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
+    // Записи заданий не меняются, пока жив клиент: границы уровня и сама запись — по адресу, один раз
+    private readonly Dictionary<uint, (int Min, int Max, bool Rebirth)> _questLevels = [];
+    private readonly Dictionary<uint, QuestInfo?> _questTemplates = [];
     // Текст сообщения чата не меняется — у каждого номера читаем один раз
     private Dictionary<int, ChatMessage> _chat = [];
 
@@ -112,6 +117,7 @@ public sealed class WorldReader
             BankSlots = bankSlots,
             Quests = Requests.Quests ? ReadQuests() : null,
             AvailableQuests = Requests.Quests ? ReadAvailableQuests() : null,
+            QuestCandidates = Requests.Quests ? ReadQuestCandidates(host.Level) : null,
             Equipment = equipment,
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
@@ -515,6 +521,50 @@ public sealed class WorldReader
         for (var i = 0; i < count; i++)
             if (ReadQuestTemplate(pointers.UInt32((uint)i * 4), null, 0, null) is { } quest)
                 result.Add(quest);
+        return result;
+    }
+
+    /// <summary>
+    /// Кандидаты в «Доступные» (<see cref="WorldState.QuestCandidates"/>): все задания верхнего уровня, у которых уровень персонажа
+    /// <paramref name="level"/> в границах записи, по порядку. null — в профиле их нет или код с переменной не нашёлся.
+    /// </summary>
+    public IReadOnlyList<QuestInfo>? ReadQuestCandidates(int level)
+    {
+        var q = _p.Quests;
+        if (q.All == 0 || q.MinLevel == 0 || q.MaxLevel == 0 || _roots.QuestLists() is not { } variable)
+            return null;
+
+        var result = new List<QuestInfo>();
+        if (level <= 0 || !_memory.TryReadUInt32(variable, out var lists) || lists == 0
+            || !_memory.TryReadUInt32(lists + q.All, out var begin) || !_memory.TryReadUInt32(lists + q.All + 4, out var end)
+            || end <= begin)
+            return result;
+
+        var count = (int)Math.Min((end - begin) / 4, MaxAllQuests);
+        if (!MemoryBlock.TryRead(_memory, begin, count * 4, out var pointers))
+            return result;
+
+        for (var i = 0; i < count; i++)
+        {
+            var address = pointers.UInt32((uint)i * 4);
+            if (!_questLevels.TryGetValue(address, out var levels))
+            {
+                var size = BlockSize(q.MinLevel, q.MaxLevel, q.RebirthLevel);
+                if (!MemoryBlock.TryRead(_memory, address, size, out var t))
+                    continue;
+                levels = (t.Int32(q.MinLevel), t.Int32(q.MaxLevel), q.RebirthLevel != 0 && t.UInt32(q.RebirthLevel) % 256 != 0);
+                _questLevels[address] = levels;
+            }
+
+            // Как у окна: у заданий по уровню перерождения другой уровень — их не берём
+            if (levels.Rebirth || (levels.Min > 0 && level < levels.Min) || (levels.Max > 0 && level > levels.Max))
+                continue;
+            if (!_questTemplates.TryGetValue(address, out var quest))
+                _questTemplates[address] = quest = ReadQuestTemplate(address, null, 0, null);
+            if (quest is not null)
+                result.Add(quest);
+        }
+
         return result;
     }
 

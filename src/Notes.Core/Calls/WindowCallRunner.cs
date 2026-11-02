@@ -150,9 +150,10 @@ public sealed class WindowCallRunner : IRemoteRunner, IDisposable
             return new RemoteRunResult(RemoteRunStatus.Timeout, $"игра не обработала вызов за {CallTimeout.TotalSeconds:0} с");
         }
 
+        var back = data is null ? null : _pages.ReadBack(page, data.Length);
         _pages.Free(page);
         return unchecked((uint)result.ToInt32()) == WindowStubs.Handled
-            ? new RemoteRunResult(RemoteRunStatus.Done)
+            ? new RemoteRunResult(RemoteRunStatus.Done) { Data = back }
             : new RemoteRunResult(RemoteRunStatus.WindowLost, "обработчик окна снят — вызов не выполнен");
     }
 

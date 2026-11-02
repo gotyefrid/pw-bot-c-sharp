@@ -13,6 +13,9 @@ public sealed record CallResult(bool Ok, string Details)
 {
     public static readonly CallResult Done = new(true, "");
 
+    /// <summary>Что вернула функция (у вызовов с ответом — например, проверки заданий); null — ответа нет.</summary>
+    public IReadOnlyList<uint>? Values { get; init; }
+
     public static CallResult Refused(string reason) => new(false, reason);
 }
 
@@ -57,6 +60,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NpcOpenStorage] = [DataArg],
         [GameFunctions.NpcReturnTask] = ["task", "choice"],
         [GameFunctions.NpcAcceptTask] = ["task", "storage", "refresh"],
+        [GameFunctions.QuestCheck] = ["task"],
         [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.BankPutCount] = ["tab", "bankSlot", "slot", "count"],
@@ -217,6 +221,46 @@ public sealed class GameCaller : IGameActions
         for (var i = 0; i < data.Length; i++)
             Buffer.BlockCopy(BitConverter.GetBytes(data[i]), 0, packet, 10 + 4 * i, 4);
         return packet;
+    }
+
+    /// <summary>Сколько заданий проверять одним вызовом: номер и ответ — по 4 байта, данные вызова — одна страница.</summary>
+    public const int QuestChecksPerCall = 500;
+
+    /// <summary>
+    /// Можно ли взять задания сейчас — проверка самой игры (как у вкладки «Доступные» и окна NPC): по ответу на номер, 0 — можно,
+    /// иначе код причины. Ничего не шлёт серверу. Много заданий — несколькими вызовами по <see cref="QuestChecksPerCall"/>.
+    /// </summary>
+    public CallResult QuestChecks(IReadOnlyList<int> taskIds)
+    {
+        const string name = GameFunctions.QuestCheck;
+        if (taskIds.Count == 0)
+            return CallResult.Done with { Values = [] };
+        if (Check(name) is { } refused)
+            return refused;
+        if (_prepared[name].Definition.Convention != CallingConvention.Thiscall || _prepared[name].Definition.This != FunctionThis.Quests)
+            return CallResult.Refused($"{name}: в профиле ждём thiscall с this = quests");
+        if (!TryQuests(out var quests))
+            return CallResult.Refused($"{name}: объект заданий персонажа не найден (host.quests)");
+
+        var address = _functions[name].Address;
+        var answers = new List<uint>(taskIds.Count);
+        for (var from = 0; from < taskIds.Count; from += QuestChecksPerCall)
+        {
+            var count = Math.Min(QuestChecksPerCall, taskIds.Count - from);
+            // Данные: номера, за ними место под ответы
+            var data = new byte[count * 8];
+            for (var i = 0; i < count; i++)
+                Buffer.BlockCopy(BitConverter.GetBytes((uint)taskIds[from + i]), 0, data, i * 4, 4);
+            var run = _runner.Run(data, at => StubBuilder.CallEach(address, quests, at, at + (uint)count * 4, count));
+            if (!run.IsDone)
+                return CallResult.Refused(run.Details);
+            if (run.Data is not { } back || back.Length != data.Length)
+                return CallResult.Refused($"{name}: ответы не прочитались");
+            for (var i = 0; i < count; i++)
+                answers.Add(BitConverter.ToUInt32(back, (count + i) * 4));
+        }
+
+        return CallResult.Done with { Values = answers };
     }
 
     /// <summary>Номер вкладки банка в командах переноса: основная (данные игры, одинаковы на всех клиентах Comeback).</summary>
@@ -488,6 +532,8 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"{name}: нет связи с сервером");
         if (prepared.Definition.This == FunctionThis.NpcDialog && !_roots.TryNpcDialog(out thisPointer))
             return CallResult.Refused($"{name}: окно NPC не найдено (ui в профиле)");
+        if (prepared.Definition.This == FunctionThis.Quests && !TryQuests(out thisPointer))
+            return CallResult.Refused($"{name}: объект заданий персонажа не найден (host.quests)");
         if (prepared.Definition.This != FunctionThis.None)
             thisPointer += prepared.Definition.ThisOffset;
 
@@ -497,6 +543,14 @@ public sealed class GameCaller : IGameActions
             prepared.Args.Select(a => Value(a, known, dataAddress)).ToArray(),
             prepared.Ecx is { } ecx ? Value(ecx, known, dataAddress) : null,
             prepared.Edx is { } edx ? Value(edx, known, dataAddress) : null)));
+    }
+
+    // Объект заданий персонажа: [перс + host.quests]
+    private bool TryQuests(out uint quests)
+    {
+        quests = 0;
+        return _profile.Host.Quests != 0 && _roots.TryHost(out var host) && _memory.TryReadUInt32(host + _profile.Host.Quests, out quests)
+               && quests != 0;
     }
 
     private static bool TryParseNumber(string text, out uint value)

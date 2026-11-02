@@ -44,7 +44,7 @@ public sealed class ThreadCallRunner(GameProcess game) : IRemoteRunner
 
             if (!NativeMethods.GetExitCodeThread(thread, out returned))
                 returned = 0;
-            return new RemoteRunResult(RemoteRunStatus.Done);
+            return new RemoteRunResult(RemoteRunStatus.Done) { Data = data is null ? null : _pages.ReadBack(page, data.Length) };
         }
         finally
         {

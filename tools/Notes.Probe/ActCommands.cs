@@ -30,6 +30,7 @@ internal static class ActCommands
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
           act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
+          act quest-check         «Доступные» как в окне: задания по уровню перса и проверка игры «можно взять» (0 — можно)
           act quest-take НОМЕР    взять задание у NPC, с которым начат разговор (после npc-hello)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
@@ -63,6 +64,34 @@ internal static class ActCommands
           act fly-to <dx> <dy> <dh>  в воздухе: лететь на dx, dy метров в сторону и dh вверх (минус — вниз), не дальше 100 м
         """;
 
+    // «Доступные» как строит окно: кандидаты по уровню → проверка игры одним вызовом; печать — что можно взять и сколько с какой причиной нет
+    private static int QuestCheck(WorldReader reader, WorldState world, GameCaller caller)
+    {
+        var candidates = reader.ReadQuestCandidates(world.Host.Level);
+        if (candidates is null)
+        {
+            Console.WriteLine("❌ задания в профиле не найдены (quests.all, minLevel, maxLevel)");
+            return 2;
+        }
+
+        var watch = Stopwatch.StartNew();
+        var result = caller.QuestChecks(candidates.Select(q => q.Id).ToList());
+        if (!result.Ok || result.Values is not { } codes)
+        {
+            Console.WriteLine($"❌ проверка: {result.Details}");
+            return 3;
+        }
+
+        Console.WriteLine($"Уровень {world.Host.Level}: по уровню подходит {candidates.Count}, проверка игры — {watch.ElapsedMilliseconds} мс");
+        Console.WriteLine("Можно взять:");
+        for (var i = 0; i < candidates.Count; i++)
+            if (codes[i] == 0)
+                Console.WriteLine($"  {candidates[i].Id} «{candidates[i].Name}» — цель: {QuestGoals.Text(candidates[i].Goal)}, даёт: NPC {candidates[i].GiverNpc}");
+        Console.WriteLine("Нельзя — сколько с каким кодом: " + string.Join(", ",
+            codes.Where(c => c != 0).GroupBy(c => c).OrderBy(g => g.Key).Select(g => $"{g.Key}×{g.Count()}")));
+        return 0;
+    }
+
     public static int Act(ServerProfile profile, string[] args)
     {
         if (args.Length == 0)
@@ -94,6 +123,9 @@ internal static class ActCommands
         var runner = new ActionRunner(new GameControl(calls.Caller), log);
 
         var world = reader.Read();
+        if (name == "quest-check")
+            return QuestCheck(reader, world, calls.Caller);
+
         var action = Build(name, rest, world, data, reader, out var problem);
         if (action is null)
         {
