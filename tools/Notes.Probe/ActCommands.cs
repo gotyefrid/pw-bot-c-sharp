@@ -22,7 +22,7 @@ namespace Notes.Probe;
 internal static class ActCommands
 {
     public const string Usage = """
-          act target            выбрать ближайшего живого моба
+          act target [имя]      выбрать ближайшего живого моба (в названии которого есть «имя»)
           act untarget          снять цель
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
@@ -276,8 +276,12 @@ internal static class ActCommands
         switch (name)
         {
             case "target":
-                var mob = w.Mobs.Where(m => !m.IsDead).OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
-                problem = "рядом нет живых мобов";
+                // Слово — часть названия моба (не PID, не ключ и не значение ключа)
+                var mobWord = args.Where((a, i) => !a.StartsWith("--") && !uint.TryParse(a, out _) && (i == 0 || !args[i - 1].StartsWith("--")))
+                    .FirstOrDefault();
+                var mob = w.Mobs.Where(m => !m.IsDead && (mobWord is null || m.Name.IndexOf(mobWord, StringComparison.OrdinalIgnoreCase) >= 0))
+                    .OrderBy(m => m.Offset.Horizontal).FirstOrDefault();
+                problem = mobWord is null ? "рядом нет живых мобов" : $"рядом нет живых мобов «{mobWord}»";
                 return mob is null ? null : new SelectTargetAction(mob);
 
             case "bag-split":
