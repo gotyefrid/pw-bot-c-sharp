@@ -20,7 +20,8 @@ public sealed record QuestGuide(GuidePoints Points, IReadOnlyDictionary<int, Que
 /// видит такого — выбирает и бьёт, далеко — подходит «умно» на дальность скилла, нет рядом — идёт к местам, где они водятся. Цель
 /// выполнена или задание «поговорить» — идёт «умно» к NPC, заговаривает, сдаёт и закрывает окно. Следующее задание игра выдаёт
 /// сама; принятых нет — берёт первое из «Доступных», которого нет в списке «не брать» (<see cref="Settings.QuestSettings"/>), у
-/// NPC, который его даёт; брать нечего — встаёт: задания закончились. У задания со скриптом (<see cref="QuestScript"/>) после
+/// NPC, который его даёт; «Доступные» — как у окна игры: задания по уровню и проверка игры «можно взять». Брать нечего — встаёт:
+/// задания закончились. Задание «выполняется при взятии» (в журнал не попадает) — засчитывает, когда игра перестала его давать. У задания со скриптом (<see cref="QuestScript"/>) после
 /// сдачи в том же разговоре выполняет шаги «after» (<see cref="QuestStep"/>: выучить скилл, вывести питомца…), потом закрывает окно.
 /// «Собрать» и прочие цели не умеет — встаёт с причиной.
 /// </summary>
@@ -59,6 +60,8 @@ public sealed class QuestBehavior : IBehavior
     private int _tries;
     // Не дал (уже брали, не подходим) — больше не просить в этот запуск
     private readonly HashSet<int> _refused = [];
+    // Какое задание идём брать: выбрано по проверке игры, пока не взяли или не отказались
+    private QuestInfo? _offer;
     // Шаги скрипта после сдачи — по порядку, первый — текущий
     private readonly Queue<QuestStep> _steps = new();
     private uint _mobWid;
@@ -94,9 +97,9 @@ public sealed class QuestBehavior : IBehavior
         {
             if (quests.Count > 0)
                 return c.RequestStop($"Задание «{quests[0].Name}» без цели, которую я понимаю — останавливаюсь");
-            if (c.World.AvailableQuests is null)
+            if (c.World.QuestCandidates is null && c.World.AvailableQuests is null)
                 return c.RequestStop("Не вижу доступных заданий (на этом сервере не найдены) — возьмите задание в игре и нажмите «Старт»");
-            var next = c.World.AvailableQuests.FirstOrDefault(q => q.GiverNpc != 0 && !_refused.Contains(q.Id) && !c.Settings.Quests.Skips(q.Name));
+            var next = _offer ??= NextOffer(c);
             if (next is null)
                 return c.RequestStop("Задания закончились: в «Доступных» только те, что в списке «не брать»");
             return Visit(c, next.GiverNpc, next.Id, accept: true, $"взять «{next.Name}»");
@@ -182,6 +185,28 @@ public sealed class QuestBehavior : IBehavior
         return Walk(c, fresh.OrderBy(s => s.HorizontalDistanceTo(here)).First());
     }
 
+    // Первое задание «Доступных», которое игра разрешает взять сейчас (её же проверка, что у окна), не из «не брать» и не отказанное.
+    // Проверка не вышла (нет в профиле) — по сохранённому списку игры (он бывает устаревшим: выполненное ещё там)
+    private QuestInfo? NextOffer(BrainContext c)
+    {
+        var w = c.World;
+        IEnumerable<QuestInfo> takeable = w.AvailableQuests ?? [];
+        if (w.QuestCandidates is { } candidates)
+        {
+            var check = c.Executor.Control.Calls.QuestChecks(candidates.Select(q => q.Id).ToList());
+            if (check is { Ok: true, Values: { } codes } && codes.Count == candidates.Count)
+                takeable = candidates.Where((_, i) => codes[i] == 0);
+            else
+                c.Say("quest-check", $"Проверка «можно взять» не вышла ({check.Details}) — беру из списка игры", LogLevel.Warning, 60);
+        }
+
+        return takeable.FirstOrDefault(q => q.GiverNpc != 0 && !_refused.Contains(q.Id) && !c.Settings.Quests.Skips(q.Name));
+    }
+
+    // Взятое задание не попало в журнал, а игра больше не даёт его взять — выполнилось сразу при взятии (тип 5)
+    private static bool DoneOnTake(BrainContext c, int task)
+        => c.Executor.Control.Calls.QuestChecks([task]) is { Ok: true, Values: { Count: 1 } codes } && codes[0] != 0;
+
     // Подойти к NPC и заговорить; потом (Dialog) — взять или сдать задание и закрыть окно
     private bool Visit(BrainContext c, uint npcTid, int task, bool accept, string what)
     {
@@ -225,15 +250,18 @@ public sealed class QuestBehavior : IBehavior
         }
 
         var has = quests.Any(q => q.Id == _dealTask);
-        var done = _dealAccept ? has : !has;
+        var instant = _dealAccept && !has && c.Now - _stageAt >= DialogWait && DoneOnTake(c, _dealTask);
+        var done = _dealAccept ? has || instant : !has;
         Status = _dealAccept ? $"задания: беру {_dealTask}" : $"задания: сдаю {_dealTask}";
         if (!done && c.Now - _stageAt < DealWait)
             return true;
 
         if (done)
         {
-            c.Log.Info(_dealAccept ? $"Взял задание {Title(quests, _dealTask)}" : $"Сдал задание {_dealTask}");
+            c.Log.Info(instant ? $"Задание {_dealTask} выполнено сразу при взятии"
+                : _dealAccept ? $"Взял задание {Title(quests, _dealTask)}" : $"Сдал задание {_dealTask}");
             _tries = 0;
+            _offer = null;
             if (!_dealAccept && _guide.Scripts?.TryGetValue(_dealTask, out var script) == true && script.After.Count > 0)
             {
                 // Окно не закрываем: шаги — у того же NPC
@@ -256,6 +284,7 @@ public sealed class QuestBehavior : IBehavior
             {
                 c.Log.Warning($"NPC не даёт задание {_dealTask} ({DealTries} раза) — пропускаю его");
                 _refused.Add(_dealTask);
+                _offer = null;
                 return true;
             }
             return c.RequestStop($"NPC не {(_dealAccept ? "даёт" : "принимает")} задание {_dealTask} ({DealTries} раза) — останавливаюсь");
@@ -335,6 +364,7 @@ public sealed class QuestBehavior : IBehavior
         _stage = Stage.Idle;
         _tries = 0;
         _steps.Clear();
+        _offer = null;
         _refused.Clear();
         _mobWid = 0;
         _skip.Clear();

@@ -432,6 +432,8 @@ public static class QuestGoals
     public const int Kill = 1;
     public const int Collect = 2;
     public const int Talk = 3;
+    /// <summary>Выполняется сразу при взятии: награда приходит, в журнал не попадает.</summary>
+    public const int Instant = 5;
 
     public static string Text(int goal) => goal switch
     {
@@ -439,6 +441,7 @@ public static class QuestGoals
         Kill => "убить",
         Collect => "собрать",
         Talk => "поговорить с NPC",
+        Instant => "выполняется при взятии",
         _ => $"тип {goal}",
     };
 }

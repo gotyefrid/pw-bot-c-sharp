@@ -66,6 +66,7 @@ internal sealed class FakeWorld
 
     /// <summary>Доступные задания; null — не читали.</summary>
     public List<QuestInfo>? AvailableQuests { get; set; }
+    public List<QuestInfo>? QuestCandidates { get; set; }
 
     public FakeWorld Wait(double seconds)
     {
@@ -78,7 +79,7 @@ internal sealed class FakeWorld
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater },
-        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList() };
+        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList() };
 
     /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, NpcState? state = null, int hp = 0)

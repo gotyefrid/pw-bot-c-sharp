@@ -232,6 +232,55 @@ public class QuestBehaviorTests
         Assert.Equal(["npc-hello", "return-task 1204", "learn-skill 330", "npc-back"], _actions.Calls);
     }
 
+    private const uint Trainer = 11534;
+
+    private static QuestInfo Feeding() => new(5937, "Кормление питомцев", 0, QuestGoals.Instant, 0, [], []) { GiverNpc = Trainer };
+
+    [Fact]
+    public void Candidates_TakesFirstOneTheGameAllows()
+    {
+        // «Кормление питомцев» уже выполнено — игра его не даёт (в сохранённом списке игры оно ещё есть)
+        _world.QuestCandidates = [Feeding(), new QuestInfo(468, "Тлеющие огоньки", 0, QuestGoals.Parts, 0, [], []) { GiverNpc = 2290 }];
+        _actions.QuestCheckAnswers[5937] = 10;
+        AddNpc(0x80104103, Trainer, "Дрессировщик Лисюэ", 3);
+        AddNpc(0x80104200, 2290, "Староста", 3);
+
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "accept-task 468"], _actions.Calls);
+    }
+
+    [Fact]
+    public void InstantQuest_CountedDoneWhenGameStopsGivingIt()
+    {
+        _world.QuestCandidates = [Feeding()];
+        AddNpc(0x80104103, Trainer, "Дрессировщик Лисюэ", 3);
+
+        Tick();
+        Tick(1.1);
+        // Награда пришла, в журнал не попало; игра больше не даёт
+        _actions.QuestCheckAnswers[5937] = 10;
+        Tick(1.1);
+        Tick();
+
+        Assert.Equal(["npc-hello", "accept-task 5937", "npc-back"], _actions.Calls);
+        Assert.Contains("закончились", _stopped);
+    }
+
+    [Fact]
+    public void ChoiceIsCheckedOnceWhileWalkingToGiver()
+    {
+        _world.QuestCandidates = [Feeding()];
+        _points[(int)Trainer] = [new Position(100, 0, 0)];
+
+        Tick();
+        Tick();
+        Tick();
+
+        Assert.Equal(1, _actions.QuestCheckCalls);
+    }
+
     [Fact]
     public void KillsDoneNobodyToReturn_WaitsForGame()
     {
