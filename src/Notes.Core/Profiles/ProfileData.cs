@@ -347,6 +347,15 @@ public sealed class QuestOffsets
     public uint Items { get; init; }
     public uint ItemSize { get; init; }
     public uint ItemNeed { get; init; }
+
+    /// <summary>
+    /// Код, который пишет глобальную переменную с объектом списков заданий; в нём на месте <see cref="AvailableAt"/> — адрес
+    /// переменной. null — не найдено для сервера.
+    /// </summary>
+    public Signature? AvailableFind { get; init; }
+    public uint AvailableAt { get; init; }
+    /// <summary>[объект + Available] — доступные задания (вкладка «Доступные»): начало, +4 конец массива указателей на записи.</summary>
+    public uint Available { get; init; }
 }
 
 /// <summary>

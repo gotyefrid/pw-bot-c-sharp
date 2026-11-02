@@ -204,6 +204,24 @@ internal static class WorldCommands
             }
         }
 
+        var available = reader.ReadAvailableQuests();
+        if (available is null)
+        {
+            Console.WriteLine("Доступные: в профиле нет или код с переменной не найден (quests.availableFind)");
+            return 0;
+        }
+
+        Console.WriteLine($"Доступные: {available.Count}");
+        foreach (var q in available)
+        {
+            var award = q.AwardNpc == 0 ? "" : $", сдать: NPC {q.AwardNpc}";
+            Console.WriteLine($"  {q.Id} «{q.Name}» — цель: {QuestGoals.Text(q.Goal)}{award}");
+            foreach (var m in q.Monsters)
+                Console.WriteLine($"      моб {m.Tid}: {m.Need}");
+            foreach (var i in q.Items)
+                Console.WriteLine($"      предмет {i.Tid}: {i.Need}");
+        }
+
         return 0;
     }
 

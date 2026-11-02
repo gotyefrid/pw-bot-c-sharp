@@ -352,7 +352,11 @@
     "itemCount": "",
     "items": "",
     "itemSize": "",
-    "itemNeed": ""
+    "itemNeed": "",
+    // Доступные задания: как найти — см. comeback146.jsonc. Не проверено
+    "availableFind": "",
+    "availableAt": "",
+    "available": ""
   },
 
   // Другой игрок. У игры это тот же класс, что наш персонаж: ник, WID и координаты — на тех же смещениях, что в "host"
