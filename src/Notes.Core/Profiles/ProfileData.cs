@@ -336,6 +336,8 @@ public sealed class QuestOffsets
     public uint Name { get; init; }
     /// <summary>Тип цели (int): 1 — убить мобов, 2 — собрать предметы, 3 — поговорить с NPC (<see cref="World.QuestGoals"/>).</summary>
     public uint Goal { get; init; }
+    /// <summary>Кто даёт задание — tid NPC («Персонаж, дающий задание» в окне); 0 — не найдено.</summary>
+    public uint GiverNpc { get; init; }
     /// <summary>Кому сдать — tid NPC (как «Персонаж, дающий награду» в окне); 0 — некому.</summary>
     public uint AwardNpc { get; init; }
     /// <summary>Мобы цели: число (int) и указатель на массив записей по <see cref="MonsterSize"/> байт: +0 tid моба, +4 сколько убить.</summary>

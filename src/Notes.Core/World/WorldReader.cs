@@ -521,7 +521,7 @@ public sealed class WorldReader
     private QuestInfo? ReadQuestTemplate(uint address, int? id, int parent, Func<int, int>? kills)
     {
         var q = _p.Quests;
-        var templateSize = BlockSize(q.Id, q.Goal, q.AwardNpc, q.MonsterCount, q.Monsters, q.ItemCount, q.Items);
+        var templateSize = BlockSize(q.Id, q.Goal, q.GiverNpc, q.AwardNpc, q.MonsterCount, q.Monsters, q.ItemCount, q.Items);
         if (!MemoryBlock.TryRead(_memory, address, templateSize, out var t))
             return null;
         var number = t.Int32(q.Id);
@@ -533,7 +533,7 @@ public sealed class WorldReader
             k => goal == QuestGoals.Kill && kills is not null ? kills(k) : null);
         var items = ReadQuestTargets(t.Int32(q.ItemCount), t.UInt32(q.Items), q.ItemSize, q.ItemNeed, _ => null);
         var name = Color.Replace(_memory.ReadUnicodeString(address + q.Name, 32), "");
-        return new QuestInfo(number, name, parent, goal, Field(t, q.AwardNpc), monsters, items);
+        return new QuestInfo(number, name, parent, goal, Field(t, q.AwardNpc), monsters, items) { GiverNpc = Field(t, q.GiverNpc) };
     }
 
     private List<QuestTarget> ReadQuestTargets(int count, uint array, uint size, uint need, Func<int, int?> done)

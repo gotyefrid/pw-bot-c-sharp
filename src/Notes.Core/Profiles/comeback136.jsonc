@@ -345,6 +345,8 @@
     "id": "0x4",
     "name": "0x8",
     "goal": "0x33D",
+    // Кто даёт задание — tid NPC: как найти, см. comeback146.jsonc. Не проверено
+    "giverNpc": "",
     "awardNpc": "",
     "monsterCount": "",
     "monsters": "",

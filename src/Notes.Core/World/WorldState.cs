@@ -402,7 +402,11 @@ public sealed record PotionInfo(int RequiredLevel, int Hp, int HpSeconds, int Mp
 /// <param name="Goal">Тип цели, см. <see cref="QuestGoals"/>.</param>
 /// <param name="AwardNpc">Кому сдать — tid NPC; 0 — некому.</param>
 public sealed record QuestInfo(int Id, string Name, int ParentId, int Goal, uint AwardNpc, IReadOnlyList<QuestTarget> Monsters,
-    IReadOnlyList<QuestTarget> Items);
+    IReadOnlyList<QuestTarget> Items)
+{
+    /// <summary>Кто даёт задание — tid NPC; 0 — неизвестно.</summary>
+    public uint GiverNpc { get; init; }
+}
 
 /// <summary>Кого убить или что собрать: tid, сколько нужно и сколько уже (у предметов null — считать по сумке).</summary>
 public sealed record QuestTarget(uint Tid, int Need, int? Done);

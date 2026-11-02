@@ -215,7 +215,8 @@ internal static class WorldCommands
         foreach (var q in available)
         {
             var award = q.AwardNpc == 0 ? "" : $", сдать: NPC {q.AwardNpc}";
-            Console.WriteLine($"  {q.Id} «{q.Name}» — цель: {QuestGoals.Text(q.Goal)}{award}");
+            var giver = q.GiverNpc == 0 ? "" : $", даёт: NPC {q.GiverNpc}";
+            Console.WriteLine($"  {q.Id} «{q.Name}» — цель: {QuestGoals.Text(q.Goal)}{giver}{award}");
             foreach (var m in q.Monsters)
                 Console.WriteLine($"      моб {m.Tid}: {m.Need}");
             foreach (var i in q.Items)
