@@ -756,7 +756,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public sealed record ModeChoice(BotMode Mode, string Title);
 
     public IReadOnlyList<ModeChoice> Modes { get; } =
-        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
+        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker, BotMode.LevelUp }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
 
     /// <summary>Режим бота у этого персонажа. Смена во время работы останавливает бота.</summary>
     public BotMode Mode
