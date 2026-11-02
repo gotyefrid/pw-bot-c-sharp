@@ -284,6 +284,16 @@ public sealed class NpcReturnTaskAction(int taskId) : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Взять задание у NPC, с которым уже начат разговор. Подтверждение — задание появилось в списке принятых (смотрит вызывающий).</summary>
+public sealed class NpcAcceptTaskAction(int taskId) : GameAction
+{
+    public override string Name => $"взять задание {taskId}";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcAcceptTask(taskId);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>
 /// Отделить часть стопки в сумке: <c>count</c> штук из ячейки <c>from</c> уходят в ПУСТУЮ ячейку <c>to</c> (что она пуста, проверяет
 /// тот, кто ставит действие). Подтверждение — в ячейке <c>to</c> лежит такой предмет.

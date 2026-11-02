@@ -64,6 +64,9 @@ public interface IGameActions
     /// <summary>Сдать задание NPC, с которым начат разговор.</summary>
     CallResult NpcReturnTask(int taskId);
 
+    /// <summary>Взять задание у NPC, с которым начат разговор.</summary>
+    CallResult NpcAcceptTask(int taskId);
+
     /// <summary>Подойти к NPC и заговорить, как вторым кликом по нему (игра сама ведёт перса).</summary>
     CallResult TalkTo(uint wid);
 

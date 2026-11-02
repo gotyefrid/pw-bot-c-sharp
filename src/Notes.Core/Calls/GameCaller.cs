@@ -56,6 +56,7 @@ public sealed class GameCaller : IGameActions
         // Пароль банка — строка по адресу данных
         [GameFunctions.NpcOpenStorage] = [DataArg],
         [GameFunctions.NpcReturnTask] = ["task", "choice"],
+        [GameFunctions.NpcAcceptTask] = ["task", "storage", "refresh"],
         [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.BankPutCount] = ["tab", "bankSlot", "slot", "count"],
@@ -171,6 +172,13 @@ public sealed class GameCaller : IGameActions
     /// (номер 0): так клиент сдаёт задания без выбора награды.
     /// </summary>
     public CallResult NpcReturnTask(int taskId) => Call(GameFunctions.NpcReturnTask, null, ("task", (uint)taskId), ("choice", 0));
+
+    /// <summary>
+    /// Взять задание у NPC, с которым начат разговор (<see cref="NpcHello"/>), как пунктом задания в его окне. Склад и обновление —
+    /// 0: обычное задание, не с «доски заданий».
+    /// </summary>
+    public CallResult NpcAcceptTask(int taskId) =>
+        Call(GameFunctions.NpcAcceptTask, null, ("task", (uint)taskId), ("storage", 0), ("refresh", 0));
 
     /// <summary>Номер вкладки банка в командах переноса: основная (данные игры, одинаковы на всех клиентах Comeback).</summary>
     private const uint BankMainTab = 3;

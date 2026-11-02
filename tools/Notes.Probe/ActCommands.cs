@@ -28,6 +28,7 @@ internal static class ActCommands
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
+          act quest-take НОМЕР    взять задание у NPC, с которым начат разговор (после npc-hello)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
           act shop-open         открыть лавку (торговля и ремонт), как кнопкой в сумке (смотреть в игре)
           act sell ЯЧ[xЧИСЛО] ...  продать одним пакетом: ячейка — вся стопка, 28x1 — часть (лавка открыта: act shop-open)
@@ -308,6 +309,11 @@ internal static class ActCommands
                 problem = "нужно: act quest-return НОМЕР_ЗАДАНИЯ (номер — из Probe quests)";
                 var task = args.Select(a => int.TryParse(a, out var v) && v > 0 && v < 65536 ? v : 0).FirstOrDefault(v => v != 0);
                 return task == 0 ? null : new NpcReturnTaskAction(task);
+
+            case "quest-take":
+                problem = "нужно: act quest-take НОМЕР_ЗАДАНИЯ (номер — из файла заданий клиента)";
+                var take = args.Select(a => int.TryParse(a, out var v) && v > 0 && v < 65536 ? v : 0).FirstOrDefault(v => v != 0);
+                return take == 0 ? null : new NpcAcceptTaskAction(take);
 
             case "bank":
                 return new OpenBankAction();
