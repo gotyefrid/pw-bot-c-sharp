@@ -755,10 +755,8 @@
                 <DockPanel Style="{StaticResource SettingRow}">
                   <TextBlock Text="NPC" VerticalAlignment="Center"
                              ToolTip="Любой NPC, который чинит. Встаньте рядом с ним — он появится в списке. Бот запомнит, где он стоит" />
-                  <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Repair.Npcs}" DisplayMemberPath="Title"
-                            TextSearch.TextPath="Title" IsEditable="True" IsTextSearchEnabled="True"
-                            SelectedValuePath="Name" SelectedValue="{Binding Repair.NpcName}"
-                            ToolTip="В списке — NPC вокруг персонажа, ближние первыми. Можно начать вводить имя — список подскажет" />
+                  <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Repair.NpcName}" OptionsSource="{Binding Repair.NpcOptions}"
+                                    ToolTip="В списке — NPC вокруг персонажа, ближние первыми. Начните вводить имя — останутся подходящие" />
                 </DockPanel>
                 <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Repair.HasInfo, Converter={StaticResource Visible}}">
                   <TextBlock DockPanel.Dock="Right" Text="{Binding Repair.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />

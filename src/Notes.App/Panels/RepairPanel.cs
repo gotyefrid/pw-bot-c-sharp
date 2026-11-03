@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using Notes.App.Mvvm;
 using Notes.Core.Logging;
@@ -10,9 +9,9 @@ using Notes.Core.World;
 namespace Notes.App.Panels;
 
 /// <summary>
-/// Карточка «Ремонт»: у какого NPC чинить. Список — NPC вокруг персонажа, ближние первыми (по имени — один, ближний), и уже
-/// выбранный, если его рядом нет; в поле можно ввести имя. Выбрали — запоминаем имя, вид (если сервер его показывает) и где он
-/// стоит: туда бот и полетит. По имени, а не по виду: на 1.3.6 вид NPC не читается.
+/// Карточка «Ремонт»: у какого NPC чинить. Список с поиском (<see cref="ChoicePicker"/>) — NPC вокруг персонажа, ближние первыми
+/// (одноимённые — один, ближний), и уже выбранный, если его рядом нет. Выбрали — запоминаем имя, вид (если сервер его
+/// показывает) и где он стоит: туда бот и полетит. По имени, а не по виду: на 1.3.6 вид NPC не читается.
 /// </summary>
 public sealed class RepairPanel : ObservableObject
 {
@@ -20,7 +19,6 @@ public sealed class RepairPanel : ObservableObject
     private readonly ILogger _log;
     private readonly Action _edited;
     private WorldState? _world;
-    private bool _syncing;
     private string _info = "";
 
     public RepairPanel(Func<BotSettings> settings, ILogger log, Action edited)
@@ -28,24 +26,22 @@ public sealed class RepairPanel : ObservableObject
         _settings = settings;
         _log = log;
         _edited = edited;
-        Fill();
+        NpcOptions = Options;
     }
-
-    /// <summary>Пункт списка: имя NPC (пусто — не выбран) и текст пункта.</summary>
-    public sealed record NpcChoice(string Name, string Title);
-
-    public ObservableCollection<NpcChoice> Npcs { get; } = new();
 
     private BotSettings Settings => _settings();
 
-    // Пока список пересобирается — null: окно, сбросив выбор, тут же перечитывает его, и пункт, которого ещё нет в списке,
-    // остался бы «выбранным», но невидимым (поле пустое). После пересборки выбор меняется null → пункт, и окно его находит
-    public string? NpcName
+    /// <summary>Варианты списка — заново при каждом открытии: NPC вокруг меняются.</summary>
+    public Func<IReadOnlyList<PickOption>> NpcOptions { get; }
+
+    /// <summary>Имя выбранного NPC; пусто — не выбран.</summary>
+    public string NpcName
     {
-        get => _syncing ? null : Settings.Repair.Npc?.Name ?? "";
+        get => Settings.Repair.Npc?.Name ?? "";
         set
         {
-            if (_syncing || value is null || Same(value, Settings.Repair.Npc?.Name ?? ""))
+            value ??= "";
+            if (Same(value, NpcName))
                 return;
             if (value.Length == 0)
             {
@@ -60,6 +56,7 @@ public sealed class RepairPanel : ObservableObject
             else
                 return;
             _edited();
+            OnPropertyChanged();
             UpdateInfo();
         }
     }
@@ -80,16 +77,14 @@ public sealed class RepairPanel : ObservableObject
     /// <summary>Выбор в окне ← настройки (сменился персонаж).</summary>
     public void Rebind()
     {
-        Fill();
         OnPropertyChanged(nameof(NpcName));
         UpdateInfo();
     }
 
-    /// <summary>Список ← NPC вокруг (пересобирается, только когда кто-то появился или ушёл).</summary>
+    /// <summary>Где персонаж и кто вокруг — для списка и «N м отсюда».</summary>
     public void Observe(WorldState w)
     {
         _world = w;
-        Fill();
         UpdateInfo();
     }
 
@@ -106,29 +101,14 @@ public sealed class RepairPanel : ObservableObject
 
     private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.CurrentCultureIgnoreCase);
 
-    private void Fill()
+    private IReadOnlyList<PickOption> Options()
     {
-        var nearby = Nearby(_world).Select(n => new NpcChoice(n.Name.Trim(), n.Name.Trim())).ToList();
-        // Рядом никого — подсказать, откуда берётся список
-        var list = new List<NpcChoice> { new("", nearby.Count == 0 ? "— рядом NPC нет: встаньте у того, кто чинит —" : "— не выбран —") };
+        var nearby = Nearby(_world).Select(n => new PickOption(n.Name.Trim(), n.Name.Trim())).ToList();
+        // Подпись пустого выбора — одна и та же: поле показывает её и когда список закрыт, а NPC вокруг к тому времени другие
+        var list = new List<PickOption> { new("", "— не выбран —") };
+        if (Settings.Repair.Npc is { } saved && nearby.All(o => !Same(o.Name, saved.Name)))
+            list.Add(new PickOption(saved.Name, saved.Name));
         list.AddRange(nearby);
-        if (Settings.Repair.Npc is { } saved && list.All(c => !Same(c.Name, saved.Name)))
-            list.Insert(1, new NpcChoice(saved.Name, saved.Name));
-        // Пересобираем, только когда кто-то появился или ушёл: от того, что перс сдвинулся, порядок не прыгает под рукой
-        if (list.Select(c => c.Title).OrderBy(t => t).SequenceEqual(Npcs.Select(c => c.Title).OrderBy(t => t)))
-            return;
-
-        _syncing = true;
-        try
-        {
-            Npcs.Clear();
-            foreach (var choice in list)
-                Npcs.Add(choice);
-        }
-        finally
-        {
-            _syncing = false;
-        }
-        OnPropertyChanged(nameof(NpcName));
+        return list;
     }
 }
