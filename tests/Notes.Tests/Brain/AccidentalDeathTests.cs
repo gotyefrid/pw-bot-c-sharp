@@ -124,32 +124,56 @@ public class AccidentalDeathTests
         Assert.DoesNotContain("revive-town", _actions.Calls);
     }
 
-    [Fact]
-    public void ThirdDeathInHalfHourStops()
+    private bool FliesWithin(double minutes)
     {
-        TickFor(1);
-        Die();
-        Die();
-        Assert.Null(_stop);
+        var flown = _actions.FlyPoints.Count;
+        TickFor(minutes * 60);
+        return _actions.FlyPoints.Count > flown;
+    }
 
+    // Встали в городе (первый живой снимок после «Ближнего города»)
+    private void DieAndRevive()
+    {
         _world.Hp = 0;
-        Tick();
-
-        Assert.Equal("персонаж погиб", _stop);
-        Assert.Contains(_log, e => e.Message.StartsWith("3-я смерть за 30 мин"));
+        TickFor(3);
     }
 
     [Fact]
-    public void OldDeathsDoNotCount()
+    public void KilledAgainSoonWaitsInTownLongerEachTime()
     {
         TickFor(1);
         Die();
-        Die();
-        _world.Wait(31 * 60);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= FlightTrip.Arrived);
 
-        Die();
+        // Убили через 3 мин — стоим 5 мин
+        TickFor(3 * 60);
+        DieAndRevive();
+        Assert.False(FliesWithin(4.5));
+        Assert.True(FliesWithin(1));
+        TickFor(15);
+        Assert.Contains(_log, e => e.Message.Contains("постою в городе 5 мин"));
 
+        // И снова — 10 мин
+        TickFor(60);
+        DieAndRevive();
+        Assert.False(FliesWithin(9.5));
+        Assert.True(FliesWithin(1));
         Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void TenQuietMinutesResetPause()
+    {
+        TickFor(1);
+        Die();
+        TickFor(60);
+        DieAndRevive();
+        TickFor(6 * 60); // 5 мин в городе, долетели
+
+        TickFor(10 * 60);
+        DieAndRevive();
+
+        Assert.True(FliesWithin(0.5));
     }
 
     [Fact]

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
@@ -18,8 +17,9 @@ public sealed record DeathRecord(int? ExpBefore, int? ExpAfter, double? PercentB
 /// После смерти: встать в ближнем городе и вернуться на место (<see cref="FlightTrip"/>). Ждёт смерть тот, кто её и устраивает
 /// (слив опыта: <see cref="Expect"/>). Смерть, которую никто не ждал: включено «встать и вернуться»
 /// (<see cref="Settings.TargetSettings.ReviveAndReturn"/>) и режим сказал, куда (<c>home</c>: центр фарма), — встаём и летим туда на
-/// высоте полёта к центру; иначе бот останавливается. Таких смертей <see cref="MaxDeaths"/> за <see cref="DeathWindow"/> — стоп:
-/// видимо, у места стоит тот, кто убивает раз за разом.
+/// высоте полёта к центру; иначе бот останавливается. Убили снова раньше, чем отфармили <see cref="QuietFarm"/> после возвращения
+/// (или по пути), — перед вылетом стоим в городе, и с каждой такой смертью дольше на <see cref="PauseStep"/>: у места, видимо, тот,
+/// кто убивает раз за разом, — пусть уйдёт. Отфармили <see cref="QuietFarm"/> без смерти — снова без паузы.
 /// <list type="bullet">
 /// <item>Стоит в наборе первым: пока встаём и летим обратно, ход у него, остальные не ходят — и сам слив тоже.</item>
 /// <item>Куда лететь, спрашиваем у ждавшего уже после воскрешения: он знает, сколько сняла смерть (слив: ещё сливать — в точку
@@ -30,9 +30,11 @@ public sealed record DeathRecord(int? ExpBefore, int? ExpAfter, double? PercentB
 /// </summary>
 public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) : IDeathBehavior
 {
-    /// <summary>Столько случайных смертей за <see cref="DeathWindow"/> — не встаём, бот останавливается.</summary>
-    public const int MaxDeaths = 3;
-    public static readonly TimeSpan DeathWindow = TimeSpan.FromMinutes(30);
+    /// <summary>Столько отфармили после возвращения без смерти — пауза перед вылетом сбрасывается.</summary>
+    public static readonly TimeSpan QuietFarm = TimeSpan.FromMinutes(10);
+
+    /// <summary>На столько дольше стоим в городе с каждой смертью подряд: 0, 5, 10, 15 мин…</summary>
+    public static readonly TimeSpan PauseStep = TimeSpan.FromMinutes(5);
 
     /// <summary>После смерти до «Ближнего города» (окно смерти появляется не сразу).</summary>
     public static readonly TimeSpan ReviveDelay = TimeSpan.FromSeconds(2);
@@ -54,8 +56,12 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
     private Spot _spot;
     private float _cruise;
     private FlightTrip? _trip;
-    // Когда умирали случайно (не слив опыта) — для «столько смертей за полчаса»
-    private readonly List<DateTime> _accidents = [];
+    // Случайные смерти подряд (без QuietFarm фарма между ними): от их числа — пауза в городе перед вылетом
+    private int _streak;
+    private TimeSpan _pause;
+    // Летим на фарм после случайной смерти; когда долетели — от этого считаем QuietFarm
+    private bool _accidentTrip;
+    private DateTime? _backAt;
 
     private int? _expAlive;
     private double? _percentAlive;
@@ -110,12 +116,15 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
 
     public bool TickDead(BrainContext c)
     {
-        // Смерть никто не ждал, и мы не в пути после прошлой: встать и вернуться на фарм, если так настроено, — иначе бот остановится
-        if (!_expected && _phase == Phase.Idle && !Accident(c))
-            return false;
-
         if (_phase != Phase.Dead)
         {
+            // Смерть никто не ждал: встать и вернуться на фарм, если так настроено. Нет — бот остановится; но если ещё в пути после
+            // прошлой смерти — встаём и долетаем, как раньше
+            _pause = TimeSpan.Zero;
+            _accidentTrip = false;
+            if (!_expected && !Accident(c) && _phase == Phase.Idle)
+                return false;
+
             _phase = Phase.Dead;
             _trip = null;
             _expBefore = _expAlive;
@@ -140,19 +149,22 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
         return true;
     }
 
-    // Случайная смерть: встаём, если включено и есть куда лететь, и умираем не слишком часто
+    // Случайная смерть: встаём, если включено и есть куда лететь. Убили снова вскоре после возвращения (или по пути) — пауза в городе
     private bool Accident(BrainContext c)
     {
         if (!c.Settings.Target.ReviveAndReturn || home?.Invoke(c) is null)
             return false;
-        _accidents.RemoveAll(t => c.Now - t > DeathWindow);
-        if (_accidents.Count + 1 >= MaxDeaths)
+
+        var soon = _phase != Phase.Idle || _backAt is { } back && c.Now - back < QuietFarm;
+        _streak = soon ? _streak + 1 : 0;
+        _pause = TimeSpan.FromTicks(PauseStep.Ticks * _streak);
+        if (_pause > TimeSpan.Zero)
         {
-            c.Log.Warning($"{MaxDeaths}-я смерть за {DeathWindow.TotalMinutes:0} мин — не встаю: видимо, у места фарма убивают раз за разом");
-            return false;
+            var after = _backAt is { } b && _phase == Phase.Idle ? $"через {(c.Now - b).TotalMinutes:0} мин после возвращения" : "по пути на фарм";
+            c.Log.Warning($"Убили снова {after} — встану и постою в городе {_pause.TotalMinutes:0} мин, потом полечу на фарм");
         }
 
-        _accidents.Add(c.Now);
+        _accidentTrip = true;
         _whereTo = c => home(c) ?? new Spot(c.World.Host.Position, TripEnd.Ground);
         _cruise = c.Settings.Target.TravelHeight * 10;
         return true;
@@ -176,8 +188,13 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
     private bool AfterRevival(BrainContext c)
     {
         Status = "встал в городе";
-        if (c.Now - _since < AfterRevive)
+        var wait = AfterRevive + _pause - (c.Now - _since);
+        if (wait > TimeSpan.Zero)
+        {
+            if (_pause > TimeSpan.Zero)
+                Status = $"жду в городе ещё {Math.Ceiling(wait.TotalMinutes):0} мин";
             return true;
+        }
 
         _spot = _whereTo!(c);
         var distance = c.World.Host.Position.HorizontalDistanceTo(_spot.Position);
@@ -203,6 +220,9 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
                 return true;
             case TripStep.Arrived:
                 c.Log.Info("Вернулся на место");
+                // После случайной смерти: отсюда считаем «отфармили спокойно»
+                if (_accidentTrip)
+                    _backAt = c.Now;
                 _phase = Phase.Idle;
                 _trip = null;
                 Status = null;
@@ -221,7 +241,10 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
         _expected = false;
         _whereTo = null;
         _trip = null;
-        _accidents.Clear();
+        _streak = 0;
+        _pause = TimeSpan.Zero;
+        _accidentTrip = false;
+        _backAt = null;
         _expAlive = _expBefore = null;
         _percentAlive = _percentBefore = null;
         Deaths = 0;
