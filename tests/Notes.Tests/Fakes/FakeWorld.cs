@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
@@ -25,6 +25,10 @@ internal sealed class FakeWorld
     /// <summary>null — сервер не показывает максимум MP.</summary>
     public int? MaxMp { get; set; } = 500;
     public int Level { get; set; } = 10;
+
+    /// <summary>Опыт и сколько нужно до уровня; null — не найдено на сервере.</summary>
+    public int? Exp { get; set; }
+    public int? ExpToLevel { get; set; }
     public Position Position { get; set; } = new(0, 0, 0);
     public uint TargetWid { get; set; }
     public int PetFoodCooldownMs { get; set; }
@@ -79,7 +83,7 @@ internal sealed class FakeWorld
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
-            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater },
+            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList() };
 
     /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
@@ -206,6 +210,13 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult MoveTo(Position point, bool smart) => Record(smart ? $"move {point} умно" : $"move {point}");
     public CallResult Gather(GroundItem resource) => Record($"gather {resource.Id:X}");
     public CallResult ToggleFly() => Record("fly-toggle");
-    public CallResult FlyTo(Position point) => Record($"fly {point}");
+    public CallResult FlyTo(Position point)
+    {
+        FlyPoints.Add(point);
+        return Record($"fly {point}");
+    }
+
+    /// <summary>Куда просили лететь — по порядку (в <see cref="Calls"/> точка текстом, с запятой или точкой по культуре).</summary>
+    public List<Position> FlyPoints { get; } = [];
     public CallResult Press(KeyStroke key) => Record($"key {key}");
 }

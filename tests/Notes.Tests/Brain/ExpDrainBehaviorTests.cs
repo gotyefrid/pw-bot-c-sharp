@@ -1,0 +1,307 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Notes.Core.Actions;
+using Notes.Core.Brain;
+using Notes.Core.Logging;
+using Notes.Core.Profiles;
+using Notes.Core.Settings;
+using Notes.Core.World;
+using Notes.Tests.Fakes;
+using Xunit;
+
+namespace Notes.Tests.Brain;
+
+/// <summary>Слив опыта в режиме «Бить мобов»: снимки подставного мира, который отвечает на вызовы как игра.</summary>
+public class ExpDrainBehaviorTests
+{
+    private const int Arrow = 125;
+    private static readonly ClassSkills Skills = new() { HealPet = 330, RevivePet = 329, DefaultAttack = 299, NotAttack = [167, 329, 330] };
+    private static readonly Position Town = new(300, 0, 0);
+
+    private readonly FakeWorld _world = new();
+    private readonly FakeActions _actions = new();
+    private readonly List<LogEntry> _log = [];
+    private readonly BotSettings _settings = new();
+    private IBotRunner? _brain;
+    private int _seen;
+    private int _flown;
+    private string? _stop;
+
+    /// <summary>Игра «засчитывает» выстрел (скилл уходит на перезарядку).</summary>
+    private bool _hits = true;
+
+    private sealed class ListSink(List<LogEntry> entries) : ILogSink
+    {
+        public void Write(LogEntry entry) => entries.Add(entry);
+    }
+
+    public ExpDrainBehaviorTests()
+    {
+        _settings.Target.KillMobs = false;
+        _settings.Pet.Enabled = false;
+        _settings.Potions.MpBelow = 0;
+        _settings.Potions.UseHp = false;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackSkillId = Arrow;
+        _settings.ExpDrain.Enabled = true;
+        _settings.ExpDrain.MaxLevel = 10;
+        _settings.ExpDrain.StartPercent = 80;
+        _settings.ExpDrain.TargetPercent = 10;
+        _settings.ExpDrain.Mobs = 2;
+        _settings.ExpDrain.FlightHeight = 23;
+        _world.Level = 10;
+        _world.Exp = 900;
+        _world.ExpToLevel = 1000;
+        _world.AddSkill(Arrow);
+    }
+
+    private IBotRunner Brain
+    {
+        get
+        {
+            if (_brain is not null)
+                return _brain;
+            _brain = BotModes.Create(BotMode.FarmMobs, new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
+                new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), random: new Random(1));
+            _brain.StopRequested += reason => _stop = reason;
+            return _brain;
+        }
+    }
+
+    private IEnumerable<string> NewCalls => _actions.Calls.Skip(_seen);
+
+    // Шаг мозга, потом ответ «игры» на то, что он отправил
+    private void Tick(double seconds = 0.25)
+    {
+        Brain.Tick(_world.Wait(seconds).Snapshot());
+        foreach (var call in _actions.Calls.Skip(_seen).ToList())
+        {
+            var parts = call.Split(' ');
+            switch (parts[0])
+            {
+                case "select":
+                    _world.TargetWid = Convert.ToUInt32(parts[1], 16);
+                    _world.SetCooldown(Arrow, 0); // пока выбирали, прошлая перезарядка кончилась
+                    break;
+                case "unselect":
+                    _world.TargetWid = 0;
+                    break;
+                case "apply" when _hits:
+                    _world.SetCooldown(Arrow, 3000);
+                    break;
+                case "recall":
+                    _world.SetPet(1, summoned: false);
+                    break;
+                case "fly-toggle":
+                    _world.Flying = _world.Flying != true;
+                    if (_world.Flying == false)
+                        _world.Position = _world.Position with { Height = 0 };
+                    break;
+                case "fly":
+                    _world.Position = _actions.FlyPoints[_flown++];
+                    break;
+                case "revive-town":
+                    _world.Hp = _world.MaxHp;
+                    _world.Position = Town;
+                    break;
+            }
+        }
+        _seen = _actions.Calls.Count;
+    }
+
+    private void TickFor(double seconds)
+    {
+        for (var t = 0.0; t < seconds; t += 0.25)
+            Tick();
+    }
+
+    private bool Logged(string text) => _log.Any(e => e.Message.Contains(text));
+
+    private void AddGroundMobs()
+    {
+        _world.Npcs.Add(new NpcInfo(0x80000001, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(5, 200, 0), "Змея", 0));
+        _world.AddMob(0x80000002, "Волк", 10);
+        _world.AddMob(0x80000003, "Медведь", 20);
+        _world.AddMob(0x80000004, "Далёкий", 60);
+    }
+
+    // Собрать 2 мобов и встать ждать смерти
+    private void PullTwo()
+    {
+        AddGroundMobs();
+        TickFor(3);
+        Assert.Contains("unselect", _actions.Calls);
+    }
+
+    [Fact]
+    public void BelowThresholdDoesNothing()
+    {
+        _world.Exp = 790;
+        AddGroundMobs();
+
+        TickFor(2);
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void PullsGroundMobsOneShotEachThenWaitsForDeath()
+    {
+        PullTwo();
+
+        Assert.Equal(["select 80000002", "apply 125 80000002", "select 80000003", "apply 125 80000003", "unselect"], _actions.Calls);
+        Assert.Contains("жду смерти", Brain.Status);
+    }
+
+    [Fact]
+    public void PetIsRecalledFirst()
+    {
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1);
+        AddGroundMobs();
+
+        TickFor(1);
+
+        Assert.Equal("recall", _actions.Calls[0]);
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("summon"));
+    }
+
+    [Fact]
+    public void InterruptedCastIsShotAgainThenNextMob()
+    {
+        _hits = false;
+        AddGroundMobs();
+
+        TickFor(16);
+
+        Assert.Equal(3, _actions.Calls.Count(c => c == "apply 125 80000002"));
+        Assert.Contains("select 80000003", _actions.Calls);
+    }
+
+    [Fact]
+    public void DeathDuringDrainRevivesInTownAndFliesBackHigh()
+    {
+        PullTwo();
+        _world.Hp = 0;
+        _world.Exp = 700;
+
+        TickFor(1.5);
+        Assert.Null(_stop);
+        Assert.DoesNotContain("revive-town", NewCalls);
+
+        TickFor(1);
+        Assert.Contains("revive-town", _actions.Calls);
+        TickFor(3);
+        Assert.Contains(_log, e => e.Message.Contains("смерть сняла 200 опыта"));
+
+        TickFor(2);
+        // Взлёт, подъём строго вверх над городом до 23 (230 в памяти), потом отрезками к месту
+        Assert.Equal(new Position(300, 230, 0), _actions.FlyPoints[0]);
+        Assert.Equal(new Position(150, 230, 0), _actions.FlyPoints[1]);
+
+        TickFor(3);
+        Assert.False(_world.Flying);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= 5);
+        Assert.True(Logged("на месте — собираю мобов"));
+        Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void DrainEndsWhenExpBelowTarget()
+    {
+        PullTwo();
+        _world.Hp = 0;
+        _world.Exp = 50;
+
+        TickFor(12);
+
+        Assert.True(Logged("Слив опыта закончен"));
+        Assert.Equal(1, _actions.Calls.Count(c => c == "unselect"));
+        Assert.Null(Brain.Status is { } s && s.Contains("слив") ? s : null);
+    }
+
+    [Fact]
+    public void DeathOutsideDrainStopsBot()
+    {
+        _world.Exp = 500;
+        _world.Hp = 0;
+
+        Tick();
+
+        Assert.Equal("персонаж погиб", _stop);
+    }
+
+    [Fact]
+    public void DeathsWithoutExpLossTurnDrainOff()
+    {
+        for (var death = 0; death < 2; death++)
+        {
+            if (death == 0)
+                PullTwo();
+            else
+                TickFor(3);
+            _world.Hp = 0;
+            TickFor(12);
+        }
+
+        Assert.True(Logged("2 смерти подряд не сняли опыт"));
+        Assert.True(Logged("Слив опыта закончен"));
+        var calls = _actions.Calls.Count;
+        TickFor(5);
+        Assert.Equal(calls, _actions.Calls.Count);
+    }
+
+    [Fact]
+    public void LevelAboveMaxOnlyWarns()
+    {
+        _world.Level = 11;
+        AddGroundMobs();
+
+        TickFor(1);
+
+        Assert.Empty(_actions.Calls);
+        Assert.True(Logged("поздно"));
+    }
+
+    [Fact]
+    public void NoReviveOnServerOnlyWarns()
+    {
+        _actions.Capabilities = Capabilities.All.Without(Capability.ReviveInTown, "нет функции");
+        AddGroundMobs();
+
+        TickFor(1);
+
+        Assert.Empty(_actions.Calls);
+        Assert.True(Logged("на этом сервере не работает"));
+    }
+
+    [Fact]
+    public void InAirTakesFlyingMobsAndDoesNotLand()
+    {
+        _world.Flying = true;
+        _world.Position = new Position(0, 200, 0);
+        AddGroundMobs();
+
+        TickFor(3);
+        Assert.Equal("select 80000001", _actions.Calls[0]);
+
+        _world.Hp = 0;
+        _world.Flying = false;
+        _world.Exp = 700;
+        TickFor(12);
+
+        Assert.True(Logged("на месте — собираю мобов"));
+        Assert.True(_world.Flying);
+        Assert.Equal(new Position(0, 200, 0), _world.Position);
+    }
+
+    [Fact]
+    public void NoMobsAroundAbandonsAndFarmsOn()
+    {
+        TickFor(61);
+
+        Assert.True(Logged("Слив опыта брошен"));
+        Assert.Null(_stop);
+    }
+}
