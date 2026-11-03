@@ -68,6 +68,7 @@ public sealed class FarmPanel : ObservableObject
         StashNames.CollectionChanged += (_, _) => NameListsEdited();
         AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _world() is not null);
         RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
+        AddDeathPointCommand = new RelayCommand(AddDeathPoint, () => _world() is not null);
     }
 
     private BotSettings Settings => _settings();
@@ -140,6 +141,7 @@ public sealed class FarmPanel : ObservableObject
     public ObservableCollection<string> FarmCenters { get; } = new();
 
     public ICommand AddFarmPointCommand { get; }
+    public ICommand AddDeathPointCommand { get; }
     public ICommand RemoveFarmPointCommand { get; }
 
     // Пока список пересобирается — null: окно, сбросив выбор, тут же перечитывает его, и центр, которого ещё нет в списке,
@@ -156,6 +158,49 @@ public sealed class FarmPanel : ObservableObject
             Settings.Target.FarmCenter = value == StartCenter ? "" : value;
             FarmCenterChanged();
         }
+    }
+
+    // ── Слив опыта ───────────────────────────────────────────────────────────
+
+    public const string AtFarm = "На месте фарма";
+
+    /// <summary>Где умирать при сливе опыта: «На месте фарма» и те же сохранённые точки, что у центра фарма.</summary>
+    public ObservableCollection<string> DeathPoints { get; } = new();
+
+    // Как у центра фарма: пока список пересобирается — null
+    public string? SelectedDeathPoint
+    {
+        get => _syncingCenters ? null : Settings.ExpDrain.FindDeathPoint(Settings.Target)?.Name ?? AtFarm;
+        set
+        {
+            if (_syncingCenters || value is null)
+                return;
+            Settings.ExpDrain.DeathPoint = value == AtFarm ? "" : value;
+            OnPropertyChanged();
+        }
+    }
+
+    public sealed record DrainMobsChoice(DrainMobs Mobs, string Title);
+
+    public IReadOnlyList<DrainMobsChoice> DrainMobsChoices { get; } =
+        [new(DrainMobs.AsFarm, "Как при фарме"), new(DrainMobs.Ground, "Земных"), new(DrainMobs.Air, "Летающих"), new(DrainMobs.Water, "Водных")];
+
+    // Запомнить, где стоит перс, как точку для смертей — центр фарма не трогаем
+    private void AddDeathPoint()
+    {
+        if (_world() is not { } w)
+            return;
+
+        var points = Settings.Target.FarmPoints;
+        var n = 1;
+        while (points.Any(p => p.Name.Equals($"Смерть {n}", StringComparison.OrdinalIgnoreCase)))
+            n++;
+        var point = FarmPoint.At($"Смерть {n}", w.Host.Position);
+        points.Add(point);
+        Settings.ExpDrain.DeathPoint = point.Name;
+        _log.Info($"Точка для смертей «{point.Name}» сохранена: {point.Position}");
+        LoadFarmCenters();
+        _edited();
     }
 
     /// <summary>Выбрана сохранённая точка (а не точка старта).</summary>
@@ -179,6 +224,9 @@ public sealed class FarmPanel : ObservableObject
                 return;
             }
 
+            // Эта же точка — и для смертей при сливе опыта: там тоже новое название
+            if (point.Name.Equals(Settings.ExpDrain.DeathPoint, StringComparison.OrdinalIgnoreCase))
+                Settings.ExpDrain.DeathPoint = name;
             point.Name = name;
             Settings.Target.FarmCenter = name;
             LoadFarmCenters();
@@ -343,6 +391,8 @@ public sealed class FarmPanel : ObservableObject
 
         Settings.Target.FarmPoints.Remove(point);
         Settings.Target.FarmCenter = "";
+        if (point.Name.Equals(Settings.ExpDrain.DeathPoint, StringComparison.OrdinalIgnoreCase))
+            Settings.ExpDrain.DeathPoint = "";
         _log.Info($"Точка фарма «{point.Name}» удалена — центр: точка старта");
         LoadFarmCenters();
         _edited();
@@ -356,8 +406,13 @@ public sealed class FarmPanel : ObservableObject
         {
             FarmCenters.Clear();
             FarmCenters.Add(StartCenter);
+            DeathPoints.Clear();
+            DeathPoints.Add(AtFarm);
             foreach (var point in Settings.Target.FarmPoints)
+            {
                 FarmCenters.Add(point.Name);
+                DeathPoints.Add(point.Name);
+            }
         }
         finally
         {
@@ -370,6 +425,7 @@ public sealed class FarmPanel : ObservableObject
     private void FarmCenterChanged()
     {
         OnPropertyChanged(nameof(SelectedFarmCenter));
+        OnPropertyChanged(nameof(SelectedDeathPoint));
         OnPropertyChanged(nameof(HasFarmPoint));
         OnPropertyChanged(nameof(FarmPointName));
         UpdateFarmPointInfo();

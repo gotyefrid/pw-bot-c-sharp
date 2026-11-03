@@ -132,6 +132,7 @@ public sealed class BotSettings
         ExpDrain.TargetPercent = Clamp(ExpDrain.TargetPercent, 0, 99);
         ExpDrain.Mobs = Clamp(ExpDrain.Mobs, 1, 10);
         ExpDrain.FlightHeight = Clamp(ExpDrain.FlightHeight, 0, 800);
+        ExpDrain.DeathPoint = ExpDrain.DeathPoint?.Trim() ?? "";
         return this;
     }
 
@@ -569,6 +570,31 @@ public sealed class ExpDrainSettings : SettingsPart
     /// по пути.
     /// </summary>
     public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
+
+    private string _deathPoint = "";
+    /// <summary>
+    /// Где умирать — название точки из <see cref="TargetSettings.FarmPoints"/>; пусто (или точки нет) — на месте фарма. Первая смерть —
+    /// всё равно там, где фармим (уже на месте), сюда летим со второй; слили — летим на место фарма.
+    /// </summary>
+    public string DeathPoint { get => _deathPoint; set => Set(ref _deathPoint, value); }
+
+    private DrainMobs _deathMobs = DrainMobs.AsFarm;
+    /// <summary>От каких мобов умирать; заодно — где: летающих ждём в воздухе (не садимся), водных — в воде.</summary>
+    public DrainMobs DeathMobs { get => _deathMobs; set => Set(ref _deathMobs, value); }
+
+    /// <summary>Точка для смертей; null — умирать на месте фарма.</summary>
+    public FarmPoint? FindDeathPoint(TargetSettings target)
+        => DeathPoint.Length == 0 ? null : target.FarmPoints.FirstOrDefault(p => string.Equals(p.Name, DeathPoint, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>От каких мобов умирать при сливе опыта.</summary>
+public enum DrainMobs
+{
+    /// <summary>Как при фарме: фармит в воздухе — от летающих, в воде — от водных, на земле — от земных.</summary>
+    AsFarm,
+    Ground,
+    Air,
+    Water,
 }
 
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>

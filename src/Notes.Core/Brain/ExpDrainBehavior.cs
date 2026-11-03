@@ -1,12 +1,16 @@
 using System;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
+using Notes.Core.Settings;
 using Notes.Core.World;
 
 namespace Notes.Core.Brain;
 
-/// <summary>Где сливаем: точка, куда возвращаться, и сливаем ли в воздухе (не садиться).</summary>
-public readonly record struct DrainPlace(Position Home, bool InAir);
+/// <summary>
+/// План слива: где фармили (туда — в конце), где умирать со второй смерти (<see cref="DeathAtFarm"/> — там же, где фармили, и мобы
+/// из фильтра фарма), от каких мобов (<see cref="Mobs"/>) и слили ли уже (<see cref="Enough"/>).
+/// </summary>
+public sealed record DrainPlan(Spot Farm, Spot Death, bool DeathAtFarm, Habitat Mobs, Func<BrainContext, bool> Enough);
 
 public enum DrainStepKind
 {
@@ -43,7 +47,7 @@ public interface IExpDrainMethod
     /// <summary>Почему этим способом на этом сервере не слить; null — можно.</summary>
     string? WhyNot(BrainContext c);
 
-    void Begin(BrainContext c, DrainPlace place);
+    void Begin(BrainContext c, DrainPlan plan);
     DrainStep Tick(BrainContext c);
     void OnOutcome(BrainContext c, ActionOutcome outcome);
 
@@ -59,8 +63,10 @@ public interface IExpDrainMethod
 /// <list type="bullet">
 /// <item>Стоит в наборе почти первым: пока слив идёт, ход всегда у него — банки, пет, бой, лут, копание и возврат не ходят и
 /// ему не мешают. Начинает только без боя и лута и когда никто не посреди дела (<see cref="BrainContext.InMiddle"/>: банк).</item>
-/// <item>Куда возвращаться, задаёт режим (<c>home</c>: у фарма — центр фарма); нет точки — где стоим. Перс начал слив в
-/// воздухе (фарм летающих мобов) — не садится: сливает в полёте и возвращается на ту же высоту.</item>
+/// <item>Куда возвращаться после слива, задаёт режим (<c>home</c>: у фарма — центр фарма); нет точки — где стоим. Перс начал
+/// слив в воздухе (фарм летающих мобов) — возвращается на ту же высоту, в воде — на ту же глубину.</item>
+/// <item>Где умирать: точка из настроек (<see cref="Settings.ExpDrainSettings.DeathPoint"/>) или место фарма. От каких мобов
+/// (<see cref="Settings.ExpDrainSettings.DeathMobs"/>) — заодно и как ждать смерть: летающих — в воздухе, водных — в воде.</item>
 /// </list>
 /// </summary>
 public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, Position?> home) : IBehavior
@@ -69,6 +75,7 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
     public static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(5);
 
     private bool _active;
+    private DrainPlan? _plan;
     private string? _off;
     private DateTime _retryAt = DateTime.MinValue;
 
@@ -101,10 +108,7 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
             case DrainStepKind.Working:
                 return true;
             case DrainStepKind.AttemptDone:
-                var percent = c.World.Host.ExpPercent;
-                if (percent is null || percent <= c.Settings.ExpDrain.TargetPercent)
-                    return Finish(c);
-                return Step(c);
+                return _plan!.Enough(c) ? Finish(c) : Step(c);
             case DrainStepKind.GaveUp:
                 c.Log.Warning($"Слив опыта брошен: {step.Why} — фармлю дальше, попробую через {RetryAfter.TotalMinutes:0} мин");
                 _retryAt = c.Now + RetryAfter;
@@ -145,16 +149,49 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         if (c.Fight.Busy || c.InMiddle is not null || c.Runner.BodyBusy(c.World) is not null)
             return false;
 
-        var air = host.Flying == true;
-        var at = home(c) ?? host.Position;
-        var place = new DrainPlace(air ? at with { Height = host.Position.Height } : at, air);
+        _plan = Plan(c);
         c.Fight.Abort();
-        c.Log.Info($"Опыт {percent:0.0} % на {host.Level} ур. (порог {settings.StartPercent} %) — сливаю {method.Name} до {settings.TargetPercent} %"
-                   + (air ? ", в воздухе" : ""));
-        method.Begin(c, place);
+        c.Log.Info($"Опыт {percent:0.0} % на {host.Level} ур. (порог {settings.StartPercent} %) — сливаю {method.Name} до {settings.TargetPercent} %, "
+                   + $"от {MobsText(_plan.Mobs)} мобов, {(_plan.DeathAtFarm ? "на месте фарма" : $"в точке «{settings.DeathPoint}» (со второй смерти)")}");
+        method.Begin(c, _plan);
         _active = true;
         return Step(c);
     }
+
+    private DrainPlan Plan(BrainContext c)
+    {
+        var host = c.World.Host;
+        var settings = c.Settings.ExpDrain;
+        var farmEnd = host.Flying == true ? TripEnd.Air : host.InWater == true ? TripEnd.Water : TripEnd.Ground;
+        var at = home(c) ?? host.Position;
+        var farm = new Spot(farmEnd == TripEnd.Ground ? at : at with { Height = host.Position.Height }, farmEnd);
+
+        var mobs = settings.DeathMobs switch
+        {
+            DrainMobs.Ground => Habitat.Ground,
+            DrainMobs.Air => Habitat.Air,
+            DrainMobs.Water => Habitat.Water,
+            _ => farmEnd switch { TripEnd.Air => Habitat.Air, TripEnd.Water => Habitat.Water, _ => Habitat.Ground },
+        };
+        var mobsEnd = mobs switch { Habitat.Air => TripEnd.Air, Habitat.Water => TripEnd.Water, _ => TripEnd.Ground };
+
+        var point = settings.FindDeathPoint(c.Settings.Target);
+        if (point is null && settings.DeathPoint.Length > 0)
+            c.Say("drain-no-point", $"Слив опыта: точки «{settings.DeathPoint}» нет среди сохранённых — умираю на месте фарма", LogLevel.Warning, 3600);
+        var death = point is null ? new Spot(farm.Position, mobsEnd) : new Spot(point.Position, mobsEnd);
+        return new DrainPlan(farm, death, point is null, mobs, Enough);
+    }
+
+    // Слили (или слив выключили, пока летели из города) — на место фарма
+    private static bool Enough(BrainContext c)
+        => !c.Settings.ExpDrain.Enabled || c.World.Host.ExpPercent is not { } percent || percent <= c.Settings.ExpDrain.TargetPercent;
+
+    private static string MobsText(Habitat mobs) => mobs switch
+    {
+        Habitat.Air => "летающих",
+        Habitat.Water => "водных",
+        _ => "земных",
+    };
 
     private string? WhyNot(BrainContext c)
     {

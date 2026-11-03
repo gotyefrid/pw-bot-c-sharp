@@ -19,6 +19,8 @@ public sealed record DeathRecord(int? ExpBefore, int? ExpAfter, double? PercentB
 /// так же можно ждать любую смерть — «умер случайно — встать и фармить дальше».
 /// <list type="bullet">
 /// <item>Стоит в наборе первым: пока встаём и летим обратно, ход у него, остальные не ходят — и сам слив тоже.</item>
+/// <item>Куда лететь, спрашиваем у ждавшего уже после воскрешения: он знает, сколько сняла смерть (слив: ещё сливать — в точку
+/// для смертей, слили — на место фарма).</item>
 /// <item>Вернулись — ход свободен; кто ждал смерть, видит <see cref="Deaths"/> и <see cref="LastDeath"/> (сколько снято опыта).</item>
 /// <item>Ожидание сняли (<see cref="Release"/>), пока встаём или летим, — всё равно долетаем: в городе бот не фармит.</item>
 /// </list>
@@ -41,8 +43,8 @@ public sealed class DeathReturnBehavior : IDeathBehavior
 
     private Phase _phase;
     private bool _expected;
-    private Position _home;
-    private bool _stayInAir;
+    private Func<BrainContext, Spot>? _whereTo;
+    private Spot _spot;
     private float _cruise;
     private FlightTrip? _trip;
 
@@ -66,14 +68,13 @@ public sealed class DeathReturnBehavior : IDeathBehavior
     public DeathRecord? LastDeath { get; private set; }
 
     /// <summary>
-    /// Следующая смерть — ожидаемая: встать в городе и вернуться в <paramref name="home"/> на высоте <paramref name="cruise"/>
-    /// (как в памяти). <paramref name="stayInAir"/> — не садиться, а зависнуть на высоте точки.
+    /// Следующая смерть — ожидаемая: встать в городе и лететь туда, куда скажет <paramref name="whereTo"/> (спросим после
+    /// воскрешения, <see cref="LastDeath"/> уже известна), на высоте <paramref name="cruise"/> (как в памяти).
     /// </summary>
-    public void Expect(Position home, bool stayInAir, float cruise)
+    public void Expect(Func<BrainContext, Spot> whereTo, float cruise)
     {
         _expected = true;
-        _home = home;
-        _stayInAir = stayInAir;
+        _whereTo = whereTo;
         _cruise = cruise;
     }
 
@@ -151,7 +152,8 @@ public sealed class DeathReturnBehavior : IDeathBehavior
         if (c.Now - _since < AfterRevive)
             return true;
 
-        var distance = c.World.Host.Position.HorizontalDistanceTo(_home);
+        _spot = _whereTo!(c);
+        var distance = c.World.Host.Position.HorizontalDistanceTo(_spot.Position);
         if (distance > MaxTrip)
         {
             _phase = Phase.Idle;
@@ -159,14 +161,14 @@ public sealed class DeathReturnBehavior : IDeathBehavior
         }
 
         c.Log.Info($"Лечу на место, {distance:0} м");
-        _trip = new FlightTrip(_home, _cruise, _stayInAir);
+        _trip = new FlightTrip(_spot, _cruise);
         _phase = Phase.Return;
         return Return(c);
     }
 
     private bool Return(BrainContext c)
     {
-        var left = c.World.Host.Position.HorizontalDistanceTo(_home);
+        var left = c.World.Host.Position.HorizontalDistanceTo(_spot.Position);
         Status = $"лечу на место, {left:0} м";
         switch (_trip!.Step(c))
         {
@@ -190,6 +192,7 @@ public sealed class DeathReturnBehavior : IDeathBehavior
     {
         _phase = Phase.Idle;
         _expected = false;
+        _whereTo = null;
         _trip = null;
         _expAlive = _expBefore = null;
         _percentAlive = _percentBefore = null;

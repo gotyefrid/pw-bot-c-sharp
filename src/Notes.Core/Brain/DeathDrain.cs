@@ -3,14 +3,21 @@ using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
+using Notes.Core.World;
 
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Слив опыта смертью: отозвать пета, собрать на себя мобов (<see cref="MobPull"/>), стоять и ждать смерти. Встать в городе и
-/// вернуться — дело <see cref="DeathReturnBehavior"/>: смерть ему объявляется ожидаемой на всё время слива. Вернулись — одна
-/// попытка кончилась (<see cref="DrainStep.AttemptDone"/>), слив решает, хватит ли. Амулет раз в 10 с восстанавливает всё HP,
-/// поэтому мобов несколько.
+/// Слив опыта смертью: отозвать пета, встать как велит вид мобов (летающих ждём в воздухе — взлететь, земных — сесть), собрать на
+/// себя мобов (<see cref="MobPull"/>), стоять и ждать смерти. Встать в городе и долететь — дело <see cref="DeathReturnBehavior"/>:
+/// смерть ему объявляется ожидаемой на всё время слива, а куда лететь, он спросит после воскрешения (<see cref="WhereTo"/>): ещё
+/// сливать — в точку для смертей, слили — на место фарма. Вернулись — одна попытка кончилась (<see cref="DrainStep.AttemptDone"/>).
+/// Амулет раз в 10 с восстанавливает всё HP, поэтому мобов несколько.
+/// <list type="bullet">
+/// <item>Мобы — только того вида, что в плане (где обитает — по справочнику игры). Вид неизвестен (поле не найдено для сервера) —
+/// по высоте: на земле — только на нашей высоте (летающие на выстрел не подманиваются), в воздухе — любые.</item>
+/// <item>На месте фарма — из фильтра фарма; в точке для смертей — любые: там фильтр фарма ни при чём.</item>
+/// </list>
 /// </summary>
 public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
 {
@@ -29,14 +36,20 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     /// <summary>Столько смертей подряд не сняли опыт — слив выключаем до перезапуска бота.</summary>
     public const int NoLossDeaths = 2;
 
-    private enum Stage { RecallPet, Pull, WaitDeath }
+    /// <summary>Вид моба неизвестен, перс на земле — моб выше или ниже больше этого: летающий, на выстрел не подманивается.</summary>
+    public const float GroundHeight = 5f;
+
+    private enum Stage { RecallPet, Settle, Pull, WaitDeath }
 
     private Stage _stage;
-    private DrainPlace _place;
+    private DrainPlan _plan = null!;
+    private bool _atFarm;
+    private FlightTrip? _settle;
     private MobPull? _pull;
     private int _rounds;
     private int _deaths;
     private int _noLoss;
+    private string? _off;
     private bool _back;
     private DateTime _since;
     private DateTime? _noMobsSince;
@@ -51,14 +64,32 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         return caps.WhyNot(Capability.ReviveInTown) ?? caps.WhyNot(Capability.Move);
     }
 
-    public void Begin(BrainContext c, DrainPlace place)
+    public void Begin(BrainContext c, DrainPlan plan)
     {
-        _place = place;
+        _plan = plan;
+        _atFarm = true;
         _noLoss = 0;
+        _off = null;
         _deaths = afterDeath.Deaths;
         _back = false;
-        afterDeath.Expect(place.Home, place.InAir, c.Settings.ExpDrain.FlightHeight * 10);
+        afterDeath.Expect(WhereTo, c.Settings.ExpDrain.FlightHeight * 10);
         _stage = Stage.RecallPet;
+    }
+
+    // Встали в городе: смерть уже известна — решаем, сливать ли дальше, и отсюда — куда лететь
+    private Spot WhereTo(BrainContext c)
+    {
+        if (afterDeath.LastDeath?.Lost is <= 0)
+        {
+            if (++_noLoss >= NoLossDeaths)
+                _off = $"{NoLossDeaths} смерти подряд не сняли опыт";
+        }
+        else
+            _noLoss = 0;
+
+        var more = _off is null && !_plan.Enough(c);
+        _atFarm = !more || _plan.DeathAtFarm;
+        return more ? _plan.Death : _plan.Farm;
     }
 
     public DrainStep Tick(BrainContext c)
@@ -72,9 +103,11 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
             case Stage.RecallPet:
                 if (RecallPet(c))
                     return DrainStep.Working;
-                _rounds = 0;
-                NewRound(c);
-                return Pull(c);
+                _stage = Stage.Settle;
+                _settle = new FlightTrip(new Spot(c.World.Host.Position, End(_plan.Mobs)), cruise: 0);
+                return Settle(c);
+            case Stage.Settle:
+                return Settle(c);
             case Stage.Pull:
                 return Pull(c);
             default:
@@ -87,16 +120,11 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     {
         _deaths = afterDeath.Deaths;
         _pull?.Drop(c);
-        if (afterDeath.LastDeath?.Lost is <= 0)
-        {
-            if (++_noLoss >= NoLossDeaths)
-                return DrainStep.Off($"{NoLossDeaths} смерти подряд не сняли опыт");
-        }
-        else
-            _noLoss = 0;
+        if (_off is { } off)
+            return DrainStep.Off(off);
 
         // Высоту могли поменять в окне
-        afterDeath.Expect(_place.Home, _place.InAir, c.Settings.ExpDrain.FlightHeight * 10);
+        afterDeath.Expect(WhereTo, c.Settings.ExpDrain.FlightHeight * 10);
         _back = true;
         _rounds = 0;
         NewRound(c);
@@ -117,12 +145,41 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         return false;
     }
 
+    // Перед первым сбором: летающих ждём в воздухе — взлететь, земных — сесть (на месте, никуда не летим)
+    private DrainStep Settle(BrainContext c)
+    {
+        Status = "готовлюсь";
+        if (_settle!.Step(c) == TripStep.Going)
+            return DrainStep.Working;
+        _settle = null;
+        _rounds = 0;
+        NewRound(c);
+        return Pull(c);
+    }
+
+    private static TripEnd End(Habitat mobs) => mobs switch
+    {
+        Habitat.Air => TripEnd.Air,
+        Habitat.Water => TripEnd.Water,
+        _ => TripEnd.Ground,
+    };
+
     private void NewRound(BrainContext c)
     {
-        _pull = new MobPull(c.Settings.ExpDrain.Mobs, _place.InAir);
+        var air = _plan.Mobs == Habitat.Air;
+        _pull = new MobPull(c.Settings.ExpDrain.Mobs, m => Suits(c, m), inAir: air);
         _stage = Stage.Pull;
         _since = c.Now;
         _noMobsSince = null;
+    }
+
+    private bool Suits(BrainContext c, NpcInfo mob)
+    {
+        if (_atFarm && !TargetSelector.IsAllowed(mob, c.Settings.Target))
+            return false;
+        if (mob.Habitat is not null)
+            return mob.Lives(_plan.Mobs);
+        return _plan.Mobs == Habitat.Air || Math.Abs(mob.Offset.Vertical) <= GroundHeight;
     }
 
     private DrainStep Pull(BrainContext c)
@@ -146,7 +203,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
             case PullStep.NoMobs:
                 _noMobsSince ??= c.Now;
                 if (c.Now - _noMobsSince >= NoMobsLimit)
-                    return DrainStep.GaveUp($"рядом ({MobPull.PullRadius:0} м) нет мобов {NoMobsLimit.TotalSeconds:0} с");
+                    return DrainStep.GaveUp($"рядом ({MobPull.PullRadius:0} м) нет подходящих мобов {NoMobsLimit.TotalSeconds:0} с");
                 Status = "жду мобов рядом";
                 return DrainStep.Working;
             default:
@@ -174,14 +231,13 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         return DrainStep.Working;
     }
 
-    public void OnOutcome(BrainContext c, ActionOutcome outcome)
-    {
-    }
+    public void OnOutcome(BrainContext c, ActionOutcome outcome) => _settle?.OnOutcome(c, outcome);
 
     public void End(BrainContext c)
     {
         _pull?.Drop(c);
         _pull = null;
+        _settle = null;
         afterDeath.Release();
         Status = null;
     }
@@ -189,7 +245,9 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     public void Reset()
     {
         _pull = null;
+        _settle = null;
         _noLoss = 0;
+        _off = null;
         _back = false;
         Status = null;
     }

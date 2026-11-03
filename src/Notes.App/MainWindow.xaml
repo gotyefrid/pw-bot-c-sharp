@@ -536,7 +536,7 @@
           <StackPanel>
             <TextBlock Text="СЛИВ ОПЫТА" Style="{StaticResource CardTitle}" />
             <CheckBox Style="{StaticResource Switch}" Content="Не качаться выше уровня" IsChecked="{Binding Settings.ExpDrain.Enabled}"
-                      ToolTip="На этом уровне, когда опыта набралось много, бот собирает на себя мобов, умирает, встаёт в ближнем городе и прилетает обратно — пока опыт не станет меньше. Фармили в воздухе — умирает в воздухе, не садясь" />
+                      ToolTip="На этом уровне, когда опыта набралось много, бот собирает на себя мобов, умирает, встаёт в ближнем городе и прилетает обратно — пока опыт не станет меньше" />
             <StackPanel IsEnabled="{Binding Settings.ExpDrain.Enabled}">
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Уровень" VerticalAlignment="Center" />
@@ -556,8 +556,21 @@
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.Mobs, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Где умирать" VerticalAlignment="Center"
+                           ToolTip="Первая смерть — там, где фармит. Если опыта ещё много — дальше умирает в этой точке (удобно поближе к городу), а когда слил — летит на место фарма" />
+                <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
+                        Command="{Binding Farm.AddDeathPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как точку для смертей" />
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.DeathPoints}" SelectedItem="{Binding Farm.SelectedDeathPoint}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="От каких мобов" VerticalAlignment="Center"
+                           ToolTip="Каких мобов собирать, чтобы умереть, — и где ждать смерть: летающих — в воздухе (не садится), водных — в воде, земных — на земле. Других не трогает" />
+                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.DrainMobsChoices}" DisplayMemberPath="Title"
+                          SelectedValuePath="Mobs" SelectedValue="{Binding Settings.ExpDrain.DeathMobs}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Высота полёта из города" VerticalAlignment="Center"
-                           ToolTip="Как в игре. Бот взлетает, поднимается на месте строго вверх и летит к центру фарма — выше домов, деревьев и гор" />
+                           ToolTip="Как в игре. Бот взлетает, поднимается на месте строго вверх и летит к точке — выше домов, деревьев и гор" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.FlightHeight, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
             </StackPanel>

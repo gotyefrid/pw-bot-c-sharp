@@ -20,22 +20,19 @@ public enum PullStep
 /// <summary>
 /// Собрать на себя мобов — по одному выстрелу в каждого. Один сбор — один объект: в кого стреляли, помнит только он.
 /// <list type="bullet">
-/// <item>Ближайший разрешённый моб до <see cref="PullRadius"/> м, в которого в этом сборе ещё не стреляли. Бьёт ли он нас — не
-/// смотрим: после воскрешения у старых мобов в цели ещё остаётся перс, хотя они его уже не бьют.</item>
-/// <item>На земле — только мобы на нашей высоте (летающие на выстрел не подманиваются); в воздухе — любые, ближние в пространстве.</item>
+/// <item>Ближайший подходящий моб (<c>allowed</c>: фильтр фарма, где обитает) до <see cref="PullRadius"/> м по горизонтали, в
+/// которого в этом сборе ещё не стреляли; <c>inAir</c> — ближний в пространстве. Бьёт ли он нас — не смотрим: после воскрешения
+/// у старых мобов в цели ещё остаётся перс, хотя они его уже не бьют.</item>
 /// <item>Выстрел удачный, когда в цели этот моб и скилл ушёл на перезарядку — сразу следующий; не
 /// ушёл (каст сбили) — ещё раз, до <see cref="ShotsPerMob"/>. Скилл — атакующий из настроек боя, иначе основной у класса;
 /// нет ни того, ни другого — обычная атака, удачная, только когда моб взял перса в цель.</item>
 /// </list>
 /// Не поведение, а деталь поведения: шаги — из его Tick, действия уходят от его имени.
 /// </summary>
-public sealed class MobPull(int need, bool inAir)
+public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inAir)
 {
     /// <summary>Дальше мобов не собираем: подбегать к далёким долго, а стоять бот будет на месте.</summary>
     public const float PullRadius = 40f;
-
-    /// <summary>На земле — моб выше или ниже перса больше этого: летающий, на выстрел не подманивается.</summary>
-    public const float GroundHeight = 5f;
 
     public const int ShotsPerMob = 3;
 
@@ -149,8 +146,8 @@ public sealed class MobPull(int need, bool inAir)
 
     private NpcInfo? NextMob(BrainContext c)
         => c.World.Mobs
-            .Where(m => TargetSelector.IsAllowed(m, c.Settings.Target) && !m.Returning && !_shot.Contains(m.Wid)
-                        && m.Offset.Horizontal <= PullRadius && (inAir || Math.Abs(m.Offset.Vertical) <= GroundHeight))
+            .Where(m => m.Kind == NpcKind.Mob && !m.IsDead && !m.Returning && !_shot.Contains(m.Wid) && m.Offset.Horizontal <= PullRadius
+                        && allowed(m))
             .OrderBy(m => inAir ? c.World.Host.Position.DistanceTo(m.Position) : m.Offset.Horizontal)
             .FirstOrDefault();
 

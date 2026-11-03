@@ -462,4 +462,96 @@ public class ExpDrainBehaviorTests
         TickFor(1);
         Assert.Contains("select 80000003", _actions.Calls);
     }
+
+    [Fact]
+    public void SecondDeathAtDeathPointThenBackToFarm()
+    {
+        _settings.Target.UseMobList = true;
+        _settings.Target.MobNames = ["Волк"];
+        _settings.Target.FarmPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
+        _settings.ExpDrain.DeathPoint = "Смерть";
+        // В точке для смертей — моб не из списка фарма: там фильтр фарма ни при чём
+        _world.Npcs.Add(new NpcInfo(0x80000009, 0x80000009, NpcKind.Mob, NpcState.Standing, 0, new Position(104, 0, 0), "Чужак", 0));
+        AddGroundMobs();
+
+        // Первая смерть — на месте фарма, мобы — из списка
+        TickFor(3);
+        Assert.Contains("select 80000002", _actions.Calls);
+        Assert.DoesNotContain("select 80000003", _actions.Calls);
+        _world.Hp = 0;
+        _world.Exp = 700;
+
+        // Опыта ещё много — летим в точку для смертей
+        TickFor(12);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(100, 0, 0)) <= 5);
+        Assert.Contains("select 80000009", _actions.Calls);
+
+        // Слили — на место фарма
+        _world.Hp = 0;
+        _world.Exp = 50;
+        TickFor(12);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= 5);
+        Assert.True(Logged("Слив опыта закончен"));
+        Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void OneDeathEnoughFliesStraightToFarm()
+    {
+        _settings.Target.FarmPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
+        _settings.ExpDrain.DeathPoint = "Смерть";
+        PullTwo();
+        _world.Hp = 0;
+        _world.Exp = 50;
+
+        TickFor(12);
+
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= 5);
+        Assert.DoesNotContain(_actions.FlyPoints, p => p.HorizontalDistanceTo(new Position(100, 0, 0)) <= 5);
+        Assert.True(Logged("Слив опыта закончен"));
+    }
+
+    [Fact]
+    public void FlyingMobsOnlyLeaveGroundMobsAlone()
+    {
+        _settings.ExpDrain.DeathMobs = DrainMobs.Air;
+        _world.Flying = true;
+        _world.Position = new Position(0, 200, 0);
+        _world.Npcs.Add(new NpcInfo(0x80000001, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(5, 200, 0), "Змея", 0) { Habitat = Habitat.Air });
+        var wolf = _world.AddMob(0x80000002, "Волк", 10);
+        _world.Replace(wolf, m => m with { Habitat = Habitat.Ground });
+
+        TickFor(3);
+
+        Assert.Contains("select 80000001", _actions.Calls);
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+        Assert.True(Logged("собрал 1"));
+    }
+
+    [Fact]
+    public void GroundMobsOnlyLeaveKnownFlyersAlone()
+    {
+        _settings.ExpDrain.DeathMobs = DrainMobs.Ground;
+        var bird = _world.AddMob(0x80000005, "Птица", 5);
+        _world.Replace(bird, m => m with { Habitat = Habitat.Air });
+        AddGroundMobs();
+
+        TickFor(3);
+
+        Assert.DoesNotContain("select 80000005", _actions.Calls);
+        Assert.Contains("select 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void FlyingMobsWantedTakesOffFirst()
+    {
+        _settings.ExpDrain.DeathMobs = DrainMobs.Air;
+        _world.Npcs.Add(new NpcInfo(0x80000001, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(5, 20, 0), "Змея", 0) { Habitat = Habitat.Air });
+
+        TickFor(3);
+
+        Assert.Equal("fly-toggle", _actions.Calls[0]);
+        Assert.Contains("select 80000001", _actions.Calls);
+    }
 }

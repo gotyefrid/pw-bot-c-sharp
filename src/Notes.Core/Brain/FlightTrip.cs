@@ -6,6 +6,20 @@ using Notes.Core.World;
 
 namespace Notes.Core.Brain;
 
+/// <summary>Чем кончить путь над точкой.</summary>
+public enum TripEnd
+{
+    /// <summary>Сесть на землю.</summary>
+    Ground,
+    /// <summary>Не садиться — зависнуть на высоте точки.</summary>
+    Air,
+    /// <summary>Сесть в воду и нырнуть до высоты точки.</summary>
+    Water,
+}
+
+/// <summary>Куда добраться и чем кончить путь.</summary>
+public readonly record struct Spot(Position Position, TripEnd End);
+
 public enum TripStep
 {
     /// <summary>В пути: ход занят.</summary>
@@ -17,8 +31,8 @@ public enum TripStep
 
 /// <summary>
 /// Долгий путь до точки (из города на место фарма): взлёт, подъём строго вверх до высоты полёта (подъём по пути может врезаться в
-/// дом или гору), отрезки по прямой по <see cref="LegLength"/>, над точкой — посадка; <c>stayInAir</c> — не садиться, а опуститься
-/// на высоту точки. Не долетели — выше на <see cref="FailClimb"/>; не взлетели, не долетели <see cref="FlightFails"/> раз или полёта
+/// дом или гору), отрезки по прямой по <see cref="LegLength"/>, над точкой — как велит <see cref="TripEnd"/>: сесть, зависнуть на
+/// высоте точки или нырнуть до неё. Не долетели — выше на <see cref="FailClimb"/>; не взлетели, не долетели <see cref="FlightFails"/> раз или полёта
 /// в точку у сервера нет — пешком автопутём.
 /// Не поведение, а деталь поведения: шаги — из его Tick, итоги — из его OnOutcome; действия уходят от его имени.
 /// </summary>
@@ -36,20 +50,21 @@ public sealed class FlightTrip
     // Над городом бывает выше заданной высоты: во время полёта ниже неё не опускаемся, но и не выше этого запаса
     private const float KeepHigher = 50f;
 
-    private readonly bool _stayInAir;
+    private readonly TripEnd _end;
     private float _cruise;
     private bool _started;
     private bool _climbed;
     private bool _walk;
     private bool _landFailed;
+    private bool _diveFailed;
     private int _fails;
 
-    /// <param name="cruise">Высота полёта, как в памяти. В воздухе (<paramref name="stayInAir"/>) — не ниже высоты точки.</param>
-    public FlightTrip(Position to, float cruise, bool stayInAir)
+    /// <param name="cruise">Высота полёта, как в памяти. Зависнуть в воздухе — не ниже высоты точки.</param>
+    public FlightTrip(Spot to, float cruise)
     {
-        To = to;
-        _stayInAir = stayInAir;
-        _cruise = Math.Max(cruise, stayInAir ? to.Height : 0);
+        To = to.Position;
+        _end = to.End;
+        _cruise = Math.Max(cruise, _end == TripEnd.Air ? To.Height : 0);
     }
 
     public Position To { get; }
@@ -76,12 +91,26 @@ public sealed class FlightTrip
         var host = c.World.Host;
         var here = host.Position;
         var left = here.HorizontalDistanceTo(To);
-        if (left <= Arrived && (_walk || !_stayInAir || Math.Abs(here.Height - To.Height) <= Arrived))
+        var air = _end == TripEnd.Air && !_walk;
+        if (left <= Arrived && (!air || Math.Abs(here.Height - To.Height) <= Arrived))
         {
-            if (_stayInAir || host.Flying != true || _landFailed)
-                return TripStep.Arrived;
-            c.Submit(new FlyAction(up: false));
-            return TripStep.Going;
+            // Зависнуть можно только в полёте: на земле над точкой — взлететь
+            if (air && host.Flying != true)
+                c.Submit(new FlyAction(up: true));
+            if (air)
+                return host.Flying == true ? TripStep.Arrived : TripStep.Going;
+            if (host.Flying == true && !_landFailed)
+            {
+                c.Submit(new FlyAction(up: false));
+                return TripStep.Going;
+            }
+            // Сели в воду — нырнуть до высоты точки: обычный ход держит глубину
+            if (_end == TripEnd.Water && host.InWater == true && !_diveFailed && Math.Abs(here.Height - To.Height) > Arrived)
+            {
+                c.Submit(new MoveAction(To, tolerance: 2f, swim: true));
+                return TripStep.Going;
+            }
+            return TripStep.Arrived;
         }
 
         if (_walk)
@@ -107,7 +136,7 @@ public sealed class FlightTrip
             return new MoveAction(To, tolerance: 2f, fly: true); // в воздухе — опуститься на высоту точки
         var k = Math.Min(1f, LegLength / left);
         var height = Math.Max(_cruise, Math.Min(here.Height, _cruise + KeepHigher));
-        var to = left <= LegLength && _stayInAir ? To with { Height = height }
+        var to = left <= LegLength && _end == TripEnd.Air ? To with { Height = height }
             : new Position(here.X + (To.X - here.X) * k, height, here.Y + (To.Y - here.Y) * k);
         return new MoveAction(to, tolerance: 3f, fly: true);
     }
@@ -134,6 +163,9 @@ public sealed class FlightTrip
             case MoveAction { Fly: true }:
                 _cruise += FailClimb;
                 c.Log.Info($"Не долетел — поднимаюсь до {_cruise / 10:0.0}");
+                break;
+            case MoveAction { Swim: true }:
+                _diveFailed = true;
                 break;
             case MoveAction:
                 Failed = "не дошёл до места";
