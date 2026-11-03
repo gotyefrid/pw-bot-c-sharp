@@ -244,7 +244,7 @@ public sealed class NpcDialogCloseAction : GameAction
 }
 
 /// <summary>
-/// Встать в ближайшем городе после смерти (верхняя кнопка окна смерти). Подтверждение — персонаж снова жив (HP больше 0).
+/// Встать в ближайшем городе после смерти (кнопка «Ближний город» окна смерти). Подтверждение — персонаж снова жив (HP больше 0).
 /// </summary>
 public sealed class ReviveInTownAction : GameAction
 {

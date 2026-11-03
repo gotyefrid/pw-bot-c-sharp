@@ -164,7 +164,7 @@ public sealed class GameCaller : IGameActions
     /// </summary>
     public CallResult NpcDialogClose() => Call(GameFunctions.NpcDialogClose, null);
 
-    /// <summary>Встать в ближайшем городе после смерти, как верхней кнопкой окна смерти (опыт теряется, как у игрока).</summary>
+    /// <summary>Встать в ближайшем городе после смерти, как кнопкой «Ближний город» окна смерти (опыт теряется, как у игрока).</summary>
     public CallResult ReviveInTown() => Call(GameFunctions.ReviveInTown, null);
 
     /// <summary>Начать разговор с NPC, как кликом по нему: сервер отвечает списком услуг, клиент открывает окно NPC.</summary>
