@@ -23,6 +23,12 @@
         <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Текущие" Command="{Binding CurrentCommand}" Padding="10,4"
                 ToolTip="Подставить, где стоит персонаж сейчас" />
       </DockPanel>
+      <CheckBox Style="{StaticResource Switch}" Content="В воздухе" IsChecked="{Binding Flying}" Margin="0,4,0,0">
+        <CheckBox.ToolTip>
+          <TextBlock MaxWidth="320" TextWrapping="Wrap"
+                     Text="Включено — точка в воздухе: прилетев, бот не садится, а зависает на высоте точки (на земле — взлетает).&#10;&#10;Выключено — садится на землю (или ныряет, если точку запомнили в воде).&#10;&#10;«Текущие» ставит галочку сами — как стоит персонаж" />
+        </CheckBox.ToolTip>
+      </CheckBox>
       <TextBlock Text="{Binding Error}" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="0,4,0,0">
         <TextBlock.Style>
           <Style TargetType="TextBlock">

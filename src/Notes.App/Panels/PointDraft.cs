@@ -22,7 +22,7 @@ public sealed class PointDraft : ObservableObject
     private readonly string _shownX, _shownY, _shownHeight;
     private string _name, _x, _y, _height;
     private string _error = "";
-    private bool? _flying, _inWater;
+    private bool _flying, _inWater;
 
     /// <param name="here">Персонаж сейчас; null — мир не читается.</param>
     /// <param name="points">Список, где лежит точка: название не должно повторяться в нём.</param>
@@ -37,6 +37,7 @@ public sealed class PointDraft : ObservableObject
         _name = point.Name;
         (_x, _y, _height) = Format(point.Position);
         (_shownX, _shownY, _shownHeight) = (_x, _y, _height);
+        (_flying, _inWater) = (point.Flying, point.InWater);
         CurrentCommand = new RelayCommand(Current, () => _here() is not null);
     }
 
@@ -50,6 +51,9 @@ public sealed class PointDraft : ObservableObject
     public string Y { get => _y; set => SetProperty(ref _y, value); }
     public string Height { get => _height; set => SetProperty(ref _height, value); }
 
+    /// <summary>Точка в воздухе: прилетев, бот зависает на её высоте (на земле — взлетает), а не садится.</summary>
+    public bool Flying { get => _flying; set => SetProperty(ref _flying, value); }
+
     /// <summary>Почему не сохранили; пусто — всё хорошо.</summary>
     public string Error { get => _error; private set => SetProperty(ref _error, value); }
 
@@ -62,7 +66,8 @@ public sealed class PointDraft : ObservableObject
             return;
         (X, Y, Height) = Format(host.Position);
         // Где стоит сейчас — в воздухе или в воде: прилетев, бот встанет так же
-        (_flying, _inWater) = (host.Flying == true, host.InWater == true);
+        Flying = host.Flying == true;
+        _inWater = host.InWater == true;
         Error = "";
     }
 
@@ -81,8 +86,8 @@ public sealed class PointDraft : ObservableObject
 
         _settings.RenamePoint(_point, Name);
         (_point.X, _point.Y, _point.Height) = (p.X, p.Y, p.Height);
-        if (_flying is { } flying && _inWater is { } water)
-            (_point.Flying, _point.InWater) = (flying, water);
+        // В воздухе — не в воде
+        (_point.Flying, _point.InWater) = (Flying, !Flying && _inWater);
         Error = "";
         Saved?.Invoke();
         return true;
