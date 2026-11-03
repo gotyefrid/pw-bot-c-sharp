@@ -10,8 +10,8 @@ namespace Notes.Core.Brain;
 /// (<see cref="FlightTrip"/> на высоте <see cref="TargetSettings.TravelHeight"/>; без полёта — автопутём пешком). Прилетев — как
 /// стоял перс, когда точку запоминали: сесть, зависнуть в воздухе или нырнуть. Только раз за «Старт».
 /// <list type="bullet">
-/// <item>Стоит после «выжить»: банки в пути пьются; бой, лут, пет и копание ждут — ход у перелёта.</item>
-/// <item>Пока летим — посреди дела (<see cref="IMultiStepBehavior"/>): слив опыта не начнётся в воздухе на полпути.</item>
+/// <item>Стоит раньше слива опыта: решает первым, лететь ли, — слив начнётся или на месте сразу, или долетев (а не в воздухе
+/// на полпути и не после боя, который успел начаться, пока решали). Пока летим, ход у перелёта: банки, бой, лут и пет ждут.</item>
 /// <item>Центр — точка старта: уже на месте, никуда не летим.</item>
 /// </list>
 /// </summary>
@@ -25,8 +25,7 @@ public sealed class StartTripBehavior : IBehavior, IMultiStepBehavior
 
     public string Name => "к центру фарма";
     public string? Status { get; private set; }
-    // Ещё не смотрели, лететь ли, — тоже посреди: слив опыта стоит раньше и иначе успел бы начаться на первом шаге
-    public string? InMiddle => !_checked || _trip is not null ? "лечу к центру фарма" : null;
+    public string? InMiddle => _trip is null ? null : "лечу к центру фарма";
 
     public bool Tick(BrainContext c)
     {

@@ -185,4 +185,24 @@ public class StartTripBehaviorTests
         Assert.True(Logged("Долетел до центра фарма"));
         Assert.True(Logged("сливаю"));
     }
+
+    // Было: слив ждал, пока перелёт решит, а бой тем временем брал моба — слив начинался только после боя
+    [Fact]
+    public void NearStartDrainsBeforeFight()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.ExpDrain.Enabled = true;
+        _settings.ExpDrain.MaxLevel = 10;
+        _settings.ExpDrain.StartPercent = 80;
+        _world.Level = 10;
+        _world.Exp = 900;
+        _world.ExpToLevel = 1000;
+        _world.AddMob(0x80000002, "Волк", 10);
+        FarmAt(new Position(20, 0, 0));
+
+        Tick();
+
+        Assert.True(Logged("сливаю"));
+        Assert.False(Logged("Бой:"));
+    }
 }
