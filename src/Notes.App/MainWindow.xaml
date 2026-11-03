@@ -1,4 +1,4 @@
-﻿<Window x:Class="Notes.App.MainWindow"
+<Window x:Class="Notes.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:app="clr-namespace:Notes.App"
@@ -716,6 +716,58 @@
                           SelectedValuePath="Value" SelectedValue="{Binding Potions.MpPotion}"
                           ToolTip="В списке — банки MP из сумки, которые действуют 10 с. «Авто» — самая слабая подходящая по уровню. Выбранной нет в сумке — бот напишет об этом в лог и перейдёт на «Авто». Не хватает уровня — пока пьёт «Авто», с нужного уровня — выбранную" />
               </DockPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="РЕМОНТ" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Ремонтировать снаряжение" IsChecked="{Binding Settings.Repair.Enabled}">
+              <CheckBox.ToolTip>
+                <TextBlock MaxWidth="320" TextWrapping="Wrap"
+                           Text="Какая-нибудь надетая вещь износилась ниже порога — бот дожидается конца боя и чинит всё.&#10;&#10;У NPC: летит к месту, где NPC стоял, когда его выбрали (нет полётника — идёт пешком), подходит, говорит с ним, жмёт «Починить всё» и летит обратно в центр фарма.&#10;&#10;Пора сливать опыт — сначала слив. Не вышло (NPC нет на месте, денег не хватило) — бот пишет в лог и до следующего «Старт» не чинит" />
+              </CheckBox.ToolTip>
+            </CheckBox>
+            <StackPanel Visibility="{Binding Settings.Repair.Enabled, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Чинить, когда прочность ниже, %" VerticalAlignment="Center"
+                           ToolTip="Смотрит на самую поношенную надетую вещь. Вещи, которые не чинятся, не в счёт" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Repair.BelowPercent, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="Чинить из сумки, без NPC" IsChecked="{Binding Settings.Repair.FromBag}"
+                        Visibility="{Binding CanRepairFromBag, Converter={StaticResource Visible}}"
+                        ToolTip="Бот открывает лавку кнопкой в окне сумки, жмёт «Починить всё» и закрывает её — никуда не летит" />
+              <StackPanel>
+                <StackPanel.Style>
+                  <Style TargetType="StackPanel">
+                    <Style.Triggers>
+                      <MultiDataTrigger>
+                        <MultiDataTrigger.Conditions>
+                          <Condition Binding="{Binding Settings.Repair.FromBag}" Value="True" />
+                          <Condition Binding="{Binding CanRepairFromBag}" Value="True" />
+                        </MultiDataTrigger.Conditions>
+                        <Setter Property="Visibility" Value="Collapsed" />
+                      </MultiDataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </StackPanel.Style>
+                <DockPanel Style="{StaticResource SettingRow}">
+                  <TextBlock Text="NPC" VerticalAlignment="Center"
+                             ToolTip="Любой NPC, который чинит. Встаньте рядом с ним — он появится в списке. Бот запомнит, где он стоит" />
+                  <ComboBox DockPanel.Dock="Right" Width="250" ItemsSource="{Binding Repair.Npcs}" DisplayMemberPath="Title"
+                            SelectedValuePath="Tid" SelectedValue="{Binding Repair.NpcTid}"
+                            ToolTip="В списке — NPC вокруг персонажа. Встаньте рядом с тем, кто чинит, и выберите его" />
+                </DockPanel>
+                <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Repair.HasInfo, Converter={StaticResource Visible}}">
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding Repair.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+                </DockPanel>
+                <DockPanel Style="{StaticResource SettingRow}">
+                  <TextBlock Text="Высота полёта к NPC" VerticalAlignment="Center"
+                             ToolTip="Как в игре. Бот поднимается на месте строго вверх и летит к NPC, а потом обратно в центр фарма — выше домов, деревьев и гор" />
+                  <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Repair.FlightHeight, UpdateSourceTrigger=PropertyChanged}" />
+                </DockPanel>
+              </StackPanel>
             </StackPanel>
           </StackPanel>
         </Border>

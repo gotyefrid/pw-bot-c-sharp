@@ -109,6 +109,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         Pets = new PetsPanel(() => Settings, SettingsEdited);
         Potions = new PotionsPanel(() => Settings, SettingsEdited);
+        Repair = new RepairPanel(() => Settings, _log, SettingsEdited);
         Farm = new FarmPanel(() => Settings, () => _lastWorld, () => _profile, id => _connection?.SkillIcons.Get(id),
             macro => _connection?.MacroIcon(macro), _log, SettingsEdited, () =>
         {
@@ -116,6 +117,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(Settings));
             Pets.Rebind();
             Potions.Rebind();
+            Repair.Rebind();
         });
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
@@ -164,6 +166,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanChoosePath));
             OnPropertyChanged(nameof(CanRecallPet));
             OnPropertyChanged(nameof(CanStashToBank));
+            OnPropertyChanged(nameof(CanRepairFromBag));
             OnPropertyChanged(nameof(Summary));
             // Читать клиента теперь по другим смещениям — старое подключение не годится
             Disconnect();
@@ -412,6 +415,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public PetsPanel Pets { get; }
     public PotionsPanel Potions { get; }
 
+    /// <summary>Карточка «Ремонт»: у какого NPC чинить.</summary>
+    public RepairPanel Repair { get; }
+
     // ── Маршрут обхода (режим «Собирать ресурсы») ─────────────────────────────
 
     /// <summary>Вкладка «Ресы»: точки маршрута, что копать, опасные мобы.</summary>
@@ -428,6 +434,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     /// <summary>«Убирать в банк» — только у сервера, где банк открывается из сумки (Comeback).</summary>
     public bool CanStashToBank => _profile.Capabilities.Has(Capability.RemoteBank);
+
+    /// <summary>«Чинить из сумки» — только у сервера, где лавка открывается кнопкой в сумке (Comeback).</summary>
+    public bool CanRepairFromBag => _profile.Capabilities.Has(Capability.RemoteRepair);
 
     /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
     public bool CanChoosePath => _profile.Capabilities.Has(Capability.SmartMove);
@@ -700,6 +709,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             _connection.Requests.Quests = false;
         Pets.Observe(w);
         Potions.Observe(w, _connection.Bot?.Brain.Part<IPotionFallback>());
+        Repair.Observe(w);
         Farm.Observe(w);
         var h = w.Host;
         if (h.Name.Length > 0)
@@ -755,6 +765,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(Settings));
         Pets.Rebind();
         Potions.Rebind();
+        Repair.Rebind();
         Farm.Load();
         Route.Load();
         Clicker.Load();
