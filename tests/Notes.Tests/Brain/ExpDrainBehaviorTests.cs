@@ -17,7 +17,6 @@ public class ExpDrainBehaviorTests
 {
     private const int Arrow = 125;
     private static readonly ClassSkills Skills = new() { HealPet = 330, RevivePet = 329, DefaultAttack = 299, NotAttack = [167, 329, 330] };
-    private static readonly Position Town = new(300, 0, 0);
 
     private readonly FakeWorld _world = new();
     private readonly FakeActions _actions = new();
@@ -26,10 +25,26 @@ public class ExpDrainBehaviorTests
     private IBotRunner? _brain;
     private int _seen;
     private int _flown;
+    private int _walked;
+    private Position _town = new(300, 0, 0);
     private string? _stop;
 
     /// <summary>Игра «засчитывает» выстрел (скилл уходит на перезарядку).</summary>
     private bool _hits = true;
+
+    /// <summary>«Ближний город» срабатывает.</summary>
+    private bool _revives = true;
+
+    // Кто-то посреди дела из нескольких шагов (банк)
+    private sealed class Holder : IBehavior, IMultiStepBehavior
+    {
+        public string? InMiddle { get; set; }
+        public string Name => "дело";
+        public string? Status => null;
+        public bool Tick(BrainContext context) => false;
+        public void OnOutcome(BrainContext context, ActionOutcome outcome) { }
+        public void Reset() { }
+    }
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -62,11 +77,27 @@ public class ExpDrainBehaviorTests
         {
             if (_brain is not null)
                 return _brain;
-            _brain = BotModes.Create(BotMode.FarmMobs, new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
-                new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), random: new Random(1));
-            _brain.StopRequested += reason => _stop = reason;
-            return _brain;
+            return UseBrain(BotModes.Create(BotMode.FarmMobs, Runner(), Skills, _settings, BrainLog(), random: new Random(1)));
         }
+    }
+
+    private ActionRunner Runner() => new(new GameControl(_actions), NullLogger.Instance);
+    private ILogger BrainLog() => new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг");
+
+    private IBotRunner UseBrain(IBotRunner brain)
+    {
+        _brain = brain;
+        _brain.StopRequested += reason => _stop = reason;
+        return _brain;
+    }
+
+    // Свой набор: первым — тот, кто бывает посреди дела, дальше — как у фарма
+    private void UseBrainWith(Holder holder)
+    {
+        var context = new BrainContext(Runner(), Skills, BrainLog(), new Random(1)) { Settings = _settings.Clone() };
+        var afterDeath = new DeathReturnBehavior();
+        var combat = new CombatBehavior();
+        UseBrain(new BotBrain(context, [holder, afterDeath, new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmCenter), combat], combat));
     }
 
     private IEnumerable<string> NewCalls => _actions.Calls.Skip(_seen);
@@ -101,9 +132,12 @@ public class ExpDrainBehaviorTests
                 case "fly":
                     _world.Position = _actions.FlyPoints[_flown++];
                     break;
-                case "revive-town":
+                case "revive-town" when _revives:
                     _world.Hp = _world.MaxHp;
-                    _world.Position = Town;
+                    _world.Position = _town;
+                    break;
+                case "move":
+                    _world.Position = _actions.MovePoints[_walked++];
                     break;
             }
         }
@@ -303,5 +337,102 @@ public class ExpDrainBehaviorTests
 
         Assert.True(Logged("Слив опыта брошен"));
         Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void DisabledWhileDeadStillFliesBackThenFarms()
+    {
+        PullTwo();
+        _world.Hp = 0;
+        _world.Exp = 700;
+        Tick();
+        _settings.ExpDrain.Enabled = false;
+        Brain.UpdateSettings(_settings);
+
+        TickFor(12);
+
+        Assert.Null(_stop);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= 5);
+        Assert.True(Logged("Слив опыта выключен"));
+    }
+
+    [Fact]
+    public void WithoutFlightWalksBack()
+    {
+        _actions.Capabilities = Capabilities.All.Without(Capability.FlyTo, "нет полёта в точку");
+        PullTwo();
+        _world.Hp = 0;
+        _world.Exp = 700;
+
+        TickFor(12);
+
+        Assert.Contains(_actions.Calls, c => c.StartsWith("move") && c.EndsWith("умно"));
+        Assert.Empty(_actions.FlyPoints);
+        Assert.True(Logged("на месте — собираю мобов"));
+        Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void FarPlaceStopsBot()
+    {
+        _town = new Position(5000, 0, 0);
+        PullTwo();
+        _world.Hp = 0;
+
+        TickFor(8);
+
+        Assert.Contains("не лечу", _stop);
+        Assert.Empty(_actions.FlyPoints);
+    }
+
+    [Fact]
+    public void ReviveThatDoesNotWorkStopsBot()
+    {
+        _revives = false;
+        PullTwo();
+        _world.Hp = 0;
+
+        TickFor(40);
+
+        Assert.Equal(DeathReturnBehavior.ReviveAttempts, _actions.Calls.Count(c => c == "revive-town"));
+        Assert.Equal("персонаж погиб", _stop);
+    }
+
+    [Fact]
+    public void NobodyHitsPullsAgain()
+    {
+        PullTwo();
+
+        TickFor(11);
+
+        Assert.True(Logged("никто не бьёт"));
+        Assert.Equal(2, _actions.Calls.Count(c => c == "select 80000002"));
+    }
+
+    [Fact]
+    public void TargetNotBelowStartOnlyWarns()
+    {
+        _settings.ExpDrain.TargetPercent = 85;
+        AddGroundMobs();
+
+        TickFor(1);
+
+        Assert.Empty(_actions.Calls);
+        Assert.True(Logged("не меньше"));
+    }
+
+    [Fact]
+    public void WaitsWhileSomeoneIsInTheMiddle()
+    {
+        var holder = new Holder { InMiddle = "убираю в банк" };
+        UseBrainWith(holder);
+        AddGroundMobs();
+
+        TickFor(2);
+        Assert.Empty(_actions.Calls);
+
+        holder.InMiddle = null;
+        TickFor(1);
+        Assert.Contains("select 80000002", _actions.Calls);
     }
 }

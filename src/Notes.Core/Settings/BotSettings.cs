@@ -128,7 +128,8 @@ public sealed class BotSettings
         Quests.SkipNames = MobNameFilter.Clean(Quests.SkipNames);
         ExpDrain.MaxLevel = Clamp(ExpDrain.MaxLevel, 1, 150);
         ExpDrain.StartPercent = Clamp(ExpDrain.StartPercent, 1, 100);
-        ExpDrain.TargetPercent = Clamp(ExpDrain.TargetPercent, 0, ExpDrain.StartPercent - 1);
+        // «До» не меньше «от» — не правим молча (окно поменяло бы второе поле само), слив пишет об этом в лог
+        ExpDrain.TargetPercent = Clamp(ExpDrain.TargetPercent, 0, 99);
         ExpDrain.Mobs = Clamp(ExpDrain.Mobs, 1, 10);
         ExpDrain.FlightHeight = Clamp(ExpDrain.FlightHeight, 0, 800);
         return this;

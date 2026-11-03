@@ -207,7 +207,14 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult UseItem(InventoryItem item) => Record($"use {item.Slot}");
     public CallResult SummonPet(int cage) => Record($"summon {cage}");
     public CallResult RecallPet() => Record("recall");
-    public CallResult MoveTo(Position point, bool smart) => Record(smart ? $"move {point} умно" : $"move {point}");
+    public CallResult MoveTo(Position point, bool smart)
+    {
+        MovePoints.Add(point);
+        return Record(smart ? $"move {point} умно" : $"move {point}");
+    }
+
+    /// <summary>Куда просили идти — по порядку.</summary>
+    public List<Position> MovePoints { get; } = [];
     public CallResult Gather(GroundItem resource) => Record($"gather {resource.Id:X}");
     public CallResult ToggleFly() => Record("fly-toggle");
     public CallResult FlyTo(Position point)

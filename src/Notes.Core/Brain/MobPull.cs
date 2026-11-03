@@ -1,0 +1,161 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Notes.Core.Actions;
+using Notes.Core.Logging;
+using Notes.Core.World;
+
+namespace Notes.Core.Brain;
+
+public enum PullStep
+{
+    /// <summary>Собираем: ход занят.</summary>
+    Pulling,
+    /// <summary>Собрали сколько нужно — или больше рядом нет, но хоть один есть.</summary>
+    Done,
+    /// <summary>Рядом нет ни одного подходящего моба.</summary>
+    NoMobs,
+}
+
+/// <summary>
+/// Собрать на себя мобов — по одному выстрелу в каждого. Один сбор — один объект: в кого стреляли, помнит только он.
+/// <list type="bullet">
+/// <item>Ближайший разрешённый моб до <see cref="PullRadius"/> м, в которого в этом сборе ещё не стреляли. Бьёт ли он нас — не
+/// смотрим: после воскрешения у старых мобов в цели ещё остаётся перс, хотя они его уже не бьют.</item>
+/// <item>На земле — только мобы на нашей высоте (летающие на выстрел не подманиваются); в воздухе — любые, ближние в пространстве.</item>
+/// <item>Выстрел удачный, когда в цели этот моб и скилл ушёл на перезарядку — сразу следующий; не ушёл (каст сбили) — ещё раз,
+/// до <see cref="ShotsPerMob"/>.</item>
+/// </list>
+/// Не поведение, а деталь поведения: шаги — из его Tick, действия уходят от его имени.
+/// </summary>
+public sealed class MobPull(int need, bool inAir)
+{
+    /// <summary>Дальше мобов не собираем: подбегать к далёким долго, а стоять бот будет на месте.</summary>
+    public const float PullRadius = 40f;
+
+    /// <summary>На земле — моб выше или ниже перса больше этого: летающий, на выстрел не подманивается.</summary>
+    public const float GroundHeight = 5f;
+
+    public const int ShotsPerMob = 3;
+
+    // Выстрел: ждём, пока скилл уйдёт на перезарядку (с подбеганием клиента); дольше — каст сбит
+    private static readonly TimeSpan ShotWait = TimeSpan.FromSeconds(5);
+    // Обычная атака перезарядки не даёт: удар засчитываем через столько после отправки
+    private static readonly TimeSpan SwordWait = TimeSpan.FromSeconds(2);
+    // Скилл перезаряжается дольше этого — стреляем всё равно (отказ покажет причину в логе)
+    private static readonly TimeSpan ReadyWait = TimeSpan.FromSeconds(6);
+
+    private readonly HashSet<uint> _shot = [];
+    private uint _mob;
+    private int _shots;
+    private GameAction? _shotAction;
+    private DateTime _shotAt;
+
+    /// <summary>Сколько уже собрали.</summary>
+    public int Pulled { get; private set; }
+
+    public string Status => $"собираю мобов {Pulled}/{need}";
+
+    public PullStep Step(BrainContext c)
+    {
+        var w = c.World;
+        if (Pulled >= need)
+            return Finish(c);
+
+        var mob = _mob == 0 ? null : w.Mobs.FirstOrDefault(m => m.Wid == _mob && !m.IsDead);
+        if (mob is null)
+        {
+            Drop(c);
+            mob = NextMob(c);
+            if (mob is null)
+                return Pulled > 0 ? Finish(c) : PullStep.NoMobs;
+
+            _mob = mob.Wid;
+            _shots = 0;
+            _shot.Add(mob.Wid);
+            c.Log.Debug($"Сбор мобов: беру {mob.Name} ур. {mob.Level}, {mob.Offset.Horizontal:0} м ({Pulled + 1}/{need})");
+        }
+
+        if (w.Host.TargetWid != mob.Wid)
+        {
+            Drop(c);
+            c.Submit(new SelectTargetAction(mob));
+            return PullStep.Pulling;
+        }
+
+        var skill = AttackSkill(c);
+        if (_shotAction is not null)
+        {
+            var hit = skill == 0 ? c.Now - _shotAt >= SwordWait : w.Skill(skill) is { IsReady: false };
+            if (hit)
+            {
+                Drop(c);
+                Pulled++;
+                _mob = 0;
+                c.Log.Debug($"Сбор мобов: выстрел по {mob.Name} ушёл ({Pulled}/{need})");
+                return PullStep.Pulling;
+            }
+            if (c.Now - _shotAt < ShotWait)
+                return PullStep.Pulling;
+
+            Drop(c);
+            if (++_shots >= ShotsPerMob)
+            {
+                c.Log.Debug($"Сбор мобов: по {mob.Name} {ShotsPerMob} выстрела не ушли — беру другого");
+                _mob = 0;
+                return PullStep.Pulling;
+            }
+        }
+
+        // Перезарядка (прошлый выстрел): ждём, но не вечно
+        if (skill != 0 && w.Skill(skill) is { IsReady: false } && c.Now - _shotAt < ReadyWait)
+            return PullStep.Pulling;
+
+        GameAction shot = skill == 0 ? new NormalAttackAction() : new SkillAction(skill, mob.Wid, approach: true);
+        if (c.Send(shot) is SubmitStatus.Sent or SubmitStatus.AlreadyPending)
+        {
+            _shotAction = shot;
+            _shotAt = c.Now;
+        }
+        else
+        {
+            // Не ушёл совсем (отказ клиента) — считаем попыткой, чтобы не стоять на одном мобе
+            _shotAt = c.Now;
+            if (++_shots >= ShotsPerMob)
+                _mob = 0;
+        }
+        return PullStep.Pulling;
+    }
+
+    /// <summary>Бросить сбор: итога выстрела не ждём, цель снимаем.</summary>
+    public void Drop(BrainContext c)
+    {
+        if (_shotAction is not null)
+            c.Forget(_shotAction);
+        _shotAction = null;
+    }
+
+    // Собрали: цель снять, чтобы перс не бил сам (амулет и так тянет время)
+    private PullStep Finish(BrainContext c)
+    {
+        Drop(c);
+        _mob = 0;
+        if (c.World.Host.TargetWid != 0)
+            c.Submit(new UnselectAction());
+        return PullStep.Done;
+    }
+
+    private NpcInfo? NextMob(BrainContext c)
+        => c.World.Mobs
+            .Where(m => TargetSelector.IsAllowed(m, c.Settings.Target) && !m.Returning && !_shot.Contains(m.Wid)
+                        && m.Offset.Horizontal <= PullRadius && (inAir || Math.Abs(m.Offset.Vertical) <= GroundHeight))
+            .OrderBy(m => inAir ? c.World.Host.Position.DistanceTo(m.Position) : m.Offset.Horizontal)
+            .FirstOrDefault();
+
+    // Атакующий скилл боя, если он у перса есть; 0 — обычная атака
+    private static int AttackSkill(BrainContext c)
+    {
+        var combat = c.Settings.Combat;
+        return combat.UseSkill && combat.AttackSkillId != 0 && c.World.Skill(combat.AttackSkillId) is not null ? combat.AttackSkillId : 0;
+    }
+}
