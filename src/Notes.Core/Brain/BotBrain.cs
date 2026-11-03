@@ -68,8 +68,13 @@ public sealed class BotBrain : IBotRunner
 
             if (world.Host.IsDead)
             {
-                stop = "персонаж погиб";
-                SetStatus("персонаж погиб — стоп");
+                if (TickDead() is { } handler)
+                    SetStatus(handler.Status ?? "персонаж мёртв");
+                else
+                {
+                    stop = "персонаж погиб";
+                    SetStatus("персонаж погиб — стоп");
+                }
             }
             else
             {
@@ -121,6 +126,25 @@ public sealed class BotBrain : IBotRunner
                 behavior.Reset();
             SetStatus("ожидание");
         }
+    }
+
+    // Мёртвый перс: ходят только поведения, которые знают, что делать после смерти; первое занявшее ход — её хозяин
+    private IBehavior? TickDead()
+    {
+        IBehavior? handler = null;
+        foreach (var behavior in _behaviors.OfType<IDeathBehavior>())
+        {
+            _context.Owner = behavior;
+            if (behavior.TickDead(_context))
+            {
+                handler = behavior;
+                break;
+            }
+        }
+
+        _context.Owner = null;
+        Deliver();
+        return handler;
     }
 
     // Итоги действий — только хозяину: и завершившиеся по снимку, и «не отправлено», и «отменено» (вытеснило более важное)

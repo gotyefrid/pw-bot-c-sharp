@@ -153,6 +153,16 @@ public interface IBehavior : IActionOwner
     string? Status { get; }
 }
 
+/// <summary>
+/// Поведение, которое знает, что делать после смерти персонажа (слив опыта: встать в городе). Мёртвым мозг ходит только
+/// такими; ни одно не заняло ход — бот останавливается («персонаж погиб»), как без них.
+/// </summary>
+public interface IDeathBehavior : IBehavior
+{
+    /// <summary>Шаг, пока персонаж мёртв. true — смерть «своя», бот не останавливаем.</summary>
+    bool TickDead(BrainContext context);
+}
+
 /// <summary>Поведение, которое смотрит каждый снимок после хода — и когда ход занял кто-то до него (лог нападений у боя).</summary>
 public interface IWatchingBehavior
 {

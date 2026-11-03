@@ -30,6 +30,9 @@ public enum Capability
     /// «отменой»: есть только на клиентах Comeback.
     /// </summary>
     RemoteBank,
+
+    /// <summary>Встать после смерти в ближнем городе — первая кнопка окна смерти.</summary>
+    ReviveInTown,
 }
 
 /// <summary>
@@ -83,6 +86,7 @@ public sealed class Capabilities
                                    ?? (profile.Host.Bank == 0 ? "в профиле нет банка" : null));
         Set(Capability.Macro, First(GameFunctions.HostApplyComboSkill)
                               ?? (profile.Macros.List == 0 || profile.Base.Configs == 0 ? "в профиле нет макросов" : null));
+        Set(Capability.ReviveInTown, First(GameFunctions.ReviveInTown));
         return new Capabilities(missing);
     }
 }

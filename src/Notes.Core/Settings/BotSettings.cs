@@ -25,10 +25,11 @@ public sealed class BotSettings
     private RouteSettings _route = new();
     private ClickerSettings _clicker = new();
     private QuestSettings _quests = new();
+    private ExpDrainSettings _expDrain = new();
 
     public BotSettings()
     {
-        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests })
+        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests, _expDrain })
             part.PropertyChanged += PartChanged;
     }
 
@@ -60,6 +61,7 @@ public sealed class BotSettings
     public RouteSettings Route { get => _route; set => Part(ref _route, value); }
     public ClickerSettings Clicker { get => _clicker; set => Part(ref _clicker, value); }
     public QuestSettings Quests { get => _quests; set => Part(ref _quests, value); }
+    public ExpDrainSettings ExpDrain { get => _expDrain; set => Part(ref _expDrain, value); }
 
     // Часть заменили целиком (чтение файла, Normalize): слушаем новую
     private void Part<T>(ref T field, T value) where T : SettingsPart
@@ -93,6 +95,7 @@ public sealed class BotSettings
         Route ??= new();
         Clicker ??= new();
         Quests ??= new();
+        ExpDrain ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
@@ -123,6 +126,11 @@ public sealed class BotSettings
         Route.DangerMargin = Clamp(Route.DangerMargin, 1, 50);
         Clicker.Steps = ClickerStep.Clean(Clicker.Steps);
         Quests.SkipNames = MobNameFilter.Clean(Quests.SkipNames);
+        ExpDrain.MaxLevel = Clamp(ExpDrain.MaxLevel, 1, 150);
+        ExpDrain.StartPercent = Clamp(ExpDrain.StartPercent, 1, 100);
+        ExpDrain.TargetPercent = Clamp(ExpDrain.TargetPercent, 0, ExpDrain.StartPercent - 1);
+        ExpDrain.Mobs = Clamp(ExpDrain.Mobs, 1, 10);
+        ExpDrain.FlightHeight = Clamp(ExpDrain.FlightHeight, 0, 800);
         return this;
     }
 
@@ -526,6 +534,40 @@ public sealed class PetSettings : SettingsPart
     /// простым (меньше верности).
     /// </summary>
     public string Food { get => _food; set => Set(ref _food, value); }
+}
+
+/// <summary>
+/// Слив опыта (режим «Бить мобов»): не качаться выше <see cref="MaxLevel"/>. На этом уровне при опыте от
+/// <see cref="StartPercent"/> % бот собирает на себя мобов, умирает, встаёт в ближнем городе и прилетает обратно — пока опыт
+/// не станет не больше <see cref="TargetPercent"/> %. Как — <see cref="Brain.ExpDrainBehavior"/>.
+/// </summary>
+public sealed class ExpDrainSettings : SettingsPart
+{
+    private bool _enabled;
+    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
+
+    private int _maxLevel = 30;
+    /// <summary>Выше этого уровня не качаться: на нём и сливаем.</summary>
+    public int MaxLevel { get => _maxLevel; set => Set(ref _maxLevel, value); }
+
+    private int _startPercent = 80;
+    /// <summary>Начинать слив, когда опыта столько процентов от нужного до уровня.</summary>
+    public int StartPercent { get => _startPercent; set => Set(ref _startPercent, value); }
+
+    private int _targetPercent = 10;
+    /// <summary>Сливать, пока опыта больше этого процента.</summary>
+    public int TargetPercent { get => _targetPercent; set => Set(ref _targetPercent, value); }
+
+    private int _mobs = 5;
+    /// <summary>Сколько мобов собрать на себя (по одному выстрелу в каждого): амулет восстанавливает HP, один моб не убьёт.</summary>
+    public int Mobs { get => _mobs; set => Set(ref _mobs, value); }
+
+    private float _flightHeight = 23;
+    /// <summary>
+    /// На какой высоте лететь из города на место фарма — как в игре (в памяти — в 10 раз больше): выше домов, деревьев и гор
+    /// по пути.
+    /// </summary>
+    public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
 }
 
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>
