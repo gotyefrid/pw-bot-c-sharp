@@ -19,6 +19,8 @@ public sealed class PotionsPanel : ObservableObject
     private readonly Func<BotSettings> _settings;
     private readonly Action _edited;
     private bool _syncing;
+    private IReadOnlyList<InventoryItem> _bag = Array.Empty<InventoryItem>();
+    private int _level;
 
     /// <param name="settings">Настройки текущего персонажа.</param>
     /// <param name="edited">Правка выбора банки.</param>
@@ -26,6 +28,7 @@ public sealed class PotionsPanel : ObservableObject
     {
         _settings = settings;
         _edited = edited;
+        Fill();
     }
 
     private BotSettings Settings => _settings();
@@ -36,21 +39,24 @@ public sealed class PotionsPanel : ObservableObject
     public ObservableCollection<PotionChoice> HpPotions { get; } = new();
     public ObservableCollection<PotionChoice> MpPotions { get; } = new();
 
-    public string HpPotion
+    // Пока список пересобирается — null: окно, сбросив выбор, тут же перечитывает его, и «Авто», которого ещё нет в списке,
+    // осталось бы «выбранным», но невидимым (поле пустое). После пересборки выбор меняется null → пункт, и окно его находит
+    public string? HpPotion
     {
-        get => Settings.Potions.HpPotion;
+        get => _syncing ? null : Settings.Potions.HpPotion;
         set => Choose(value, () => Settings.Potions.HpPotion, v => Settings.Potions.HpPotion = v);
     }
 
-    public string MpPotion
+    public string? MpPotion
     {
-        get => Settings.Potions.MpPotion;
+        get => _syncing ? null : Settings.Potions.MpPotion;
         set => Choose(value, () => Settings.Potions.MpPotion, v => Settings.Potions.MpPotion = v);
     }
 
     /// <summary>Выбор в окне ← настройки (сменился персонаж).</summary>
     public void Rebind()
     {
+        Fill();
         OnPropertyChanged(nameof(HpPotion));
         OnPropertyChanged(nameof(MpPotion));
     }
@@ -61,15 +67,22 @@ public sealed class PotionsPanel : ObservableObject
         while (bot is not null && bot.TryTakeSwitch(out var kind, out var name))
         {
             // Пока бот решал, выбор в окне могли сменить — тогда не трогаем
-            if (kind == PotionKind.Hp && Same(HpPotion, name))
+            if (kind == PotionKind.Hp && Same(Settings.Potions.HpPotion, name))
                 HpPotion = "";
-            else if (kind == PotionKind.Mp && Same(MpPotion, name))
+            else if (kind == PotionKind.Mp && Same(Settings.Potions.MpPotion, name))
                 MpPotion = "";
             OnPropertyChanged(kind == PotionKind.Hp ? nameof(HpPotion) : nameof(MpPotion));
         }
 
-        Sync(HpPotions, Choices(w.Inventory, w.Host.Level, PotionKind.Hp, HpPotion), nameof(HpPotion));
-        Sync(MpPotions, Choices(w.Inventory, w.Host.Level, PotionKind.Mp, MpPotion), nameof(MpPotion));
+        (_bag, _level) = (w.Inventory, w.Host.Level);
+        Fill();
+    }
+
+    // Списки ← последняя прочитанная сумка; мира ещё нет — в списке хотя бы «Авто» и выбранная: поле не пустое
+    private void Fill()
+    {
+        Sync(HpPotions, Choices(_bag, _level, PotionKind.Hp, Settings.Potions.HpPotion), nameof(HpPotion));
+        Sync(MpPotions, Choices(_bag, _level, PotionKind.Mp, Settings.Potions.MpPotion), nameof(MpPotion));
     }
 
     // Пересборка списка сбрасывает выбор — это не выбор пользователя
