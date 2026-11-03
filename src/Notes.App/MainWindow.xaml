@@ -532,6 +532,37 @@
             </TextBlock>
           </StackPanel>
         </Border>
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="СЛИВ ОПЫТА" Style="{StaticResource CardTitle}" />
+            <CheckBox Style="{StaticResource Switch}" Content="Не качаться выше уровня" IsChecked="{Binding Settings.ExpDrain.Enabled}"
+                      ToolTip="На этом уровне, когда опыта набралось много, бот собирает на себя мобов, умирает, встаёт в ближнем городе и прилетает обратно — пока опыт не станет меньше. Фармили в воздухе — умирает в воздухе, не садясь" />
+            <StackPanel IsEnabled="{Binding Settings.ExpDrain.Enabled}">
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Уровень" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.MaxLevel, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Сливать, когда опыта от, %" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.StartPercent, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Сливать до, %" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.TargetPercent, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Сколько мобов собирать" VerticalAlignment="Center"
+                           ToolTip="Каждого — один выстрел атакующим скиллом (вкладка «Общее»). Амулет восстанавливает HP раз в 10 с: один-два моба не убьют" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.Mobs, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Высота полёта из города" VerticalAlignment="Center"
+                           ToolTip="Как в игре. Бот взлетает, поднимается на месте строго вверх и летит к центру фарма — выше домов, деревьев и гор" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.FlightHeight, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </StackPanel>
     </ScrollViewer>
 
