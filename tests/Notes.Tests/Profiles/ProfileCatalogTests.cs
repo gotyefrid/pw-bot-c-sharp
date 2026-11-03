@@ -66,9 +66,12 @@ public class ProfileCatalogTests
                 .Where(k => hasRemoteBank || k != GameFunctions.OpenRemotePanel)
                 .OrderBy(k => k),
             profile.Data.Functions.Keys.OrderBy(k => k));
-        Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>().Where(c => hasRemoteBank || c != Capability.RemoteBank),
+        // Лавка из сумки (ремонт без NPC) — та же кнопка сумки, что и банк
+        Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>()
+                .Where(c => hasRemoteBank || c is not (Capability.RemoteBank or Capability.RemoteRepair)),
             c => Assert.Null(profile.Capabilities.WhyNot(c)));
         Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteBank));
+        Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteRepair));
         // Группы лута — данные игры, одни на всех; их названия хранятся в настройках персонажа
         Assert.NotEmpty(profile.Data.LootGroups);
         static IEnumerable<string> Groups(ServerProfile p) =>

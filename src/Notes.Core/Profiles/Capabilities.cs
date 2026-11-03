@@ -33,6 +33,12 @@ public enum Capability
 
     /// <summary>Встать после смерти в ближнем городе — первая кнопка окна смерти.</summary>
     ReviveInTown,
+
+    /// <summary>Чинить надетое у NPC: прочность вещей, разговор с NPC и «Починить всё».</summary>
+    Repair,
+
+    /// <summary>Чинить из сумки, без NPC: лавка открывается кнопкой в окне сумки (есть только на клиентах Comeback).</summary>
+    RemoteRepair,
 }
 
 /// <summary>
@@ -87,6 +93,9 @@ public sealed class Capabilities
         Set(Capability.Macro, First(GameFunctions.HostApplyComboSkill)
                               ?? (profile.Macros.List == 0 || profile.Base.Configs == 0 ? "в профиле нет макросов" : null));
         Set(Capability.ReviveInTown, First(GameFunctions.ReviveInTown));
+        var durability = profile.Host.Equipment == 0 || profile.Inventory.ItemMaxDurability == 0 ? "в профиле нет прочности надетых вещей" : null;
+        Set(Capability.Repair, durability ?? First(GameFunctions.NpcHello, GameFunctions.RepairItem, GameFunctions.NpcDialogClose));
+        Set(Capability.RemoteRepair, durability ?? First(GameFunctions.OpenRemotePanel, GameFunctions.RepairItem, GameFunctions.CancelAction));
         return new Capabilities(missing);
     }
 }

@@ -97,7 +97,7 @@ public static class BotModes
         var combat = new CombatBehavior();
         var afterDeath = new DeathReturnBehavior(c => c.FarmSpot);
         return new BotBrain(context,
-            [new FarmCenterLog(), afterDeath, new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools),
+            [new FarmCenterLog(), afterDeath, new RepairBehavior(c => c.FarmSpot), new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools),
              combat, new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }

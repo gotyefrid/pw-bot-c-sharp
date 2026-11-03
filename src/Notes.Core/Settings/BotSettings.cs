@@ -26,10 +26,11 @@ public sealed class BotSettings
     private ClickerSettings _clicker = new();
     private QuestSettings _quests = new();
     private ExpDrainSettings _expDrain = new();
+    private RepairSettings _repair = new();
 
     public BotSettings()
     {
-        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests, _expDrain })
+        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests, _expDrain, _repair })
             part.PropertyChanged += PartChanged;
     }
 
@@ -62,6 +63,7 @@ public sealed class BotSettings
     public ClickerSettings Clicker { get => _clicker; set => Part(ref _clicker, value); }
     public QuestSettings Quests { get => _quests; set => Part(ref _quests, value); }
     public ExpDrainSettings ExpDrain { get => _expDrain; set => Part(ref _expDrain, value); }
+    public RepairSettings Repair { get => _repair; set => Part(ref _repair, value); }
 
     // Часть заменили целиком (чтение файла, Normalize): слушаем новую
     private void Part<T>(ref T field, T value) where T : SettingsPart
@@ -152,6 +154,7 @@ public sealed class BotSettings
         Clicker ??= new();
         Quests ??= new();
         ExpDrain ??= new();
+        Repair ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
@@ -193,6 +196,12 @@ public sealed class BotSettings
         ExpDrain.DeathPoint = ExpDrain.DeathPoint?.Trim() ?? "";
         ExpDrain.DeathPoints = FarmPoint.Clean(ExpDrain.DeathPoints);
         MoveOldDeathPoint();
+        Repair.BelowPercent = Clamp(Repair.BelowPercent, 1, 99);
+        Repair.FlightHeight = Clamp(Repair.FlightHeight, 0, 800);
+        if (Repair.Npc is { Tid: 0 })
+            Repair.Npc = null;
+        if (Repair.Npc is { } npc)
+            npc.Name = npc.Name?.Trim() ?? "";
         return this;
     }
 
@@ -679,6 +688,48 @@ public sealed class ExpDrainSettings : SettingsPart
     /// <summary>Точка для смертей; null — умирать на месте фарма.</summary>
     public FarmPoint? FindDeathPoint()
         => DeathPoint.Length == 0 ? null : DeathPoints.FirstOrDefault(p => string.Equals(p.Name, DeathPoint, StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>
+/// Ремонт надетого (режим «Бить мобов»): самая поношенная вещь ниже <see cref="BelowPercent"/> % прочности — починить всё у
+/// <see cref="Npc"/> (долететь, поговорить, «Починить всё», обратно на фарм) или из сумки (<see cref="FromBag"/>). Как —
+/// <see cref="Brain.RepairBehavior"/>.
+/// </summary>
+public sealed class RepairSettings : SettingsPart
+{
+    private bool _enabled;
+    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
+
+    private int _belowPercent = 5;
+    /// <summary>Чинить, когда прочность какой-нибудь надетой вещи ниже этого процента (вещи «не чинится» не в счёт).</summary>
+    public int BelowPercent { get => _belowPercent; set => Set(ref _belowPercent, value); }
+
+    private bool _fromBag;
+    /// <summary>Чинить в лавке из сумки, без NPC: только где сервер это умеет (<see cref="Profiles.Capability.RemoteRepair"/>).</summary>
+    public bool FromBag { get => _fromBag; set => Set(ref _fromBag, value); }
+
+    private RepairNpc? _npc;
+    /// <summary>У кого чинить: NPC, которого выбрали, стоя рядом с ним; null — не выбран.</summary>
+    public RepairNpc? Npc { get => _npc; set => Set(ref _npc, value); }
+
+    private float _flightHeight = 23;
+    /// <summary>На какой высоте лететь к NPC и обратно на фарм — как в игре (в памяти — в 10 раз больше).</summary>
+    public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
+}
+
+/// <summary>NPC для ремонта: вид (tid) — чтобы найти его на месте, имя — для окна и лога, где стоял, когда выбрали.</summary>
+public sealed class RepairNpc
+{
+    public int Tid { get; set; }
+    public string Name { get; set; } = "";
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Height { get; set; }
+
+    [JsonIgnore]
+    public Position Position => new(X, Height, Y);
+
+    public static RepairNpc At(int tid, string name, Position p) => new() { Tid = tid, Name = name, X = p.X, Y = p.Y, Height = p.Height };
 }
 
 /// <summary>От каких мобов умирать при сливе опыта.</summary>
