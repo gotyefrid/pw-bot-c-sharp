@@ -14,7 +14,7 @@ namespace Notes.Core.Brain;
 /// сразу: моб «возвращается» (<see cref="NpcInfo.Returning"/>) или сбросил цель — тогда обход возвращается на последнюю
 /// посещённую точку (моб, скорее всего, отошёл — ресурс мог освободиться). Цель у моба может застрять на нас (клиент не получил
 /// отагр) — не бьёт <see cref="StaleAfter"/> — считаем отставшим и не трогаем его, пока снова не ударит.
-/// Не вышло (полёта нет, моб всё бьёт через <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — дерёмся, как с любым
+/// Не вышло (полётника нет, полёта нет, моб всё бьёт через <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — дерёмся, как с любым
 /// напавшим, пока этот моб не отстанет. Стоит сразу после выживания: банки пьём и при подъёме.
 /// </summary>
 public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
@@ -73,6 +73,9 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
         var climbed = w.Host.Position.Height - _startHeight;
         if (w.Host.Flying is null)
             return GiveUp(c, "не знаем, летит ли персонаж");
+        // Без полётника «Полёт» не жмём: клиент молча ничего не делает, а моб бьёт 5 с, пока ждём взлёта
+        if (w.Host.Flying == false && w.HasFlyer == false)
+            return GiveUp(c, "полётника нет");
         if (climbed >= MaxClimb)
             return GiveUp(c, $"поднялись на {climbed:0} м");
         if (c.Now - _since > GiveUpAfter && c.Now - _lastHit < HitMemory)

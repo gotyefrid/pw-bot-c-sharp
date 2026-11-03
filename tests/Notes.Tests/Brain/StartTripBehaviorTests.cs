@@ -58,7 +58,8 @@ public class StartTripBehaviorTests
         {
             switch (call.Split(' ')[0])
             {
-                case "fly-toggle":
+                // Отказ клиента — не взлетели
+                case "fly-toggle" when !_actions.Refuse.Contains("fly-toggle"):
                     _world.Flying = _world.Flying != true;
                     if (_world.Flying == false)
                         _world.Position = _world.Position with { Height = 0 };
@@ -204,5 +205,43 @@ public class StartTripBehaviorTests
 
         Assert.True(Logged("сливаю"));
         Assert.False(Logged("Бой:"));
+    }
+
+    [Fact]
+    public void NoFlyerWalksWithoutPressingFly()
+    {
+        _world.HasFlyer = false;
+        FarmAt(new Position(500, 0, 0));
+
+        TickFor(2);
+
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+        Assert.StartsWith("move", _actions.Calls[0]);
+        Assert.True(Logged("Полётника нет — иду пешком"));
+    }
+
+    // Полётник надет, а взлёт не вышел — жмём снова, пешком не идём
+    [Fact]
+    public void FlyerOnRetriesTakeoffEndlessly()
+    {
+        _world.HasFlyer = true;
+        _actions.Refuse.Add("fly-toggle");
+        FarmAt(new Position(500, 0, 0));
+
+        TickFor(60);
+
+        Assert.True(_actions.Calls.Count(c => c == "fly-toggle") >= 10);
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("move"));
+    }
+
+    [Fact]
+    public void UnknownFlyerFailedTakeoffWalks()
+    {
+        _actions.Refuse.Add("fly-toggle");
+        FarmAt(new Position(500, 0, 0));
+
+        TickFor(3);
+
+        Assert.Contains(_actions.Calls, c => c.StartsWith("move"));
     }
 }

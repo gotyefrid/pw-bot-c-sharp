@@ -139,6 +139,13 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             return true;
         }
 
+        // Полётник сняли (или упал на землю без него) — дальше по земле: «Полёт» без полётника ничего не делает
+        if (_inAir == true && w.Host.Flying == false && w.HasFlyer == false)
+        {
+            _inAir = false;
+            c.Log.Warning("Полётника нет — обхожу дальше по земле");
+        }
+
         if (_inAir == true && w.Host.Flying == false)
         {
             Status = "взлетаю";

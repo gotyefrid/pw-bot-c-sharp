@@ -417,6 +417,44 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void KnownNoFlyerBotFightsWithoutPressingFly()
+    {
+        // Знаем, что полётника нет: «Полёт» не жмём совсем — сразу дерёмся, не ждём 5 с под ударами
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.HasFlyer = false;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["select 80000001"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.Contains("полётника нет"));
+    }
+
+    [Fact]
+    public void InAirRouteWithoutFlyerGoesOnFoot()
+    {
+        _settings.Route.Points = [RoutePoint.At("Над рудой", new Position(50, 30, 0)), RoutePoint.At("Дальше", new Position(100, 30, 0))];
+        _world.Flying = true;
+        Tick();
+
+        // Оказались на земле, а полётника больше нет — по земле, «Полёт» не жмём
+        _world.Position = new Position(50, 0, 0);
+        _world.Flying = false;
+        _world.HasFlyer = false;
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+        Assert.EndsWith("умно", _actions.Calls.Last());
+    }
+
+    [Fact]
     public void TakeoffNotSentBotFightsAtOnce()
     {
         // Взлёт не отправился вовсе (клиент отказал) — дерёмся сразу, не ждём

@@ -123,6 +123,7 @@ public sealed class WorldReader
             QuestCandidates = Requests.Quests ? ReadQuestCandidates(host.Level) : null,
             QuestItems = Requests.Quests && _p.Host.QuestItems != 0 ? ReadInventory(Field(hostBlock, _p.Host.QuestItems), out _) : null,
             Equipment = equipment,
+            HasFlyer = _p.Host.Equipment == 0 || _p.Host.FlyerSlot is not { } flyer ? null : equipment.Any(i => i.Slot == flyer),
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
             Chat = ReadChat(),

@@ -162,6 +162,9 @@ public sealed record WorldState(
     /// <summary>Надетые вещи (ячейка — место: 0 — оружие…); пусто — ничего не надето или на этом сервере не найдены.</summary>
     public IReadOnlyList<InventoryItem> Equipment { get; init; } = [];
 
+    /// <summary>Надет полётник: можно взлетать. null — не знаем (ячейка или надетые вещи не найдены для этого сервера).</summary>
+    public bool? HasFlyer { get; init; }
+
     /// <summary>Есть надетая поношенная вещь, которую можно починить.</summary>
     public bool NeedsRepair => Equipment.Any(i => i.NeedsRepair);
 

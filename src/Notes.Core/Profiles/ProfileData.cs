@@ -205,6 +205,8 @@ public sealed class HostOffsets
     public uint Bank { get; init; }
     /// <summary>[перс + Equipment] — надетые вещи (ячейка = место: 0 — оружие…); устроены как сумка. 0 — не найдено.</summary>
     public uint Equipment { get; init; }
+    /// <summary>Ячейка полётника в надетых вещах (<see cref="Equipment"/>); null — не найдено (пустое в профиле).</summary>
+    public int? FlyerSlot { get; init; }
     /// <summary>[перс + QuestItems] — сумка заданий (предметы заданий); устроена как сумка. 0 — не найдено.</summary>
     public uint QuestItems { get; init; }
     /// <summary>[перс + Quests] — объект заданий персонажа (<see cref="QuestOffsets"/>). 0 — не найдено.</summary>

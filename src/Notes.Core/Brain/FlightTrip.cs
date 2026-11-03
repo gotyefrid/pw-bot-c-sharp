@@ -32,8 +32,9 @@ public enum TripStep
 /// <summary>
 /// Долгий путь до точки (из города на место фарма): взлёт, подъём строго вверх до высоты полёта (подъём по пути может врезаться в
 /// дом или гору), отрезки по прямой по <see cref="LegLength"/>, над точкой — как велит <see cref="TripEnd"/>: сесть, зависнуть на
-/// высоте точки или нырнуть до неё. Не долетели — выше на <see cref="FailClimb"/>; не взлетели, не долетели <see cref="FlightFails"/> раз или полёта
-/// в точку у сервера нет — пешком автопутём.
+/// высоте точки или нырнуть до неё. Не долетели — выше на <see cref="FailClimb"/>; не долетели <see cref="FlightFails"/> раз или полёта
+/// в точку у сервера нет — пешком автопутём. Полётника нет (<see cref="WorldState.HasFlyer"/>) — сразу пешком, «Полёт» не жмём; надет —
+/// не взлетели, жмём снова через <see cref="TakeoffRetry"/>, сколько угодно раз. Не знаем, надет ли, — не взлетели, идём пешком.
 /// Не поведение, а деталь поведения: шаги — из его Tick, итоги — из его OnOutcome; действия уходят от его имени.
 /// </summary>
 public sealed class FlightTrip
@@ -47,6 +48,7 @@ public sealed class FlightTrip
     // Высоты — как в памяти (в 10 раз больше, чем в игре): 20 — 2 м
     public const float FailClimb = 20f;
     public const int FlightFails = 5;
+    public static readonly TimeSpan TakeoffRetry = TimeSpan.FromSeconds(3);
     // Над городом бывает выше заданной высоты: во время полёта ниже неё не опускаемся, но и не выше этого запаса
     private const float KeepHigher = 50f;
 
@@ -58,6 +60,8 @@ public sealed class FlightTrip
     private bool _landFailed;
     private bool _diveFailed;
     private int _fails;
+    private int _takeoffFails;
+    private DateTime _takeoffAt = DateTime.MinValue;
 
     /// <param name="cruise">Высота полёта, как в памяти. Зависнуть в воздухе — не ниже высоты точки.</param>
     public FlightTrip(Spot to, float cruise)
@@ -82,6 +86,11 @@ public sealed class FlightTrip
             if (c.Runner.Capabilities.WhyNot(Capability.FlyTo) is { } why)
             {
                 c.Log.Info($"Лететь не умею ({why}) — иду пешком");
+                _walk = true;
+            }
+            else if (c.World.HasFlyer == false && c.World.Host.Flying != true)
+            {
+                c.Log.Info("Полётника нет — иду пешком");
                 _walk = true;
             }
         }
@@ -116,7 +125,10 @@ public sealed class FlightTrip
         if (_walk)
             c.Submit(new MoveAction(To, tolerance: 3f, smart: true));
         else if (host.Flying != true)
-            c.Submit(new FlyAction(up: true));
+        {
+            if (c.Now >= _takeoffAt)
+                c.Submit(new FlyAction(up: true));
+        }
         else if (!_climbed && here.Height < _cruise - 2)
         {
             _climbed = true;
@@ -148,7 +160,13 @@ public sealed class FlightTrip
 
         switch (outcome.Action)
         {
-            // Нет крыльев или полёт здесь запрещён
+            // Полётник надет — пробуем снова (сидел, каст, полёт здесь на время нельзя): пешком до места далеко
+            case FlyAction { Up: true } when c.World.HasFlyer == true:
+                _takeoffAt = c.Now + TakeoffRetry;
+                if (++_takeoffFails == 1 || _takeoffFails % 10 == 0)
+                    c.Log.Warning($"Не взлетел ({outcome.Details}) — полётник надет, пробую снова");
+                break;
+            // Не знаем, надет ли полётник: нет крыльев или полёт здесь запрещён
             case FlyAction { Up: true }:
                 c.Log.Warning("Не взлетел — иду пешком");
                 _walk = true;
