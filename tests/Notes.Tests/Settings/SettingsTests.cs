@@ -317,4 +317,13 @@ public class SettingsStoreTests : IDisposable
 
         Assert.Equal(1, edits);
     }
+
+    [Fact]
+    public void HiddenLevelUpModeBecomesFarmMobs()
+    {
+        // «Прокачать друида» не доделан и скрыт в окне — сохранённый у персонажа не должен запускаться
+        var s = new BotSettings { Mode = BotMode.LevelUp }.Normalize();
+
+        Assert.Equal(BotMode.FarmMobs, s.Mode);
+    }
 }

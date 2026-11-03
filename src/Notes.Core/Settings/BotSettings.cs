@@ -83,6 +83,9 @@ public sealed class BotSettings
     /// <summary>Приводит значения к допустимым (после ручной правки файла или старой версии).</summary>
     public BotSettings Normalize()
     {
+        // «Прокачать друида» не доделан и скрыт в окне (MainViewModel.Modes): сохранённый — как «Бить мобов»
+        if (Mode == BotMode.LevelUp)
+            Mode = BotMode.FarmMobs;
         Connection ??= new();
         Connection.ClientPaths ??= new Dictionary<string, string>();
         LogView ??= new();
