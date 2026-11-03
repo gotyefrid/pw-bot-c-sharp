@@ -11,8 +11,8 @@ namespace Notes.Core.Brain;
 /// «Ремонтировать снаряжение» (<see cref="Settings.RepairSettings"/>): самая поношенная надетая вещь ниже порога прочности
 /// (<see cref="WornPercent"/>) — починить всё.
 /// <list type="bullet">
-/// <item>Из сумки (<see cref="Settings.RepairSettings.FromBag"/>, сервер умеет — <see cref="Capability.RemoteRepair"/>): открыть
-/// лавку кнопкой сумки, «Починить всё», закрыть «отменой».</item>
+/// <item>Из сумки (<see cref="Settings.RepairSettings.FromBag"/>, сервер умеет — <see cref="Capability.RemoteRepair"/>): просто
+/// «Починить всё», где стоим. Лавку не открываем: сервер чинит и без неё (проверено на 1.4.6), а её окно «отмена» не закрывает.</item>
 /// <item>У NPC: долететь до места, где он стоял, когда его выбрали (<see cref="FlightTrip"/> на высоте ремонта; без полётника —
 /// пешком), подойти по прямой, заговорить, «Починить всё», закрыть окно и лететь обратно в центр фарма (<c>home</c>).</item>
 /// </list>
@@ -32,7 +32,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     private const float NpcSearch = 30f;
     // После бега сервер ещё с секунду отвечает «Выполняется другая операция»
     public static readonly TimeSpan Calm = TimeSpan.FromSeconds(1);
-    // Окно NPC или лавки открывает ответ сервера
+    // Окно NPC открывает ответ сервера
     public static readonly TimeSpan OpenWait = TimeSpan.FromSeconds(1.5);
     // Прочность в памяти обновляет ответ сервера на ремонт
     public static readonly TimeSpan RepairWait = TimeSpan.FromSeconds(3);
@@ -91,10 +91,10 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         {
             if (!Calmed(c))
                 return true;
-            if (c.Send(new OpenShopAction()) != SubmitStatus.Sent)
-                return false;
+            if (c.Send(new RepairAllAction()) is not SubmitStatus.Sent and var status)
+                return GiveUp(c, $"«Починить всё» не ушло ({status})");
             c.Log.Info($"Прочность {worn:0} % — чиню из сумки");
-            return Next(c, Stage.Hello, "ремонт: открываю лавку");
+            return Next(c, Stage.Repair, "ремонт: чиню");
         }
 
         if (s.Npc is not { } npc)
@@ -161,7 +161,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         return Next(c, Stage.Hello, $"ремонт: говорю с {saved.Name}");
     }
 
-    // Окно (NPC или лавки) открылось — «Починить всё»
+    // Окно NPC открылось — «Починить всё»
     private bool Hello(BrainContext c)
     {
         Status = "ремонт: жду окно";
@@ -184,22 +184,21 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         else
             Remember(c, _fromBag ? "после «Починить всё» прочность не выросла — хватает ли денег?"
                 : "после «Починить всё» прочность не выросла — хватает ли денег, чинит ли этот NPC?");
+        if (_fromBag)
+        {
+            // Окон нет — закрывать нечего
+            _stage = Stage.Idle;
+            return false;
+        }
         return Next(c, Stage.Close, "ремонт: закрываю окно");
     }
 
-    // Лавку из сумки — «отменой», когда тело свободно; окно NPC — как кнопкой «Назад»
+    // Окно NPC — как кнопкой «Назад»
     private bool Close(BrainContext c)
     {
         Status = "ремонт: закрываю окно";
-        if (c.Runner.BodyBusy(c.World) is not null)
+        if (c.Send(new NpcDialogCloseAction()) != SubmitStatus.Sent)
             return true;
-        if (c.Send(_fromBag ? new CloseBankAction() : new NpcDialogCloseAction()) != SubmitStatus.Sent)
-            return true;
-        if (_fromBag)
-        {
-            _stage = Stage.Idle;
-            return true;
-        }
         return GoBack(c);
     }
 

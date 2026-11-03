@@ -26,6 +26,8 @@ public class RepairBehaviorTests
     private int _seen;
     private int _flown;
     private int _walked;
+    // Сервер чинит (нет — денег не хватило: команда ушла, а прочность та же)
+    private bool _repairs = true;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -81,7 +83,7 @@ public class RepairBehaviorTests
                 case "move":
                     _world.Position = _actions.MovePoints[_walked++];
                     break;
-                case "repair-all" when !_actions.Refuse.Contains("repair-all"):
+                case "repair-all" when _repairs:
                     Wear(10000, 10000);
                     break;
             }
@@ -100,13 +102,13 @@ public class RepairBehaviorTests
     private int Count(string call) => _actions.Calls.Count(c => c == call);
 
     [Fact]
-    public void FromBagOpensShopRepairsAndCloses()
+    public void FromBagRepairsWithoutOpeningShop()
     {
         _settings.Repair.FromBag = true;
 
         TickFor(6);
 
-        Assert.Equal(new[] { "shop", "repair-all", "cancel" }, _actions.Calls.Where(c => c is "shop" or "repair-all" or "cancel"));
+        Assert.Equal(new[] { "repair-all" }, _actions.Calls);
         Assert.Equal(100, RepairBehavior.WornPercent(_world.Snapshot()));
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
         Assert.True(Logged("Починил"));
@@ -223,12 +225,24 @@ public class RepairBehaviorTests
     public void StillWornAfterRepairGivesUpUntilStart()
     {
         _settings.Repair.FromBag = true;
-        _actions.Refuse.Add("repair-all");
+        _repairs = false;
 
         TickFor(15);
 
         Assert.True(Logged("прочность не выросла"));
-        Assert.Equal(1, Count("shop"));
+        Assert.Equal(1, Count("repair-all"));
+    }
+
+    [Fact]
+    public void RefusedCommandGivesUp()
+    {
+        _settings.Repair.FromBag = true;
+        _actions.Refuse.Add("repair-all");
+
+        TickFor(6);
+
+        Assert.True(Logged("не ушло"));
+        Assert.Equal(1, Count("repair-all"));
     }
 
     [Fact]

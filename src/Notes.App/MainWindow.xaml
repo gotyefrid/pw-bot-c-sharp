@@ -737,7 +737,7 @@
               </DockPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Чинить из сумки, без NPC" IsChecked="{Binding Settings.Repair.FromBag}"
                         Visibility="{Binding CanRepairFromBag, Converter={StaticResource Visible}}"
-                        ToolTip="Бот открывает лавку кнопкой в окне сумки, жмёт «Починить всё» и закрывает её — никуда не летит" />
+                        ToolTip="Бот чинит всё прямо там, где стоит, — как «Починить всё» в лавке из сумки, только окно не открывается. Никуда не летит" />
               <StackPanel>
                 <StackPanel.Style>
                   <Style TargetType="StackPanel">

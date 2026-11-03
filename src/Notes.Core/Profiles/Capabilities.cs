@@ -37,7 +37,10 @@ public enum Capability
     /// <summary>Чинить надетое у NPC: прочность вещей, разговор с NPC и «Починить всё».</summary>
     Repair,
 
-    /// <summary>Чинить из сумки, без NPC: лавка открывается кнопкой в окне сумки (есть только на клиентах Comeback).</summary>
+    /// <summary>
+    /// Чинить из сумки, без NPC: «Починить всё» где угодно. Сервер это разрешает там, где у сумки есть кнопка «Лавка» (Comeback), —
+    /// по ней и узнаём; саму лавку не открываем (сервер чинит и без неё, проверено на 1.4.6).
+    /// </summary>
     RemoteRepair,
 }
 
@@ -95,7 +98,7 @@ public sealed class Capabilities
         Set(Capability.ReviveInTown, First(GameFunctions.ReviveInTown));
         var durability = profile.Host.Equipment == 0 || profile.Inventory.ItemMaxDurability == 0 ? "в профиле нет прочности надетых вещей" : null;
         Set(Capability.Repair, durability ?? First(GameFunctions.NpcHello, GameFunctions.RepairItem, GameFunctions.NpcDialogClose));
-        Set(Capability.RemoteRepair, durability ?? First(GameFunctions.OpenRemotePanel, GameFunctions.RepairItem, GameFunctions.CancelAction));
+        Set(Capability.RemoteRepair, durability ?? First(GameFunctions.OpenRemotePanel, GameFunctions.RepairItem));
         return new Capabilities(missing);
     }
 }
