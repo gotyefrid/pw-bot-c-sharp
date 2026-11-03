@@ -175,6 +175,14 @@ public sealed class HostOffsets
     public uint Mp { get; init; }
     public uint MaxHp { get; init; }
     public uint MaxMp { get; init; }
+    /// <summary>Опыт на текущем уровне (int). 0 — не найдено.</summary>
+    public uint Exp { get; init; }
+    /// <summary>
+    /// Код, который читает таблицу «опыт до следующего уровня» по уровню перса: на месте <see cref="ExpTableAt"/> — адрес X,
+    /// нужно на уровне L — [X + L × 4]. null — не найдено для сервера.
+    /// </summary>
+    public Signature? ExpTableFind { get; init; }
+    public uint ExpTableAt { get; init; }
     /// <summary>WID текущей цели.</summary>
     public uint TargetId { get; init; }
     /// <summary>Перезарядка корма пета, мс осталось (0 — можно кормить).</summary>

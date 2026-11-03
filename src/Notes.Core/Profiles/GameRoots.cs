@@ -14,22 +14,27 @@ public sealed class GameRoots
     private readonly Lazy<uint> _pointer;
     private readonly Lazy<uint?> _chatList;
     private readonly Lazy<uint?> _questLists;
+    private readonly Lazy<uint?> _expTable;
     private readonly ProfileData _profile;
 
     /// <param name="pointer">Где лежит указатель на базу — адрес в данных exe.</param>
     /// <param name="chatList">Где список сообщений чата (null — не искать).</param>
     /// <param name="questLists">Где переменная с объектом списков заданий (null — не искать).</param>
-    public GameRoots(IMemory memory, uint pointer, ProfileData profile, uint? chatList = null, uint? questLists = null)
-        : this(memory, new Lazy<uint>(() => pointer), new Lazy<uint?>(() => chatList), new Lazy<uint?>(() => questLists), profile)
+    /// <param name="expTable">Таблица «опыт до следующего уровня», как <see cref="ExpTable"/> (null — не искать).</param>
+    public GameRoots(IMemory memory, uint pointer, ProfileData profile, uint? chatList = null, uint? questLists = null, uint? expTable = null)
+        : this(memory, new Lazy<uint>(() => pointer), new Lazy<uint?>(() => chatList), new Lazy<uint?>(() => questLists),
+            new Lazy<uint?>(() => expTable), profile)
     {
     }
 
-    private GameRoots(IMemory memory, Lazy<uint> pointer, Lazy<uint?> chatList, Lazy<uint?> questLists, ProfileData profile)
+    private GameRoots(IMemory memory, Lazy<uint> pointer, Lazy<uint?> chatList, Lazy<uint?> questLists, Lazy<uint?> expTable,
+        ProfileData profile)
     {
         _memory = memory;
         _pointer = pointer;
         _chatList = chatList;
         _questLists = questLists;
+        _expTable = expTable;
         _profile = profile;
     }
 
@@ -49,9 +54,10 @@ public sealed class GameRoots
                 throw new MemoryAccessException(moduleBase, e.Message);
             }
         }), new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Chat.Find, profile.Chat.At)),
-            new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Quests.AvailableFind, profile.Quests.AvailableAt)), profile);
+            new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Quests.AvailableFind, profile.Quests.AvailableAt)),
+            new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Host.ExpTableFind, profile.Host.ExpTableAt)), profile);
 
-    // Глобальная переменная — по коду, один раз. Не нашлась — то, что от неё зависит (чат, доступные задания), просто не читается
+    // Глобальная переменная — по коду, один раз. Не нашлась — то, что от неё зависит (чат, доступные задания, опыт до уровня), просто не читается
     private static uint? FindData(IMemory memory, uint moduleBase, Signature? find, uint at)
     {
         if (find is null)
@@ -74,6 +80,9 @@ public sealed class GameRoots
 
     /// <summary>Где переменная с объектом списков заданий (доступные); null — на этом сервере не найдена.</summary>
     public uint? QuestLists() => _questLists.Value;
+
+    /// <summary>Таблица «опыт до следующего уровня»: нужно на уровне L — [таблица + L × 4]; null — на этом сервере не найдена.</summary>
+    public uint? ExpTable() => _expTable.Value;
 
     /// <summary>База; не читается — <see cref="MemoryAccessException"/>.</summary>
     public uint Base() => _memory.ReadUInt32(Pointer);

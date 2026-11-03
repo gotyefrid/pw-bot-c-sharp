@@ -56,6 +56,9 @@ public sealed class WorldReader
     // Текст сообщения чата не меняется — у каждого номера читаем один раз
     private Dictionary<int, ChatMessage> _chat = [];
 
+    // Уровней в таблице опыта не больше (в 1.4.6 после 105 повторяется одно число) — защита от чтения мимо таблицы
+    private const int MaxLevel = 200;
+
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
     private const int MoveEnvWater = 1;
     private const int MoveEnvAir = 2;
@@ -69,7 +72,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.QuestItems, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv);
+            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.QuestItems, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv, h.Exp);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Tid, n.Type, n.State, n.Level, n.Hp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
@@ -181,8 +184,16 @@ public sealed class WorldReader
                 : new GatherProgress(digging, block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
             Flying = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvAir,
             InWater = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvWater,
+            Exp = h.Exp == 0 ? null : block.Int32(h.Exp),
+            ExpToLevel = ReadExpToLevel((int)Field(block, h.Level)),
         };
     }
+
+    // Таблица «опыт до уровня» в данных exe, по уровню: [таблица + уровень × 4]
+    private int? ReadExpToLevel(int level)
+        => level > 0 && level <= MaxLevel && _roots.ExpTable() is { } table && _memory.TryReadUInt32(table + (uint)level * 4, out var need)
+            ? (int)need
+            : null;
 
     /// <summary>Обходит хэш-таблицу менеджера мира (мобы или предметы на земле).</summary>
     private List<T> ReadList<T>(uint world, WorldListOffsets list, int objectSize, Func<MemoryBlock, T?> read, out int? countInGame)

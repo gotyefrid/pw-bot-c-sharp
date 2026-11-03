@@ -214,6 +214,15 @@ public sealed record HostState(
     /// <summary>Персонаж в воде; null — поле не найдено для этого сервера.</summary>
     public bool? InWater { get; init; }
 
+    /// <summary>Опыт на текущем уровне; null — поле не найдено для этого сервера.</summary>
+    public int? Exp { get; init; }
+
+    /// <summary>Сколько опыта нужно до следующего уровня (как в окне персонажа); null — таблица не найдена для этого сервера.</summary>
+    public int? ExpToLevel { get; init; }
+
+    /// <summary>Опыт в процентах от нужного до уровня (может быть больше 100 и меньше 0); null — опыт или таблица неизвестны.</summary>
+    public double? ExpPercent => Exp is { } exp && ExpToLevel is > 0 and { } need ? exp * 100.0 / need : null;
+
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
 
     /// <summary>null — максимум MP неизвестен (поле не найдено для сервера).</summary>

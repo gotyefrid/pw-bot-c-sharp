@@ -33,8 +33,8 @@ public class WorldReaderTests
         return host;
     }
 
-    private WorldReader Reader(ProfileData? profile = null, uint? chatList = null)
-        => new(_memory, new GameRoots(_memory, BasePointer, profile ?? Profile, chatList), profile ?? Profile);
+    private WorldReader Reader(ProfileData? profile = null, uint? chatList = null, uint? expTable = null)
+        => new(_memory, new GameRoots(_memory, BasePointer, profile ?? Profile, chatList, expTable: expTable), profile ?? Profile);
 
     [Fact]
     public void MacrosAreTheNonEmptyOnes()
@@ -279,6 +279,40 @@ public class WorldReaderTests
         BuildWorld();
 
         Assert.Empty(Reader().Read().Chat);
+    }
+
+    [Fact]
+    public void ExpAndExpToLevelFromTableByLevel()
+    {
+        // Таблица в данных exe: [таблица + уровень × 4] — сколько нужно до следующего уровня (проверено 03.11: 48 ур. — 221040)
+        var comeback = new ProfileCatalog().Load("comeback146").Data;
+        var host = BuildWorld(profile: comeback);
+        _memory.Map(host, 0x2000);
+        _memory.WriteUInt32(host + comeback.Host.Level, 48);
+        _memory.WriteUInt32(host + comeback.Host.Exp, 132198);
+        const uint table = 0x1006_0000;
+        _memory.Map(table, 0x400);
+        _memory.WriteUInt32(table + 47 * 4, 207270);
+        _memory.WriteUInt32(table + 48 * 4, 221040);
+
+        var h = Reader(comeback, expTable: table).Read().Host;
+
+        Assert.Equal(132198, h.Exp);
+        Assert.Equal(221040, h.ExpToLevel);
+        Assert.Equal(59.8, h.ExpPercent!.Value, 1);
+    }
+
+    [Fact]
+    public void ExpUnknownWhereNotFound()
+    {
+        // В профиле pwclassic136 опыт не найден ("exp": ""), таблицы нет
+        BuildWorld();
+
+        var h = Reader().Read().Host;
+
+        Assert.Null(h.Exp);
+        Assert.Null(h.ExpToLevel);
+        Assert.Null(h.ExpPercent);
     }
 
     [Fact]
