@@ -104,8 +104,10 @@ public sealed class RepairPanel : ObservableObject
 
     private void Fill()
     {
-        var list = new List<NpcChoice> { new(0, "— не выбран —") };
-        list.AddRange(Nearby(_world).Select(n => new NpcChoice(n.Tid, n.Name.Trim())).OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase));
+        var nearby = Nearby(_world).Select(n => new NpcChoice(n.Tid, n.Name.Trim())).OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+        // Рядом никого — подсказать, откуда берётся список
+        var list = new List<NpcChoice> { new(0, nearby.Count == 0 ? "— рядом NPC нет: встаньте у того, кто чинит —" : "— не выбран —") };
+        list.AddRange(nearby);
         if (Settings.Repair.Npc is { } saved && list.All(c => c.Tid != saved.Tid))
             list.Insert(1, new NpcChoice(saved.Tid, saved.Name));
         if (list.SequenceEqual(Npcs))
