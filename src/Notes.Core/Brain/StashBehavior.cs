@@ -19,7 +19,7 @@ namespace Notes.Core.Brain;
 /// банк бросаем (закроем, когда тело освободится), уберём после следующего лута. Не влезло (банк полон для предмета) или не
 /// кладётся — пишет в лог один раз в час; те же предметы при той же сумке снова не пробует.
 /// </summary>
-public sealed class StashBehavior : IBehavior
+public sealed class StashBehavior : IBehavior, IMultiStepBehavior
 {
     // После бега сервер ещё с секунду отвечает «Выполняется другая операция»
     private static readonly TimeSpan Calm = TimeSpan.FromSeconds(1);
@@ -47,6 +47,9 @@ public sealed class StashBehavior : IBehavior
     private string? _gaveUpOn;
 
     public string Name => "банк";
+
+    // Банк открыт или закрывается — обрывать нельзя: окно останется открытым, а перенос продолжится с середины
+    public string? InMiddle => _stage == Stage.Idle ? null : "убираю в банк";
     public string? Status { get; private set; }
 
     public bool Tick(BrainContext c)

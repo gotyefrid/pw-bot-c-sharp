@@ -65,6 +65,7 @@ public sealed class BotBrain : IBotRunner
 
             _context.Executor.Update(world);
             Deliver();
+            _context.InMiddle = _behaviors.OfType<IMultiStepBehavior>().Select(b => b.InMiddle).FirstOrDefault(s => s is not null);
 
             if (world.Host.IsDead)
             {
@@ -94,13 +95,15 @@ public sealed class BotBrain : IBotRunner
                     watcher.Observe(_context, acted);
                 Deliver();
                 SetStatus((acted ?? _main).Status ?? _behaviors.Select(b => b.Status).FirstOrDefault(s => s is not null) ?? "ожидание");
-                if (_context.StopReason is { } reason)
-                {
-                    _context.StopReason = null;
-                    stop = reason;
-                    SetStatus(reason + " — стоп");
-                }
             }
+
+            // Остановку могут попросить и живым, и мёртвым (встать в городе не вышло)
+            if (stop is null && _context.StopReason is { } reason)
+            {
+                stop = reason;
+                SetStatus(reason + " — стоп");
+            }
+            _context.StopReason = null;
         }
 
         if (stop is not null)

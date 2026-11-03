@@ -85,6 +85,12 @@ public sealed class BrainContext
     /// <summary>Перс в воде, и сервер умеет ход в точку с высотой — ходить «плыть в» (<see cref="MoveAction.Swim"/>), иначе глубина не меняется.</summary>
     public bool Swimming => World.Host.InWater == true && Runner.Capabilities.Has(Capability.FlyTo);
 
+    /// <summary>
+    /// Кто посреди дела из нескольких шагов (<see cref="IMultiStepBehavior"/>: банк открыт, вещи переносятся) — что делает;
+    /// null — никто. Поведения, которые начинают по своему желанию (слив опыта), ждут, пока дело не кончится. Ставит мозг перед ходом.
+    /// </summary>
+    public string? InMiddle { get; internal set; }
+
     /// <summary>Поведение просит остановить бота (маршрут пуст, нет кирки…); мозг остановит после этого шага.</summary>
     public string? StopReason { get; internal set; }
 
@@ -161,6 +167,16 @@ public interface IDeathBehavior : IBehavior
 {
     /// <summary>Шаг, пока персонаж мёртв. true — смерть «своя», бот не останавливаем.</summary>
     bool TickDead(BrainContext context);
+}
+
+/// <summary>
+/// Поведение, у которого бывает дело из нескольких шагов с паузами между ними (банк: открыть → переложить → закрыть). Между
+/// шагами тело свободно, но оборвать дело на середине нельзя — см. <see cref="BrainContext.InMiddle"/>.
+/// </summary>
+public interface IMultiStepBehavior
+{
+    /// <summary>Что за дело идёт («убираю в банк»); null — ничего не начато.</summary>
+    string? InMiddle { get; }
 }
 
 /// <summary>Поведение, которое смотрит каждый снимок после хода — и когда ход занял кто-то до него (лог нападений у боя).</summary>
