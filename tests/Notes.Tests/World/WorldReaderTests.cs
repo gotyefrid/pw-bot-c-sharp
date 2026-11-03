@@ -305,10 +305,13 @@ public class WorldReaderTests
     [Fact]
     public void ExpUnknownWhereNotFound()
     {
-        // В профиле pwclassic136 опыт не найден ("exp": ""), таблицы нет
-        BuildWorld();
+        // Сервер, где опыт не найден ("exp": ""), таблицы нет
+        var json = new ProfileCatalog().ReadJson("pwclassic136");
+        var profile = ProfileJson.Parse(json.Replace("\"exp\": \"0x4B8\"", "\"exp\": \"\""));
+        Assert.Equal(0u, profile.Host.Exp);
+        BuildWorld(profile: profile);
 
-        var h = Reader().Read().Host;
+        var h = Reader(profile).Read().Host;
 
         Assert.Null(h.Exp);
         Assert.Null(h.ExpToLevel);
