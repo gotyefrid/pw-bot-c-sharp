@@ -55,6 +55,9 @@ public interface IGameActions
     /// <summary>Закрыть окно разговора с NPC, как кнопкой «Назад».</summary>
     CallResult NpcDialogClose();
 
+    /// <summary>Встать в ближайшем городе после смерти, как кнопкой окна смерти.</summary>
+    CallResult ReviveInTown();
+
     /// <summary>Начать разговор с NPC (как кликом): откроется окно со списком услуг.</summary>
     CallResult NpcHello(uint wid);
 

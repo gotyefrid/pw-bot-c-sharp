@@ -243,6 +243,20 @@ public sealed class NpcDialogCloseAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>
+/// Встать в ближайшем городе после смерти (верхняя кнопка окна смерти). Подтверждение — персонаж снова жив (HP больше 0).
+/// </summary>
+public sealed class ReviveInTownAction : GameAction
+{
+    public override string Name => "встать в городе";
+    public override ActionSlot Slot => ActionSlot.Movement;
+    public override ActionResource Resource => ActionResource.Body;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(10);
+    public override string? Precondition(WorldState now) => now.Host.IsDead ? null : "персонаж жив";
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ReviveInTown();
+    public override Verdict Check(WorldState start, WorldState now) => now.Host.IsDead ? Verdict.Pending : Verdict.Confirmed();
+}
+
 /// <summary>Начать разговор с NPC в цели: окно открывает ответ сервера, итог не ждём.</summary>
 public sealed class NpcHelloAction(uint wid) : GameAction
 {

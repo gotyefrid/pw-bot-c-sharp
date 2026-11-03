@@ -27,6 +27,7 @@ internal static class ActCommands
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
+          act revive-town        встать в ближайшем городе после смерти, как верхней кнопкой окна смерти
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
           act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
@@ -341,6 +342,9 @@ internal static class ActCommands
 
             case "npc-back":
                 return new NpcDialogCloseAction();
+
+            case "revive-town":
+                return new ReviveInTownAction();
 
             case "npc-bank":
                 return new NpcOpenBankAction();

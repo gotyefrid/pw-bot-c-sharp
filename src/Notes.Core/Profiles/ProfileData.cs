@@ -710,6 +710,7 @@ public static class GameFunctions
     public const string SendPacket = "sendPacket";
     public const string RepairItem = "repairItem";
     public const string NpcDialogClose = "npcDialogClose";
+    public const string ReviveInTown = "reviveInTown";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";
     public const string SummonPet = "summonPet";

@@ -174,6 +174,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult CancelAction() => Record("cancel");
     public CallResult OpenBank() => Record("bank");
     public CallResult OpenShop() => Record("shop");
+    public CallResult ReviveInTown() => Record("revive-town");
     public CallResult RepairAll() => Record("repair-all");
     public CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items)
         => Record("sell " + string.Join(" ", items.Select(i => $"{i.Item.Slot}x{i.Count}")));

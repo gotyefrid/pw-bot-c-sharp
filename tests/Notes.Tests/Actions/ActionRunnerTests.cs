@@ -1002,6 +1002,7 @@ public class ActionRunnerTests
         public CallResult CancelAction() => Slow();
         public CallResult OpenBank() => Slow();
         public CallResult OpenShop() => Slow();
+        public CallResult ReviveInTown() => Slow();
         public CallResult RepairAll() => Slow();
         public CallResult NpcSell(IReadOnlyList<(InventoryItem Item, int Count)> items) => Slow();
         public CallResult NpcHello(uint wid) => Slow();

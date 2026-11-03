@@ -69,6 +69,8 @@ public sealed class GameCaller : IGameActions
         // Что чинить: tid предмета (-1 — всё), где он и в какой ячейке
         [GameFunctions.RepairItem] = ["where", "slot", "tid"],
         [GameFunctions.NpcDialogClose] = [],
+        // Номер колесницы (воскрешение на поле боя за город); обычная смерть — 0
+        [GameFunctions.ReviveInTown] = ["0"],
         [GameFunctions.SummonPet] = ["index"],
         [GameFunctions.RecallPet] = [],
         [GameFunctions.CastSkill] = ["skill", "pvpMask", "count", DataArg],
@@ -161,6 +163,9 @@ public sealed class GameCaller : IGameActions
     /// разговор сервер помнит и дальше (продажа и ремонт проходят).
     /// </summary>
     public CallResult NpcDialogClose() => Call(GameFunctions.NpcDialogClose, null);
+
+    /// <summary>Встать в ближайшем городе после смерти, как верхней кнопкой окна смерти (опыт теряется, как у игрока).</summary>
+    public CallResult ReviveInTown() => Call(GameFunctions.ReviveInTown, null);
 
     /// <summary>Начать разговор с NPC, как кликом по нему: сервер отвечает списком услуг, клиент открывает окно NPC.</summary>
     public CallResult NpcHello(uint wid) => Call(GameFunctions.NpcHello, null, ("wid", wid));
