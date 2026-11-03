@@ -485,8 +485,6 @@
                         Visibility="{Binding CanChoosePath, Converter={StaticResource Visible}}"
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
             </DockPanel>
-            <CheckBox Style="{StaticResource Switch}" Content="После смерти — встать в городе и вернуться" IsChecked="{Binding Settings.Target.ReviveAndReturn}"
-                      ToolTip="Умер — «Ближний город» и полёт в центр фарма на высоте полёта к центру (нет полётника — бегом), дальше фармит. Убили снова за 10 минут фарма — сначала стоит в городе 5 минут, ещё раз — 10, 15… 10 минут без смерти — снова без паузы. Выключено — умер, бот остановился" />
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Лететь к центру при старте, если дальше, м" VerticalAlignment="Center"
                          ToolTip="«Старт» дальше этого от сохранённой точки фарма — бот взлетает, поднимается и летит в центр фарма (нет полёта — бежит автопутём). 0 — не летит" />
@@ -497,6 +495,12 @@
                          ToolTip="Как в игре. Бот поднимается на месте строго вверх и летит к центру фарма — выше домов, деревьев и гор" />
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.TravelHeight, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Вставать после смерти" IsChecked="{Binding Settings.Target.ReviveAndReturn}">
+              <CheckBox.ToolTip>
+                <TextBlock MaxWidth="320" TextWrapping="Wrap"
+                           Text="Умер — «Ближний город» и полёт в центр фарма на высоте полёта к центру (нет полётника — бегом), дальше фармит.&#10;&#10;Убили снова за 10 минут фарма — сначала стоит в городе 5 минут, ещё раз — 10, потом 15 и так далее.&#10;&#10;10 минут без смерти — снова без паузы.&#10;&#10;Выключено — умер, бот остановился." />
+              </CheckBox.ToolTip>
+            </CheckBox>
             <CheckBox Style="{StaticResource Switch}" Content="Копать ресурсы в радиусе фарма" IsChecked="{Binding Settings.Loot.PickResources}"
                       ToolTip="Сначала все ресурсы, потом мобы. Нужна кирка в сумке. Напали — сначала бой, потом копаем дальше. Сбор лута с мобов (вкладка «Общее») на это не влияет" />
             <StackPanel Margin="0,4,0,8" Visibility="{Binding Settings.Loot.PickResources, Converter={StaticResource Visible}}">
