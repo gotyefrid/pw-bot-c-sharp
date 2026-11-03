@@ -114,6 +114,20 @@ internal static class ScanCommands
         return 0;
     }
 
+    /// <summary>Числа структуры перса подряд — int и float: соседние поля по уже известным (опыт сразу за MP).</summary>
+    public static int HostInts(ServerProfile profile, GameProcess game, string[] args)
+    {
+        var range = args.Where(a => a.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            .Select(a => Convert.ToInt32(a.Substring(2), 16)).ToList();
+        int from = range.Count > 0 ? range[0] : 0x480, to = range.Count > 1 ? range[1] : 0x540;
+        var world = new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data).Read();
+        var block = game.ReadBytes(world.Host.Address + (uint)from, to - from + 4);
+        Console.WriteLine($"Перс 0x{world.Host.Address:X8}: ур. {world.Host.Level}, HP {world.Host.Hp}/{world.Host.MaxHp}, MP {world.Host.Mp}/{world.Host.MaxMp}");
+        for (var offset = from; offset <= to; offset += 4)
+            Console.WriteLine($"  +0x{offset:X3}: {BitConverter.ToInt32(block, offset - from),12} {BitConverter.ToSingle(block, offset - from),12:0.##}");
+        return 0;
+    }
+
     /// <summary>
     /// Поля записи моба в справочнике (по указателю profile npc.essence) — по одному мобу каждого вида, int и float: так ищутся
     /// поля справочника (агрессивный, обзор, где обитает) сравнением видов, о которых знаем это из игры.

@@ -70,6 +70,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Quests(profile, game));
                 case "chat":
                     return WithClient(rest, (profile, game) => WorldCommands.Chat(profile, game, rest));
+                case "hostints":
+                    return WithClient(rest, (profile, game) => ScanCommands.HostInts(profile, game, rest));
                 case "mobessence":
                     return WithClient(rest, (profile, game) => ScanCommands.MobEssence(profile, game, rest));
                 case "mobfields":
@@ -114,6 +116,7 @@ internal static class Program
         Console.WriteLine("  quests    принятые задания, как в окне «Задания»: цель, кого убить или что собрать, кому сдать");
         Console.WriteLine("  chat      [сколько] [watch]  последние сообщения окна чата (канал, номер, текст); watch — печатать новые и записывать мир вокруг смерти в logs\\deaths, Ctrl+C — выход");
         Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");
+        Console.WriteLine("  hostints [0xОТ 0xДО]  числа структуры перса подряд, int и float (соседние поля: опыт рядом с HP и MP)");
         Console.WriteLine("  mobessence [0xОТ 0xДО]  поля записи моба в справочнике (MONSTER_ESSENCE) по видам: int и float (поиск полей справочника)");
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
