@@ -10,8 +10,9 @@ using Notes.Core.World;
 namespace Notes.App.Panels;
 
 /// <summary>
-/// Карточка «Ремонт»: у какого NPC чинить. Список — NPC вокруг персонажа (у каждого вида — один, ближний) и уже выбранный, если
-/// его рядом нет. Выбрали — запоминаем вид, имя и где он стоит: туда бот и полетит.
+/// Карточка «Ремонт»: у какого NPC чинить. Список — NPC вокруг персонажа, ближние первыми (по имени — один, ближний), и уже
+/// выбранный, если его рядом нет; в поле можно ввести имя. Выбрали — запоминаем имя, вид (если сервер его показывает) и где он
+/// стоит: туда бот и полетит. По имени, а не по виду: на 1.3.6 вид NPC не читается.
 /// </summary>
 public sealed class RepairPanel : ObservableObject
 {
@@ -30,8 +31,8 @@ public sealed class RepairPanel : ObservableObject
         Fill();
     }
 
-    /// <summary>Пункт списка: вид NPC (0 — не выбран) и имя.</summary>
-    public sealed record NpcChoice(int Tid, string Title);
+    /// <summary>Пункт списка: имя NPC (пусто — не выбран) и текст пункта.</summary>
+    public sealed record NpcChoice(string Name, string Title);
 
     public ObservableCollection<NpcChoice> Npcs { get; } = new();
 
@@ -39,21 +40,21 @@ public sealed class RepairPanel : ObservableObject
 
     // Пока список пересобирается — null: окно, сбросив выбор, тут же перечитывает его, и пункт, которого ещё нет в списке,
     // остался бы «выбранным», но невидимым (поле пустое). После пересборки выбор меняется null → пункт, и окно его находит
-    public int? NpcTid
+    public string? NpcName
     {
-        get => _syncing ? null : Settings.Repair.Npc?.Tid ?? 0;
+        get => _syncing ? null : Settings.Repair.Npc?.Name ?? "";
         set
         {
-            if (_syncing || value is not { } tid || tid == (Settings.Repair.Npc?.Tid ?? 0))
+            if (_syncing || value is null || Same(value, Settings.Repair.Npc?.Name ?? ""))
                 return;
-            if (tid == 0)
+            if (value.Length == 0)
             {
                 Settings.Repair.Npc = null;
                 _log.Info("NPC для ремонта не выбран");
             }
-            else if (Nearby(_world).FirstOrDefault(n => n.Tid == tid) is { } npc)
+            else if (Nearby(_world).FirstOrDefault(n => Same(n.Name, value)) is { } npc)
             {
-                Settings.Repair.Npc = RepairNpc.At(tid, npc.Name.Trim(), npc.Position);
+                Settings.Repair.Npc = RepairNpc.At(npc.Tid, npc.Name.Trim(), npc.Position);
                 _log.Info($"NPC для ремонта: {npc.Name.Trim()}");
             }
             else
@@ -80,7 +81,7 @@ public sealed class RepairPanel : ObservableObject
     public void Rebind()
     {
         Fill();
-        OnPropertyChanged(nameof(NpcTid));
+        OnPropertyChanged(nameof(NpcName));
         UpdateInfo();
     }
 
@@ -95,22 +96,26 @@ public sealed class RepairPanel : ObservableObject
     private void UpdateInfo()
         => Info = Settings.Repair.Npc is { } npc && _world is { } w ? $"{w.Host.Position.HorizontalDistanceTo(npc.Position):0} м отсюда" : "";
 
-    // NPC с именем и видом; у каждого вида — ближний
+    // NPC с именем, ближние первыми; одноимённые — один, ближний
     private static IEnumerable<NpcInfo> Nearby(WorldState? w)
         => (w?.Npcs ?? [])
-            .Where(n => n.Kind == NpcKind.Npc && n.Tid != 0 && !string.IsNullOrWhiteSpace(n.Name))
-            .GroupBy(n => n.Tid)
-            .Select(g => g.OrderBy(n => n.Offset.Horizontal).First());
+            .Where(n => n.Kind == NpcKind.Npc && !string.IsNullOrWhiteSpace(n.Name))
+            .GroupBy(n => n.Name.Trim(), StringComparer.CurrentCultureIgnoreCase)
+            .Select(g => g.OrderBy(n => n.Offset.Horizontal).First())
+            .OrderBy(n => n.Offset.Horizontal);
+
+    private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.CurrentCultureIgnoreCase);
 
     private void Fill()
     {
-        var nearby = Nearby(_world).Select(n => new NpcChoice(n.Tid, n.Name.Trim())).OrderBy(c => c.Title, StringComparer.CurrentCultureIgnoreCase).ToList();
+        var nearby = Nearby(_world).Select(n => new NpcChoice(n.Name.Trim(), n.Name.Trim())).ToList();
         // Рядом никого — подсказать, откуда берётся список
-        var list = new List<NpcChoice> { new(0, nearby.Count == 0 ? "— рядом NPC нет: встаньте у того, кто чинит —" : "— не выбран —") };
+        var list = new List<NpcChoice> { new("", nearby.Count == 0 ? "— рядом NPC нет: встаньте у того, кто чинит —" : "— не выбран —") };
         list.AddRange(nearby);
-        if (Settings.Repair.Npc is { } saved && list.All(c => c.Tid != saved.Tid))
-            list.Insert(1, new NpcChoice(saved.Tid, saved.Name));
-        if (list.SequenceEqual(Npcs))
+        if (Settings.Repair.Npc is { } saved && list.All(c => !Same(c.Name, saved.Name)))
+            list.Insert(1, new NpcChoice(saved.Name, saved.Name));
+        // Пересобираем, только когда кто-то появился или ушёл: от того, что перс сдвинулся, порядок не прыгает под рукой
+        if (list.Select(c => c.Title).OrderBy(t => t).SequenceEqual(Npcs.Select(c => c.Title).OrderBy(t => t)))
             return;
 
         _syncing = true;
@@ -124,6 +129,6 @@ public sealed class RepairPanel : ObservableObject
         {
             _syncing = false;
         }
-        OnPropertyChanged(nameof(NpcTid));
+        OnPropertyChanged(nameof(NpcName));
     }
 }

@@ -54,11 +54,15 @@ public class RepairBehaviorTests
     }
 
     // NPC стоит в игре здесь и выбран для ремонта (запомнили, где он стоял)
-    private void Smith(Position at, bool inWorld = true)
+    // tid 0 — сервер вид NPC не показывает (1.3.6): ищем по имени
+    private void Smith(Position at, bool inWorld = true, int tid = SmithTid)
     {
-        _settings.Repair.Npc = RepairNpc.At(SmithTid, "Кузнец", at);
+        _settings.Repair.Npc = RepairNpc.At(tid, "Кузнец Чан Ху", at);
         if (inWorld)
-            _world.Npcs.Add(new NpcInfo(0x5000, 5000, NpcKind.Npc, NpcState.Standing, 0, at, "Кузнец", 0) { Tid = SmithTid });
+        {
+            _world.Npcs.Add(new NpcInfo(0x5001, 5001, NpcKind.Npc, NpcState.Standing, 0, at with { X = at.X + 3 }, "Банкир", 0));
+            _world.Npcs.Add(new NpcInfo(0x5000, 5000, NpcKind.Npc, NpcState.Standing, 0, at, "Кузнец Чан Ху", 0) { Tid = tid });
+        }
     }
 
     private IBotRunner Brain => _brain ??= BotModes.Create(BotMode.FarmMobs, new ActionRunner(new GameControl(_actions), NullLogger.Instance),
@@ -172,6 +176,17 @@ public class RepairBehaviorTests
         TickFor(8);
 
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
+        Assert.Equal(1, Count("npc-hello"));
+        Assert.Equal(1, Count("repair-all"));
+    }
+
+    [Fact]
+    public void NpcWithoutTidIsFoundByName()
+    {
+        Smith(new Position(20, 0, 0), tid: 0);
+
+        TickFor(8);
+
         Assert.Equal(1, Count("npc-hello"));
         Assert.Equal(1, Count("repair-all"));
     }

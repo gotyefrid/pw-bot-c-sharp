@@ -141,7 +141,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         if (c.Settings.Repair.Npc is not { } saved)
             return GiveUp(c, "не выбран NPC для ремонта");
 
-        var npc = w.Npcs.Where(n => n.Kind == NpcKind.Npc && n.Tid == saved.Tid && n.Position.HorizontalDistanceTo(saved.Position) <= NpcSearch)
+        var npc = w.Npcs.Where(n => n.Kind == NpcKind.Npc && saved.Is(n) && n.Position.HorizontalDistanceTo(saved.Position) <= NpcSearch)
             .OrderBy(n => n.Offset.Horizontal).FirstOrDefault();
         if (npc is null)
             return GiveUp(c, $"{saved.Name} на месте нет");

@@ -198,10 +198,10 @@ public sealed class BotSettings
         MoveOldDeathPoint();
         Repair.BelowPercent = Clamp(Repair.BelowPercent, 1, 99);
         Repair.FlightHeight = Clamp(Repair.FlightHeight, 0, 800);
-        if (Repair.Npc is { Tid: 0 })
-            Repair.Npc = null;
         if (Repair.Npc is { } npc)
             npc.Name = npc.Name?.Trim() ?? "";
+        if (Repair.Npc is { Name.Length: 0 })
+            Repair.Npc = null;
         return this;
     }
 
@@ -717,7 +717,10 @@ public sealed class RepairSettings : SettingsPart
     public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
 }
 
-/// <summary>NPC для ремонта: вид (tid) — чтобы найти его на месте, имя — для окна и лога, где стоял, когда выбрали.</summary>
+/// <summary>
+/// NPC для ремонта: имя, вид (tid; 0 — сервер не показывает, как 1.3.6) и где стоял, когда выбрали. На месте ищем по виду, если
+/// он известен, иначе по имени.
+/// </summary>
 public sealed class RepairNpc
 {
     public int Tid { get; set; }
@@ -728,6 +731,10 @@ public sealed class RepairNpc
 
     [JsonIgnore]
     public Position Position => new(X, Height, Y);
+
+    /// <summary>Это он: тот же вид (оба известны) или то же имя.</summary>
+    public bool Is(NpcInfo npc)
+        => Tid != 0 && npc.Tid != 0 ? npc.Tid == Tid : string.Equals(npc.Name?.Trim(), Name.Trim(), StringComparison.CurrentCultureIgnoreCase);
 
     public static RepairNpc At(int tid, string name, Position p) => new() { Tid = tid, Name = name, X = p.X, Y = p.Y, Height = p.Height };
 }
