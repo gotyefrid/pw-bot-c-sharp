@@ -70,6 +70,16 @@ public sealed class BrainContext
     /// <summary>Центр фарма: выбранная сохранённая точка, иначе точка старта. От него считается радиус фарма.</summary>
     public Position? FarmCenter => Settings.Target.SelectedFarmPoint?.Position ?? StartPosition;
 
+    /// <summary>
+    /// Куда лететь на фарм издалека (после смерти, при «Старт»): центр фарма и как там стоять — как стоял перс, когда точку запоминали
+    /// (в воздухе — зависнуть, в воде — нырнуть); точка старта — на земле. null — центра нет.
+    /// </summary>
+    public Spot? FarmSpot => Settings.Target.SelectedFarmPoint is { } p ? new Spot(p.Position, SpotEnd(p))
+        : StartPosition is { } start ? new Spot(start, TripEnd.Ground) : null;
+
+    /// <summary>Как стоять на сохранённой точке: как стоял перс, когда её запоминали.</summary>
+    public static TripEnd SpotEnd(FarmPoint p) => p.Flying ? TripEnd.Air : p.InWater ? TripEnd.Water : TripEnd.Ground;
+
     /// <summary>Моб в радиусе фарма от центра (или радиус не задан).</summary>
     public bool InFarmArea(NpcInfo mob) => InFarmArea(mob.Position);
 

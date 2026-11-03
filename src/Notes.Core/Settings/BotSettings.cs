@@ -304,6 +304,10 @@ public sealed class TargetSettings : SettingsPart
     /// <summary>Как бежать в центр: с автопутём или напрямик (отдельно от подхода к мобу).</summary>
     public ApproachPath ReturnPath { get => _returnPath; set => Set(ref _returnPath, value); }
 
+    private bool _reviveAndReturn;
+    /// <summary>Умер (не слив опыта) — встать в ближнем городе и вернуться в центр фарма; выключено — бот останавливается.</summary>
+    public bool ReviveAndReturn { get => _reviveAndReturn; set => Set(ref _reviveAndReturn, value); }
+
     private int _travelFrom = 100;
     /// <summary>«Старт» дальше этого от центра фарма (сохранённой точки) — сначала долететь до него; 0 — не летим.</summary>
     public int TravelFrom { get => _travelFrom; set => Set(ref _travelFrom, value); }

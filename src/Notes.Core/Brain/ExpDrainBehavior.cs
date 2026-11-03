@@ -8,9 +8,10 @@ namespace Notes.Core.Brain;
 
 /// <summary>
 /// План слива: где фармили (туда — в конце), где умирать со второй смерти (<see cref="DeathAtFarm"/> — там же, где фармили, и мобы
-/// из фильтра фарма), от каких мобов (<see cref="Mobs"/>) и слили ли уже (<see cref="Enough"/>).
+/// из фильтра фарма), от каких мобов (<see cref="Mobs"/>) и слили ли уже (<see cref="Enough"/>). <see cref="StartAtFarm"/> — слив
+/// начался у фарма (первая смерть — там, мобы из фильтра фарма); нет — уже на точке смерти (прилетели туда при «Старт»).
 /// </summary>
-public sealed record DrainPlan(Spot Farm, Spot Death, bool DeathAtFarm, Habitat Mobs, Func<BrainContext, bool> Enough);
+public sealed record DrainPlan(Spot Farm, Spot Death, bool DeathAtFarm, Habitat Mobs, Func<BrainContext, bool> Enough, bool StartAtFarm = true);
 
 public enum DrainStepKind
 {
@@ -63,14 +64,18 @@ public interface IExpDrainMethod
 /// <list type="bullet">
 /// <item>Стоит в наборе почти первым: пока слив идёт, ход всегда у него — банки, пет, бой, лут, копание и возврат не ходят и
 /// ему не мешают. Начинает только без боя и лута и когда никто не посреди дела (<see cref="BrainContext.InMiddle"/>: банк).</item>
-/// <item>Куда возвращаться после слива, задаёт режим (<c>home</c>: у фарма — центр фарма); нет точки — где стоим. Перс начал
-/// слив в воздухе (фарм летающих мобов) — возвращается на ту же высоту, в воде — на ту же глубину.</item>
+/// <item>Куда возвращаться после слива, задаёт режим (<c>home</c>: у фарма — центр фарма и как там стоять); нет точки — где стоим.
+/// Слив начался у фарма в воздухе (фарм летающих мобов) — возвращается на ту же высоту, в воде — на ту же глубину; не у фарма
+/// (на точке смерти) — как запомнена точка фарма.</item>
 /// <item>Где умирать: точка из настроек (<see cref="Settings.ExpDrainSettings.DeathPoint"/>) или место фарма. От каких мобов
 /// (<see cref="Settings.ExpDrainSettings.DeathMobs"/>) — заодно и как ждать смерть: летающих — в воздухе, водных — в воде.</item>
 /// </list>
 /// </summary>
-public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, Position?> home) : IBehavior
+public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, Spot?> home) : IBehavior
 {
+    /// <summary>Ближе этого к центру фарма (или в радиусе фарма) — слив начался у фарма.</summary>
+    public const float NearFarm = 30f;
+
     /// <summary>Брошенный слив пробуем снова через столько.</summary>
     public static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(5);
 
@@ -162,24 +167,55 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
     {
         var host = c.World.Host;
         var settings = c.Settings.ExpDrain;
-        var farmEnd = host.Flying == true ? TripEnd.Air : host.InWater == true ? TripEnd.Water : TripEnd.Ground;
-        var at = home(c) ?? host.Position;
-        var farm = new Spot(farmEnd == TripEnd.Ground ? at : at with { Height = host.Position.Height }, farmEnd);
-
-        var mobs = settings.DeathMobs switch
+        var center = home(c);
+        var radius = Math.Max(c.Settings.Target.FarmRadius, NearFarm);
+        var atFarm = center is not { } h || host.Position.HorizontalDistanceTo(h.Position) <= radius;
+        Spot farm;
+        if (atFarm)
         {
-            DrainMobs.Ground => Habitat.Ground,
-            DrainMobs.Air => Habitat.Air,
-            DrainMobs.Water => Habitat.Water,
-            _ => farmEnd switch { TripEnd.Air => Habitat.Air, TripEnd.Water => Habitat.Water, _ => Habitat.Ground },
-        };
-        var mobsEnd = mobs switch { Habitat.Air => TripEnd.Air, Habitat.Water => TripEnd.Water, _ => TripEnd.Ground };
+            // У фарма: как стоим сейчас (фармили летающих — в воздухе, на этой высоте)
+            var end = host.Flying == true ? TripEnd.Air : host.InWater == true ? TripEnd.Water : TripEnd.Ground;
+            var at = center?.Position ?? host.Position;
+            farm = new Spot(end == TripEnd.Ground ? at : at with { Height = host.Position.Height }, end);
+        }
+        else
+            farm = center!.Value;
 
+        var mobs = Mobs(settings, farm.End);
+        var mobsEnd = End(mobs);
         var point = settings.FindDeathPoint();
         if (point is null && settings.DeathPoint.Length > 0)
             c.Say("drain-no-point", $"Слив опыта: точки «{settings.DeathPoint}» нет среди сохранённых — умираю на месте фарма", LogLevel.Warning, 3600);
         var death = point is null ? new Spot(farm.Position, mobsEnd) : new Spot(point.Position, mobsEnd);
-        return new DrainPlan(farm, death, point is null, mobs, Enough);
+        return new DrainPlan(farm, death, point is null, mobs, Enough, atFarm);
+    }
+
+    private static Habitat Mobs(ExpDrainSettings settings, TripEnd farm) => settings.DeathMobs switch
+    {
+        DrainMobs.Ground => Habitat.Ground,
+        DrainMobs.Air => Habitat.Air,
+        DrainMobs.Water => Habitat.Water,
+        _ => farm switch { TripEnd.Air => Habitat.Air, TripEnd.Water => Habitat.Water, _ => Habitat.Ground },
+    };
+
+    private static TripEnd End(Habitat mobs) => mobs switch { Habitat.Air => TripEnd.Air, Habitat.Water => TripEnd.Water, _ => TripEnd.Ground };
+
+    /// <summary>
+    /// Пора сливать по опыту и настройкам (а сервер и бой не смотрим): для «Старт» издалека — лететь сразу на точку смерти, а не
+    /// на фарм.
+    /// </summary>
+    public static bool Due(BrainContext c)
+    {
+        var s = c.Settings.ExpDrain;
+        return s.Enabled && c.World.Host.Level == s.MaxLevel && s.TargetPercent < s.StartPercent
+               && c.World.Host.ExpPercent is { } percent && percent >= s.StartPercent;
+    }
+
+    /// <summary>Точка для смертей и как на ней ждать смерть (от каких мобов); null — точки нет, умирать на месте фарма.</summary>
+    public static Spot? DeathSpot(BrainContext c)
+    {
+        var s = c.Settings.ExpDrain;
+        return s.FindDeathPoint() is { } point ? new Spot(point.Position, End(Mobs(s, c.FarmSpot?.End ?? TripEnd.Ground))) : null;
     }
 
     // Слили (или слив выключили, пока летели из города) — на место фарма

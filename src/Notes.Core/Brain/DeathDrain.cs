@@ -67,7 +67,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     public void Begin(BrainContext c, DrainPlan plan)
     {
         _plan = plan;
-        _atFarm = true;
+        _atFarm = plan.StartAtFarm;
         _noLoss = 0;
         _off = null;
         _deaths = afterDeath.Deaths;

@@ -97,7 +97,7 @@ public class ExpDrainBehaviorTests
         var context = new BrainContext(Runner(), Skills, BrainLog(), new Random(1)) { Settings = _settings.Clone() };
         var afterDeath = new DeathReturnBehavior();
         var combat = new CombatBehavior();
-        UseBrain(new BotBrain(context, [holder, afterDeath, new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmCenter), combat], combat));
+        UseBrain(new BotBrain(context, [holder, afterDeath, new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), combat], combat));
     }
 
     private IEnumerable<string> NewCalls => _actions.Calls.Skip(_seen);

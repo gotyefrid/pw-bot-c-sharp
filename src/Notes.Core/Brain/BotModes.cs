@@ -88,15 +88,16 @@ public static class BotModes
     /// <summary>
     /// Фарм мобов: после смерти → долететь до центра фарма («Старт» издалека) → слив опыта → выжить → (прервать каст без цели) → пет → убрать в банк (после лута) → копать ресурсы в радиусе фарма →
     /// бой → лут → вернуться в центр фарма. Первой — запись центра фарма в лог; ни она, ни прерывание каста хода не занимают.
-    /// «После смерти» — встать в городе и вернуться в центр фарма, если смерть ждали (слив опыта); пока встаёт и летит, ход у него.
+    /// «После смерти» — встать в городе и вернуться: смерть ждали (слив опыта) — куда скажет слив, нет — в центр фарма, если включено
+    /// «встать и вернуться»; пока встаёт и летит, ход у него.
     /// Слив опыта — за ним: пока он идёт, ход всегда у него, остальные не ходят (и пета не зовут, и банки не пьют).
     /// </summary>
     private static BotBrain FarmMobs(BrainContext context, IReadOnlyCollection<uint> tools)
     {
         var combat = new CombatBehavior();
-        var afterDeath = new DeathReturnBehavior();
+        var afterDeath = new DeathReturnBehavior(c => c.FarmSpot);
         return new BotBrain(context,
-            [new FarmCenterLog(), afterDeath, new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmCenter), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools),
+            [new FarmCenterLog(), afterDeath, new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools),
              combat, new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }

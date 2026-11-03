@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
@@ -14,9 +15,11 @@ public sealed record DeathRecord(int? ExpBefore, int? ExpAfter, double? PercentB
 }
 
 /// <summary>
-/// После смерти: встать в ближнем городе и вернуться на место (<see cref="FlightTrip"/>). Смерть, которую никто не ждал, —
-/// не наша: бот останавливается, как раньше. Ждёт смерть тот, кто её и устраивает (слив опыта: <see cref="Expect"/>); завтра
-/// так же можно ждать любую смерть — «умер случайно — встать и фармить дальше».
+/// После смерти: встать в ближнем городе и вернуться на место (<see cref="FlightTrip"/>). Ждёт смерть тот, кто её и устраивает
+/// (слив опыта: <see cref="Expect"/>). Смерть, которую никто не ждал: включено «встать и вернуться»
+/// (<see cref="Settings.TargetSettings.ReviveAndReturn"/>) и режим сказал, куда (<c>home</c>: центр фарма), — встаём и летим туда на
+/// высоте полёта к центру; иначе бот останавливается. Таких смертей <see cref="MaxDeaths"/> за <see cref="DeathWindow"/> — стоп:
+/// видимо, у места стоит тот, кто убивает раз за разом.
 /// <list type="bullet">
 /// <item>Стоит в наборе первым: пока встаём и летим обратно, ход у него, остальные не ходят — и сам слив тоже.</item>
 /// <item>Куда лететь, спрашиваем у ждавшего уже после воскрешения: он знает, сколько сняла смерть (слив: ещё сливать — в точку
@@ -25,8 +28,12 @@ public sealed record DeathRecord(int? ExpBefore, int? ExpAfter, double? PercentB
 /// <item>Ожидание сняли (<see cref="Release"/>), пока встаём или летим, — всё равно долетаем: в городе бот не фармит.</item>
 /// </list>
 /// </summary>
-public sealed class DeathReturnBehavior : IDeathBehavior
+public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) : IDeathBehavior
 {
+    /// <summary>Столько случайных смертей за <see cref="DeathWindow"/> — не встаём, бот останавливается.</summary>
+    public const int MaxDeaths = 3;
+    public static readonly TimeSpan DeathWindow = TimeSpan.FromMinutes(30);
+
     /// <summary>После смерти до «Ближнего города» (окно смерти появляется не сразу).</summary>
     public static readonly TimeSpan ReviveDelay = TimeSpan.FromSeconds(2);
 
@@ -47,6 +54,8 @@ public sealed class DeathReturnBehavior : IDeathBehavior
     private Spot _spot;
     private float _cruise;
     private FlightTrip? _trip;
+    // Когда умирали случайно (не слив опыта) — для «столько смертей за полчаса»
+    private readonly List<DateTime> _accidents = [];
 
     private int? _expAlive;
     private double? _percentAlive;
@@ -101,8 +110,8 @@ public sealed class DeathReturnBehavior : IDeathBehavior
 
     public bool TickDead(BrainContext c)
     {
-        // Смерть никто не ждал, и мы не в пути после прошлой — бот остановится
-        if (!_expected && _phase == Phase.Idle)
+        // Смерть никто не ждал, и мы не в пути после прошлой: встать и вернуться на фарм, если так настроено, — иначе бот остановится
+        if (!_expected && _phase == Phase.Idle && !Accident(c))
             return false;
 
         if (_phase != Phase.Dead)
@@ -128,6 +137,24 @@ public sealed class DeathReturnBehavior : IDeathBehavior
         _tries++;
         _reviveAt = c.Now + ReviveRetry;
         c.Send(new ReviveInTownAction());
+        return true;
+    }
+
+    // Случайная смерть: встаём, если включено и есть куда лететь, и умираем не слишком часто
+    private bool Accident(BrainContext c)
+    {
+        if (!c.Settings.Target.ReviveAndReturn || home?.Invoke(c) is null)
+            return false;
+        _accidents.RemoveAll(t => c.Now - t > DeathWindow);
+        if (_accidents.Count + 1 >= MaxDeaths)
+        {
+            c.Log.Warning($"{MaxDeaths}-я смерть за {DeathWindow.TotalMinutes:0} мин — не встаю: видимо, у места фарма убивают раз за разом");
+            return false;
+        }
+
+        _accidents.Add(c.Now);
+        _whereTo = c => home(c) ?? new Spot(c.World.Host.Position, TripEnd.Ground);
+        _cruise = c.Settings.Target.TravelHeight * 10;
         return true;
     }
 
@@ -194,6 +221,7 @@ public sealed class DeathReturnBehavior : IDeathBehavior
         _expected = false;
         _whereTo = null;
         _trip = null;
+        _accidents.Clear();
         _expAlive = _expBefore = null;
         _percentAlive = _percentBefore = null;
         Deaths = 0;

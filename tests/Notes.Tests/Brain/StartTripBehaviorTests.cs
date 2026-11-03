@@ -94,7 +94,7 @@ public class StartTripBehaviorTests
         Assert.Equal(new Position(0, 230, 0), _actions.FlyPoints[0]);
         Assert.True(_world.Position.HorizontalDistanceTo(new Position(500, 0, 0)) <= FlightTrip.Arrived);
         Assert.False(_world.Flying);
-        Assert.True(Logged("Долетел до центра фарма"));
+        Assert.True(Logged("Долетел"));
     }
 
     [Fact]
@@ -183,7 +183,7 @@ public class StartTripBehaviorTests
         Assert.Equal("fly-toggle", _actions.Calls[0]);
         Assert.False(Logged("сливаю"));
         TickFor(10);
-        Assert.True(Logged("Долетел до центра фарма"));
+        Assert.True(Logged("Долетел"));
         Assert.True(Logged("сливаю"));
     }
 
@@ -243,5 +243,26 @@ public class StartTripBehaviorTests
         TickFor(3);
 
         Assert.Contains(_actions.Calls, c => c.StartsWith("move"));
+    }
+
+    // Пора сливать и есть точка для смертей — сразу туда, а не на фарм; слив начинается там, на фарм вернёт сам
+    [Fact]
+    public void DrainDueFliesStraightToDeathPoint()
+    {
+        _settings.ExpDrain.Enabled = true;
+        _settings.ExpDrain.MaxLevel = 10;
+        _settings.ExpDrain.StartPercent = 80;
+        _settings.ExpDrain.DeathPoints = [FarmPoint.At("Смерть", new Position(0, 0, 400))];
+        _settings.ExpDrain.DeathPoint = "Смерть";
+        _world.Level = 10;
+        _world.Exp = 900;
+        _world.ExpToLevel = 1000;
+        FarmAt(new Position(20, 0, 0));
+
+        TickFor(10);
+
+        Assert.True(Logged("точка для смертей «Смерть» в 400 м"));
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 400)) <= FlightTrip.Arrived);
+        Assert.True(Logged("сливаю"));
     }
 }
