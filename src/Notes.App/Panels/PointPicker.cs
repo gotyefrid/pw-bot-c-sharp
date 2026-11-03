@@ -124,7 +124,7 @@ public sealed class PointPicker : ObservableObject
     {
         if (_world() is not { } w)
             return;
-        var point = BotSettings.AddPoint(_points(Settings), _prefix, w.Host.Position);
+        var point = BotSettings.AddPoint(_points(Settings), _prefix, w.Host.Position, w.Host.Flying == true, w.Host.InWater == true);
         _set(Settings, point.Name);
         _log.Info($"Сохранена {_what} «{point.Name}»: {Show(point.Position)}");
         _pointsChanged();
@@ -134,7 +134,7 @@ public sealed class PointPicker : ObservableObject
     {
         if (Point is not { } point)
             return;
-        var draft = new PointDraft(Settings, _points(Settings), point, () => _world()?.Host.Position, None);
+        var draft = new PointDraft(Settings, _points(Settings), point, () => _world()?.Host, None);
         draft.Saved += () =>
         {
             _log.Info($"Точка «{point.Name}» изменена: {Show(point.Position)}");

@@ -17,16 +17,17 @@ public sealed class PointDraft : ObservableObject
     private readonly BotSettings _settings;
     private readonly List<FarmPoint> _points;
     private readonly FarmPoint _point;
-    private readonly Func<Position?> _here;
+    private readonly Func<HostState?> _here;
     private readonly string _none;
     private readonly string _shownX, _shownY, _shownHeight;
     private string _name, _x, _y, _height;
     private string _error = "";
+    private bool? _flying, _inWater;
 
-    /// <param name="here">Где стоит персонаж; null — мир не читается.</param>
+    /// <param name="here">Персонаж сейчас; null — мир не читается.</param>
     /// <param name="points">Список, где лежит точка: название не должно повторяться в нём.</param>
     /// <param name="none">Пункт списка вместо точки: так точку не назвать.</param>
-    public PointDraft(BotSettings settings, List<FarmPoint> points, FarmPoint point, Func<Position?> here, string none)
+    public PointDraft(BotSettings settings, List<FarmPoint> points, FarmPoint point, Func<HostState?> here, string none)
     {
         _settings = settings;
         _points = points;
@@ -57,9 +58,11 @@ public sealed class PointDraft : ObservableObject
 
     private void Current()
     {
-        if (_here() is not { } p)
+        if (_here() is not { } host)
             return;
-        (X, Y, Height) = Format(p);
+        (X, Y, Height) = Format(host.Position);
+        // Где стоит сейчас — в воздухе или в воде: прилетев, бот встанет так же
+        (_flying, _inWater) = (host.Flying == true, host.InWater == true);
         Error = "";
     }
 
@@ -78,6 +81,8 @@ public sealed class PointDraft : ObservableObject
 
         _settings.RenamePoint(_point, Name);
         (_point.X, _point.Y, _point.Height) = (p.X, p.Y, p.Height);
+        if (_flying is { } flying && _inWater is { } water)
+            (_point.Flying, _point.InWater) = (flying, water);
         Error = "";
         Saved?.Invoke();
         return true;

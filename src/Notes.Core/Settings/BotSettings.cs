@@ -83,12 +83,12 @@ public sealed class BotSettings
     // ── Сохранённые точки: свои у центра фарма (TargetSettings.FarmPoints) и у места для смертей (ExpDrainSettings.DeathPoints) ──
 
     /// <summary>Новая точка «<paramref name="prefix"/> N» (первый свободный номер в этом списке) в <paramref name="at"/>.</summary>
-    public static FarmPoint AddPoint(List<FarmPoint> points, string prefix, Position at)
+    public static FarmPoint AddPoint(List<FarmPoint> points, string prefix, Position at, bool flying = false, bool inWater = false)
     {
         var n = 1;
         while (FindPoint(points, $"{prefix} {n}") is not null)
             n++;
-        var point = FarmPoint.At($"{prefix} {n}", at);
+        var point = FarmPoint.At($"{prefix} {n}", at, flying, inWater);
         points.Add(point);
         return point;
     }
@@ -156,6 +156,8 @@ public sealed class BotSettings
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
         Target.FarmRadius = Clamp(Target.FarmRadius, 0, 500);
+        Target.TravelFrom = Clamp(Target.TravelFrom, 0, 3000);
+        Target.TravelHeight = Clamp(Target.TravelHeight, 0, 800);
         Target.FarmPoints = FarmPoint.Clean(Target.FarmPoints);
         Target.FarmCenter = Target.FarmCenter?.Trim() ?? "";
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
@@ -200,7 +202,7 @@ public sealed class BotSettings
         var name = ExpDrain.DeathPoint;
         if (name.Length == 0 || FindPoint(ExpDrain.DeathPoints, name) is not null || FindPoint(Target.FarmPoints, name) is not { } old)
             return;
-        ExpDrain.DeathPoints.Add(FarmPoint.At(old.Name, old.Position));
+        ExpDrain.DeathPoints.Add(FarmPoint.At(old.Name, old.Position, old.Flying, old.InWater));
         if (Target.SelectedFarmPoint != old)
             Target.FarmPoints.Remove(old);
     }
@@ -301,6 +303,14 @@ public sealed class TargetSettings : SettingsPart
     private ApproachPath _returnPath = ApproachPath.Smart;
     /// <summary>Как бежать в центр: с автопутём или напрямик (отдельно от подхода к мобу).</summary>
     public ApproachPath ReturnPath { get => _returnPath; set => Set(ref _returnPath, value); }
+
+    private int _travelFrom = 100;
+    /// <summary>«Старт» дальше этого от центра фарма (сохранённой точки) — сначала долететь до него; 0 — не летим.</summary>
+    public int TravelFrom { get => _travelFrom; set => Set(ref _travelFrom, value); }
+
+    private float _travelHeight = 23;
+    /// <summary>На какой высоте лететь к центру фарма при «Старт» — как в игре (в памяти — в 10 раз больше).</summary>
+    public float TravelHeight { get => _travelHeight; set => Set(ref _travelHeight, value); }
 
     /// <summary>Выбранная точка фарма; null — центр — точка старта.</summary>
     [JsonIgnore]
@@ -417,10 +427,17 @@ public sealed class FarmPoint
     public float Y { get; set; }
     public float Height { get; set; }
 
+    /// <summary>Персонаж был в воздухе, когда точку запомнили: прилетев, не садиться, а зависнуть на её высоте.</summary>
+    public bool Flying { get; set; }
+
+    /// <summary>Персонаж был в воде: прилетев, нырнуть до её высоты.</summary>
+    public bool InWater { get; set; }
+
     [JsonIgnore]
     public Position Position => new(X, Height, Y);
 
-    public static FarmPoint At(string name, Position p) => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height };
+    public static FarmPoint At(string name, Position p, bool flying = false, bool inWater = false)
+        => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height, Flying = flying, InWater = inWater };
 
     /// <summary>Без пустых названий и повторов (без учёта регистра).</summary>
     public static List<FarmPoint> Clean(IEnumerable<FarmPoint?>? points)
