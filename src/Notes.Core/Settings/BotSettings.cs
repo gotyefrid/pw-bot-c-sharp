@@ -80,6 +80,55 @@ public sealed class BotSettings
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
 
+    // ── Сохранённые точки: одни на центр фарма и место для смертей ─────────────
+
+    /// <summary>Новая точка «<paramref name="prefix"/> N» (первый свободный номер) в <paramref name="at"/>.</summary>
+    public FarmPoint AddPoint(string prefix, Position at)
+    {
+        var n = 1;
+        while (FindPoint($"{prefix} {n}") is not null)
+            n++;
+        var point = FarmPoint.At($"{prefix} {n}", at);
+        Target.FarmPoints.Add(point);
+        return point;
+    }
+
+    public FarmPoint? FindPoint(string name)
+        => Target.FarmPoints.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Почему точке нельзя дать это название; null — можно. <paramref name="reserved"/> — пункты списков вместо точки.</summary>
+    public string? WhyNotName(FarmPoint point, string name, params string[] reserved)
+    {
+        name = name.Trim();
+        if (name.Length == 0)
+            return "название пустое";
+        if (reserved.Any(r => string.Equals(r, name, StringComparison.OrdinalIgnoreCase))
+            || FindPoint(name) is { } other && other != point)
+            return $"точка «{name}» уже есть";
+        return null;
+    }
+
+    /// <summary>Переименовать точку: где она выбрана (центр фарма, место для смертей) — там новое название.</summary>
+    public void RenamePoint(FarmPoint point, string name)
+    {
+        name = name.Trim();
+        if (string.Equals(Target.FarmCenter, point.Name, StringComparison.OrdinalIgnoreCase))
+            Target.FarmCenter = name;
+        if (string.Equals(ExpDrain.DeathPoint, point.Name, StringComparison.OrdinalIgnoreCase))
+            ExpDrain.DeathPoint = name;
+        point.Name = name;
+    }
+
+    /// <summary>Удалить точку: где она была выбрана — центр фарма станет точкой старта, смерти — на месте фарма.</summary>
+    public void RemovePoint(FarmPoint point)
+    {
+        Target.FarmPoints.Remove(point);
+        if (string.Equals(Target.FarmCenter, point.Name, StringComparison.OrdinalIgnoreCase))
+            Target.FarmCenter = "";
+        if (string.Equals(ExpDrain.DeathPoint, point.Name, StringComparison.OrdinalIgnoreCase))
+            ExpDrain.DeathPoint = "";
+    }
+
     /// <summary>Приводит значения к допустимым (после ручной правки файла или старой версии).</summary>
     public BotSettings Normalize()
     {
