@@ -1,0 +1,43 @@
+<Window x:Class="Notes.App.PointWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="{Binding Title}" Width="340" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Style="{StaticResource AppWindow}">
+  <!-- Правка сохранённой точки: DataContext — Panels.PointDraft. В точку уходит только по «Сохранить» -->
+  <Border Style="{StaticResource Card}" Margin="12">
+    <StackPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="Название" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Width="170" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+      </DockPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="Координаты" VerticalAlignment="Center"
+                   ToolTip="Как на миникарте игры: X, Y и высота" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" ToolTip="Высота" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" ToolTip="Y" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" ToolTip="X" />
+      </DockPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="X, Y, высота — как на миникарте" Style="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center" />
+        <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Текущие" Command="{Binding CurrentCommand}" Padding="10,4"
+                ToolTip="Подставить, где стоит персонаж сейчас" />
+      </DockPanel>
+      <TextBlock Text="{Binding Error}" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="0,4,0,0">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Error}" Value="">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <Button Style="{StaticResource ButtonBase}" Content="Отмена" IsCancel="True" Margin="0,0,8,0" />
+        <Button Style="{StaticResource PrimaryButton}" Content="Сохранить" IsDefault="True" Click="Save" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

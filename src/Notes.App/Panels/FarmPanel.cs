@@ -41,8 +41,6 @@ public sealed class FarmPanel : ObservableObject
     // Одна картинка окна на иконку: список скиллов пересобирается, только когда что-то в нём правда поменялось
     private readonly Dictionary<IconImage, ImageSource> _icons = new();
     private bool _syncingLists;
-    private bool _syncingCenters;
-    private string _farmPointInfo = "";
 
     /// <param name="settings">Настройки текущего персонажа.</param>
     /// <param name="world">Последний снимок; null — мир не читается.</param>
@@ -66,9 +64,17 @@ public sealed class FarmPanel : ObservableObject
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
         FarmResourceNames.CollectionChanged += (_, _) => NameListsEdited();
         StashNames.CollectionChanged += (_, _) => NameListsEdited();
-        AddFarmPointCommand = new RelayCommand(AddFarmPoint, () => _world() is not null);
-        RemoveFarmPointCommand = new RelayCommand(RemoveFarmPoint, () => HasFarmPoint);
-        AddDeathPointCommand = new RelayCommand(AddDeathPoint, () => _world() is not null);
+        string[] reserved = [StartCenter, AtFarm];
+        FarmCenter = new PointPicker(settings, world, log, StartCenter, s => s.Target.FarmCenter, (s, v) => s.Target.FarmCenter = v,
+            "Точка", "точка фарма", PointsChanged, reserved)
+        {
+            AddHint = "Запомнить, где стоит персонаж сейчас, как новую точку фарма",
+        };
+        DeathPoint = new PointPicker(settings, world, log, AtFarm, s => s.ExpDrain.DeathPoint, (s, v) => s.ExpDrain.DeathPoint = v,
+            "Смерть", "точка для смертей", PointsChanged, reserved)
+        {
+            AddHint = "Запомнить, где стоит персонаж сейчас, как точку для смертей",
+        };
     }
 
     private BotSettings Settings => _settings();
@@ -137,105 +143,20 @@ public sealed class FarmPanel : ObservableObject
 
     // ── Центр фарма ──────────────────────────────────────────────────────────
 
-    /// <summary>«Точка старта» и сохранённые точки персонажа.</summary>
-    public ObservableCollection<string> FarmCenters { get; } = new();
-
-    public ICommand AddFarmPointCommand { get; }
-    public ICommand AddDeathPointCommand { get; }
-    public ICommand RemoveFarmPointCommand { get; }
-
-    // Пока список пересобирается — null: окно, сбросив выбор, тут же перечитывает его, и центр, которого ещё нет в списке,
-    // остался бы «выбранным», но невидимым (поле пустое). После пересборки выбор меняется null → центр, и окно его находит
-    public string? SelectedFarmCenter
-    {
-        get => _syncingCenters ? null : Settings.Target.SelectedFarmPoint?.Name ?? StartCenter;
-        set
-        {
-            // Пересборка списка сбрасывает выбор — это не выбор пользователя
-            if (_syncingCenters || value is null)
-                return;
-
-            Settings.Target.FarmCenter = value == StartCenter ? "" : value;
-            FarmCenterChanged();
-        }
-    }
+    /// <summary>Центр фарма: «Точка старта» или сохранённая точка.</summary>
+    public PointPicker FarmCenter { get; }
 
     // ── Слив опыта ───────────────────────────────────────────────────────────
 
     public const string AtFarm = "На месте фарма";
 
-    /// <summary>Где умирать при сливе опыта: «На месте фарма» и те же сохранённые точки, что у центра фарма.</summary>
-    public ObservableCollection<string> DeathPoints { get; } = new();
-
-    // Как у центра фарма: пока список пересобирается — null
-    public string? SelectedDeathPoint
-    {
-        get => _syncingCenters ? null : Settings.ExpDrain.FindDeathPoint(Settings.Target)?.Name ?? AtFarm;
-        set
-        {
-            if (_syncingCenters || value is null)
-                return;
-            Settings.ExpDrain.DeathPoint = value == AtFarm ? "" : value;
-            OnPropertyChanged();
-        }
-    }
+    /// <summary>Где умирать при сливе опыта: «На месте фарма» или одна из тех же сохранённых точек, что у центра фарма.</summary>
+    public PointPicker DeathPoint { get; }
 
     public sealed record DrainMobsChoice(DrainMobs Mobs, string Title);
 
     public IReadOnlyList<DrainMobsChoice> DrainMobsChoices { get; } =
         [new(DrainMobs.AsFarm, "Как при фарме"), new(DrainMobs.Ground, "Земных"), new(DrainMobs.Air, "Летающих"), new(DrainMobs.Water, "Водных")];
-
-    // Запомнить, где стоит перс, как точку для смертей — центр фарма не трогаем
-    private void AddDeathPoint()
-    {
-        if (_world() is not { } w)
-            return;
-
-        var points = Settings.Target.FarmPoints;
-        var n = 1;
-        while (points.Any(p => p.Name.Equals($"Смерть {n}", StringComparison.OrdinalIgnoreCase)))
-            n++;
-        var point = FarmPoint.At($"Смерть {n}", w.Host.Position);
-        points.Add(point);
-        Settings.ExpDrain.DeathPoint = point.Name;
-        _log.Info($"Точка для смертей «{point.Name}» сохранена: {point.Position}");
-        LoadFarmCenters();
-        _edited();
-    }
-
-    /// <summary>Выбрана сохранённая точка (а не точка старта).</summary>
-    public bool HasFarmPoint => Settings.Target.SelectedFarmPoint is not null;
-
-    /// <summary>Название выбранной точки; правка — переименование.</summary>
-    public string FarmPointName
-    {
-        get => Settings.Target.SelectedFarmPoint?.Name ?? "";
-        set
-        {
-            var point = Settings.Target.SelectedFarmPoint;
-            var name = value?.Trim() ?? "";
-            if (point is null || name.Length == 0 || name == point.Name)
-                return;
-            if (name.Equals(StartCenter, StringComparison.OrdinalIgnoreCase)
-                || Settings.Target.FarmPoints.Any(p => p != point && p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)))
-            {
-                _log.Warning($"Точка «{name}» уже есть — название не меняю");
-                OnPropertyChanged();
-                return;
-            }
-
-            // Эта же точка — и для смертей при сливе опыта: там тоже новое название
-            if (point.Name.Equals(Settings.ExpDrain.DeathPoint, StringComparison.OrdinalIgnoreCase))
-                Settings.ExpDrain.DeathPoint = name;
-            point.Name = name;
-            Settings.Target.FarmCenter = name;
-            LoadFarmCenters();
-            _edited();
-        }
-    }
-
-    /// <summary>Сколько до выбранной точки отсюда.</summary>
-    public string FarmPointInfo { get => _farmPointInfo; private set => SetProperty(ref _farmPointInfo, value); }
 
     // ── Снимок и персонаж ────────────────────────────────────────────────────
 
@@ -243,7 +164,7 @@ public sealed class FarmPanel : ObservableObject
     public void Load()
     {
         LoadNameLists();
-        LoadFarmCenters();
+        LoadPoints();
         AttackSkills.Clear();
         OnPropertyChanged(nameof(SelectedAttack));
     }
@@ -272,13 +193,9 @@ public sealed class FarmPanel : ObservableObject
     public void ShowFor(WorldState w)
     {
         UpdateAttackSkills(w);
-        UpdateFarmPointInfo();
+        FarmCenter.UpdateInfo();
+        DeathPoint.UpdateInfo();
     }
-
-    public void UpdateFarmPointInfo()
-        => FarmPointInfo = Settings.Target.SelectedFarmPoint is { } p && _world() is { } w
-            ? $"{w.Host.Position.HorizontalDistanceTo(p.Position):0} м отсюда"
-            : "";
 
     private void UpdateAttackSkills(WorldState w)
     {
@@ -366,68 +283,17 @@ public sealed class FarmPanel : ObservableObject
         _edited();
     }
 
-    /// <summary>Запомнить, где стоит персонаж, как новую точку фарма, и сделать её центром.</summary>
-    private void AddFarmPoint()
+    // Точки общие: добавили, изменили или удалили в одном списке — пересобрать оба
+    private void PointsChanged()
     {
-        if (_world() is not { } w)
-            return;
-
-        var points = Settings.Target.FarmPoints;
-        var n = 1;
-        while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
-            n++;
-        var point = FarmPoint.At($"Точка {n}", w.Host.Position);
-        points.Add(point);
-        Settings.Target.FarmCenter = point.Name;
-        _log.Info($"Точка фарма «{point.Name}» сохранена: {point.Position}");
-        LoadFarmCenters();
+        LoadPoints();
         _edited();
     }
 
-    private void RemoveFarmPoint()
+    /// <summary>Списки точек в окне ← точки персонажа.</summary>
+    private void LoadPoints()
     {
-        if (Settings.Target.SelectedFarmPoint is not { } point)
-            return;
-
-        Settings.Target.FarmPoints.Remove(point);
-        Settings.Target.FarmCenter = "";
-        if (point.Name.Equals(Settings.ExpDrain.DeathPoint, StringComparison.OrdinalIgnoreCase))
-            Settings.ExpDrain.DeathPoint = "";
-        _log.Info($"Точка фарма «{point.Name}» удалена — центр: точка старта");
-        LoadFarmCenters();
-        _edited();
-    }
-
-    /// <summary>Список в окне ← точки персонажа.</summary>
-    private void LoadFarmCenters()
-    {
-        _syncingCenters = true;
-        try
-        {
-            FarmCenters.Clear();
-            FarmCenters.Add(StartCenter);
-            DeathPoints.Clear();
-            DeathPoints.Add(AtFarm);
-            foreach (var point in Settings.Target.FarmPoints)
-            {
-                FarmCenters.Add(point.Name);
-                DeathPoints.Add(point.Name);
-            }
-        }
-        finally
-        {
-            _syncingCenters = false;
-        }
-
-        FarmCenterChanged();
-    }
-
-    private void FarmCenterChanged()
-    {
-        OnPropertyChanged(nameof(SelectedFarmCenter));
-        OnPropertyChanged(nameof(SelectedDeathPoint));
-        OnPropertyChanged(nameof(HasFarmPoint));
-        OnPropertyChanged(nameof(FarmPointName));
-        UpdateFarmPointInfo();
+        FarmCenter.Load();
+        DeathPoint.Load();
     }
 }

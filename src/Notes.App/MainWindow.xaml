@@ -471,15 +471,10 @@
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Центр фарма" VerticalAlignment="Center"
                          ToolTip="Откуда считать радиус: место, где стоял персонаж при «Старт», или сохранённая точка — тогда «Старт» можно жать где угодно" />
-              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE74D;"
-                      Command="{Binding Farm.RemoveFarmPointCommand}" ToolTip="Удалить выбранную точку" />
-              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
-                      Command="{Binding Farm.AddFarmPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как новую точку фарма" />
-              <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.FarmCenters}" SelectedItem="{Binding Farm.SelectedFarmCenter}" />
+              <app:PointPickerView DockPanel.Dock="Right" DataContext="{Binding Farm.FarmCenter}" />
             </DockPanel>
-            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.HasFarmPoint, Converter={StaticResource Visible}}">
-              <TextBlock Text="{Binding Farm.FarmPointInfo}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Width="170" Margin="0,0,64,0" Text="{Binding Farm.FarmPointName}" ToolTip="Название точки — можно поменять" />
+            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.FarmCenter.HasPoint, Converter={StaticResource Visible}}">
+              <TextBlock DockPanel.Dock="Right" Text="{Binding Farm.FarmCenter.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Возвращаться в центр" IsChecked="{Binding Settings.Target.ReturnToCenter}"
@@ -558,9 +553,10 @@
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Где умирать" VerticalAlignment="Center"
                            ToolTip="Первая смерть — там, где фармит. Если опыта ещё много — дальше умирает в этой точке (удобно поближе к городу), а когда слил — летит на место фарма" />
-                <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
-                        Command="{Binding Farm.AddDeathPointCommand}" ToolTip="Запомнить, где стоит персонаж сейчас, как точку для смертей" />
-                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.DeathPoints}" SelectedItem="{Binding Farm.SelectedDeathPoint}" />
+                <app:PointPickerView DockPanel.Dock="Right" DataContext="{Binding Farm.DeathPoint}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.DeathPoint.HasPoint, Converter={StaticResource Visible}}">
+                <TextBlock DockPanel.Dock="Right" Text="{Binding Farm.DeathPoint.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="От каких мобов" VerticalAlignment="Center"

@@ -26,6 +26,10 @@ public partial class MainWindow : Window
         var clicker = _model.Clicker;
         clicker.EditRequested += () => new StepWindow { Owner = this, DataContext = clicker }.ShowDialog();
 
+        // Правка сохранённой точки (центр фарма, место для смертей)
+        _model.Farm.FarmCenter.EditRequested += EditPoint;
+        _model.Farm.DeathPoint.EditRequested += EditPoint;
+
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
         _model.Log.FilterChanged += RebuildLog;
@@ -93,6 +97,8 @@ public partial class MainWindow : Window
             blocks.Add(Line(entry));
         LogBox.ScrollToEnd();
     }
+
+    private void EditPoint(Panels.PointDraft draft) => new PointWindow { Owner = this, DataContext = draft }.ShowDialog();
 
     private void OpenLogFilters(object sender, RoutedEventArgs e) => new LogFilterWindow { Owner = this, DataContext = _model.Log }.ShowDialog();
 
