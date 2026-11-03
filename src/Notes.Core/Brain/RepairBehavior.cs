@@ -204,7 +204,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
 
     private bool GoBack(BrainContext c)
     {
-        if (home(c) is not { } spot || c.World.Host.Position.HorizontalDistanceTo(spot.Position) <= WalkTo)
+        if (home(c) is not { } spot || c.World.Host.Position.HorizontalDistanceTo(spot.Position) <= WalkTo && !FlightTrip.MustTakeOff(c, spot))
         {
             _stage = Stage.Idle;
             return false;

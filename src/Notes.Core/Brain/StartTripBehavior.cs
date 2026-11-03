@@ -76,7 +76,8 @@ public sealed class StartTripBehavior : IBehavior, IMultiStepBehavior
             return null;
 
         var distance = c.World.Host.Position.HorizontalDistanceTo(spot.Position);
-        if (distance <= target.TravelFrom)
+        // Рядом, но точка в воздухе, а стоим на земле — взлететь к ней
+        if (distance <= target.TravelFrom && !FlightTrip.MustTakeOff(c, spot))
             return null;
         if (distance > MaxTrip)
         {

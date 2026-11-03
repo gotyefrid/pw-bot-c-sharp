@@ -135,6 +135,32 @@ public class StartTripBehaviorTests
     }
 
     [Fact]
+    public void NearAirPointOnGroundTakesOffToItsHeight()
+    {
+        _world.HasFlyer = true;
+        FarmAt(new Position(30, 260, 0), flying: true);
+
+        TickFor(10);
+
+        Assert.Equal("fly-toggle", _actions.Calls[0]);
+        Assert.True(_world.Flying);
+        Assert.Equal(new Position(30, 260, 0), _world.Position);
+    }
+
+    [Fact]
+    public void NearAirPointAlreadyFlyingStays()
+    {
+        _world.HasFlyer = true;
+        _world.Flying = true;
+        _world.Position = new Position(0, 250, 0);
+        FarmAt(new Position(30, 260, 0), flying: true);
+
+        TickFor(3);
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
+    }
+
+    [Fact]
     public void StartPointCenterDoesNotFly()
     {
         TickFor(3);

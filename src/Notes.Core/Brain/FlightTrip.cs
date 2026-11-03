@@ -73,6 +73,13 @@ public sealed class FlightTrip
 
     public Position To { get; }
 
+    /// <summary>
+    /// Точка в воздухе, а персонаж не летит (и полётник не «точно нет»): даже рядом с ней надо взлететь и подняться до её
+    /// высоты, а не стоять на земле.
+    /// </summary>
+    public static bool MustTakeOff(BrainContext c, Spot to)
+        => to.End == TripEnd.Air && c.World.Host.Flying != true && c.World.HasFlyer != false && c.Runner.Capabilities.Has(Capability.FlyTo);
+
     /// <summary>Почему не добрались; null — в пути или на месте.</summary>
     public string? Failed { get; private set; }
 
