@@ -329,6 +329,12 @@ public sealed record NpcInfo(
     /// <summary>С какого расстояния агрессивный нападает, м; 0 — неизвестно.</summary>
     public int AggroRadius { get; init; }
 
+    /// <summary>Где обитает (земля, вода, воздух — бывает несколько); null — неизвестно (поле не найдено для сервера).</summary>
+    public Habitat? Habitat { get; init; }
+
+    /// <summary>Живёт здесь (по справочнику); неизвестно — false.</summary>
+    public bool Lives(Habitat where) => Habitat is { } h && (h & where) != 0;
+
     /// <summary>
     /// Бросил цель и возвращается на место — неуязвим и не нападает (false и там, где поле не найдено). Цель (<see cref="TargetWid"/>)
     /// при этом может ещё показывать нас.
@@ -513,7 +519,7 @@ public sealed record PetInCage(int Cage, float HpRatio, int Hunger)
     public string? Name { get; init; }
 
     /// <summary>Где может жить (призываться); null — не знаем для этого сервера.</summary>
-    public PetHabitat? Habitat { get; init; }
+    public Habitat? Habitat { get; init; }
 
     public int HpPercent => (int)Math.Round(HpRatio * 100);
 
@@ -532,38 +538,38 @@ public sealed record PetInCage(int Cage, float HpRatio, int Hunger)
     /// <summary>Как в старом боте: сытость больше 0 — пора кормить.</summary>
     public bool IsHungry => Hunger > 0;
 
-    public bool Lives(PetHabitat where) => Habitat is { } h && (h & where) != 0;
+    public bool Lives(Habitat where) => Habitat is { } h && (h & where) != 0;
 
     /// <summary>Можно ли призвать там, где персонаж: где живёт, а на земле — и летающего (летающие призываются и на земле).</summary>
-    public bool CanSummon(PetHabitat where) => Lives(where) || where == PetHabitat.Ground && Lives(PetHabitat.Air);
+    public bool CanSummon(Habitat where) => Lives(where) || where == World.Habitat.Ground && Lives(World.Habitat.Air);
 }
 
-/// <summary>Где питомец может быть призван: на земле, в воде, в воздухе (бывает несколько сразу).</summary>
+/// <summary>Где обитает питомец или моб: на земле, в воде, в воздухе (бывает несколько сразу).</summary>
 [Flags]
-public enum PetHabitat
+public enum Habitat
 {
     Ground = 1,
     Water = 2,
     Air = 4,
 }
 
-public static class PetHabitats
+public static class Habitats
 {
     /// <summary>Поле справочника (inhabit_type клиента): 0 земля, 1 вода, 2 воздух, 3 земля+вода, 4 земля+воздух, 5 вода+воздух, 6 везде.</summary>
-    public static PetHabitat? FromGame(int inhabit) => inhabit switch
+    public static Habitat? FromGame(int inhabit) => inhabit switch
     {
-        0 => PetHabitat.Ground,
-        1 => PetHabitat.Water,
-        2 => PetHabitat.Air,
-        3 => PetHabitat.Ground | PetHabitat.Water,
-        4 => PetHabitat.Ground | PetHabitat.Air,
-        5 => PetHabitat.Water | PetHabitat.Air,
-        6 => PetHabitat.Ground | PetHabitat.Water | PetHabitat.Air,
+        0 => Habitat.Ground,
+        1 => Habitat.Water,
+        2 => Habitat.Air,
+        3 => Habitat.Ground | Habitat.Water,
+        4 => Habitat.Ground | Habitat.Air,
+        5 => Habitat.Water | Habitat.Air,
+        6 => Habitat.Ground | Habitat.Water | Habitat.Air,
         _ => null,
     };
 
-    public static string Text(PetHabitat? habitat)
+    public static string Text(Habitat? habitat)
         => habitat is not { } h ? "?"
-            : string.Join(", ", new[] { (PetHabitat.Ground, "земля"), (PetHabitat.Water, "вода"), (PetHabitat.Air, "воздух") }
+            : string.Join(", ", new[] { (Habitat.Ground, "земля"), (Habitat.Water, "вода"), (Habitat.Air, "воздух") }
                 .Where(x => (h & x.Item1) != 0).Select(x => x.Item2));
 }

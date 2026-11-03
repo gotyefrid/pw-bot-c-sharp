@@ -426,8 +426,8 @@ public class WorldReaderTests
 
         var pets = Reader(p).Read().Pet!;
 
-        Assert.Equal(("Молодой узорчатый скорпион", PetHabitat.Ground), (pets.InCage(1)!.Name, pets.InCage(1)!.Habitat));
-        Assert.Equal(("Молодая лиственная пчела", PetHabitat.Air), (pets.InCage(2)!.Name, pets.InCage(2)!.Habitat));
+        Assert.Equal(("Молодой узорчатый скорпион", Habitat.Ground), (pets.InCage(1)!.Name, pets.InCage(1)!.Habitat));
+        Assert.Equal(("Молодая лиственная пчела", Habitat.Air), (pets.InCage(2)!.Name, pets.InCage(2)!.Habitat));
     }
 
     [Fact]
@@ -702,6 +702,22 @@ public class WorldReaderTests
         var npc = Assert.Single(Reader(p).Read().Npcs);
 
         Assert.Equal((expected, 7), (npc.Aggressive, npc.AggroRadius));
+    }
+
+    [Theory]
+    [InlineData(0u, Habitat.Ground)]
+    [InlineData(2u, Habitat.Air)]
+    [InlineData(4u, Habitat.Ground | Habitat.Air)]
+    public void MobHabitatComesFromItsRecord(uint inhabit, Habitat expected)
+    {
+        var p = new ProfileCatalog().Load("comeback146").Data;
+        var mob = ComebackWorldWithMob(p);
+        const uint record = 0x3100_0000;
+        _memory.Map(record, 0x600);
+        _memory.WriteUInt32(mob + p.Npc.Essence, record);
+        _memory.WriteUInt32(record + p.MonsterEssence.Inhabit, inhabit);
+
+        Assert.Equal(expected, Assert.Single(Reader(p).Read().Npcs).Habitat);
     }
 
     [Fact]

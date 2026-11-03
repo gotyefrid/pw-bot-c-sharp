@@ -97,9 +97,9 @@ public sealed class PetsPanel : ObservableObject
         if (!KnowsPetHabitats)
             return;
 
-        Sync(GroundPets, Choices(cages, PetHabitat.Ground, Settings.Pet.GroundPet), nameof(GroundPet));
-        Sync(AirPets, Choices(cages, PetHabitat.Air, Settings.Pet.AirPet), nameof(AirPet));
-        Sync(WaterPets, Choices(cages, PetHabitat.Water, Settings.Pet.WaterPet), nameof(WaterPet));
+        Sync(GroundPets, Choices(cages, Habitat.Ground, Settings.Pet.GroundPet), nameof(GroundPet));
+        Sync(AirPets, Choices(cages, Habitat.Air, Settings.Pet.AirPet), nameof(AirPet));
+        Sync(WaterPets, Choices(cages, Habitat.Water, Settings.Pet.WaterPet), nameof(WaterPet));
     }
 
     // Пересборка списка сбрасывает выбор — это не выбор пользователя
@@ -111,7 +111,7 @@ public sealed class PetsPanel : ObservableObject
         _edited();
     }
 
-    private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, PetHabitat where, string chosen)
+    private static List<PetChoice> Choices(IReadOnlyList<PetInCage> cages, Habitat where, string chosen)
     {
         var fit = cages.Where(p => p.CanSummon(where) && p.Name is not null).OrderBy(p => p.Cage).ToList();
         var auto = fit.FirstOrDefault() is { } first ? $"авто — {first.Name} (клетка {first.Cage})" : "авто — подходящего нет";

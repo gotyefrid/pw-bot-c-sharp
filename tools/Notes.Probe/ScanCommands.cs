@@ -114,6 +114,34 @@ internal static class ScanCommands
         return 0;
     }
 
+    /// <summary>
+    /// Поля записи моба в справочнике (по указателю profile npc.essence) — по одному мобу каждого вида, int и float: так ищутся
+    /// поля справочника (агрессивный, обзор, где обитает) сравнением видов, о которых знаем это из игры.
+    /// </summary>
+    public static int MobEssence(ServerProfile profile, GameProcess game, string[] args)
+    {
+        var range = args.Where(a => a.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            .Select(a => Convert.ToInt32(a.Substring(2), 16)).ToList();
+        int from = range.Count > 0 ? range[0] : 0x2A0, to = range.Count > 1 ? range[1] : 0x300;
+        if (profile.Data.Npc.Essence == 0)
+        {
+            Console.WriteLine("В профиле нет npc.essence — запись моба не найти");
+            return 1;
+        }
+
+        var mobs = new WorldReader(game, GameRoots.Find(game, game.MainModuleBase, profile.Data), profile.Data).Read().Mobs
+            .Where(m => m.Name.Length > 0 && m.Kind == NpcKind.Mob).GroupBy(m => m.Name).Select(g => g.First()).ToList();
+        var blocks = mobs.Select(m => (Mob: m, Bytes: game.ReadBytes(game.ReadUInt32(m.Address + profile.Data.Npc.Essence) + (uint)from, to - from + 4))).ToList();
+        Console.WriteLine("Вид: " + string.Join(", ", blocks.Select(b => $"{b.Mob.Name} (tid {b.Mob.Tid}, {b.Mob.Offset.Vertical:+0;-0} м)")));
+        for (var offset = from; offset <= to; offset += 4)
+        {
+            var at = offset - from;
+            Console.WriteLine($"  +0x{offset:X3}: " + string.Join(" | ", blocks.Select(b =>
+                $"{BitConverter.ToInt32(b.Bytes, at),6} {BitConverter.ToSingle(b.Bytes, at),8:0.##}")));
+        }
+        return 0;
+    }
+
     internal static string? TryString(IMemory memory, uint address)
     {
         try

@@ -12,7 +12,7 @@ namespace Notes.Core.Brain;
 /// </summary>
 public static class PetPicker
 {
-    public static PetInCage? Pick(PetState pet, PetSettings settings, PetHabitat where, out string? problem)
+    public static PetInCage? Pick(PetState pet, PetSettings settings, Habitat where, out string? problem)
     {
         problem = null;
         if (pet.Cages.All(p => p.Habitat is null))
@@ -26,8 +26,8 @@ public static class PetPicker
         var text = Text(where);
         var name = where switch
         {
-            PetHabitat.Air => settings.AirPet,
-            PetHabitat.Water => settings.WaterPet,
+            Habitat.Air => settings.AirPet,
+            Habitat.Water => settings.WaterPet,
             _ => settings.GroundPet,
         };
         if (name.Length > 0)
@@ -45,13 +45,13 @@ public static class PetPicker
     }
 
     /// <summary>Где персонаж: летит — воздух, в воде — вода, иначе (и если не знаем) — земля.</summary>
-    public static PetHabitat Where(HostState host)
-        => host.Flying == true ? PetHabitat.Air : host.InWater == true ? PetHabitat.Water : PetHabitat.Ground;
+    public static Habitat Where(HostState host)
+        => host.Flying == true ? Habitat.Air : host.InWater == true ? Habitat.Water : Habitat.Ground;
 
-    public static string Text(PetHabitat where) => where switch
+    public static string Text(Habitat where) => where switch
     {
-        PetHabitat.Air => "в воздухе",
-        PetHabitat.Water => "в воде",
+        Habitat.Air => "в воздухе",
+        Habitat.Water => "в воде",
         _ => "на земле",
     };
 }

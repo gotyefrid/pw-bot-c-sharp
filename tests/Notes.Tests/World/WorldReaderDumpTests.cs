@@ -59,8 +59,8 @@ public class WorldReaderDumpTests
 
         Assert.NotNull(pet);
         Assert.False(pet!.IsSummoned);
-        Assert.Equal(("Молодой узорчатый скорпион", PetHabitat.Ground, 73), (pet.InCage(1)!.Name, pet.InCage(1)!.Habitat, pet.InCage(1)!.HpPercent));
-        Assert.Equal(("Молодая лиственная пчела", PetHabitat.Air, 10), (pet.InCage(2)!.Name, pet.InCage(2)!.Habitat, pet.InCage(2)!.HpPercent));
+        Assert.Equal(("Молодой узорчатый скорпион", Habitat.Ground, 73), (pet.InCage(1)!.Name, pet.InCage(1)!.Habitat, pet.InCage(1)!.HpPercent));
+        Assert.Equal(("Молодая лиственная пчела", Habitat.Air, 10), (pet.InCage(2)!.Name, pet.InCage(2)!.Habitat, pet.InCage(2)!.HpPercent));
     }
 
     [Fact]

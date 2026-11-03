@@ -255,10 +255,10 @@ public class BrainScenarioTests
         Assert.Equal(["cast 329 0", "cast 329 0"], _actions.Calls);
     }
 
-    private static readonly PetInCage Scorpion = new(1, 1, 0) { Name = "Молодой узорчатый скорпион", Habitat = PetHabitat.Ground };
-    private static readonly PetInCage Bee = new(2, 1, 0) { Name = "Молодая лиственная пчела", Habitat = PetHabitat.Air };
-    private static readonly PetInCage Phoenix = new(3, 1, 0) { Name = "Крошка пылающий феникс", Habitat = PetHabitat.Ground | PetHabitat.Water | PetHabitat.Air };
-    private static readonly PetInCage Carp = new(4, 1, 0) { Name = "Священный карп", Habitat = PetHabitat.Water };
+    private static readonly PetInCage Scorpion = new(1, 1, 0) { Name = "Молодой узорчатый скорпион", Habitat = Habitat.Ground };
+    private static readonly PetInCage Bee = new(2, 1, 0) { Name = "Молодая лиственная пчела", Habitat = Habitat.Air };
+    private static readonly PetInCage Phoenix = new(3, 1, 0) { Name = "Крошка пылающий феникс", Habitat = Habitat.Ground | Habitat.Water | Habitat.Air };
+    private static readonly PetInCage Carp = new(4, 1, 0) { Name = "Священный карп", Habitat = Habitat.Water };
 
     [Fact]
     public void InWaterSummonsWaterPet()

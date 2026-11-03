@@ -575,15 +575,15 @@ public class RouteScenarioTests
         _settings.Pet.Enabled = true;
         Route(0, 300);
         _world.Flying = true;
-        _world.SetPets(null, new PetInCage(1, 1, 0) { Name = "Скорпион", Habitat = PetHabitat.Ground },
-            new PetInCage(2, 1, 0) { Name = "Пчела", Habitat = PetHabitat.Air });
+        _world.SetPets(null, new PetInCage(1, 1, 0) { Name = "Скорпион", Habitat = Habitat.Ground },
+            new PetInCage(2, 1, 0) { Name = "Пчела", Habitat = Habitat.Air });
 
         Tick();
 
         Assert.Equal(["summon 2"], _actions.Calls);
     }
 
-    private static PetInCage Bee() => new(2, 1, 0) { Name = "Пчела", Habitat = PetHabitat.Ground | PetHabitat.Air };
+    private static PetInCage Bee() => new(2, 1, 0) { Name = "Пчела", Habitat = Habitat.Ground | Habitat.Air };
 
     private void PetOnlyForFight()
     {

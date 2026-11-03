@@ -541,7 +541,7 @@ internal static class WorldCommands
 
         s.AppendLine(w.Pet is { } pet
             ? $"Пет    {(pet.IsSummoned ? $"призван из клетки {pet.ActiveCage}, WID 0x{pet.ActiveWid:X8}" : "не призван")}; " +
-              string.Join("; ", pet.Cages.Select(c => $"клетка {c.Cage}: {(c.Name is { } name ? $"{name} ({PetHabitats.Text(c.Habitat)}), " : "")}HP {c.HpPercent} %{(c.Hp is { } hp ? $" ({hp}/{c.MaxHp})" : "")}, ур. {c.Level}, сытость {c.Hunger}{(c.IsAlive ? "" : " (мёртв)")}"))
+              string.Join("; ", pet.Cages.Select(c => $"клетка {c.Cage}: {(c.Name is { } name ? $"{name} ({Habitats.Text(c.Habitat)}), " : "")}HP {c.HpPercent} %{(c.Hp is { } hp ? $" ({hp}/{c.MaxHp})" : "")}, ур. {c.Level}, сытость {c.Hunger}{(c.IsAlive ? "" : " (мёртв)")}"))
             : "Пет    нет");
 
         var npcs = w.Npcs.OrderBy(n => n.Offset.Horizontal).Take(full ? 10 : 5).ToList();
@@ -549,7 +549,7 @@ internal static class WorldCommands
         foreach (var n in npcs)
         {
             var aggro = n.TargetWid == 0 ? "" : n.TargetWid == h.Wid ? "  ⚔ бьёт перса" : w.Pet?.ActiveWid == n.TargetWid ? "  ⚔ бьёт пета" : $"  → 0x{n.TargetWid:X8}";
-            s.AppendLine($"       {n.Offset.Horizontal,6:0.0} м {Height(n.Offset),6}  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}{(n.Tid > 0 ? $" tid {n.Tid}" : "")}  {State(n)}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{aggro}");
+            s.AppendLine($"       {n.Offset.Horizontal,6:0.0} м {Height(n.Offset),6}  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}{(n.Tid > 0 ? $" tid {n.Tid}" : "")}  {State(n)}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{(n.Habitat is not null && n.Kind == NpcKind.Mob ? $"  [{Habitats.Text(n.Habitat)}]" : "")}{aggro}");
         }
 
         if (full)

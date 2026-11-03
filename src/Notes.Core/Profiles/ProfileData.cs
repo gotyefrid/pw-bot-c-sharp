@@ -242,7 +242,7 @@ public sealed class PetOffsets
     public uint Essence { get; init; }
     /// <summary>Название в записи (UTF-16).</summary>
     public uint EssenceName { get; init; }
-    /// <summary>Где живёт (int, inhabit_type), см. <see cref="World.PetHabitats.FromGame"/>.</summary>
+    /// <summary>Где живёт (int, inhabit_type), см. <see cref="World.Habitats.FromGame"/>.</summary>
     public uint EssenceInhabit { get; init; }
     /// <summary>Уровень (int); 0 — не найдено: HP в единицах не считается.</summary>
     public uint Level { get; init; }
@@ -436,13 +436,15 @@ public sealed class PlayerOffsets
     public uint Class { get; init; }
 }
 
-/// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам и с какого расстояния.</summary>
+/// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам, с какого расстояния, где обитает.</summary>
 public sealed class MonsterEssenceOffsets
 {
     /// <summary>Нападает сам (int: 1 — агрессивный, 0 — нет).</summary>
     public uint Aggressive { get; init; }
     /// <summary>Радиус агра, м (int): подошли ближе — агрессивный нападает.</summary>
     public uint AggroRadius { get; init; }
+    /// <summary>Где обитает (int, inhabit_type — как у питомцев, см. <see cref="World.Habitats.FromGame"/>); 0 — не найдено.</summary>
+    public uint Inhabit { get; init; }
 }
 
 public sealed class GroundItemOffsets

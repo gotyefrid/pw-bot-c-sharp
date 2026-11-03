@@ -49,7 +49,7 @@ public sealed class WorldReader
     private readonly Dictionary<uint, PetEssence> _petEssences = [];
     private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (string? Name, string? Group)> _itemInfo = [];
-    private readonly Dictionary<uint, (bool Aggressive, int Radius)> _monsters = [];
+    private readonly Dictionary<uint, (bool Aggressive, int Radius, Habitat? Habitat)> _monsters = [];
     // Записи заданий не меняются, пока жив клиент: границы уровня и сама запись — по адресу, один раз
     private readonly Dictionary<uint, (int Min, int Max, bool Rebirth)> _questLevels = [];
     private readonly Dictionary<uint, QuestInfo?> _questTemplates = [];
@@ -299,12 +299,12 @@ public sealed class WorldReader
             Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
         };
         return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
-            ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius }
+            ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius, Habitat = m.Habitat }
             : npc;
     }
 
     // Запись моба в справочнике не меняется, пока клиент запущен, — у каждой читаем один раз
-    private (bool Aggressive, int Radius)? ReadMonster(uint record)
+    private (bool Aggressive, int Radius, Habitat? Habitat)? ReadMonster(uint record)
     {
         if (record == 0)
             return null;
@@ -314,7 +314,8 @@ public sealed class WorldReader
         var m = _p.MonsterEssence;
         if (!_memory.TryReadUInt32(record + m.Aggressive, out var aggressive) || !_memory.TryReadUInt32(record + m.AggroRadius, out var radius))
             return null;
-        return _monsters[record] = (aggressive != 0, unchecked((int)radius));
+        var habitat = m.Inhabit != 0 && _memory.TryReadUInt32(record + m.Inhabit, out var inhabit) ? Habitats.FromGame(unchecked((int)inhabit)) : null;
+        return _monsters[record] = (aggressive != 0, unchecked((int)radius), habitat);
     }
 
     // Список чата: [список] — начало массива записей, [список + 4] — конец
@@ -890,10 +891,10 @@ public sealed class WorldReader
         var hp = p.EssenceLevelRequire == 0 || p.EssenceHpA == 0 || p.EssenceHpB == 0 || p.EssenceHpC == 0
             ? null
             : new PetHpFormula(b.Int32(p.EssenceLevelRequire), b.Float(p.EssenceHpA), b.Float(p.EssenceHpB), b.Float(p.EssenceHpC));
-        return _petEssences[tid] = new PetEssence(ReadName(address + p.EssenceName), PetHabitats.FromGame(b.Int32(p.EssenceInhabit)), hp);
+        return _petEssences[tid] = new PetEssence(ReadName(address + p.EssenceName), Habitats.FromGame(b.Int32(p.EssenceInhabit)), hp);
     }
 
-    private sealed record PetEssence(string Name, PetHabitat? Habitat, PetHpFormula? Hp);
+    private sealed record PetEssence(string Name, Habitat? Habitat, PetHpFormula? Hp);
 
     /// <summary>Максимум HP пета, как его считает окно пета игры: всё во float — иначе на круглых числах разойдётся на 1.</summary>
     private sealed record PetHpFormula(int LevelRequire, float A, float B, float C)
