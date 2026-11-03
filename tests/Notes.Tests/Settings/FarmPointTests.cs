@@ -4,74 +4,117 @@ using Xunit;
 
 namespace Notes.Tests.Settings;
 
-/// <summary>Сохранённые точки — одни на центр фарма и место для смертей.</summary>
+/// <summary>Сохранённые точки: у центра фарма и у места для смертей — свои списки.</summary>
 public class FarmPointTests
 {
     private readonly BotSettings _s = new();
 
-    [Fact]
-    public void NewPointTakesFirstFreeNumber()
-    {
-        _s.AddPoint("Смерть", new Position(1, 0, 0));
-        _s.Target.FarmPoints.Add(FarmPoint.At("смерть 3", new Position()));
+    private FarmPoint Farm(string prefix = "Точка") => BotSettings.AddPoint(_s.Target.FarmPoints, prefix, new Position());
+    private FarmPoint Death(string prefix = "Смерть") => BotSettings.AddPoint(_s.ExpDrain.DeathPoints, prefix, new Position());
 
-        Assert.Equal("Смерть 2", _s.AddPoint("Смерть", new Position()).Name);
-        Assert.Equal("Смерть 4", _s.AddPoint("Смерть", new Position()).Name);
+    [Fact]
+    public void NewPointTakesFirstFreeNumberInItsList()
+    {
+        Death();
+        _s.ExpDrain.DeathPoints.Add(FarmPoint.At("смерть 3", new Position()));
+        Farm("Смерть");
+
+        Assert.Equal("Смерть 2", Death().Name);
+        Assert.Equal("Смерть 4", Death().Name);
+        Assert.Equal("Смерть 2", Farm("Смерть").Name);
     }
 
     [Fact]
-    public void RenameKeepsBothChoices()
+    public void ListsDoNotMix()
     {
-        var point = _s.AddPoint("Точка", new Position());
-        _s.Target.FarmCenter = point.Name;
-        _s.ExpDrain.DeathPoint = point.Name;
+        Farm();
+        Death();
 
-        _s.RenamePoint(point, "  Поляна ");
-
-        Assert.Equal("Поляна", point.Name);
-        Assert.Same(point, _s.Target.SelectedFarmPoint);
-        Assert.Same(point, _s.ExpDrain.FindDeathPoint(_s.Target));
+        Assert.Equal(new[] { "Точка 1" }, _s.Target.FarmPoints.ConvertAll(p => p.Name));
+        Assert.Equal(new[] { "Смерть 1" }, _s.ExpDrain.DeathPoints.ConvertAll(p => p.Name));
     }
 
     [Fact]
-    public void RenameDoesNotTouchOtherChoice()
+    public void SameNameAllowedInOtherList()
     {
-        var farm = _s.AddPoint("Точка", new Position());
-        var death = _s.AddPoint("Смерть", new Position());
-        _s.Target.FarmCenter = farm.Name;
-        _s.ExpDrain.DeathPoint = death.Name;
+        var farm = Farm();
+        var death = Death();
+        farm.Name = "Поляна";
 
-        _s.RenamePoint(death, "У города");
-
-        Assert.Equal("Точка 1", _s.Target.FarmCenter);
-        Assert.Equal("У города", _s.ExpDrain.DeathPoint);
+        Assert.Null(BotSettings.WhyNotName(_s.ExpDrain.DeathPoints, death, "Поляна", "На месте фарма"));
     }
 
     [Fact]
-    public void NameMustBeNewAndNotEmpty()
+    public void NameMustBeNewInItsListAndNotEmpty()
     {
-        var a = _s.AddPoint("Точка", new Position());
-        _s.AddPoint("Точка", new Position());
+        var a = Farm();
+        Farm();
 
-        Assert.Null(_s.WhyNotName(a, "Точка 1", "Точка старта"));
-        Assert.Null(_s.WhyNotName(a, "Поляна", "Точка старта"));
-        Assert.NotNull(_s.WhyNotName(a, "  ", "Точка старта"));
-        Assert.NotNull(_s.WhyNotName(a, "точка 2", "Точка старта"));
-        Assert.NotNull(_s.WhyNotName(a, "точка старта", "Точка старта"));
+        Assert.Null(BotSettings.WhyNotName(_s.Target.FarmPoints, a, "Точка 1", "Точка старта"));
+        Assert.Null(BotSettings.WhyNotName(_s.Target.FarmPoints, a, "Поляна", "Точка старта"));
+        Assert.NotNull(BotSettings.WhyNotName(_s.Target.FarmPoints, a, "  ", "Точка старта"));
+        Assert.NotNull(BotSettings.WhyNotName(_s.Target.FarmPoints, a, "точка 2", "Точка старта"));
+        Assert.NotNull(BotSettings.WhyNotName(_s.Target.FarmPoints, a, "точка старта", "Точка старта"));
     }
 
     [Fact]
-    public void RemovedPointClearsWhereChosen()
+    public void RenameKeepsChoiceOnlyInItsList()
     {
-        var point = _s.AddPoint("Точка", new Position());
-        _s.Target.FarmCenter = point.Name;
-        _s.ExpDrain.DeathPoint = point.Name;
+        var farm = Farm();
+        var death = Death();
+        farm.Name = death.Name = "Поляна";
+        _s.Target.FarmCenter = "Поляна";
+        _s.ExpDrain.DeathPoint = "Поляна";
 
-        _s.RemovePoint(point);
+        _s.RenamePoint(death, "  У города ");
+
+        Assert.Equal("У города", death.Name);
+        Assert.Same(death, _s.ExpDrain.FindDeathPoint());
+        Assert.Same(farm, _s.Target.SelectedFarmPoint);
+        Assert.Equal("Поляна", farm.Name);
+    }
+
+    [Fact]
+    public void RemoveClearsChoiceOnlyInItsList()
+    {
+        var farm = Farm();
+        var death = Death();
+        farm.Name = death.Name = "Поляна";
+        _s.Target.FarmCenter = "Поляна";
+        _s.ExpDrain.DeathPoint = "Поляна";
+
+        _s.RemovePoint(farm);
 
         Assert.Empty(_s.Target.FarmPoints);
         Assert.Equal("", _s.Target.FarmCenter);
-        Assert.Null(_s.ExpDrain.FindDeathPoint(_s.Target));
-        Assert.Equal("", _s.ExpDrain.DeathPoint);
+        Assert.Same(death, _s.ExpDrain.FindDeathPoint());
+    }
+
+    // Раньше точка для смертей была среди точек фарма
+    [Fact]
+    public void OldDeathPointMovesToItsList()
+    {
+        _s.Target.FarmPoints = [FarmPoint.At("Поляна", new Position(1, 2, 3)), FarmPoint.At("Смерть 1", new Position(4, 5, 6))];
+        _s.Target.FarmCenter = "Поляна";
+        _s.ExpDrain.DeathPoint = "Смерть 1";
+
+        _s.Normalize();
+
+        Assert.Equal(new[] { "Поляна" }, _s.Target.FarmPoints.ConvertAll(p => p.Name));
+        Assert.Equal(new Position(4, 5, 6), _s.ExpDrain.FindDeathPoint()?.Position);
+    }
+
+    [Fact]
+    public void OldDeathPointStaysAtFarmIfItIsFarmCenter()
+    {
+        _s.Target.FarmPoints = [FarmPoint.At("Поляна", new Position(1, 2, 3))];
+        _s.Target.FarmCenter = "Поляна";
+        _s.ExpDrain.DeathPoint = "Поляна";
+
+        _s.Normalize();
+
+        Assert.NotNull(_s.Target.SelectedFarmPoint);
+        Assert.Equal(new Position(1, 2, 3), _s.ExpDrain.FindDeathPoint()?.Position);
+        Assert.NotSame(_s.Target.SelectedFarmPoint, _s.ExpDrain.FindDeathPoint());
     }
 }

@@ -64,14 +64,13 @@ public sealed class FarmPanel : ObservableObject
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
         FarmResourceNames.CollectionChanged += (_, _) => NameListsEdited();
         StashNames.CollectionChanged += (_, _) => NameListsEdited();
-        string[] reserved = [StartCenter, AtFarm];
-        FarmCenter = new PointPicker(settings, world, log, StartCenter, s => s.Target.FarmCenter, (s, v) => s.Target.FarmCenter = v,
-            "Точка", "точка фарма", PointsChanged, reserved)
+        FarmCenter = new PointPicker(settings, world, log, StartCenter, s => s.Target.FarmPoints, s => s.Target.FarmCenter,
+            (s, v) => s.Target.FarmCenter = v, "Точка", "точка фарма", PointsChanged)
         {
             AddHint = "Запомнить, где стоит персонаж сейчас, как новую точку фарма",
         };
-        DeathPoint = new PointPicker(settings, world, log, AtFarm, s => s.ExpDrain.DeathPoint, (s, v) => s.ExpDrain.DeathPoint = v,
-            "Смерть", "точка для смертей", PointsChanged, reserved)
+        DeathPoint = new PointPicker(settings, world, log, AtFarm, s => s.ExpDrain.DeathPoints, s => s.ExpDrain.DeathPoint,
+            (s, v) => s.ExpDrain.DeathPoint = v, "Смерть", "точка для смертей", PointsChanged)
         {
             AddHint = "Запомнить, где стоит персонаж сейчас, как точку для смертей",
         };
@@ -150,7 +149,7 @@ public sealed class FarmPanel : ObservableObject
 
     public const string AtFarm = "На месте фарма";
 
-    /// <summary>Где умирать при сливе опыта: «На месте фарма» или одна из тех же сохранённых точек, что у центра фарма.</summary>
+    /// <summary>Где умирать при сливе опыта: «На месте фарма» или своя точка для смертей (не точки фарма).</summary>
     public PointPicker DeathPoint { get; }
 
     public sealed record DrainMobsChoice(DrainMobs Mobs, string Title);
@@ -283,7 +282,7 @@ public sealed class FarmPanel : ObservableObject
         _edited();
     }
 
-    // Точки общие: добавили, изменили или удалили в одном списке — пересобрать оба
+    // Добавили, изменили или удалили точку — пересобрать списки и сохранить
     private void PointsChanged()
     {
         LoadPoints();

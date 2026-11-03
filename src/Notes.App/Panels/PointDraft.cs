@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Windows.Input;
 using Notes.App.Mvvm;
@@ -14,21 +15,24 @@ namespace Notes.App.Panels;
 public sealed class PointDraft : ObservableObject
 {
     private readonly BotSettings _settings;
+    private readonly List<FarmPoint> _points;
     private readonly FarmPoint _point;
     private readonly Func<Position?> _here;
-    private readonly string[] _reserved;
+    private readonly string _none;
     private readonly string _shownX, _shownY, _shownHeight;
     private string _name, _x, _y, _height;
     private string _error = "";
 
     /// <param name="here">Где стоит персонаж; null — мир не читается.</param>
-    /// <param name="reserved">Пункты списков вместо точки: так точку не назвать.</param>
-    public PointDraft(BotSettings settings, FarmPoint point, Func<Position?> here, string[] reserved)
+    /// <param name="points">Список, где лежит точка: название не должно повторяться в нём.</param>
+    /// <param name="none">Пункт списка вместо точки: так точку не назвать.</param>
+    public PointDraft(BotSettings settings, List<FarmPoint> points, FarmPoint point, Func<Position?> here, string none)
     {
         _settings = settings;
+        _points = points;
         _point = point;
         _here = here;
-        _reserved = reserved;
+        _none = none;
         _name = point.Name;
         (_x, _y, _height) = Format(point.Position);
         (_shownX, _shownY, _shownHeight) = (_x, _y, _height);
@@ -62,7 +66,7 @@ public sealed class PointDraft : ObservableObject
     /// <summary>Проверить и записать в точку; false — что не так, в <see cref="Error"/>.</summary>
     public bool Save()
     {
-        if (_settings.WhyNotName(_point, Name, _reserved) is { } why)
+        if (BotSettings.WhyNotName(_points, _point, Name, _none) is { } why)
             return Fail(char.ToUpper(why[0]) + why.Substring(1));
         if (Parse(X) is not { } x || Parse(Y) is not { } y || Parse(Height) is not { } h)
             return Fail("Координаты — числа, как на миникарте: 394 447, высота 22");

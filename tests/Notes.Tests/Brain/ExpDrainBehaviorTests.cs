@@ -468,7 +468,7 @@ public class ExpDrainBehaviorTests
     {
         _settings.Target.UseMobList = true;
         _settings.Target.MobNames = ["Волк"];
-        _settings.Target.FarmPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
+        _settings.ExpDrain.DeathPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
         _settings.ExpDrain.DeathPoint = "Смерть";
         // В точке для смертей — моб не из списка фарма: там фильтр фарма ни при чём
         _world.Npcs.Add(new NpcInfo(0x80000009, 0x80000009, NpcKind.Mob, NpcState.Standing, 0, new Position(104, 0, 0), "Чужак", 0));
@@ -498,7 +498,7 @@ public class ExpDrainBehaviorTests
     [Fact]
     public void OneDeathEnoughFliesStraightToFarm()
     {
-        _settings.Target.FarmPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
+        _settings.ExpDrain.DeathPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
         _settings.ExpDrain.DeathPoint = "Смерть";
         PullTwo();
         _world.Hp = 0;

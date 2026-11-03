@@ -80,53 +80,57 @@ public sealed class BotSettings
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
 
-    // ── Сохранённые точки: одни на центр фарма и место для смертей ─────────────
+    // ── Сохранённые точки: свои у центра фарма (TargetSettings.FarmPoints) и у места для смертей (ExpDrainSettings.DeathPoints) ──
 
-    /// <summary>Новая точка «<paramref name="prefix"/> N» (первый свободный номер) в <paramref name="at"/>.</summary>
-    public FarmPoint AddPoint(string prefix, Position at)
+    /// <summary>Новая точка «<paramref name="prefix"/> N» (первый свободный номер в этом списке) в <paramref name="at"/>.</summary>
+    public static FarmPoint AddPoint(List<FarmPoint> points, string prefix, Position at)
     {
         var n = 1;
-        while (FindPoint($"{prefix} {n}") is not null)
+        while (FindPoint(points, $"{prefix} {n}") is not null)
             n++;
         var point = FarmPoint.At($"{prefix} {n}", at);
-        Target.FarmPoints.Add(point);
+        points.Add(point);
         return point;
     }
 
-    public FarmPoint? FindPoint(string name)
-        => Target.FarmPoints.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
+    public static FarmPoint? FindPoint(List<FarmPoint> points, string name)
+        => points.FirstOrDefault(p => string.Equals(p.Name, name.Trim(), StringComparison.OrdinalIgnoreCase));
 
-    /// <summary>Почему точке нельзя дать это название; null — можно. <paramref name="reserved"/> — пункты списков вместо точки.</summary>
-    public string? WhyNotName(FarmPoint point, string name, params string[] reserved)
+    /// <summary>
+    /// Почему точке нельзя дать это название; null — можно. Повтор — только в своём списке; <paramref name="reserved"/> — пункт
+    /// списка вместо точки («Точка старта»).
+    /// </summary>
+    public static string? WhyNotName(List<FarmPoint> points, FarmPoint point, string name, params string[] reserved)
     {
         name = name.Trim();
         if (name.Length == 0)
             return "название пустое";
         if (reserved.Any(r => string.Equals(r, name, StringComparison.OrdinalIgnoreCase))
-            || FindPoint(name) is { } other && other != point)
+            || FindPoint(points, name) is { } other && other != point)
             return $"точка «{name}» уже есть";
         return null;
     }
 
-    /// <summary>Переименовать точку: где она выбрана (центр фарма, место для смертей) — там новое название.</summary>
+    /// <summary>Переименовать точку: если она выбрана в своём списке (центр фарма, место для смертей) — там новое название.</summary>
     public void RenamePoint(FarmPoint point, string name)
     {
         name = name.Trim();
-        if (string.Equals(Target.FarmCenter, point.Name, StringComparison.OrdinalIgnoreCase))
+        if (Target.SelectedFarmPoint == point)
             Target.FarmCenter = name;
-        if (string.Equals(ExpDrain.DeathPoint, point.Name, StringComparison.OrdinalIgnoreCase))
+        if (ExpDrain.FindDeathPoint() == point)
             ExpDrain.DeathPoint = name;
         point.Name = name;
     }
 
-    /// <summary>Удалить точку: где она была выбрана — центр фарма станет точкой старта, смерти — на месте фарма.</summary>
+    /// <summary>Удалить точку: если она была выбрана — центр фарма станет точкой старта, смерти — на месте фарма.</summary>
     public void RemovePoint(FarmPoint point)
     {
-        Target.FarmPoints.Remove(point);
-        if (string.Equals(Target.FarmCenter, point.Name, StringComparison.OrdinalIgnoreCase))
+        if (Target.SelectedFarmPoint == point)
             Target.FarmCenter = "";
-        if (string.Equals(ExpDrain.DeathPoint, point.Name, StringComparison.OrdinalIgnoreCase))
+        if (ExpDrain.FindDeathPoint() == point)
             ExpDrain.DeathPoint = "";
+        Target.FarmPoints.Remove(point);
+        ExpDrain.DeathPoints.Remove(point);
     }
 
     /// <summary>Приводит значения к допустимым (после ручной правки файла или старой версии).</summary>
@@ -185,7 +189,20 @@ public sealed class BotSettings
         ExpDrain.Mobs = Clamp(ExpDrain.Mobs, 1, 10);
         ExpDrain.FlightHeight = Clamp(ExpDrain.FlightHeight, 0, 800);
         ExpDrain.DeathPoint = ExpDrain.DeathPoint?.Trim() ?? "";
+        ExpDrain.DeathPoints = FarmPoint.Clean(ExpDrain.DeathPoints);
+        MoveOldDeathPoint();
         return this;
+    }
+
+    // Раньше точка для смертей была одной из точек фарма: выбранную — в свой список. У фарма остаётся, только если она там центр
+    private void MoveOldDeathPoint()
+    {
+        var name = ExpDrain.DeathPoint;
+        if (name.Length == 0 || FindPoint(ExpDrain.DeathPoints, name) is not null || FindPoint(Target.FarmPoints, name) is not { } old)
+            return;
+        ExpDrain.DeathPoints.Add(FarmPoint.At(old.Name, old.Position));
+        if (Target.SelectedFarmPoint != old)
+            Target.FarmPoints.Remove(old);
     }
 
     private static int Clamp(int value, int min, int max) => Math.Min(max, Math.Max(min, value));
@@ -625,18 +642,22 @@ public sealed class ExpDrainSettings : SettingsPart
 
     private string _deathPoint = "";
     /// <summary>
-    /// Где умирать — название точки из <see cref="TargetSettings.FarmPoints"/>; пусто (или точки нет) — на месте фарма. Первая смерть —
+    /// Где умирать — название точки из <see cref="DeathPoints"/>; пусто (или точки нет) — на месте фарма. Первая смерть —
     /// всё равно там, где фармим (уже на месте), сюда летим со второй; слили — летим на место фарма.
     /// </summary>
     public string DeathPoint { get => _deathPoint; set => Set(ref _deathPoint, value); }
+
+    private List<FarmPoint> _deathPoints = [];
+    /// <summary>Точки для смертей — свои, не точки фарма (<see cref="TargetSettings.FarmPoints"/>).</summary>
+    public List<FarmPoint> DeathPoints { get => _deathPoints; set => Set(ref _deathPoints, value); }
 
     private DrainMobs _deathMobs = DrainMobs.AsFarm;
     /// <summary>От каких мобов умирать; заодно — где: летающих ждём в воздухе (не садимся), водных — в воде.</summary>
     public DrainMobs DeathMobs { get => _deathMobs; set => Set(ref _deathMobs, value); }
 
     /// <summary>Точка для смертей; null — умирать на месте фарма.</summary>
-    public FarmPoint? FindDeathPoint(TargetSettings target)
-        => DeathPoint.Length == 0 ? null : target.FarmPoints.FirstOrDefault(p => string.Equals(p.Name, DeathPoint, StringComparison.OrdinalIgnoreCase));
+    public FarmPoint? FindDeathPoint()
+        => DeathPoint.Length == 0 ? null : DeathPoints.FirstOrDefault(p => string.Equals(p.Name, DeathPoint, StringComparison.OrdinalIgnoreCase));
 }
 
 /// <summary>От каких мобов умирать при сливе опыта.</summary>

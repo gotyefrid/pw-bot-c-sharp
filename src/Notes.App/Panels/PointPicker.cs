@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 using Notes.App.Mvvm;
@@ -10,32 +11,32 @@ namespace Notes.App.Panels;
 
 /// <summary>
 /// Выбор сохранённой точки с кнопками «добавить», «изменить», «удалить» (<see cref="PointPickerView"/>): центр фарма, место для
-/// смертей. Точки у всех списков одни (<see cref="TargetSettings.FarmPoints"/>), у каждого — свой выбор и свой первый пункт
-/// вместо точки («Точка старта», «На месте фарма»). Поменялись точки — <c>pointsChanged</c>: пересобрать все списки.
+/// смертей. У каждого списка свои точки (<c>points</c>), свой выбор и свой первый пункт вместо точки («Точка старта», «На месте
+/// фарма»). Поменялись точки — <c>pointsChanged</c>.
 /// </summary>
 public sealed class PointPicker : ObservableObject
 {
     private readonly Func<BotSettings> _settings;
     private readonly Func<WorldState?> _world;
     private readonly ILogger _log;
+    private readonly Func<BotSettings, List<FarmPoint>> _points;
     private readonly Func<BotSettings, string> _get;
     private readonly Action<BotSettings, string> _set;
     private readonly string _prefix;
     private readonly string _what;
     private readonly Action _pointsChanged;
-    private readonly string[] _reserved;
     private bool _syncing;
     private string _info = "";
 
     /// <param name="none">Первый пункт — без точки.</param>
+    /// <param name="points">Точки этого списка в настройках.</param>
     /// <param name="get">Выбранная точка в настройках; пусто — <paramref name="none"/>.</param>
     /// <param name="prefix">Название новой точки: «Точка N».</param>
     /// <param name="what">Для лога: «точка фарма».</param>
-    /// <param name="reserved">Первые пункты всех списков точек: так точку не назвать.</param>
-    public PointPicker(Func<BotSettings> settings, Func<WorldState?> world, ILogger log, string none, Func<BotSettings, string> get,
-        Action<BotSettings, string> set, string prefix, string what, Action pointsChanged, string[] reserved)
+    public PointPicker(Func<BotSettings> settings, Func<WorldState?> world, ILogger log, string none, Func<BotSettings, List<FarmPoint>> points,
+        Func<BotSettings, string> get, Action<BotSettings, string> set, string prefix, string what, Action pointsChanged)
     {
-        _reserved = reserved;
+        _points = points;
         _settings = settings;
         _world = world;
         _log = log;
@@ -68,7 +69,7 @@ public sealed class PointPicker : ObservableObject
     private BotSettings Settings => _settings();
 
     /// <summary>Выбранная точка; null — <see cref="None"/> или точки с таким названием нет.</summary>
-    public FarmPoint? Point => _get(Settings) is { Length: > 0 } name ? Settings.FindPoint(name) : null;
+    public FarmPoint? Point => _get(Settings) is { Length: > 0 } name ? BotSettings.FindPoint(_points(Settings), name) : null;
 
     public bool HasPoint => Point is not null;
 
@@ -98,7 +99,7 @@ public sealed class PointPicker : ObservableObject
         {
             Items.Clear();
             Items.Add(None);
-            foreach (var point in Settings.Target.FarmPoints)
+            foreach (var point in _points(Settings))
                 Items.Add(point.Name);
         }
         finally
@@ -123,7 +124,7 @@ public sealed class PointPicker : ObservableObject
     {
         if (_world() is not { } w)
             return;
-        var point = Settings.AddPoint(_prefix, w.Host.Position);
+        var point = BotSettings.AddPoint(_points(Settings), _prefix, w.Host.Position);
         _set(Settings, point.Name);
         _log.Info($"Сохранена {_what} «{point.Name}»: {Show(point.Position)}");
         _pointsChanged();
@@ -133,7 +134,7 @@ public sealed class PointPicker : ObservableObject
     {
         if (Point is not { } point)
             return;
-        var draft = new PointDraft(Settings, point, () => _world()?.Host.Position, _reserved);
+        var draft = new PointDraft(Settings, _points(Settings), point, () => _world()?.Host.Position, None);
         draft.Saved += () =>
         {
             _log.Info($"Точка «{point.Name}» изменена: {Show(point.Position)}");

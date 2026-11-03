@@ -175,7 +175,7 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         };
         var mobsEnd = mobs switch { Habitat.Air => TripEnd.Air, Habitat.Water => TripEnd.Water, _ => TripEnd.Ground };
 
-        var point = settings.FindDeathPoint(c.Settings.Target);
+        var point = settings.FindDeathPoint();
         if (point is null && settings.DeathPoint.Length > 0)
             c.Say("drain-no-point", $"Слив опыта: точки «{settings.DeathPoint}» нет среди сохранённых — умираю на месте фарма", LogLevel.Warning, 3600);
         var death = point is null ? new Spot(farm.Position, mobsEnd) : new Spot(point.Position, mobsEnd);
