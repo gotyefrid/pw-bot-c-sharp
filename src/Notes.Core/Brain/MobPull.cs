@@ -23,8 +23,9 @@ public enum PullStep
 /// <item>Ближайший разрешённый моб до <see cref="PullRadius"/> м, в которого в этом сборе ещё не стреляли. Бьёт ли он нас — не
 /// смотрим: после воскрешения у старых мобов в цели ещё остаётся перс, хотя они его уже не бьют.</item>
 /// <item>На земле — только мобы на нашей высоте (летающие на выстрел не подманиваются); в воздухе — любые, ближние в пространстве.</item>
-/// <item>Выстрел удачный, когда в цели этот моб и скилл ушёл на перезарядку — сразу следующий; не ушёл (каст сбили) — ещё раз,
-/// до <see cref="ShotsPerMob"/>.</item>
+/// <item>Выстрел удачный, когда в цели этот моб и скилл ушёл на перезарядку — сразу следующий; не
+/// ушёл (каст сбили) — ещё раз, до <see cref="ShotsPerMob"/>. Скилл — атакующий из настроек боя, иначе основной у класса;
+/// нет ни того, ни другого — обычная атака, удачная, только когда моб взял перса в цель.</item>
 /// </list>
 /// Не поведение, а деталь поведения: шаги — из его Tick, действия уходят от его имени.
 /// </summary>
@@ -40,8 +41,8 @@ public sealed class MobPull(int need, bool inAir)
 
     // Выстрел: ждём, пока скилл уйдёт на перезарядку (с подбеганием клиента); дольше — каст сбит
     private static readonly TimeSpan ShotWait = TimeSpan.FromSeconds(5);
-    // Обычная атака перезарядки не даёт: удар засчитываем через столько после отправки
-    private static readonly TimeSpan SwordWait = TimeSpan.FromSeconds(2);
+    // Обычная атака перезарядки не даёт: засчитываем, когда моб взял перса в цель; ждём дольше — перс бежит к мобу
+    private static readonly TimeSpan SwordWait = TimeSpan.FromSeconds(10);
     // Скилл перезаряжается дольше этого — стреляем всё равно (отказ покажет причину в логе)
     private static readonly TimeSpan ReadyWait = TimeSpan.FromSeconds(6);
 
@@ -86,7 +87,8 @@ public sealed class MobPull(int need, bool inAir)
         var skill = AttackSkill(c);
         if (_shotAction is not null)
         {
-            var hit = skill == 0 ? c.Now - _shotAt >= SwordWait : w.Skill(skill) is { IsReady: false };
+            // Скиллом — по перезарядке: цель у моба на персе бывает и старая (после воскрешения), она не показывает, что попали
+            var hit = skill == 0 ? mob.TargetWid == w.Host.Wid : w.Skill(skill) is { IsReady: false };
             if (hit)
             {
                 Drop(c);
@@ -95,7 +97,7 @@ public sealed class MobPull(int need, bool inAir)
                 c.Log.Debug($"Сбор мобов: выстрел по {mob.Name} ушёл ({Pulled}/{need})");
                 return PullStep.Pulling;
             }
-            if (c.Now - _shotAt < ShotWait)
+            if (c.Now - _shotAt < (skill == 0 ? SwordWait : ShotWait))
                 return PullStep.Pulling;
 
             Drop(c);
@@ -152,10 +154,13 @@ public sealed class MobPull(int need, bool inAir)
             .OrderBy(m => inAir ? c.World.Host.Position.DistanceTo(m.Position) : m.Offset.Horizontal)
             .FirstOrDefault();
 
-    // Атакующий скилл боя, если он у перса есть; 0 — обычная атака
+    // Атакующий скилл боя (даже если в бою бьёт пет и «Бить скиллом» выключено: издалека подманивать быстрее), иначе основной
+    // атакующий скилл класса — если он у перса есть; 0 — обычная атака
     private static int AttackSkill(BrainContext c)
     {
-        var combat = c.Settings.Combat;
-        return combat.UseSkill && combat.AttackSkillId != 0 && c.World.Skill(combat.AttackSkillId) is not null ? combat.AttackSkillId : 0;
+        foreach (var skill in new[] { c.Settings.Combat.AttackSkillId, c.Skills.DefaultAttack })
+            if (skill != 0 && c.World.Skill(skill) is not null)
+                return skill;
+        return 0;
     }
 }

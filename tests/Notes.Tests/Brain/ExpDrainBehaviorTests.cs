@@ -435,4 +435,31 @@ public class ExpDrainBehaviorTests
         TickFor(1);
         Assert.Contains("select 80000002", _actions.Calls);
     }
+
+    [Fact]
+    public void AttackSkillIsUsedEvenWhenFightIsWithoutSkill()
+    {
+        _settings.Combat.UseSkill = false;
+        AddGroundMobs();
+
+        TickFor(2);
+
+        Assert.Contains("apply 125 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void NormalAttackCountsOnlyWhenMobTargetsUs()
+    {
+        _settings.Combat.AttackSkillId = 0;
+        AddGroundMobs();
+
+        TickFor(5);
+        Assert.Contains("attack", _actions.Calls);
+        Assert.DoesNotContain("select 80000003", _actions.Calls);
+
+        var wolf = _world.Npcs.First(n => n.Wid == 0x80000002);
+        _world.Npcs[_world.Npcs.IndexOf(wolf)] = wolf with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking };
+        TickFor(1);
+        Assert.Contains("select 80000003", _actions.Calls);
+    }
 }
