@@ -681,8 +681,9 @@ public sealed class ExpDrainSettings : SettingsPart
     /// <summary>Точки для смертей — свои, не точки фарма (<see cref="TargetSettings.FarmPoints"/>).</summary>
     public List<FarmPoint> DeathPoints { get => _deathPoints; set => Set(ref _deathPoints, value); }
 
-    private DrainMobs _deathMobs = DrainMobs.AsFarm;
-    /// <summary>От каких мобов умирать; заодно — где: летающих ждём в воздухе (не садимся), водных — в воде.</summary>
+    private DrainMobs _deathMobs = DrainMobs.Any;
+    /// <summary>От каких мобов умирать; заодно — где: летающих ждём в воздухе (не садимся), водных — в воде, любых — как стоим.</summary>
+    [JsonConverter(typeof(DrainMobsJson))]
     public DrainMobs DeathMobs { get => _deathMobs; set => Set(ref _deathMobs, value); }
 
     /// <summary>Точка для смертей; null — умирать на месте фарма.</summary>
@@ -742,11 +743,20 @@ public sealed class RepairNpc
 /// <summary>От каких мобов умирать при сливе опыта.</summary>
 public enum DrainMobs
 {
-    /// <summary>Как при фарме: фармит в воздухе — от летающих, в воде — от водных, на земле — от земных.</summary>
-    AsFarm,
+    /// <summary>От любых: ближайшие, ждём смерть как стоим (в точке для смертей — как стоял перс, когда её запоминали).</summary>
+    Any,
     Ground,
     Air,
     Water,
+}
+
+/// <summary>«От каких мобов» из файла: прежнее «AsFarm» («как при фарме») читается как <see cref="DrainMobs.Any"/>.</summary>
+internal sealed class DrainMobsJson : Newtonsoft.Json.Converters.StringEnumConverter
+{
+    public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+        => reader.TokenType == JsonToken.String && (string?)reader.Value == "AsFarm"
+            ? DrainMobs.Any
+            : base.ReadJson(reader, objectType, existingValue, serializer);
 }
 
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>

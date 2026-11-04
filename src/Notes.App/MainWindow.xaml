@@ -576,7 +576,7 @@
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="От каких мобов" VerticalAlignment="Center"
-                           ToolTip="Каких мобов собирать, чтобы умереть, — и где ждать смерть: летающих — в воздухе (не садится), водных — в воде, земных — на земле. Других не трогает" />
+                           ToolTip="Каких мобов собирать, чтобы умереть, — и где ждать смерть: летающих — в воздухе (не садится), водных — в воде, земных — на земле, любых — ближайших, где стоит. Других не трогает" />
                 <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.DrainMobsChoices}" DisplayMemberPath="Title"
                           SelectedValuePath="Mobs" SelectedValue="{Binding Settings.ExpDrain.DeathMobs}" />
               </DockPanel>

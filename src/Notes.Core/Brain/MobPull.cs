@@ -20,8 +20,8 @@ public enum PullStep
 /// <summary>
 /// Собрать на себя мобов — по одному выстрелу в каждого. Один сбор — один объект: в кого стреляли, помнит только он.
 /// <list type="bullet">
-/// <item>Ближайший подходящий моб (<c>allowed</c>: фильтр фарма, где обитает) до <see cref="PullRadius"/> м по горизонтали, в
-/// которого в этом сборе ещё не стреляли; <c>inAir</c> — ближний в пространстве. Бьёт ли он нас — не смотрим: после воскрешения
+/// <item>Ближайший подходящий моб (<c>allowed</c>: где обитает), в которого в этом сборе ещё не стреляли, — как далеко бы ни был;
+/// <c>inSpace</c> — ближний в пространстве, иначе по горизонтали. Бьёт ли он нас — не смотрим: после воскрешения
 /// у старых мобов в цели ещё остаётся перс, хотя они его уже не бьют.</item>
 /// <item>Выстрел удачный, когда в цели этот моб и скилл ушёл на перезарядку — сразу следующий; не
 /// ушёл (каст сбили) — ещё раз, до <see cref="ShotsPerMob"/>. Скилл — атакующий из настроек боя, иначе основной у класса;
@@ -29,11 +29,8 @@ public enum PullStep
 /// </list>
 /// Не поведение, а деталь поведения: шаги — из его Tick, действия уходят от его имени.
 /// </summary>
-public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inAir)
+public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
 {
-    /// <summary>Дальше мобов не собираем: подбегать к далёким долго, а стоять бот будет на месте.</summary>
-    public const float PullRadius = 40f;
-
     public const int ShotsPerMob = 3;
 
     // Выстрел: ждём, пока скилл уйдёт на перезарядку (с подбеганием клиента); дольше — каст сбит
@@ -146,9 +143,8 @@ public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inAir)
 
     private NpcInfo? NextMob(BrainContext c)
         => c.World.Mobs
-            .Where(m => m.Kind == NpcKind.Mob && !m.IsDead && !m.Returning && !_shot.Contains(m.Wid) && m.Offset.Horizontal <= PullRadius
-                        && allowed(m))
-            .OrderBy(m => inAir ? c.World.Host.Position.DistanceTo(m.Position) : m.Offset.Horizontal)
+            .Where(m => m.Kind == NpcKind.Mob && !m.IsDead && !m.Returning && !_shot.Contains(m.Wid) && allowed(m))
+            .OrderBy(m => inSpace ? c.World.Host.Position.DistanceTo(m.Position) : m.Offset.Horizontal)
             .FirstOrDefault();
 
     // Атакующий скилл боя (даже если в бою бьёт пет и «Бить скиллом» выключено: издалека подманивать быстрее), иначе основной

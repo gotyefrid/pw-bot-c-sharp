@@ -474,10 +474,10 @@ public class ExpDrainBehaviorTests
         _world.Npcs.Add(new NpcInfo(0x80000009, 0x80000009, NpcKind.Mob, NpcState.Standing, 0, new Position(104, 0, 0), "Чужак", 0));
         AddGroundMobs();
 
-        // Первая смерть — на месте фарма, мобы — из списка
+        // Первая смерть — на месте фарма; список мобов фарма для слива ни при чём
         TickFor(3);
         Assert.Contains("select 80000002", _actions.Calls);
-        Assert.DoesNotContain("select 80000003", _actions.Calls);
+        Assert.Contains("select 80000003", _actions.Calls);
         _world.Hp = 0;
         _world.Exp = 700;
 
@@ -509,6 +509,29 @@ public class ExpDrainBehaviorTests
         Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= 5);
         Assert.DoesNotContain(_actions.FlyPoints, p => p.HorizontalDistanceTo(new Position(100, 0, 0)) <= 5);
         Assert.True(Logged("Слив опыта закончен"));
+    }
+
+    [Fact]
+    public void PullsNearestMobsWhateverFarmListAndDistance()
+    {
+        // Список фарма — только волки, а их рядом нет; ближайшие — медведь и далёкий (60 м): берём их, слив не ждёт
+        _settings.Target.UseMobList = true;
+        _settings.Target.MobNames = ["Волк"];
+        _world.AddMob(0x80000003, "Медведь", 20);
+        _world.AddMob(0x80000004, "Далёкий", 60);
+
+        TickFor(3);
+
+        Assert.Equal(["select 80000003", "apply 125 80000003", "select 80000004", "apply 125 80000004", "unselect"], _actions.Calls);
+        Assert.True(Logged("от любых мобов"));
+    }
+
+    [Fact]
+    public void OldAsFarmSettingReadsAsAny()
+    {
+        var s = SettingsJson.Parse("{ \"expDrain\": { \"deathMobs\": \"AsFarm\" } }");
+        Assert.Equal(DrainMobs.Any, s.ExpDrain.DeathMobs);
+        Assert.Equal(DrainMobs.Air, SettingsJson.Parse("{ \"expDrain\": { \"deathMobs\": \"Air\" } }").ExpDrain.DeathMobs);
     }
 
     [Fact]

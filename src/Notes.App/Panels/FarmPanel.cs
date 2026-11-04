@@ -155,7 +155,7 @@ public sealed class FarmPanel : ObservableObject
     public sealed record DrainMobsChoice(DrainMobs Mobs, string Title);
 
     public IReadOnlyList<DrainMobsChoice> DrainMobsChoices { get; } =
-        [new(DrainMobs.AsFarm, "Как при фарме"), new(DrainMobs.Ground, "Земных"), new(DrainMobs.Air, "Летающих"), new(DrainMobs.Water, "Водных")];
+        [new(DrainMobs.Any, "Любых"), new(DrainMobs.Ground, "Земных"), new(DrainMobs.Air, "Летающих"), new(DrainMobs.Water, "Водных")];
 
     // ── Снимок и персонаж ────────────────────────────────────────────────────
 
