@@ -32,7 +32,8 @@ public enum TripStep
 /// <summary>
 /// Долгий путь до точки (из города на место фарма): взлёт, подъём строго вверх до высоты полёта (подъём по пути может врезаться в
 /// дом или гору), отрезки по прямой по <see cref="LegLength"/>, над точкой — как велит <see cref="TripEnd"/>: сесть, зависнуть на
-/// высоте точки или нырнуть до неё. Не долетели — выше на <see cref="FailClimb"/>; не долетели <see cref="FlightFails"/> раз или полёта
+/// высоте точки или нырнуть до неё. Садимся, только когда остановились над точкой (<see cref="StillMove"/>, не дольше
+/// <see cref="SettleMax"/>): с хода игра опускает по дуге, с инерцией, а не отвесно вниз. Не долетели — выше на <see cref="FailClimb"/>; не долетели <see cref="FlightFails"/> раз или полёта
 /// в точку у сервера нет — пешком автопутём. Полётника нет (<see cref="WorldState.HasFlyer"/>) — сразу пешком, «Полёт» не жмём; надет —
 /// не взлетели, жмём снова через <see cref="TakeoffRetry"/>, сколько угодно раз. Не знаем, надет ли, — не взлетели, идём пешком.
 /// Не поведение, а деталь поведения: шаги — из его Tick, итоги — из его OnOutcome; действия уходят от его имени.
@@ -49,6 +50,12 @@ public sealed class FlightTrip
     public const float FailClimb = 20f;
     public const int FlightFails = 5;
     public static readonly TimeSpan TakeoffRetry = TimeSpan.FromSeconds(3);
+
+    /// <summary>Между двумя шагами сдвинулись меньше этого (по горизонтали) — стоим над точкой, можно садиться.</summary>
+    public const float StillMove = 0.3f;
+
+    /// <summary>Не остановились над точкой за столько — садимся всё равно (не висеть вечно).</summary>
+    public static readonly TimeSpan SettleMax = TimeSpan.FromSeconds(3);
     // Над городом бывает выше заданной высоты: во время полёта ниже неё не опускаемся, но и не выше этого запаса
     private const float KeepHigher = 50f;
 
@@ -62,6 +69,9 @@ public sealed class FlightTrip
     private int _fails;
     private int _takeoffFails;
     private DateTime _takeoffAt = DateTime.MinValue;
+    // Где были на прошлом шаге и с какого времени висим над точкой: садимся после остановки
+    private Position? _last;
+    private DateTime? _overSince;
 
     /// <param name="cruise">Высота полёта, как в памяти. Зависнуть в воздухе — не ниже высоты точки.</param>
     public FlightTrip(Spot to, float cruise)
@@ -101,11 +111,13 @@ public sealed class FlightTrip
                 _walk = true;
             }
         }
+        var host = c.World.Host;
+        var here = host.Position;
+        var last = _last;
+        _last = here;
         if (c.Mine.Count > 0)
             return TripStep.Going;
 
-        var host = c.World.Host;
-        var here = host.Position;
         var left = here.HorizontalDistanceTo(To);
         var air = _end == TripEnd.Air && !_walk;
         if (left <= Arrived && (!air || Math.Abs(here.Height - To.Height) <= Arrived))
@@ -117,7 +129,10 @@ public sealed class FlightTrip
                 return host.Flying == true ? TripStep.Arrived : TripStep.Going;
             if (host.Flying == true && !_landFailed)
             {
-                c.Submit(new FlyAction(up: false));
+                _overSince ??= c.Now;
+                var still = last is { } was && was.HorizontalDistanceTo(here) < StillMove;
+                if (still || c.Now - _overSince >= SettleMax)
+                    c.Submit(new FlyAction(up: false));
                 return TripStep.Going;
             }
             // Сели в воду — нырнуть до высоты точки: обычный ход держит глубину

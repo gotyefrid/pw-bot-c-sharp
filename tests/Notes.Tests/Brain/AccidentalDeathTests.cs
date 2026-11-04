@@ -27,6 +27,10 @@ public class AccidentalDeathTests
     private int _seen;
     private int _flown;
     private int _walked;
+    // После каждого отрезка полёта ещё столько шагов скользим по инерции (по 1 м за шаг); _landedDrifting — сели на ходу
+    private int _inertia;
+    private int _drift;
+    private bool _landedDrifting;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -60,18 +64,26 @@ public class AccidentalDeathTests
 
     private void Tick()
     {
+        if (_drift > 0)
+        {
+            _drift--;
+            _world.Position = _world.Position with { X = _world.Position.X + 1 };
+        }
         Brain.Tick(_world.Wait(0.25).Snapshot());
         foreach (var call in _actions.Calls.Skip(_seen).ToList())
         {
             switch (call.Split(' ')[0])
             {
                 case "fly-toggle":
+                    if (_world.Flying == true && _drift > 0)
+                        _landedDrifting = true;
                     _world.Flying = _world.Flying != true;
                     if (_world.Flying == false)
                         _world.Position = _world.Position with { Height = 0 };
                     break;
                 case "fly":
                     _world.Position = _actions.FlyPoints[_flown++];
+                    _drift = _inertia;
                     break;
                 case "move":
                     _world.Position = _actions.MovePoints[_walked++];
@@ -109,6 +121,34 @@ public class AccidentalDeathTests
         Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= FlightTrip.Arrived);
         Assert.False(_world.Flying);
         Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void LandsOnlyAfterStoppingOverThePoint()
+    {
+        // Долетели — а перс ещё скользит по инерции: садиться так — упадёт по дуге мимо точки. Ждём остановки
+        _inertia = 3;
+        TickFor(1);
+
+        Die();
+        TickFor(5);
+
+        Assert.False(_world.Flying);
+        Assert.False(_landedDrifting);
+        Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void KeepsDriftingLandsAnyway()
+    {
+        // Не останавливается дольше SettleMax — садимся всё равно, а не висим над точкой
+        _inertia = 1000;
+        TickFor(1);
+
+        Die();
+        TickFor(5);
+
+        Assert.False(_world.Flying);
     }
 
     [Fact]
