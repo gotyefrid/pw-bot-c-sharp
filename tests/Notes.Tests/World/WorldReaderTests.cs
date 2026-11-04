@@ -75,9 +75,16 @@ public class WorldReaderTests
 
         _memory.WriteBytes(macro + m.Done, [1]);
         Assert.False(Reader(comeback).Read().MacroRunning);
+    }
 
-        // Поле не найдено для сервера — не знаем
-        Assert.Null(Reader(new ProfileCatalog().Load("comeback136").Data).Read().MacroRunning);
+    [Fact]
+    public void MacroRunningIsUnknownWhenNotFoundForServer()
+    {
+        // На PW Classic поле ещё не найдено (пусто в профиле) — не знаем
+        var classic = new ProfileCatalog().Load("pwclassic136").Data;
+        _memory.Map(BuildWorld(profile: classic), 0x2000);
+
+        Assert.Null(Reader(classic).Read().MacroRunning);
     }
 
     [Fact]
