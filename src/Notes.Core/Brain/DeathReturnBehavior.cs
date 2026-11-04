@@ -56,7 +56,7 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
     private bool _expected;
     private Func<BrainContext, Spot>? _whereTo;
     private Spot _spot;
-    private float _cruise;
+    private Func<BrainContext, float>? _cruise;
     private FlightTrip? _trip;
     private PetPrep? _prep;
     // Случайные смерти подряд (без QuietFarm фарма между ними): от их числа — пауза в городе перед вылетом
@@ -87,9 +87,10 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
 
     /// <summary>
     /// Следующая смерть — ожидаемая: встать в городе и лететь туда, куда скажет <paramref name="whereTo"/> (спросим после
-    /// воскрешения, <see cref="LastDeath"/> уже известна), на высоте <paramref name="cruise"/> (как в памяти).
+    /// воскрешения, <see cref="LastDeath"/> уже известна), на высоте <paramref name="cruise"/> (как в памяти; спросим сразу после
+    /// <paramref name="whereTo"/> — высота может зависеть от того, куда летим).
     /// </summary>
-    public void Expect(Func<BrainContext, Spot> whereTo, float cruise)
+    public void Expect(Func<BrainContext, Spot> whereTo, Func<BrainContext, float> cruise)
     {
         _expected = true;
         _whereTo = whereTo;
@@ -170,7 +171,7 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
 
         _accidentTrip = true;
         _whereTo = c => home(c) ?? new Spot(c.World.Host.Position, TripEnd.Ground);
-        _cruise = c.Settings.Target.TravelHeight * 10;
+        _cruise = c => c.Settings.Target.TravelHeight * 10;
         return true;
     }
 
@@ -218,7 +219,7 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
         }
 
         c.Log.Info($"Лечу на место, {distance:0} м");
-        _trip = new FlightTrip(_spot, _cruise);
+        _trip = new FlightTrip(_spot, _cruise!(c));
         _phase = Phase.Return;
         return Return(c);
     }

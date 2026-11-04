@@ -199,6 +199,7 @@ public sealed class BotSettings
         ExpDrain.TargetPercent = Clamp(ExpDrain.TargetPercent, 0, 99);
         ExpDrain.Mobs = Clamp(ExpDrain.Mobs, 1, 10);
         ExpDrain.FlightHeight = Clamp(ExpDrain.FlightHeight, 0, 800);
+        ExpDrain.FarmFlightHeight = Clamp(ExpDrain.FarmFlightHeight, 0, 800);
         ExpDrain.DeathPoint = ExpDrain.DeathPoint?.Trim() ?? "";
         ExpDrain.DeathPoints = FarmPoint.Clean(ExpDrain.DeathPoints);
         MoveOldDeathPoint();
@@ -702,10 +703,17 @@ public sealed class ExpDrainSettings : SettingsPart
 
     private float _flightHeight = 23;
     /// <summary>
-    /// На какой высоте лететь из города на место фарма — как в игре (в памяти — в 10 раз больше): выше домов, деревьев и гор
-    /// по пути.
+    /// На какой высоте лететь из города к месту слива (на точку для смертей, пока опыт ещё сливаем) — как в игре (в памяти — в 10
+    /// раз больше): выше домов, деревьев и гор по пути.
     /// </summary>
     public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
+
+    private float? _farmFlightHeight;
+    /// <summary>
+    /// На какой высоте лететь из города на место фарма после слива (слили или слив бросили) — как в игре. В файле от прошлых
+    /// версий поля нет — как <see cref="FlightHeight"/>.
+    /// </summary>
+    public float FarmFlightHeight { get => _farmFlightHeight ?? _flightHeight; set => Set(ref _farmFlightHeight, value); }
 
     private string _deathPoint = "";
     /// <summary>

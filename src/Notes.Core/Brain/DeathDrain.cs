@@ -50,6 +50,8 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     private int _noLoss;
     private string? _off;
     private bool _back;
+    // Последний WhereTo решил: слив кончился, летим на фарм — высота «на фарм после слива»
+    private bool _toFarm;
     private DateTime _since;
     private DateTime? _noMobsSince;
     private DateTime? _calmSince;
@@ -70,7 +72,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         _off = null;
         _deaths = afterDeath.Deaths;
         _back = false;
-        afterDeath.Expect(WhereTo, c.Settings.ExpDrain.FlightHeight * 10);
+        afterDeath.Expect(WhereTo, Cruise);
         _stage = Stage.RecallPet;
     }
 
@@ -86,8 +88,13 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
             _noLoss = 0;
 
         var more = _off is null && !_plan.Enough(c);
+        _toFarm = !more;
         return more ? _plan.Death : _plan.Farm;
     }
+
+    // Высоту спрашивают сразу после WhereTo и уже в городе: поменяли в окне посреди слива — берётся новая
+    private float Cruise(BrainContext c)
+        => (_toFarm ? c.Settings.ExpDrain.FarmFlightHeight : c.Settings.ExpDrain.FlightHeight) * 10;
 
     public DrainStep Tick(BrainContext c)
     {
@@ -120,8 +127,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         if (_off is { } off)
             return DrainStep.Off(off);
 
-        // Высоту могли поменять в окне
-        afterDeath.Expect(WhereTo, c.Settings.ExpDrain.FlightHeight * 10);
+        afterDeath.Expect(WhereTo, Cruise);
         _back = true;
         _rounds = 0;
         NewRound(c);

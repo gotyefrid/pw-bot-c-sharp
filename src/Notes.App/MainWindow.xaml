@@ -622,9 +622,14 @@
                           SelectedValuePath="Mobs" SelectedValue="{Binding Settings.ExpDrain.DeathMobs}" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
-                <TextBlock Text="Высота полёта из города" VerticalAlignment="Center"
-                           ToolTip="Как в игре. Бот взлетает, поднимается на месте строго вверх и летит к точке — выше домов, деревьев и гор" />
+                <TextBlock Text="Высота полёта к месту слива" VerticalAlignment="Center"
+                           ToolTip="Как в игре. Из города туда, где умирать, пока опыт ещё сливается: бот взлетает, поднимается на месте строго вверх и летит к точке — выше домов, деревьев и гор" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.FlightHeight, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Высота полёта на фарм после слива" VerticalAlignment="Center"
+                           ToolTip="Как в игре. Из города на место фарма, когда опыт слит (или слив бросили)" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.FarmFlightHeight, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
             </StackPanel>
           </StackPanel>

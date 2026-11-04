@@ -496,6 +496,44 @@ public class ExpDrainBehaviorTests
         Assert.Null(_stop);
     }
 
+    // К месту слива — своя высота, на фарм после слива — своя
+    [Fact]
+    public void DrainAndFarmFlightsUseOwnHeights()
+    {
+        _settings.ExpDrain.FlightHeight = 23;
+        _settings.ExpDrain.FarmFlightHeight = 40;
+        _settings.ExpDrain.DeathPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
+        _settings.ExpDrain.DeathPoint = "Смерть";
+        _world.Npcs.Add(new NpcInfo(0x80000009, 0x80000009, NpcKind.Mob, NpcState.Standing, 0, new Position(104, 0, 0), "Чужак", 0));
+        PullTwo();
+
+        // Опыта ещё много — к точке для смертей на 23
+        _world.Hp = 0;
+        _world.Exp = 700;
+        TickFor(12);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(100, 0, 0)) <= 5);
+        Assert.Contains(_actions.FlyPoints, p => p.Height == 230);
+        Assert.DoesNotContain(_actions.FlyPoints, p => p.Height == 400);
+        var toDrain = _actions.FlyPoints.Count;
+
+        // Слили — на фарм на 40
+        _world.Hp = 0;
+        _world.Exp = 50;
+        TickFor(12);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= 5);
+        Assert.All(_actions.FlyPoints.Skip(toDrain), p => Assert.True(p.Height is 400 or 0, $"высота {p.Height}"));
+        Assert.Contains(_actions.FlyPoints.Skip(toDrain), p => p.Height == 400);
+    }
+
+    // Файл от прошлой версии — второй высоты нет: как первая
+    [Fact]
+    public void OldFileFarmFlightHeightIsDrainHeight()
+    {
+        var settings = SettingsJson.Parse("""{ "expDrain": { "flightHeight": 31 } }""");
+
+        Assert.Equal(31, settings.ExpDrain.FarmFlightHeight);
+    }
+
     [Fact]
     public void OneDeathEnoughFliesStraightToFarm()
     {
