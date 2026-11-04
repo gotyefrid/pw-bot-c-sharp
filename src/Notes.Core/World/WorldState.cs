@@ -122,6 +122,9 @@ public sealed record WorldState(
     /// <summary>Сообщения окна чата, старые первыми; пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<ChatMessage> Chat { get; init; } = [];
 
+    /// <summary>Пати персонажа (сам он — тоже в списке); не в пати или на этом сервере не найдена — <see cref="PartyInfo.None"/>.</summary>
+    public PartyInfo Party { get; init; } = PartyInfo.None;
+
     /// <summary>Удары, которые игра сейчас показывает; пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<AttackEvent> Attacks { get; init; } = [];
 

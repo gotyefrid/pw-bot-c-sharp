@@ -49,6 +49,9 @@ public sealed class WorldReader
     private readonly Dictionary<uint, PetEssence> _petEssences = [];
     private readonly Dictionary<uint, (int, string?)> _foods = [];
     private readonly Dictionary<uint, (string? Name, string? Group)> _itemInfo = [];
+    // Ники участников пати по WID: таблицу ников игры обходим, только когда в пати новый (или ник ещё не нашёлся — не чаще раза в 5 с)
+    private readonly Dictionary<uint, string> _partyNames = [];
+    private DateTime _partyNamesMissedAt = DateTime.MinValue;
     private readonly Dictionary<uint, (bool Aggressive, int Radius, Habitat? Habitat)> _monsters = [];
     // Записи заданий не меняются, пока жив клиент: границы уровня и сама запись — по адресу, один раз
     private readonly Dictionary<uint, (int Min, int Max, bool Rebirth)> _questLevels = [];
@@ -127,6 +130,7 @@ public sealed class WorldReader
             Macros = ReadMacros(),
             Attacks = ReadAttacks(world),
             Chat = ReadChat(),
+            Party = ReadParty(game, hostBlock) ?? PartyInfo.None,
         };
     }
 
@@ -480,17 +484,25 @@ public sealed class WorldReader
     private const int MaxNameBuckets = 16384;
 
     /// <summary>
-    /// Пати персонажа (по требованию, не в снимке мира): лидер, участники с HP/MP, ники — из таблицы ников игры.
-    /// null — пати в профиле нет; <see cref="PartyInfo.None"/> — персонаж не в пати.
+    /// Пати персонажа (она же — в снимке мира, <see cref="WorldState.Party"/>): лидер, участники с HP/MP, ники — из таблицы ников
+    /// игры. null — пати в профиле нет; <see cref="PartyInfo.None"/> — персонаж не в пати.
     /// </summary>
     public PartyInfo? ReadParty()
+    {
+        if (_p.Party.Team == 0)
+            return null;
+
+        var game = GameAddress();
+        ReadHost(game, out var hostBlock);
+        return ReadParty(game, hostBlock);
+    }
+
+    private PartyInfo? ReadParty(uint game, MemoryBlock hostBlock)
     {
         var t = _p.Party;
         if (t.Team == 0)
             return null;
 
-        var game = GameAddress();
-        ReadHost(game, out var hostBlock);
         if (!_memory.TryReadUInt32(hostBlock.Address + t.Team, out var team) || team == 0
             || !_memory.TryReadUInt32(team + t.Leader, out var leader)
             || !_memory.TryReadUInt32(team + t.Members, out var array)
@@ -505,11 +517,20 @@ public sealed class WorldReader
             if (MemoryBlock.TryRead(_memory, pointers.UInt32(i * 4), size, out var m))
                 read.Add(m);
 
-        var names = PartyNames(game, read.Select(m => m.UInt32(t.MemberWid)).ToList());
+        var wids = read.Select(m => m.UInt32(t.MemberWid)).ToList();
+        var missing = wids.Where(w => !_partyNames.ContainsKey(w)).ToList();
+        if (missing.Count > 0 && DateTime.UtcNow - _partyNamesMissedAt > TimeSpan.FromSeconds(5))
+        {
+            foreach (var found in PartyNames(game, missing))
+                if (found.Value.Length > 0)
+                    _partyNames[found.Key] = found.Value;
+            _partyNamesMissedAt = missing.All(_partyNames.ContainsKey) ? DateTime.MinValue : DateTime.UtcNow;
+        }
+
         var members = read.Select(m =>
         {
             var wid = m.UInt32(t.MemberWid);
-            return new PartyMember(wid, names.TryGetValue(wid, out var name) ? name : "", m.Int32(t.MemberLevel),
+            return new PartyMember(wid, _partyNames.TryGetValue(wid, out var name) ? name : "", m.Int32(t.MemberLevel),
                 m.Int32(t.MemberHp), m.Int32(t.MemberMaxHp), m.Int32(t.MemberMp), m.Int32(t.MemberMaxMp),
                 m.Int32(t.MemberHasLocation) != 0 ? ReadPosition(m, t.MemberLocation) : null)
             {

@@ -107,6 +107,13 @@ public class WorldReaderTests
         Assert.Equal(new Position(10, 20, 30), friend.Position);
         Assert.Null(party.Members[0].Position);
 
+        // В снимке мира — то же; ники запомнены: таблицу ников больше не обходим (корзины очищены — ники на месте)
+        var reader = Reader(comeback);
+        Assert.Equal(["Лидер", "Друг"], reader.Read().Party.Members.Select(m => m.Name));
+        _memory.WriteUInt32(buckets, 0);
+        _memory.WriteUInt32(buckets + 8, 0);
+        Assert.Equal(["Лидер", "Друг"], reader.Read().Party.Members.Select(m => m.Name));
+
         void Member(uint at, uint wid, int level, int hp, int mp, bool located)
         {
             _memory.Map(at, 0x80);
