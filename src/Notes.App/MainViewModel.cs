@@ -18,6 +18,7 @@ using Notes.Core.GameFiles;
 using Notes.Core.Incidents;
 using Notes.Core.Logging;
 using Notes.Core.Memory;
+using Notes.Core.Notify;
 using Notes.Core.Profiles;
 using Notes.Core.Resources;
 using Notes.Core.Session;
@@ -56,6 +57,11 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(0.5);
     private readonly DispatcherTimer _saveTimer = new() { Interval = SaveDelay };
 
+    // Уведомления в Telegram: отправка — одна на всё время работы, слежение за чатом — своё у подключения
+    private readonly TelegramSender _telegram;
+    private readonly ILogger _chatLog;
+    private ChatNotifier? _notifier;
+
     // Вопросы и сообщения пользователю — окна бота (MessageBox, «Открыть»/«Сохранить как»)
     private readonly IDialogs _dialogs;
 
@@ -73,6 +79,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _logger = logger;
         _log = logger.For(LogSources.Window);
         _connectionLog = logger.For(LogSources.Connection);
+        _chatLog = logger.For(LogSources.Chat);
+        _telegram = new TelegramSender(_chatLog);
 
         _config = new SettingsService(appDirectory, _log);
         // Что показывать в логе — своё у окна, как подключение: в settings.json
@@ -127,6 +135,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? []),
                 () => PickLists.PartyMembers(_lastWorld)), SettingsEdited, dialogs);
         Quests = new QuestsPanel(() => Settings, () => _lastWorld, SettingsEdited);
+        Chat = new ChatPanel(() => _config.App.ChatNotify, () => _profile, SaveSettings, _chatLog);
         Farm.Load();
         Route.Load();
         Clicker.Load();
@@ -169,6 +178,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanStashToBank));
             OnPropertyChanged(nameof(CanRepairFromBag));
             OnPropertyChanged(nameof(Summary));
+            Chat.Refresh();
             // Читать клиента теперь по другим смещениям — старое подключение не годится
             Disconnect();
             RefreshClients();
@@ -329,7 +339,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public bool IsRunning
     {
         get => _isRunning;
-        private set => SetProperty(ref _isRunning, value);
+        private set
+        {
+            SetProperty(ref _isRunning, value);
+            // Уведомления — только пока бот запущен
+            if (_notifier is not null)
+                _notifier.Active = value;
+        }
     }
 
     private bool _isStopping;
@@ -430,6 +446,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Вкладка «Задания» режима «Прокачать друида».</summary>
     public QuestsPanel Quests { get; }
 
+    /// <summary>Вкладка «Чат»: уведомления в Telegram.</summary>
+    public ChatPanel Chat { get; }
+
     /// <summary>Галочка «Пет только на время боя» — только у сервера, где найден отзыв пета.</summary>
     public bool CanRecallPet => _profile.Capabilities.Has(Capability.RecallPet);
 
@@ -472,6 +491,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         FlushSettings();
         Disconnect();
         _spots.Save();
+        _telegram.Dispose();
+    }
+
+    // Сообщение из чата — в Telegram (в фоне) и в лог
+    private void Notify(string text)
+    {
+        var s = _config.App.ChatNotify;
+        _chatLog.Info($"В Telegram: {text.Replace('\n', ' ')}");
+        _telegram.Post(s.Token, s.ChatId, text);
     }
 
     // ── Внутреннее ──────────────────────────────────────────────────────────
@@ -624,6 +652,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             var killer = new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied);
             killer.Noted += _incidents.Mark;
             connection.WorldUpdated += killer.Observe;
+            _notifier = new ChatNotifier(_profile.Data.Chat.Channels, () => _config.App.ChatNotify, Notify) { Active = IsRunning };
+            connection.WorldUpdated += _notifier.Observe;
             connection.WorldUpdated += ShowLatest;
             connection.WorldFailed += message => UiThread.Run(() => ShowFailure(message));
             connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));
@@ -655,6 +685,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsRunning = false;
         _connection?.Dispose();
         _connection = null;
+        _notifier = null;
         _incidents.Flush();
         Interlocked.Exchange(ref _latest, null);
         if (wasRunning)
