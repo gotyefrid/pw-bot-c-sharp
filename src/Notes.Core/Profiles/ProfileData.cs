@@ -635,6 +635,15 @@ public sealed class MacroOffsets
     public uint List { get; init; }
     public uint Size { get; init; }
     public int Count { get; init; }
+
+    /// <summary>
+    /// [перс + Running] — идущий макрос (0 — нет). Кончился сам — объект остаётся, но байт [макрос + <see cref="Done"/>] = 1.
+    /// 0 — не найдено (идёт ли макрос, не знаем).
+    /// </summary>
+    public uint Running { get; init; }
+
+    /// <summary>Байт в объекте идущего макроса: 1 — макрос кончился.</summary>
+    public uint Done { get; init; }
 }
 
 /// <summary>

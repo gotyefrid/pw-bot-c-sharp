@@ -119,6 +119,9 @@ public sealed record WorldState(
     /// <summary>Макросы персонажа (только непустые); пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<MacroInfo> Macros { get; init; } = [];
 
+    /// <summary>Идёт ли макрос (какой-нибудь); null — не знаем (поле не найдено для сервера).</summary>
+    public bool? MacroRunning { get; init; }
+
     /// <summary>Сообщения окна чата, старые первыми; пусто — нет или на этом сервере не найдены.</summary>
     public IReadOnlyList<ChatMessage> Chat { get; init; } = [];
 

@@ -58,6 +58,29 @@ public class WorldReaderTests
     }
 
     [Fact]
+    public void MacroRunningIsTheLinkAndItsDoneByte()
+    {
+        // [перс + running] — объект идущего макроса; байт done в нём — 1, когда макрос кончился сам (объект остаётся)
+        var comeback = new ProfileCatalog().Load("comeback146").Data;
+        var host = BuildWorld(profile: comeback);
+        _memory.Map(host, 0x2000);
+        const uint macro = 0x1005_0000;
+        _memory.Map(macro, 0x40);
+        var m = comeback.Macros;
+
+        Assert.False(Reader(comeback).Read().MacroRunning);
+
+        _memory.WriteUInt32(host + m.Running, macro);
+        Assert.True(Reader(comeback).Read().MacroRunning);
+
+        _memory.WriteBytes(macro + m.Done, [1]);
+        Assert.False(Reader(comeback).Read().MacroRunning);
+
+        // Поле не найдено для сервера — не знаем
+        Assert.Null(Reader(new ProfileCatalog().Load("comeback136").Data).Read().MacroRunning);
+    }
+
+    [Fact]
     public void PartyIsReadWithNamesFromTheNameTable()
     {
         // [перс + team] → пати: лидер, массив участников; ники — в таблице ников игры (корзины, в узле WID и указатель на ник)

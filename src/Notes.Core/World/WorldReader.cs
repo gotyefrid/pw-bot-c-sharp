@@ -128,6 +128,7 @@ public sealed class WorldReader
             Equipment = equipment,
             HasFlyer = _p.Host.Equipment == 0 || _p.Host.FlyerSlot is not { } flyer ? null : equipment.Any(i => i.Slot == flyer),
             Macros = ReadMacros(),
+            MacroRunning = ReadMacroRunning(hostBlock),
             Attacks = ReadAttacks(world),
             Chat = ReadChat(),
             Party = ReadParty(game, hostBlock) ?? PartyInfo.None,
@@ -1015,6 +1016,18 @@ public sealed class WorldReader
         }
 
         return macros;
+    }
+
+    // Идущий макрос: ссылка у перса и байт «кончился» в его объекте — как кнопки панели в самой игре
+    private bool? ReadMacroRunning(MemoryBlock hostBlock)
+    {
+        var m = _p.Macros;
+        if (m.Running == 0 || hostBlock.Address == 0 || !_memory.TryReadUInt32(hostBlock.Address + m.Running, out var macro))
+            return null;
+        if (macro == 0)
+            return false;
+        var done = new byte[1];
+        return _memory.TryRead(macro + m.Done, done, 1) ? done[0] == 0 : null;
     }
 
     private string ReadName(uint pointer, int maxChars = 64)
