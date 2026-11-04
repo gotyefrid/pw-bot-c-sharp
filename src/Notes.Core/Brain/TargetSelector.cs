@@ -34,14 +34,14 @@ public static class TargetSelector
         return hitsUsFirst ? Threat.HitsUs : Threat.None;
     }
 
-    /// <summary>Самый опасный моб: сначала по <see cref="Threat"/>, при равной — ближайший. null — никто из мобов нас не бьёт.</summary>
+    /// <summary>Самый опасный моб: сначала по <see cref="Threat"/>, при равной — ближайший (по прямой, с высотой). null — никто из мобов нас не бьёт.</summary>
     public static NpcInfo? MostDangerous(WorldState w, bool hitsUsFirst, bool petTakesAggro, out Threat threat)
     {
         var best = w.Mobs
             .Select(m => (Mob: m, Threat: ThreatOf(m, w, hitsUsFirst, petTakesAggro)))
             .Where(x => x.Threat != Threat.None)
             .OrderByDescending(x => x.Threat)
-            .ThenBy(x => x.Mob.Offset.Horizontal)
+            .ThenBy(x => x.Mob.Offset.Direct)
             .FirstOrDefault();
         threat = best.Threat;
         return best.Mob;
@@ -49,22 +49,25 @@ public static class TargetSelector
 
     /// <summary>
     /// Живой моб, который напал на перса или пета: цель — мы, и он бьёт, кастует или идёт к нам (<see cref="NpcInfo.Engaging"/>).
-    /// Ближайший из таких. Белый список для него не важен.
+    /// Ближайший из таких (по прямой, с высотой). Белый список для него не важен.
     /// </summary>
     public static NpcInfo? Aggressor(WorldState w)
         => w.Mobs
             .Where(m => w.TargetsUs(m) && m.Engaging)
-            .OrderBy(m => m.Offset.Horizontal)
+            .OrderBy(m => m.Offset.Direct)
             .FirstOrDefault();
 
     /// <summary>Можно ли нападать на этого моба по настройкам (жив, моб, название из списка).</summary>
     public static bool IsAllowed(NpcInfo mob, TargetSettings target)
         => mob.Kind == NpcKind.Mob && !mob.IsDead && MobNameFilter.Allows(target, mob.Name);
 
-    /// <summary>Ближайший живой моб, разрешённый настройками и в радиусе фарма, кроме брошенных.</summary>
+    /// <summary>
+    /// Ближайший живой моб, разрешённый настройками и в радиусе фарма, кроме брошенных. Ближайший — по прямой, с высотой: моб
+    /// в 10 м по карте, но на 29 м выше (летает), дальше моба в 15 м на земле.
+    /// </summary>
     public static NpcInfo? Nearest(WorldState w, TargetSettings target, ICollection<uint> skip, Func<NpcInfo, bool>? inArea = null)
         => w.Mobs
             .Where(m => IsAllowed(m, target) && !skip.Contains(m.Wid) && (inArea?.Invoke(m) ?? true))
-            .OrderBy(m => m.Offset.Horizontal)
+            .OrderBy(m => m.Offset.Direct)
             .FirstOrDefault();
 }
