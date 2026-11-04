@@ -122,6 +122,31 @@ public sealed class PetHpBelowCondition : PercentBelowCondition
 }
 
 /// <summary>
+/// HP цели персонажа ниже порога в % — кто бы в цели ни был: моб, игрок, член пати, сам персонаж. Цели нет или её HP игра не
+/// показывает (максимум неизвестен) — не выполнено.
+/// </summary>
+public sealed class TargetHpBelowCondition : PercentBelowCondition
+{
+    protected override string Subject => "HP цели";
+
+    protected override int? Current(WorldState world)
+    {
+        var wid = world.Host.TargetWid;
+        if (wid == 0 || wid == uint.MaxValue)
+            return null;
+        if (wid == world.Host.Wid)
+            return Share(world.Host.Hp, world.Host.MaxHp);
+        if (world.Party.Members.FirstOrDefault(m => m.Wid == wid) is { MaxHp: > 0 } mate)
+            return Share(mate.Hp, mate.MaxHp);
+        if (world.Players.FirstOrDefault(p => p.Wid == wid) is { MaxHp: > 0 } player)
+            return Share(player.Hp, player.MaxHp);
+        return world.Npcs.FirstOrDefault(n => n.Wid == wid) is { MaxHp: > 0 } npc ? Share(npc.Hp, npc.MaxHp) : null;
+    }
+
+    private static int? Share(int hp, int max) => max > 0 ? Math.Max(0, hp) * 100 / max : null;
+}
+
+/// <summary>
 /// Призванный пет голоден — то же правило, по которому бот кормит пета сам (<see cref="PetInCage.IsHungry"/>). Уровней голода
 /// нет: что значит каждое число сытости, в игре не сверено. Пет не призван — не выполнено.
 /// </summary>
