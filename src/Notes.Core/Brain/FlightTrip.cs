@@ -102,6 +102,26 @@ public sealed class FlightTrip
     public static bool MustTakeOff(BrainContext c, Spot to)
         => to.End == TripEnd.Air && c.World.Host.Flying != true && c.World.HasFlyer != false && c.Runner.Capabilities.Has(Capability.FlyTo);
 
+    /// <summary>
+    /// Можно лететь: уже в полёте или полётник не «точно нет» и сервер умеет полёт в точку. Нельзя — <see cref="Step"/> идёт пешком.
+    /// </summary>
+    public static bool CanFly(BrainContext c)
+        => c.World.Host.Flying == true || c.World.HasFlyer != false && c.Runner.Capabilities.Has(Capability.FlyTo);
+
+    /// <summary>
+    /// Уже на месте, лететь некуда: над точкой (по карте ближе <see cref="Arrived"/>) и как велит <see cref="TripEnd"/> — в воздухе
+    /// на её высоте или не в полёте (на земле, в воде).
+    /// </summary>
+    public static bool There(BrainContext c, Spot to)
+    {
+        var host = c.World.Host;
+        if (host.Position.HorizontalDistanceTo(to.Position) > Arrived)
+            return false;
+        return to.End == TripEnd.Air
+            ? host.Flying == true && Math.Abs(host.Position.Height - to.Position.Height) <= Arrived
+            : host.Flying != true;
+    }
+
     /// <summary>Почему не добрались; null — в пути или на месте.</summary>
     public string? Failed { get; private set; }
 

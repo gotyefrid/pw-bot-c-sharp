@@ -6,9 +6,10 @@ using Notes.Core.Settings;
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// «Старт» вдали от центра фарма (сохранённая точка дальше <see cref="TargetSettings.TravelFrom"/>) — сначала долететь до него
-/// (<see cref="FlightTrip"/> на высоте <see cref="TargetSettings.TravelHeight"/>; без полёта — автопутём пешком). Прилетев — как
-/// стоял перс, когда точку запоминали: сесть, зависнуть в воздухе или нырнуть. Только раз за «Старт». Пора сливать опыт
+/// «Старт» не в центре фарма — сначала долететь до него (<see cref="FlightTrip"/> на высоте <see cref="TargetSettings.TravelHeight"/>),
+/// как бы близко ни был: с полётом — всегда; без полёта — автопутём пешком, только если центр дальше
+/// <see cref="TargetSettings.TravelFrom"/> (0 — никуда не летим и не идём). Прилетев — как стоял перс, когда точку запоминали:
+/// центр на земле — сесть (и дождаться, пока упадёт), в воздухе — взлететь и зависнуть на его высоте, в воде — нырнуть. Только раз за «Старт». Пора сливать опыт
 /// (<see cref="ExpDrainBehavior.Due"/>) и задана точка для смертей — летим сразу на неё: на фарм слив вернёт сам.
 /// <list type="bullet">
 /// <item>Стоит раньше слива опыта: решает первым, лететь ли, — слив начнётся или на месте сразу, или долетев (а не в воздухе
@@ -76,8 +77,9 @@ public sealed class StartTripBehavior : IBehavior, IMultiStepBehavior
             return null;
 
         var distance = c.World.Host.Position.HorizontalDistanceTo(spot.Position);
-        // Рядом, но точка в воздухе, а стоим на земле — взлететь к ней
-        if (distance <= target.TravelFrom && !FlightTrip.MustTakeOff(c, spot))
+        // С полётом — всегда, если уже не на месте (в воздухе над центром на земле — сесть, на земле под центром в воздухе — взлететь);
+        // пешком — только издалека
+        if (FlightTrip.CanFly(c) ? FlightTrip.There(c, spot) : distance <= target.TravelFrom)
             return null;
         if (distance > MaxTrip)
         {

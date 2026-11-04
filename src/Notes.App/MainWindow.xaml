@@ -486,8 +486,8 @@
                         ToolTip="Умно — в обход препятствий, как клик по карте. Прямо — по прямой, как клик по земле" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">
-              <TextBlock Text="Лететь к центру при старте, если дальше, м" VerticalAlignment="Center"
-                         ToolTip="«Старт» дальше этого от сохранённой точки фарма — бот взлетает, поднимается и летит в центр фарма (нет полёта — бежит автопутём). 0 — не летит" />
+              <TextBlock Text="Без полёта — бежать к центру при старте, если дальше, м" VerticalAlignment="Center"
+                         ToolTip="При «Старт» с полётником бот всегда летит в центр фарма: взлетает, поднимается и летит; центр на земле — садится, в воздухе — висит на его высоте. Полётника нет — бежит автопутём, если центр дальше этого. 0 — никуда не летит и не бежит" />
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.TravelFrom, UpdateSourceTrigger=PropertyChanged}" />
             </DockPanel>
             <DockPanel Style="{StaticResource SettingRow}">

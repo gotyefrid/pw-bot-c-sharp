@@ -318,7 +318,10 @@ public sealed class TargetSettings : SettingsPart
     public bool ReviveAndReturn { get => _reviveAndReturn; set => Set(ref _reviveAndReturn, value); }
 
     private int _travelFrom = 100;
-    /// <summary>«Старт» дальше этого от центра фарма (сохранённой точки) — сначала долететь до него; 0 — не летим.</summary>
+    /// <summary>
+    /// «Старт» без полёта дальше этого от центра фарма (сохранённой точки) — сначала дойти до него автопутём; с полётом летим
+    /// всегда. 0 — никуда не летим и не идём.
+    /// </summary>
     public int TravelFrom { get => _travelFrom; set => Set(ref _travelFrom, value); }
 
     private float _travelHeight = 23;

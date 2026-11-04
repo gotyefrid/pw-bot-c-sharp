@@ -55,6 +55,7 @@ public class BrainScenarioTests
         _settings.Target.KillMobs = false;
         _settings.Pet.Enabled = false;
         _settings.Potions.MpBelow = 0;
+        _settings.Target.TravelFrom = 0; // «Старт» в центр фарма не летит: сценарии — не про перелёт
     }
 
     // ── Банки ───────────────────────────────────────────────────────────────

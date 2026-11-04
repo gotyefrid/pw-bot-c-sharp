@@ -150,17 +150,65 @@ public class StartTripBehaviorTests
         Assert.Equal(new Position(500, 0, 0), _world.Position);
     }
 
-    [Theory]
-    [InlineData(80, 100)]
-    [InlineData(500, 0)]
-    public void NearOrOffDoesNotFly(float x, int travelFrom)
+    [Fact]
+    public void OffDoesNotFly()
     {
-        _settings.Target.TravelFrom = travelFrom;
-        FarmAt(new Position(x, 0, 0));
+        _settings.Target.TravelFrom = 0;
+        FarmAt(new Position(500, 0, 0));
 
         TickFor(3);
 
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
+    }
+
+    [Fact]
+    public void NearGroundPointFliesAndLands()
+    {
+        // С полётом — всегда перелётом, даже в 80 м: пешком по прямой — в дом или в гору
+        FarmAt(new Position(80, 0, 0));
+
+        TickFor(10);
+
+        Assert.Equal("fly-toggle", _actions.Calls[0]);
+        Assert.Contains(_actions.FlyPoints, p => p.Height == 230);
+        Assert.False(_world.Flying);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(80, 0, 0)) <= FlightTrip.Arrived);
+    }
+
+    [Fact]
+    public void NearWithoutFlyerDoesNotWalk()
+    {
+        _world.HasFlyer = false;
+        FarmAt(new Position(80, 0, 0));
+
+        TickFor(3);
+
+        // Бежать в центр потом может возврат («целей нет»), но не перелёт при «Старт»
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
+        Assert.False(Logged("лечу туда"));
+    }
+
+    [Fact]
+    public void FlyingOverGroundPointLands()
+    {
+        _world.Flying = true;
+        _world.Position = new Position(0, 100, 0);
+        FarmAt(new Position(2, 0, 0));
+
+        TickFor(3);
+
+        Assert.Contains("fly-toggle", _actions.Calls);
+        Assert.False(_world.Flying);
+    }
+
+    [Fact]
+    public void AtGroundPointStays()
+    {
+        FarmAt(new Position(2, 0, 0));
+
+        TickFor(3);
+
+        Assert.Empty(_actions.Calls);
     }
 
     [Fact]
@@ -177,16 +225,31 @@ public class StartTripBehaviorTests
     }
 
     [Fact]
-    public void NearAirPointAlreadyFlyingStays()
+    public void NearAirPointAlreadyFlyingFliesToIt()
     {
         _world.HasFlyer = true;
         _world.Flying = true;
         _world.Position = new Position(0, 250, 0);
         FarmAt(new Position(30, 260, 0), flying: true);
 
+        TickFor(10);
+
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+        Assert.True(_world.Flying);
+        Assert.Equal(new Position(30, 260, 0), _world.Position);
+    }
+
+    [Fact]
+    public void AtAirPointFlyingStays()
+    {
+        _world.HasFlyer = true;
+        _world.Flying = true;
+        _world.Position = new Position(1, 258, 0);
+        FarmAt(new Position(0, 260, 0), flying: true);
+
         TickFor(3);
 
-        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
+        Assert.Empty(_actions.Calls);
     }
 
     [Fact]
@@ -254,6 +317,7 @@ public class StartTripBehaviorTests
         _world.Exp = 900;
         _world.ExpToLevel = 1000;
         _world.AddMob(0x80000002, "Волк", 10);
+        _world.HasFlyer = false; // без полёта рядом не летим (с полётом — сперва в центр)
         FarmAt(new Position(20, 0, 0));
 
         Tick();
