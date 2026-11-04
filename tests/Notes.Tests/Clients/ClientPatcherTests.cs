@@ -386,15 +386,14 @@ public class ClientPatcherTests
     // ── Профиль ──────────────────────────────────────────────────────────────
 
     [Fact]
-    public void AllProfilesCarryRecipe()
+    public void ComebackProfilesCarryRecipeClassicDoesNot()
     {
         var catalog = new ProfileCatalog();
 
-        // Что именно в рецептах — проверяют сквозные тесты ниже; здесь только проводка профилей.
-        // Патч не обязателен: профиль с рецептом работает и с оригинальным клиентом.
+        // Что именно в рецептах — проверяют сквозные тесты ниже; здесь только проводка профилей
         Assert.NotNull(catalog.Load("comeback146").Data.Patch);
         Assert.NotNull(catalog.Load("comeback136").Data.Patch);
-        Assert.NotNull(catalog.Load("pwclassic136").Data.Patch);
+        Assert.Null(catalog.Load("pwclassic136").Data.Patch);
     }
 
     /// <summary>
@@ -415,26 +414,17 @@ public class ClientPatcherTests
         Assert.Equal(ClientPatchState.Patched, BuildFromProfile("comeback136", "NOTES_COMEBACK136_DIR"));
     }
 
-    /// <summary>То же для PW Classic 1.3.6 (там exe называется client.exe) — быстрый полёт.</summary>
-    [Fact]
-    public void PwClassic136RecipeBuildsReferencePatch()
-    {
-        Assert.Equal(ClientPatchState.Patched,
-            BuildFromProfile("pwclassic136", "NOTES_PWCLASSIC136_DIR", "client.exe", "client.exe.orig"));
-    }
-
     /// <summary>
     /// Копирует оригинал клиента из папки element (по переменной окружения) в темп, применяет рецепт из профиля и
     /// проверяет статус. Источник — тот из двух файлов, что совпадает с <c>originalSha256</c> рецепта: exe бывает
     /// уже пропатчен, а .orig после обновления игры — от прежнего билда. Без переменной тест пропускается.
     /// </summary>
-    private static ClientPatchState BuildFromProfile(string profileId, string envVariable, params string[] fileNames)
+    private static ClientPatchState BuildFromProfile(string profileId, string envVariable)
     {
         var directory = Environment.GetEnvironmentVariable(envVariable) ?? "";
         var recipe = new ProfileCatalog().Load(profileId).Data.Patch!;
-        var names = fileNames.Length > 0 ? fileNames : new[] { "ElementClient.exe", "ElementClient.exe.orig" };
 
-        var source = names
+        var source = new[] { "ElementClient.exe", "ElementClient.exe.orig" }
             .Select(name => Path.Combine(directory, name))
             .Where(File.Exists)
             .FirstOrDefault(path => Same(Sha(File.ReadAllBytes(path)), recipe.OriginalSha256));
