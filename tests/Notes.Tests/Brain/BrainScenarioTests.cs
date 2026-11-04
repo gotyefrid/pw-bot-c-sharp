@@ -746,19 +746,51 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void ComeCloserOnGroundIgnoresHeight()
+    public void ComeCloserOnGroundUnderLedgeDoesNotRun()
     {
-        // На земле моб на уступе (3 м в сторону, 20 м выше) — рядом, не бежим: подойти по прямой всё равно нельзя
+        // На земле моб на уступе прямо над нами (1 м в сторону, 20 м выше) — ближе пешком не подойти, не бегаем на месте
         _settings.Target.KillMobs = true;
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
-        var mob = _world.AddMob(0x80000001, "Волк", 3);
-        _world.Replace(mob, m => m with { Position = new Position(3, 20, 0) });
+        var mob = _world.AddMob(0x80000001, "Волк", 1);
+        _world.Replace(mob, m => m with { Position = new Position(1, 20, 0) });
         _world.TargetWid = mob.Wid;
 
         Tick();
 
         Assert.DoesNotContain(_actions.Calls, call => call.StartsWith("move"));
+    }
+
+    [Fact]
+    public void ComeCloserOnGroundCountsHeight()
+    {
+        // Было: моб в 7 м по карте, но на 6 м выше (9 м по прямой) считался в 8 м — бил не доставая
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        var mob = _world.AddMob(0x80000001, "Волк", 7);
+        _world.Replace(mob, m => m with { Position = new Position(7, 6, 0) });
+        _world.TargetWid = mob.Wid;
+
+        Tick();
+
+        Assert.StartsWith("move", LastCall);
+    }
+
+    [Fact]
+    public void ComeCloserOnGroundWalksUnderHighMob()
+    {
+        // Моб на скале: 10 м по карте, 20 м выше — подходим под него
+        _settings.Target.KillMobs = true;
+        _settings.Combat.ComeCloser = true;
+        _settings.Combat.ComeCloserDistance = 8;
+        var mob = _world.AddMob(0x80000001, "Волк", 10);
+        _world.Replace(mob, m => m with { Position = new Position(10, 20, 0) });
+        _world.TargetWid = mob.Wid;
+
+        Tick();
+
+        Assert.StartsWith("move", LastCall);
     }
 
     [Theory]

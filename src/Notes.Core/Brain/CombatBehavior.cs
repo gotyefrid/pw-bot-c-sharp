@@ -312,11 +312,14 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         var distance = c.Settings.Combat.ComeCloserDistance;
         // Только свой подход: фоновый бег в центр фарма — не «уже бежим к мобу», его вытеснит подход или удар
         var running = c.Mine.OfType<MoveAction>().FirstOrDefault();
-        // В воздухе и в воде — по прямой, с высотой: моб прямо под нами на 40 м — не «рядом» (иначе ждали, пока скилл «как кнопкой»
-        // сам спустит перса, 5–9 с; черепаху на дне ждали, пока сама подплывёт). На земле — по горизонтали: моб на склоне или
-        // под обрывом не заставляет бегать зря
-        var gap = w.Host.Flying == true || c.Swimming ? mob.Offset.Direct : mob.Offset.Horizontal;
-        if (gap <= distance)
+        // По прямой, с высотой: моб прямо под нами на 40 м — не «рядом» (иначе в воздухе ждали, пока скилл «как кнопкой» сам
+        // спустит перса, 5–9 с; черепаху на дне ждали, пока сама подплывёт); моб в 7 м по карте, но на 6 м выше — тоже не в 8 м.
+        // На земле высоту пешком не набрать: моб выше дистанции (на скале, летает) — подходим под него и бьём оттуда, а не бегаем на месте
+        // В воде без хода в точку с высотой (сервер не умеет) — как раньше, по карте: глубину обычный ход не меняет
+        var near = w.Host.Flying == true || c.Swimming ? mob.Offset.Direct <= distance
+            : w.Host.InWater == true ? mob.Offset.Horizontal <= distance
+            : OnGroundNear(mob.Offset, distance);
+        if (near)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
             if (running is null)
@@ -341,7 +344,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         }
 
         // Моб убегает — не добегать до старой точки, а сразу к новой
-        if (running.Point.HorizontalDistanceTo(point) > RetargetDistance && c.Now - _lastApproach >= RetargetPeriod)
+        if (running.Point.DistanceTo(point) > RetargetDistance && c.Now - _lastApproach >= RetargetPeriod)
         {
             c.Log.Info($"{mob.Name} отошёл — бегу к новому месту, {mob.Offset}");
             _lastApproach = c.Now;
@@ -349,6 +352,16 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// На земле: по прямой, с высотой, ближе <paramref name="distance"/>; моб выше (ниже) дистанции — достаточно встать под ним
+    /// (над ним), ближе <see cref="ApproachMargin"/> по карте: ближе пешком не подойти.
+    /// </summary>
+    private static bool OnGroundNear(Offset mob, float distance)
+    {
+        var flat = Math.Sqrt(Math.Max(0, distance * distance - mob.Vertical * mob.Vertical));
+        return mob.Horizontal <= Math.Max(flat, ApproachMargin);
     }
 
     // В воздухе и в воде обычный ход ведёт только по горизонтали — летим или плывём в точку вместе с высотой моба
