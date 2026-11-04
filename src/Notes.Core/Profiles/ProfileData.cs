@@ -431,6 +431,21 @@ public sealed class ChatOffsets
     public string KilledBy { get; init; } = "";
     /// <summary>Фраза игры после гибели пета (кто убил, не пишет). Пусто — не знаем.</summary>
     public string PetDied { get; init; } = "";
+    /// <summary>Номера каналов, о сообщениях в которых бот может сообщить в Telegram.</summary>
+    public ChatChannels Channels { get; init; } = new();
+}
+
+/// <summary>Номера каналов чата (<see cref="ChatOffsets.Channel"/>); null — на этом клиенте не проверен (пустое в профиле).</summary>
+public sealed class ChatChannels
+{
+    /// <summary>Общий (вокруг персонажа).</summary>
+    public int? Common { get; init; }
+    /// <summary>Группа (пати).</summary>
+    public int? Group { get; init; }
+    /// <summary>Клан.</summary>
+    public int? Clan { get; init; }
+    /// <summary>Личные сообщения.</summary>
+    public int? Private { get; init; }
 }
 
 /// <summary>
