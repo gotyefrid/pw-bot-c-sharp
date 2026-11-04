@@ -15,6 +15,7 @@ public static class LogSources
     public const string Resources = "ресурсы";
     public const string Memory = "память";
     public const string Window = "окно";
+    public const string Chat = "чат";
 
     /// <summary>Все по порядку, как в окне фильтров: источник и что он пишет.</summary>
     public static IReadOnlyList<(string Name, string Hint)> All { get; } =
@@ -26,5 +27,6 @@ public static class LogSources
         (Resources, "Блокнот ресурсов: где и когда появляются"),
         (Memory, "Сколько памяти осталось у игры"),
         (Window, "Настройки и сообщения окна"),
+        (Chat, "Уведомления в Telegram о сообщениях в чате"),
     ];
 }

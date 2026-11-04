@@ -54,6 +54,9 @@ public sealed class BotSettings
 
     /// <summary>Что показывать в логе окна. Своё у окна, как <see cref="Connection"/>: в <see cref="Edited"/> не идёт.</summary>
     public LogViewSettings LogView { get; set; } = new();
+
+    /// <summary>Уведомления о сообщениях в чате — в Telegram. Свои у окна, одни на всех персонажей: в <see cref="Edited"/> не идут.</summary>
+    public ChatNotifySettings ChatNotify { get; set; } = new();
     public TargetSettings Target { get => _target; set => Part(ref _target, value); }
     public CombatSettings Combat { get => _combat; set => Part(ref _combat, value); }
     public LootSettings Loot { get => _loot; set => Part(ref _loot, value); }
@@ -145,6 +148,9 @@ public sealed class BotSettings
         Connection.ClientPaths ??= new Dictionary<string, string>();
         LogView ??= new();
         LogView.Hidden ??= [];
+        ChatNotify ??= new();
+        ChatNotify.Token = ChatNotify.Token?.Trim() ?? "";
+        ChatNotify.ChatId = ChatNotify.ChatId?.Trim() ?? "";
         Target ??= new();
         Combat ??= new();
         Loot ??= new();
@@ -249,6 +255,34 @@ public sealed class ConnectionSettings
     /// клиентов — только запущенные из этого exe.
     /// </summary>
     public Dictionary<string, string> ClientPaths { get; set; } = new();
+}
+
+/// <summary>
+/// Кому и о каких сообщениях в чате писать в Telegram, пока бот запущен. Пустой токен или chat_id — не пишем.
+/// </summary>
+public sealed class ChatNotifySettings
+{
+    /// <summary>Токен Telegram-бота (от @BotFather).</summary>
+    public string Token { get; set; } = "";
+
+    /// <summary>Кому писать: chat_id (свой — у @userinfobot).</summary>
+    public string ChatId { get; set; } = "";
+
+    /// <summary>Личные сообщения.</summary>
+    public bool Private { get; set; } = true;
+
+    /// <summary>Сообщения в группе.</summary>
+    public bool Group { get; set; }
+
+    /// <summary>Сообщения в клане.</summary>
+    public bool Clan { get; set; }
+
+    /// <summary>Сообщения в общем чате.</summary>
+    public bool Common { get; set; }
+
+    /// <summary>Есть кому и через кого писать.</summary>
+    [JsonIgnore]
+    public bool CanSend => Token.Length > 0 && ChatId.Length > 0;
 }
 
 /// <summary>Что показывать в логе окна (в файл пишется всё).</summary>
