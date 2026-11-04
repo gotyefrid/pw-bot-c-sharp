@@ -2087,6 +2087,57 @@ public class BrainScenarioTests
         Assert.Equal(["fly (30,0; 0,0; h 25,0)"], _actions.Calls);
     }
 
+    // Центр фарма в воздухе (точку запоминали в полёте): старт — висим в нём, потом сели под ним (копали)
+    private void FarmInAirThenLand(Position landed)
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 90;
+        _settings.Target.FarmPoints = [FarmPoint.At("Небо", new Position(3, 50, 0), flying: true)];
+        _settings.Target.FarmCenter = "Небо";
+        _world.Flying = true;
+        _world.Position = new Position(3, 50, 0);
+        Tick();
+        _world.Flying = landed.Height > 0;
+        _world.Position = landed;
+    }
+
+    [Fact]
+    public void BelowAirCenterTakesOffAndClimbsToIt()
+    {
+        // Сели копать под центром в воздухе — по карте «в центре», но снизу мобов в воздухе не видно: взлетаем и к центру
+        FarmInAirThenLand(new Position(0, 0, 0));
+
+        for (var i = 0; i < 36; i++) // 9 с — ещё ждём
+            Tick();
+        Assert.Empty(_actions.Calls);
+        for (var i = 0; i < 8; i++)
+            Tick();
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с, центр фарма в воздухе — взлетаю к нему"));
+
+        _world.Flying = true;
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly-toggle", "fly (3,0; 0,0; h 50,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с — поднимаюсь к центру фарма"));
+    }
+
+    [Theory]
+    [InlineData(40f, null)]  // в воздухе чуть ниже центра (меньше 15) — на месте
+    [InlineData(80f, null)]  // выше центра — мобов в воздухе видно и так
+    [InlineData(0f, false)]  // на земле, полётника нет — взлететь нечем
+    public void NearAirCenterStaysPut(float height, bool? hasFlyer)
+    {
+        FarmInAirThenLand(new Position(0, height, 0));
+        _world.HasFlyer = hasFlyer;
+
+        for (var i = 0; i < 60; i++)
+            Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
     [Fact]
     public void ReturnInWaterSwimsToCenterWithItsHeight()
     {
