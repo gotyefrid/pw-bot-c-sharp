@@ -46,6 +46,8 @@ internal static class Program
                     return Port.PortCommand.Run(LoadProfile(rest), rest);
                 case "act":
                     return ActCommands.Act(LoadProfile(rest), rest);
+                case "repair":
+                    return RepairCommand.Run(LoadProfile(rest), rest);
                 case "mem":
                     return WithClient(rest, (_, game) => Memory(game));
                 case "memmap":
@@ -129,6 +131,7 @@ internal static class Program
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
+        Console.WriteLine(RepairCommand.Usage);
         Console.WriteLine("  key <клавиша> [--wait с]  нажать клавишу в окне клиента, как кликер (F1, 3, Ctrl+2); через 5 с — успеть переключиться в игру");
         Console.WriteLine("  cdfind [pet-food|potion-hp|potion-mp]  использовать предмет и 15 с искать поле его перезарядки («до/после»)");
         Console.WriteLine();

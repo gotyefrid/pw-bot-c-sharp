@@ -66,6 +66,17 @@ public static class BotModes
         };
     }
 
+    /// <summary>
+    /// Только ремонт у NPC или из сумки — тот же <see cref="RepairBehavior"/>, что в «Бить мобов»: проверка ремонта на живом
+    /// клиенте (Probe repair). <paramref name="back"/> — после ремонта лететь обратно в центр фарма, как бот; нет — остаться у NPC.
+    /// </summary>
+    public static IBotRunner RepairOnly(ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log, bool back)
+    {
+        var context = new BrainContext(runner, skills, log, new Random()) { Settings = settings.Clone() };
+        var repair = new RepairBehavior(c => back ? c.FarmSpot : null);
+        return new BotBrain(context, [repair], main: repair);
+    }
+
     /// <summary>Кликер: только сценарий из списка — без банок, пета и боя (банка — шагом с условием «HP меньше %»).</summary>
     private static BotBrain Clicker(BrainContext context)
     {
