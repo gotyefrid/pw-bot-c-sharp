@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Отдельный патчер клиента: кладётся рядом с client.exe (или перетащить client.exe на него). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Notes.Patcher</RootNamespace>
+    <AssemblyName>Notes.Patcher</AssemblyName>
+  </PropertyGroup>
+</Project>
