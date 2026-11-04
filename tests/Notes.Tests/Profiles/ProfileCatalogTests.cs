@@ -60,12 +60,16 @@ public class ProfileCatalogTests
         // (банк из сумки — только Comeback; на PW Classic банк открывается у банкира): там возможность честно недоступна, с причиной
         var profile = _catalog.Load(id);
         var hasRemoteBank = id != "pwclassic136";
+        // Найдено и проверено пока только на одном клиенте; на остальных бот обходится без него (лавка остаётся открытой)
+        static bool Everywhere(string function) => function != GameFunctions.ShopDialogClose;
 
         Assert.Equal(
             _catalog.Load("comeback136").Data.Functions.Keys
                 .Where(k => hasRemoteBank || k != GameFunctions.OpenRemotePanel)
+                .Where(Everywhere)
                 .OrderBy(k => k),
-            profile.Data.Functions.Keys.OrderBy(k => k));
+            profile.Data.Functions.Keys.Where(Everywhere).OrderBy(k => k));
+        Assert.Equal(id == "comeback146", profile.Data.Functions.ContainsKey(GameFunctions.ShopDialogClose));
         // Лавка из сумки (ремонт без NPC) — та же кнопка сумки, что и банк
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>()
                 .Where(c => hasRemoteBank || c is not (Capability.RemoteBank or Capability.RemoteRepair)),

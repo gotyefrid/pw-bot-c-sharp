@@ -55,6 +55,9 @@ public interface IGameActions
     /// <summary>Закрыть окно разговора с NPC, как кнопкой «Назад».</summary>
     CallResult NpcDialogClose();
 
+    /// <summary>Закрыть лавку, как крестиком.</summary>
+    CallResult ShopDialogClose();
+
     /// <summary>Встать в ближайшем городе после смерти, как кнопкой окна смерти.</summary>
     CallResult ReviveInTown();
 

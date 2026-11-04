@@ -11,14 +11,15 @@ namespace Notes.Core.Brain;
 /// «Ремонтировать снаряжение» (<see cref="Settings.RepairSettings"/>): самая поношенная надетая вещь ниже порога прочности
 /// (<see cref="WornPercent"/>) — починить всё.
 /// <list type="bullet">
-/// <item>Из сумки (<see cref="Settings.RepairSettings.FromBag"/>, сервер умеет — <see cref="Capability.RemoteRepair"/>): просто
-/// «Починить всё», где стоим. Лавку не открываем: сервер чинит и без неё (проверено на 1.4.6), а её окно «отмена» не закрывает.</item>
+/// <item>Из сумки (<see cref="Settings.RepairSettings.FromBag"/>, сервер умеет — <see cref="Capability.RemoteRepair"/>): открыть
+/// лавку кнопкой сумки, «Починить всё», закрыть лавку, как крестиком. Без открытой лавки сервер не чинит: «Служба недоступна».
+/// Не починилось — бьём дальше и пробуем снова: через <see cref="Retry"/>, потом вдвое реже, но не реже <see cref="RetryMax"/>.</item>
 /// <item>У NPC: долететь до места, где он стоял, когда его выбрали (<see cref="FlightTrip"/> на высоте ремонта; без полётника —
 /// пешком), подойти по прямой, заговорить, «Починить всё», закрыть окно и лететь обратно в центр фарма (<c>home</c>).</item>
 /// </list>
 /// Начинает, когда боя нет и никто не занят многоходовым делом (слив опыта, возвращение после смерти); пора сливать опыт — слив
-/// первым. Не вышло (NPC не выбран, далеко, не нашёлся, после ремонта всё ещё поношено) — пишет в лог и до следующего «Старт» не
-/// пробует.
+/// первым. У NPC не вышло (NPC не выбран, далеко, не нашёлся, после ремонта всё ещё поношено) — пишет в лог и до следующего
+/// «Старт» не пробует.
 /// Стоит раньше перелёта при «Старт»: поношено — сначала к NPC, а оттуда уже на фарм.
 /// </summary>
 public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, IMultiStepBehavior
@@ -36,6 +37,11 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     public static readonly TimeSpan OpenWait = TimeSpan.FromSeconds(1.5);
     // Прочность в памяти обновляет ответ сервера на ремонт
     public static readonly TimeSpan RepairWait = TimeSpan.FromSeconds(3);
+    // Из сумки не починилось — снова через столько, потом вдвое дольше, но не дольше RetryMax
+    public static readonly TimeSpan Retry = TimeSpan.FromSeconds(10);
+    public static readonly TimeSpan RetryMax = TimeSpan.FromMinutes(1);
+    // Канал чата, в который сервер пишет отказы («Служба недоступна», «Выполняется другая операция»)
+    private const int ServerChannel = 10;
 
     private enum Stage { Idle, ToNpc, Approach, Hello, Repair, Close, Back }
 
@@ -45,6 +51,11 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     private FlightTrip? _trip;
     private DateTime? _calmSince;
     private DateTime _stageAt;
+    // Из сумки: когда пробовать снова и сколько раз подряд не вышло
+    private DateTime? _retryAt;
+    private int _failures;
+    // Последнее сообщение чата до ремонта: ответ сервера — после него
+    private int _chatSeen;
 
     public string Name => "ремонт";
     public string? Status { get; private set; }
@@ -76,7 +87,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     {
         var s = c.Settings.Repair;
         var w = c.World;
-        if (!s.Enabled || _gaveUp || c.InMiddle is not null || c.Fight.Busy || TargetSelector.Aggressor(w) is not null
+        if (!s.Enabled || _gaveUp || _retryAt > c.Now || c.InMiddle is not null || c.Fight.Busy || TargetSelector.Aggressor(w) is not null
             || ExpDrainBehavior.Due(c) || WornPercent(w) is not { } worn || worn >= s.BelowPercent)
         {
             _calmSince = null;
@@ -91,10 +102,11 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         {
             if (!Calmed(c))
                 return true;
-            if (c.Send(new RepairAllAction()) is not SubmitStatus.Sent and var status)
-                return GiveUp(c, $"«Починить всё» не ушло ({status})");
-            c.Log.Info($"Прочность {worn:0} % — чиню из сумки");
-            return Next(c, Stage.Repair, "ремонт: чиню");
+            _chatSeen = LastChat(w);
+            if (c.Send(new OpenShopAction()) is not SubmitStatus.Sent and var status)
+                return BagFailed(c, $"лавка не открылась ({status})", close: false);
+            c.Log.Info($"Прочность {worn:0} % — открываю лавку и чиню");
+            return Next(c, Stage.Hello, "ремонт: открываю лавку");
         }
 
         if (s.Npc is not { } npc)
@@ -103,6 +115,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         if (distance > DeathReturnBehavior.MaxTrip)
             return GiveUp(c, $"{npc.Name} в {distance:0} м — слишком далеко");
 
+        _chatSeen = LastChat(w);
         c.Log.Info($"Прочность {worn:0} % — лечу чинить к {npc.Name} ({distance:0} м)");
         if (distance <= WalkTo)
             return Next(c, Stage.Approach, "ремонт: иду к NPC");
@@ -161,13 +174,14 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         return Next(c, Stage.Hello, $"ремонт: говорю с {saved.Name}");
     }
 
-    // Окно NPC открылось — «Починить всё»
+    // Окно NPC или лавки открылось — «Починить всё»
     private bool Hello(BrainContext c)
     {
         Status = "ремонт: жду окно";
         if (c.Now - _stageAt < OpenWait)
             return true;
-        c.Send(new RepairAllAction());
+        if (c.Send(new RepairAllAction()) is not SubmitStatus.Sent and var status && _fromBag)
+            return BagFailed(c, $"«Починить всё» не ушло ({status})", close: true);
         return Next(c, Stage.Repair, "ремонт: чиню");
     }
 
@@ -180,26 +194,53 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
             return true;
 
         if (repaired)
-            c.Log.Info("Починил");
-        else
-            Remember(c, _fromBag ? "после «Починить всё» прочность не выросла — хватает ли денег?"
-                : "после «Починить всё» прочность не выросла — хватает ли денег, чинит ли этот NPC?");
-        if (_fromBag)
         {
-            // Окон нет — закрывать нечего
-            _stage = Stage.Idle;
-            return false;
+            c.Log.Info("Починил");
+            (_failures, _retryAt) = (0, null);
         }
+        else if (_fromBag)
+            return BagFailed(c, $"после «Починить всё» прочность не выросла{ServerSaid(c)}", close: true);
+        else
+            Remember(c, $"после «Починить всё» прочность не выросла{ServerSaid(c)} — хватает ли денег, чинит ли этот NPC?");
         return Next(c, Stage.Close, "ремонт: закрываю окно");
     }
 
-    // Окно NPC — как кнопкой «Назад»
+    // Окно NPC — как кнопкой «Назад»; лавку — как крестиком. Лавку закрываем один раз: не ушло — она просто остаётся открытой
     private bool Close(BrainContext c)
     {
         Status = "ремонт: закрываю окно";
+        if (_fromBag)
+        {
+            if (c.Send(new ShopDialogCloseAction()) is not SubmitStatus.Sent and var status)
+                c.Log.Debug($"Ремонт: лавку не закрыл ({status})");
+            _stage = Stage.Idle;
+            return false;
+        }
         if (c.Send(new NpcDialogCloseAction()) != SubmitStatus.Sent)
             return true;
         return GoBack(c);
+    }
+
+    // Из сумки не вышло: бьём дальше и пробуем снова, всё реже; лавку (если открывали) закрыть
+    private bool BagFailed(BrainContext c, string why, bool close)
+    {
+        var wait = TimeSpan.FromTicks(Math.Min(RetryMax.Ticks, Retry.Ticks << Math.Min(_failures, 10)));
+        _failures++;
+        _retryAt = c.Now + wait;
+        c.Log.Warning($"Ремонт: {why} — попробую снова через {wait.TotalSeconds:0} с");
+        if (close)
+            return Next(c, Stage.Close, "ремонт: закрываю окно");
+        _stage = Stage.Idle;
+        return false;
+    }
+
+    private static int LastChat(WorldState w) => w.Chat.Count == 0 ? 0 : w.Chat.Max(m => m.Number);
+
+    // Что сервер ответил в чате после начала ремонта (« — сервер: «Служба недоступна»»); ничего — пусто
+    private string ServerSaid(BrainContext c)
+    {
+        var said = c.World.Chat.Where(m => m.Number > _chatSeen && m.Channel == ServerChannel).Select(m => m.Plain).LastOrDefault();
+        return said is null ? "" : $" — сервер: «{said}»";
     }
 
     private bool GoBack(BrainContext c)
@@ -294,6 +335,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     {
         _stage = Stage.Idle;
         _gaveUp = false;
+        (_failures, _retryAt) = (0, null);
         _trip = null;
         _calmSince = null;
         Status = null;

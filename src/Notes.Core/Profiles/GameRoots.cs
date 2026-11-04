@@ -114,18 +114,24 @@ public sealed class GameRoots
     }
 
     /// <summary>Окно разговора с NPC; false — не в мире, не читается или <see cref="UiOffsets"/> нет в профиле.</summary>
-    public bool TryNpcDialog(out uint dialog)
+    public bool TryNpcDialog(out uint dialog) => TryDialog(_profile.Ui.NpcDialog, out dialog);
+
+    /// <summary>Окно лавки; false — не в мире, не читается или <see cref="UiOffsets.ShopDialog"/> нет в профиле.</summary>
+    public bool TryShopDialog(out uint dialog) => TryDialog(_profile.Ui.ShopDialog, out dialog);
+
+    // Окно мира по его полю в CECGameUIMan
+    private bool TryDialog(uint field, out uint dialog)
     {
         dialog = 0;
         var ui = _profile.Ui;
-        return ui.Managers != 0 && ui.NpcDialog != 0
+        return ui.Managers != 0 && field != 0
                && TryBase(out var root)
                && _memory.TryReadUInt32(root + _profile.Base.Game, out var game)
                && _memory.TryReadUInt32(game + ui.Managers, out var managers) && managers != 0
                // Активный менеджер 1 — окна мира (0 — экран входа)
                && _memory.TryReadUInt32(managers + ui.Active, out var active) && active == 1
                && _memory.TryReadUInt32(managers + ui.InGame, out var inGame) && inGame != 0
-               && _memory.TryReadUInt32(inGame + ui.NpcDialog, out dialog)
+               && _memory.TryReadUInt32(inGame + field, out dialog)
                && dialog != 0;
     }
 

@@ -67,8 +67,8 @@ public sealed class ProfileData
 
 /// <summary>
 /// Окна игры: менеджеры окон = [game + Managers]; окна в мире (CECGameUIMan) = [менеджеры + InGame], если
-/// [менеджеры + Active] = 1 (сейчас в мире, а не на экране входа); окно разговора с NPC = [окна в мире + NpcDialog].
-/// 0 — не найдено.
+/// [менеджеры + Active] = 1 (сейчас в мире, а не на экране входа); окно разговора с NPC = [окна в мире + NpcDialog], окно лавки —
+/// [окна в мире + ShopDialog]. 0 — не найдено.
 /// </summary>
 public sealed class UiOffsets
 {
@@ -76,6 +76,7 @@ public sealed class UiOffsets
     public uint InGame { get; init; }
     public uint Active { get; init; }
     public uint NpcDialog { get; init; }
+    public uint ShopDialog { get; init; }
 }
 
 /// <summary>Устройство пакетов, которые бот собирает сам (где у команды нет своей функции в клиенте).</summary>
@@ -691,6 +692,8 @@ public enum FunctionThis
     Session,
     /// <summary>Окно разговора с NPC (CDlgNPC): см. <see cref="UiOffsets"/>.</summary>
     NpcDialog,
+    /// <summary>Окно лавки (CDlgShop): см. <see cref="UiOffsets"/>.</summary>
+    ShopDialog,
     /// <summary>Объект заданий персонажа: [перс + host.quests].</summary>
     Quests,
 }
@@ -714,6 +717,7 @@ public static class GameFunctions
     public const string SendPacket = "sendPacket";
     public const string RepairItem = "repairItem";
     public const string NpcDialogClose = "npcDialogClose";
+    public const string ShopDialogClose = "shopDialogClose";
     public const string ReviveInTown = "reviveInTown";
     public const string CastSkill = "castSkill";
     public const string CancelAction = "cancelAction";

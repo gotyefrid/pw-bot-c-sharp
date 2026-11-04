@@ -69,6 +69,7 @@ public sealed class GameCaller : IGameActions
         // Что чинить: tid предмета (-1 — всё), где он и в какой ячейке
         [GameFunctions.RepairItem] = ["where", "slot", "tid"],
         [GameFunctions.NpcDialogClose] = [],
+        [GameFunctions.ShopDialogClose] = [],
         // Номер колесницы (воскрешение на поле боя за город); обычная смерть — 0
         [GameFunctions.ReviveInTown] = ["0"],
         [GameFunctions.SummonPet] = ["index"],
@@ -163,6 +164,11 @@ public sealed class GameCaller : IGameActions
     /// разговор сервер помнит и дальше (продажа и ремонт проходят).
     /// </summary>
     public CallResult NpcDialogClose() => Call(GameFunctions.NpcDialogClose, null);
+
+    /// <summary>
+    /// Закрыть лавку, как крестиком (или Esc): клиент прячет лавку и сумку и снимает отметки с вещей, серверу ничего не шлёт.
+    /// </summary>
+    public CallResult ShopDialogClose() => Call(GameFunctions.ShopDialogClose, null);
 
     /// <summary>Встать в ближайшем городе после смерти, как кнопкой «Ближний город» окна смерти (опыт теряется, как у игрока).</summary>
     public CallResult ReviveInTown() => Call(GameFunctions.ReviveInTown, null);
@@ -537,6 +543,8 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"{name}: нет связи с сервером");
         if (prepared.Definition.This == FunctionThis.NpcDialog && !_roots.TryNpcDialog(out thisPointer))
             return CallResult.Refused($"{name}: окно NPC не найдено (ui в профиле)");
+        if (prepared.Definition.This == FunctionThis.ShopDialog && !_roots.TryShopDialog(out thisPointer))
+            return CallResult.Refused($"{name}: окно лавки не найдено (ui в профиле)");
         if (prepared.Definition.This == FunctionThis.Quests && !TryQuests(out thisPointer))
             return CallResult.Refused($"{name}: объект заданий персонажа не найден (host.quests)");
         if (prepared.Definition.This != FunctionThis.None)

@@ -243,6 +243,16 @@ public sealed class NpcDialogCloseAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Закрыть лавку, как крестиком. Окна в снимке мира нет — итог не ждём.</summary>
+public sealed class ShopDialogCloseAction : GameAction
+{
+    public override string Name => "закрыть лавку";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.ShopDialogClose();
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>
 /// Встать в ближайшем городе после смерти (кнопка «Ближний город» окна смерти). Подтверждение — персонаж снова жив (HP больше 0).
 /// </summary>

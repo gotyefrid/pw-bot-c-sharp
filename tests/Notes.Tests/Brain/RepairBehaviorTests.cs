@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
@@ -28,6 +28,12 @@ public class RepairBehaviorTests
     private int _walked;
     // Сервер чинит (нет — денег не хватило: команда ушла, а прочность та же)
     private bool _repairs = true;
+    // Лавка из сумки открыта: без неё сервер из сумки не чинит и отвечает в чате
+    private bool _shopOpen;
+    // Лавка открывается по кнопке (нет — кнопка нажата, а окна нет)
+    private bool _shopOpens = true;
+    private bool _fromBag;
+    private int _chatNumber;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -87,6 +93,15 @@ public class RepairBehaviorTests
                 case "move":
                     _world.Position = _actions.MovePoints[_walked++];
                     break;
+                case "shop":
+                    _shopOpen = _shopOpens;
+                    break;
+                case "shop-close":
+                    _shopOpen = false;
+                    break;
+                case "repair-all" when _fromBag && !_shopOpen:
+                    _world.Chat.Add(new ChatMessage(++_chatNumber, 10, "Служба недоступна", 0));
+                    break;
                 case "repair-all" when _repairs:
                     Wear(10000, 10000);
                     break;
@@ -105,23 +120,37 @@ public class RepairBehaviorTests
 
     private int Count(string call) => _actions.Calls.Count(c => c == call);
 
+    private void FromBag() => _settings.Repair.FromBag = _fromBag = true;
+
     [Fact]
-    public void FromBagRepairsWithoutOpeningShop()
+    public void FromBagOpensShopRepairsAndClosesIt()
     {
-        _settings.Repair.FromBag = true;
+        FromBag();
 
-        TickFor(6);
+        TickFor(8);
 
-        Assert.Equal(new[] { "repair-all" }, _actions.Calls);
+        Assert.Equal(new[] { "shop", "repair-all", "shop-close" }, _actions.Calls);
+        Assert.False(_shopOpen);
         Assert.Equal(100, RepairBehavior.WornPercent(_world.Snapshot()));
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
         Assert.True(Logged("Починил"));
     }
 
     [Fact]
+    public void FromBagWaitsForShopWindowBeforeRepair()
+    {
+        // Окно лавки открывает ответ сервера: «Починить всё» — не сразу после кнопки
+        FromBag();
+
+        TickFor(1.75);
+
+        Assert.Equal(new[] { "shop" }, _actions.Calls);
+    }
+
+    [Fact]
     public void NotWornEnoughDoesNothing()
     {
-        _settings.Repair.FromBag = true;
+        FromBag();
         Wear(600, 10000);
 
         TickFor(4);
@@ -132,7 +161,7 @@ public class RepairBehaviorTests
     [Fact]
     public void NoRepairItemsDoNotCount()
     {
-        _settings.Repair.FromBag = true;
+        FromBag();
         Wear(10000, 10000);
         Wear(0, 10000, noRepair: true, slot: 3);
 
@@ -237,33 +266,107 @@ public class RepairBehaviorTests
     }
 
     [Fact]
-    public void StillWornAfterRepairGivesUpUntilStart()
+    public void FromBagNotRepairedClosesShopAndRetriesLessOften()
     {
-        _settings.Repair.FromBag = true;
+        FromBag();
         _repairs = false;
 
+        TickFor(8);
+
+        Assert.True(Logged("прочность не выросла — попробую снова через 10 с"));
+        Assert.Equal(new[] { "shop", "repair-all", "shop-close" }, _actions.Calls);
+
+        TickFor(40);
+
+        Assert.Equal(3, Count("repair-all"));
+        Assert.True(Logged("через 20 с"));
+        Assert.True(Logged("через 40 с"));
+        Assert.Equal(3, Count("shop-close"));
+    }
+
+    [Fact]
+    public void FromBagRetryWaitStopsGrowingAtOneMinute()
+    {
+        FromBag();
+        _repairs = false;
+
+        TickFor(4 * 60);
+
+        Assert.True(Logged("через 60 с"));
+        Assert.DoesNotContain(_log, e => e.Message.Contains("через 80 с") || e.Message.Contains("через 120 с"));
+    }
+
+    [Fact]
+    public void FromBagRepairsOnRetryAndGoesBackToFarming()
+    {
+        FromBag();
+        _repairs = false;
+        TickFor(8);
+
+        _repairs = true;
         TickFor(15);
+
+        Assert.Equal(2, Count("repair-all"));
+        Assert.True(Logged("Починил"));
+        Assert.Equal(100, RepairBehavior.WornPercent(_world.Snapshot()));
+    }
+
+    [Fact]
+    public void ServerReplyFromChatGoesToLog()
+    {
+        // Как было в игре: лавки нет — сервер на «Починить всё» пишет в чат «Служба недоступна»; это и есть причина в логе
+        FromBag();
+        _shopOpens = false;
+        _world.Chat.Add(new ChatMessage(++_chatNumber, 10, "Выполняется другая операция", 0));
+
+        TickFor(8);
+
+        Assert.True(Logged("прочность не выросла — сервер: «Служба недоступна» — попробую снова через 10 с"));
+        // Старое сообщение (до ремонта) — не ответ
+        Assert.DoesNotContain(_log, e => e.Message.Contains("Выполняется другая операция"));
+    }
+
+    [Fact]
+    public void ShopOpenRefusedRetriesWithoutClosing()
+    {
+        FromBag();
+        _actions.Refuse.Add("shop");
+
+        TickFor(4);
+
+        Assert.True(Logged("лавка не открылась"));
+        Assert.Equal(0, Count("repair-all"));
+        Assert.Equal(0, Count("shop-close"));
+    }
+
+    [Fact]
+    public void RefusedRepairCommandClosesShop()
+    {
+        FromBag();
+        _actions.Refuse.Add("repair-all");
+
+        TickFor(8);
+
+        Assert.True(Logged("«Починить всё» не ушло"));
+        Assert.Equal(new[] { "shop", "repair-all", "shop-close" }, _actions.Calls);
+    }
+
+    [Fact]
+    public void StillWornAtNpcGivesUpUntilStart()
+    {
+        Smith(new Position(20, 0, 0));
+        _repairs = false;
+
+        TickFor(60);
 
         Assert.True(Logged("прочность не выросла"));
         Assert.Equal(1, Count("repair-all"));
     }
 
     [Fact]
-    public void RefusedCommandGivesUp()
-    {
-        _settings.Repair.FromBag = true;
-        _actions.Refuse.Add("repair-all");
-
-        TickFor(6);
-
-        Assert.True(Logged("не ушло"));
-        Assert.Equal(1, Count("repair-all"));
-    }
-
-    [Fact]
     public void DrainDueGoesFirst()
     {
-        _settings.Repair.FromBag = true;
+        FromBag();
         _settings.ExpDrain.Enabled = true;
         _settings.ExpDrain.MaxLevel = _world.Level;
         _world.Exp = 90;
