@@ -56,6 +56,15 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:AssistAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Член пати" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
+                        OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Как «Ассист» в меню члена пати: взять в цель то же, что в цели у него. В списке — пати сейчас, кроме самого персонажа. Его нет в пати — шаг не выйдет" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />

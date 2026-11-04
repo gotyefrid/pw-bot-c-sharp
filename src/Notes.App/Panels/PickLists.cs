@@ -51,6 +51,13 @@ public static class PickLists
     public static List<PickOption> Skills(IEnumerable<SkillInfo> skills)
         => skills.Select(s => new PickOption(s.Id.ToString(), s.Name ?? $"скилл {s.Id}")).ToList();
 
+    /// <summary>Члены пати, кроме самого персонажа: имя варианта — ник, рядом класс и уровень.</summary>
+    public static List<PickOption> PartyMembers(WorldState? world)
+        => world is null ? []
+            : world.Party.Members.Where(m => m.Wid != world.Host.Wid && m.Name.Length > 0)
+                .Select(m => new PickOption(m.Name, $"{m.Name} — {PlayerClasses.Name(m.Class) ?? "класс ?"}, ур. {m.Level}"))
+                .ToList();
+
     public static IReadOnlyList<PickOption> Kinds<T>(ClickerKindList<T> kinds) where T : class
         => kinds.All.Select(k => new PickOption(k.Id, k.Title)).ToList();
 }

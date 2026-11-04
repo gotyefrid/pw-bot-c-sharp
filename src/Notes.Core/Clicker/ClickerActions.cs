@@ -6,6 +6,7 @@ using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Brain;
 using Notes.Core.Settings;
+using Notes.Core.World;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -307,6 +308,68 @@ public sealed class UseSkillAction : ClickerAction
         Skill = Math.Max(0, Skill);
         SkillName = SkillName.Trim();
     }
+}
+
+/// <summary>
+/// Действие с членом пати <see cref="Member"/> — по нику (сценарий не ломается после перезахода), ищется в пати из снимка; себя
+/// выбрать нельзя. Ушло в игру — сделано, следующий шаг в тот же ход. Персонаж не в пати или выбранного в ней нет — «не вышло».
+/// </summary>
+public abstract class PartyMemberAction : ClickerAction
+{
+    private string _member = "";
+
+    /// <summary>Ник члена пати; пусто — не выбран.</summary>
+    public string Member
+    {
+        get => _member;
+        set
+        {
+            Set(ref _member, value ?? "");
+            Changed(nameof(MemberShown));
+        }
+    }
+
+    /// <summary>Для окна: что показать в поле, когда выбранного сейчас нет в пати (или ещё не выбран).</summary>
+    [JsonIgnore]
+    public string MemberShown => Member.Length == 0 ? "Выберите члена пати" : Member;
+
+    public override string? Problem => Member.Length == 0 ? "член пати не выбран" : null;
+
+    public sealed override string Describe() => Member.Length == 0 ? "член пати не выбран" : What();
+
+    /// <summary>Само действие для окна и лога, член пати выбран.</summary>
+    protected abstract string What();
+
+    /// <summary>Действие игры с найденным в пати.</summary>
+    protected abstract GameAction ActionWith(PartyMember mate);
+
+    public override IClickerRun Start(BrainContext c)
+    {
+        if (Problem is { } problem)
+            return ClickerRuns.Failed(problem);
+
+        var world = c.World;
+        if (!world.Party.InParty)
+            return ClickerRuns.Failed("персонаж не в пати");
+        if (string.Equals(world.Host.Name, Member, StringComparison.OrdinalIgnoreCase))
+            return ClickerRuns.Failed($"«{Member}» — это сам персонаж");
+
+        var mate = world.Party.Members.FirstOrDefault(m => m.Wid != world.Host.Wid && string.Equals(m.Name, Member, StringComparison.OrdinalIgnoreCase));
+        return mate is null ? ClickerRuns.Failed($"«{Member}» нет в пати") : ClickerRuns.Send(ActionWith(mate), doneWhenSent: true);
+    }
+
+    public override void Normalize() => Member = Member.Trim();
+}
+
+/// <summary>
+/// «Ассист» члена пати (как пунктом меню в окне пати): взять в цель то же, что в цели у него (<see cref="TeamAssistAction"/>).
+/// Итог не ждём: у него может не быть цели или та же, что у нас.
+/// </summary>
+public sealed class AssistAction : PartyMemberAction
+{
+    protected override string What() => $"ассист {Member}";
+
+    protected override GameAction ActionWith(PartyMember mate) => new TeamAssistAction(mate.Wid, mate.Name);
 }
 
 /// <summary>

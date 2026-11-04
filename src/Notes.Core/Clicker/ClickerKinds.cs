@@ -49,7 +49,8 @@ public static class ClickerKinds
         .Add<GatherResourceAction>("Gather", "Копать")
         .Add<TakeTargetAction>("TakeTarget", "Взять цель")
         .Add<FeedPetAction>("FeedPet", "Кормить пета")
-        .Add<UseSkillAction>("UseSkill", "Использовать скилл");
+        .Add<UseSkillAction>("UseSkill", "Использовать скилл")
+        .Add<AssistAction>("Assist", "Ассист члена пати");
 
     public static ClickerKindList<ClickerCondition> Conditions { get; } = new ClickerKindList<ClickerCondition>()
         .Add<AlwaysCondition>("Always", "Всегда")

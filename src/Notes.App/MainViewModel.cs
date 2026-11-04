@@ -124,7 +124,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Clicker = new ClickerPanel(() => Settings,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null,
             new ClickerChoices(() => Farm.LootOptions(), () => Route.RouteOptions(), () => Farm.TargetOptions(),
-                () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? [])), SettingsEdited, dialogs);
+                () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? []),
+                () => PickLists.PartyMembers(_lastWorld)), SettingsEdited, dialogs);
         Quests = new QuestsPanel(() => Settings, () => _lastWorld, SettingsEdited);
         Farm.Load();
         Route.Load();

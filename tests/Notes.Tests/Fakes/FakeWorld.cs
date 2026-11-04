@@ -47,6 +47,7 @@ internal sealed class FakeWorld
     /// <summary>Удары, которые «показывает игра».</summary>
     public List<AttackEvent> Attacks { get; } = [];
     public List<ChatMessage> Chat { get; } = [];
+    public PartyInfo Party { get; set; } = PartyInfo.None;
 
     /// <summary>Полоска копания (null — сервер её не показывает).</summary>
     public GatherProgress? Gather { get; set; }
@@ -89,7 +90,7 @@ internal sealed class FakeWorld
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel },
-        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList() };
+        Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList(), Party = Party };
 
     /// <param name="state">Не задано: с целью — бьёт (иначе по правилу «напал» стоящий моб с нашей целью не считается), без — стоит.</param>
     public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, NpcState? state = null, int hp = 0)

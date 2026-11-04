@@ -13,9 +13,11 @@ namespace Notes.App.Panels;
 /// <param name="Targets">Кого можно взять в цель — мобы, NPC, чужие петы: рядом и встречались.</param>
 /// <param name="Foods">Корм пета из сумки и «любой» — как в настройках пета.</param>
 /// <param name="Skills">Изученные скиллы персонажа.</param>
+/// <param name="PartyMembers">Члены пати, кроме самого персонажа.</param>
 public sealed record ClickerChoices(
     Func<IReadOnlyList<PickOption>> Loot,
     Func<IReadOnlyList<PickOption>> Resources,
     Func<IReadOnlyList<PickOption>> Targets,
     Func<IReadOnlyList<PickOption>> Foods,
-    Func<IReadOnlyList<PickOption>> Skills);
+    Func<IReadOnlyList<PickOption>> Skills,
+    Func<IReadOnlyList<PickOption>> PartyMembers);
