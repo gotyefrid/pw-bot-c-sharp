@@ -1000,6 +1000,7 @@ public class ActionRunnerTests
         public CallResult PetAttack(uint targetWid) => Slow();
         public CallResult ApplyMacro(int macro) => Slow();
         public CallResult CancelAction() => Slow();
+        public CallResult StopMacro() => Slow();
         public CallResult OpenBank() => Slow();
         public CallResult OpenShop() => Slow();
         public CallResult ReviveInTown() => Slow();

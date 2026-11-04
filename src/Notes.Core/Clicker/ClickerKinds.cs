@@ -50,6 +50,7 @@ public static class ClickerKinds
         .Add<TakeTargetAction>("TakeTarget", "Взять цель")
         .Add<FeedPetAction>("FeedPet", "Кормить пета")
         .Add<UseSkillAction>("UseSkill", "Использовать скилл")
+        .Add<StopMacroAction>("StopMacro", "Остановить макрос")
         .Add<AssistAction>("Assist", "Пати: Ассист")
         .Add<FollowMemberAction>("Follow", "Пати: Следовать");
 
@@ -61,6 +62,7 @@ public static class ClickerKinds
         .Add<TargetHpCondition>("TargetHp", "HP цели, %")
         .Add<PetHungryCondition>("PetHungry", "Пет голоден")
         .Add<SkillCooldownCondition>("SkillCooldown", "Скилл на перезарядке")
+        .Add<MacroRunningCondition>("MacroRunning", "Макрос идёт")
         .Add<TargetCondition>("Target", "Цель персонажа")
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет")
         .Add<ResourceNearbyCondition>("ResourceNearby", "Рядом можно копать")

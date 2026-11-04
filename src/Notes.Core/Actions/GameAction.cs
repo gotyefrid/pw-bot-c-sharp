@@ -477,6 +477,19 @@ public sealed class CloseBankAction : GameAction
 }
 
 /// <summary>
+/// Остановить идущий макрос — дальше игра его шаги не жмёт; каст, который уже идёт, не прерывает. Подтверждение — макрос не идёт;
+/// идёт ли, не знаем (поле не найдено для сервера) — ушло в игру, и сделано.
+/// </summary>
+public sealed class StopMacroGameAction : GameAction
+{
+    public override string Name => "остановить макрос";
+    public override ActionSlot Slot => ActionSlot.Cancel;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.StopMacro();
+    public override Verdict Check(WorldState start, WorldState now) => now.MacroRunning != true ? Verdict.Confirmed() : Verdict.Pending;
+}
+
+/// <summary>
 /// Прервать каст или копание — как Esc (нужно срочно лечить пета) — и идущий макрос: иначе игра сразу начнёт его следующий
 /// каст. Тело не занимает: оно его освобождает.
 /// Подтверждение — персонаж больше не кастует и не копает.

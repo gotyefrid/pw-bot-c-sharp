@@ -92,12 +92,20 @@
       </DockPanel>
     </StackPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:StopMacroAction}">
+    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
+               Text="Останавливает любой идущий макрос. Каст, который уже идёт, не прерывает. Макрос не идёт — ничего не делает." />
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:AlwaysCondition}">
     <Grid />
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:MacroRunningCondition}">
+    <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
+               Text="Выполнено, пока идёт любой макрос персонажа. С «НЕ» — макрос не идёт." />
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:HpBelowCondition}">
     <DockPanel Margin="0,0,0,6">

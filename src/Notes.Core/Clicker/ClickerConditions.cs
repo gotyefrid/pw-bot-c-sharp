@@ -193,6 +193,16 @@ public sealed class PetHungryCondition : ClickerCondition
 }
 
 /// <summary>
+/// Идёт макрос (какой-нибудь); «не идёт» — то же с «НЕ». Идёт ли, игра не говорит (поле не найдено для сервера) — не выполнено.
+/// </summary>
+public sealed class MacroRunningCondition : ClickerCondition
+{
+    protected override string What() => "макрос идёт";
+
+    protected override string? Holds(BrainContext c) => c.World.MacroRunning == true ? "макрос идёт" : null;
+}
+
+/// <summary>
 /// Скилл персонажа на перезарядке; «скилл готов» — то же с «НЕ». Скилл не выбран или его нет среди изученных (сценарий
 /// другого персонажа) — не выполнено.
 /// </summary>

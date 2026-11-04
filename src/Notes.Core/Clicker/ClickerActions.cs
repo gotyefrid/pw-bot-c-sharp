@@ -326,6 +326,18 @@ public sealed class UseSkillAction : ClickerAction
 }
 
 /// <summary>
+/// Остановить идущий макрос (какой бы ни шёл). Не идёт — в игру ничего не шлём, сделано. Подтверждение — макрос не идёт; идёт ли,
+/// игра не говорит (поле не найдено для сервера) — ушло, и сделано. Каст, который уже идёт, не прерывает.
+/// </summary>
+public sealed class StopMacroAction : ClickerAction
+{
+    public override string Describe() => "остановить макрос";
+
+    public override IClickerRun Start(BrainContext c)
+        => c.World.MacroRunning == false ? ClickerRuns.Skipped("макрос не идёт") : ClickerRuns.Send(new StopMacroGameAction());
+}
+
+/// <summary>
 /// Действие с членом пати <see cref="Member"/> — по нику (сценарий не ломается после перезахода), ищется в пати из снимка; себя
 /// выбрать нельзя. Ушло в игру — сделано, следующий шаг в тот же ход. Персонаж не в пати или выбранного в ней нет — «не вышло».
 /// </summary>

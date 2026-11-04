@@ -419,6 +419,9 @@ public sealed class GameCaller : IGameActions
         return Call(GameFunctions.CancelAction, null);
     }
 
+    /// <summary>Остановить идущий макрос (удалить его у персонажа), как игра при нажатии скилла не макросом. Каст не прерывает.</summary>
+    public CallResult StopMacro() => Call(GameFunctions.HostClearComboSkill, null);
+
     /// <summary>Приказ пету атаковать цель (данные — 1 байт pvpMask = 0).</summary>
     public CallResult PetAttack(uint targetWid)
         => Call(GameFunctions.PetCtrl, [0], ("target", targetWid), ("command", PetCommandAttack), ("size", 1));
