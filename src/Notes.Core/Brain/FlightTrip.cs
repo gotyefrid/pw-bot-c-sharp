@@ -56,6 +56,15 @@ public sealed class FlightTrip
 
     /// <summary>Не остановились над точкой за столько — садимся всё равно (не висеть вечно).</summary>
     public static readonly TimeSpan SettleMax = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Слезли с полётника — «не летит», но ещё падает до земли: на месте, только когда высота между шагами меняется меньше этого
+    /// (флага «на земле» в снимке нет). Призыв пета и прочее в падении не срабатывают.
+    /// </summary>
+    public const float StillFall = 0.05f;
+
+    /// <summary>Падение не кончилось за столько — считаем, что сели (не ждать вечно).</summary>
+    public static readonly TimeSpan FallMax = TimeSpan.FromSeconds(5);
     // Над городом бывает выше заданной высоты: во время полёта ниже неё не опускаемся, но и не выше этого запаса
     private const float KeepHigher = 50f;
 
@@ -72,6 +81,9 @@ public sealed class FlightTrip
     // Где были на прошлом шаге и с какого времени висим над точкой: садимся после остановки
     private Position? _last;
     private DateTime? _overSince;
+    // Слезли с полётника над точкой и с какого времени ждём конца падения
+    private bool _landing;
+    private DateTime? _fallSince;
 
     /// <param name="cruise">Высота полёта, как в памяти. Зависнуть в воздухе — не ниже высоты точки.</param>
     public FlightTrip(Spot to, float cruise)
@@ -132,8 +144,20 @@ public sealed class FlightTrip
                 _overSince ??= c.Now;
                 var still = last is { } was && was.HorizontalDistanceTo(here) < StillMove;
                 if (still || c.Now - _overSince >= SettleMax)
+                {
                     c.Submit(new FlyAction(up: false));
+                    _landing = true;
+                }
                 return TripStep.Going;
+            }
+            // Слезли — ещё падаем: ждать, пока высота не перестанет меняться (в воде — не ждать: там качает)
+            if (_landing && host.InWater != true)
+            {
+                _fallSince ??= c.Now;
+                var falling = last is not { } before || Math.Abs(before.Height - here.Height) > StillFall;
+                if (falling && c.Now - _fallSince < FallMax)
+                    return TripStep.Going;
+                _landing = false;
             }
             // Сели в воду — нырнуть до высоты точки: обычный ход держит глубину
             if (_end == TripEnd.Water && host.InWater == true && !_diveFailed && Math.Abs(here.Height - To.Height) > Arrived)

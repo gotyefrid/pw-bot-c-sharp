@@ -25,6 +25,8 @@ public class StartTripBehaviorTests
     private int _seen;
     private int _flown;
     private int _walked;
+    // Слез с полётника — падает к земле на столько метров за шаг (0 — сразу на земле)
+    private float _fallStep;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -53,6 +55,8 @@ public class StartTripBehaviorTests
     // Шаг мозга, потом ответ «игры» на то, что он отправил
     private void Tick()
     {
+        if (_world.Flying == false && _world.Position.Height > 0)
+            _world.Position = _world.Position with { Height = Math.Max(0, _world.Position.Height - _fallStep) };
         Brain.Tick(_world.Wait(0.25).Snapshot());
         foreach (var call in _actions.Calls.Skip(_seen).ToList())
         {
@@ -61,11 +65,14 @@ public class StartTripBehaviorTests
                 // Отказ клиента — не взлетели
                 case "fly-toggle" when !_actions.Refuse.Contains("fly-toggle"):
                     _world.Flying = _world.Flying != true;
-                    if (_world.Flying == false)
+                    if (_world.Flying == false && _fallStep == 0)
                         _world.Position = _world.Position with { Height = 0 };
                     break;
                 case "fly":
                     _world.Position = _actions.FlyPoints[_flown++];
+                    // С падением: полёт до земли не опускает — висит над ней
+                    if (_fallStep > 0)
+                        _world.Position = _world.Position with { Height = Math.Max(_world.Position.Height, 100) };
                     break;
                 case "move":
                     _world.Position = _actions.MovePoints[_walked++];
@@ -94,6 +101,28 @@ public class StartTripBehaviorTests
         Assert.Equal(new Position(0, 230, 0), _actions.FlyPoints[0]);
         Assert.True(_world.Position.HorizontalDistanceTo(new Position(500, 0, 0)) <= FlightTrip.Arrived);
         Assert.False(_world.Flying);
+        Assert.True(Logged("Долетел"));
+    }
+
+    // Было: слез с полётника — сразу «долетел», а перс ещё падал, и призыв пета в падении не срабатывал
+    [Fact]
+    public void AfterLandingWaitsUntilFallEnds()
+    {
+        _fallStep = 20;
+        FarmAt(new Position(500, 0, 0));
+
+        // Взлёт и посадка — два нажатия «Полёт»
+        for (var i = 0; i < 40 && _actions.Calls.Count(x => x == "fly-toggle") < 2; i++)
+            Tick();
+        Assert.False(_world.Flying);
+        Assert.True(_world.Position.Height > 0);
+
+        while (_world.Position.Height > 0)
+        {
+            Assert.False(Logged("Долетел"));
+            Tick();
+        }
+        TickFor(1);
         Assert.True(Logged("Долетел"));
     }
 
