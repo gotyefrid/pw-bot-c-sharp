@@ -70,24 +70,12 @@ public sealed class ChatPanel : ObservableObject
         set => Edit(S.Common, value, v => S.Common = v);
     }
 
-    /// <summary>Каналы, которые на сервере ещё не проверены в игре: о них бот не напишет. Пусто — все проверены.</summary>
-    public string Unverified
-    {
-        get
-        {
-            var c = _profile().Data.Chat.Channels;
-            var missing = new List<string>();
-            if (c.Private is null)
-                missing.Add("личные");
-            if (c.Group is null)
-                missing.Add("группа");
-            if (c.Clan is null)
-                missing.Add("клан");
-            if (c.Common is null)
-                missing.Add("общий");
-            return missing.Count == 0 ? "" : $"На сервере «{_profile().Name}» бот пока не умеет: {string.Join(", ", missing)}";
-        }
-    }
+    // Переключатель канала — только если его номер на этом сервере проверен в игре: о непроверенном бот не напишет
+    private ChatChannels Channels => _profile().Data.Chat.Channels;
+    public bool HasPrivate => Channels.Private is not null;
+    public bool HasGroup => Channels.Group is not null;
+    public bool HasClan => Channels.Clan is not null;
+    public bool HasCommon => Channels.Common is not null;
 
     public ICommand TestCommand { get; }
 
@@ -104,13 +92,13 @@ public sealed class ChatPanel : ObservableObject
 
     public bool HasTestResult => TestResult.Length > 0;
 
-    public bool HasUnverified => Unverified.Length > 0;
-
     /// <summary>Сменился сервер — другие проверенные каналы.</summary>
     public void Refresh()
     {
-        OnPropertyChanged(nameof(Unverified));
-        OnPropertyChanged(nameof(HasUnverified));
+        OnPropertyChanged(nameof(HasPrivate));
+        OnPropertyChanged(nameof(HasGroup));
+        OnPropertyChanged(nameof(HasClan));
+        OnPropertyChanged(nameof(HasCommon));
     }
 
     private void Edit<T>(T old, T value, Action<T> set, [System.Runtime.CompilerServices.CallerMemberName] string name = "")
