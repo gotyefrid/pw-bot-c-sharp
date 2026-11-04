@@ -50,8 +50,11 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     private int _noLoss;
     private string? _off;
     private bool _back;
-    // Последний WhereTo решил: слив кончился, летим на фарм — высота «на фарм после слива»
-    private bool _toFarm;
+    // Куда летим из города — от этого высота (Cruise). Решает WhereTo
+    private enum Leg { FirstToDeath, ToDeath, ToFarm }
+    private Leg _leg;
+    // Умираем на точке для смертей (встаём в её городе), а не на месте фарма (город у фарма) — к месту слива на «обычной» высоте
+    private bool _diesAtDeathPoint;
     private DateTime _since;
     private DateTime? _noMobsSince;
     private DateTime? _calmSince;
@@ -72,6 +75,8 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         _off = null;
         _deaths = afterDeath.Deaths;
         _back = false;
+        // Слив начался на точке для смертей (прилетели туда при «Старт») — первой смерти у фарма не будет
+        _diesAtDeathPoint = !plan.StartAtFarm && !plan.DeathAtFarm;
         afterDeath.Expect(WhereTo, Cruise);
         _stage = Stage.RecallPet;
     }
@@ -88,13 +93,24 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
             _noLoss = 0;
 
         var more = _off is null && !_plan.Enough(c);
-        _toFarm = !more;
+        _leg = !more ? Leg.ToFarm : _diesAtDeathPoint ? Leg.ToDeath : Leg.FirstToDeath;
+        // Летим умирать на точку для смертей — следующая смерть уже там (точки нет — снова у фарма)
+        if (more)
+            _diesAtDeathPoint = !_plan.DeathAtFarm;
         return more ? _plan.Death : _plan.Farm;
     }
 
     // Высоту спрашивают сразу после WhereTo и уже в городе: поменяли в окне посреди слива — берётся новая
     private float Cruise(BrainContext c)
-        => (_toFarm ? c.Settings.ExpDrain.FarmFlightHeight : c.Settings.ExpDrain.FlightHeight) * 10;
+    {
+        var drain = c.Settings.ExpDrain;
+        return _leg switch
+        {
+            Leg.FirstToDeath => drain.FirstFlightHeight,
+            Leg.ToDeath => drain.FlightHeight,
+            _ => drain.FarmFlightHeight,
+        } * 10;
+    }
 
     public DrainStep Tick(BrainContext c)
     {

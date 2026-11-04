@@ -198,6 +198,7 @@ public sealed class BotSettings
         // «До» не меньше «от» — не правим молча (окно поменяло бы второе поле само), слив пишет об этом в лог
         ExpDrain.TargetPercent = Clamp(ExpDrain.TargetPercent, 0, 99);
         ExpDrain.Mobs = Clamp(ExpDrain.Mobs, 1, 10);
+        ExpDrain.FirstFlightHeight = Clamp(ExpDrain.FirstFlightHeight, 0, 800);
         ExpDrain.FlightHeight = Clamp(ExpDrain.FlightHeight, 0, 800);
         ExpDrain.FarmFlightHeight = Clamp(ExpDrain.FarmFlightHeight, 0, 800);
         ExpDrain.DeathPoint = ExpDrain.DeathPoint?.Trim() ?? "";
@@ -701,10 +702,17 @@ public sealed class ExpDrainSettings : SettingsPart
     /// <summary>Сколько мобов собрать на себя (по одному выстрелу в каждого): амулет восстанавливает HP, один моб не убьёт.</summary>
     public int Mobs { get => _mobs; set => Set(ref _mobs, value); }
 
+    private float? _firstFlightHeight;
+    /// <summary>
+    /// На какой высоте лететь к месту слива из города у фарма (умерли на месте фарма: первая смерть слива; точки для смертей нет —
+    /// каждый раз) — как в игре. В файле от прошлых версий поля нет — как <see cref="FlightHeight"/>.
+    /// </summary>
+    public float FirstFlightHeight { get => _firstFlightHeight ?? _flightHeight; set => Set(ref _firstFlightHeight, value); }
+
     private float _flightHeight = 23;
     /// <summary>
-    /// На какой высоте лететь из города к месту слива (на точку для смертей, пока опыт ещё сливаем) — как в игре (в памяти — в 10
-    /// раз больше): выше домов, деревьев и гор по пути.
+    /// На какой высоте лететь к месту слива из города у точки для смертей (умерли там — основной круг слива) — как в игре (в памяти —
+    /// в 10 раз больше): выше домов, деревьев и гор по пути.
     /// </summary>
     public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
 

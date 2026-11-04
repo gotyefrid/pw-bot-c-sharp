@@ -622,8 +622,13 @@
                           SelectedValuePath="Mobs" SelectedValue="{Binding Settings.ExpDrain.DeathMobs}" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Высота полёта к месту слива в первый раз" VerticalAlignment="Center"
+                           ToolTip="Как в игре. Умер на месте фарма — из ближнего к фарму города к месту слива (точки для смертей нет — так каждый раз)" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.FirstFlightHeight, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Высота полёта к месту слива" VerticalAlignment="Center"
-                           ToolTip="Как в игре. Из города туда, где умирать, пока опыт ещё сливается: бот взлетает, поднимается на месте строго вверх и летит к точке — выше домов, деревьев и гор" />
+                           ToolTip="Как в игре. Умер на месте слива — из ближнего к нему города обратно туда, пока опыт ещё сливается: бот взлетает, поднимается на месте строго вверх и летит к точке — выше домов, деревьев и гор" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.ExpDrain.FlightHeight, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
