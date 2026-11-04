@@ -31,7 +31,7 @@ public enum PullStep
 /// </summary>
 public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
 {
-    public const int ShotsPerMob = 3;
+    public const int ShotsPerMob = 10;
 
     // Выстрел: ждём, пока скилл уйдёт на перезарядку (с подбеганием клиента); дольше — каст сбит
     private static readonly TimeSpan ShotWait = TimeSpan.FromSeconds(5);
@@ -97,7 +97,7 @@ public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
             Drop(c);
             if (++_shots >= ShotsPerMob)
             {
-                c.Log.Debug($"Сбор мобов: по {mob.Name} {ShotsPerMob} выстрела не ушли — беру другого");
+                c.Log.Debug($"Сбор мобов: по {mob.Name} {ShotsPerMob} выстрелов не ушли — беру другого");
                 _mob = 0;
                 return PullStep.Pulling;
             }

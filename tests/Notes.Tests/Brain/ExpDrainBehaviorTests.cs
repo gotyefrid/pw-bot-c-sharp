@@ -208,9 +208,10 @@ public class ExpDrainBehaviorTests
         _hits = false;
         AddGroundMobs();
 
-        TickFor(16);
+        // Каст сбивают — по одному мобу до 10 выстрелов (5 с на каждый), потом следующий
+        TickFor(60);
 
-        Assert.Equal(3, _actions.Calls.Count(c => c == "apply 125 80000002"));
+        Assert.Equal(MobPull.ShotsPerMob, _actions.Calls.Count(c => c == "apply 125 80000002"));
         Assert.Contains("select 80000003", _actions.Calls);
     }
 
