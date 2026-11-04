@@ -122,12 +122,43 @@ public sealed class PetHpBelowCondition : PercentBelowCondition
 }
 
 /// <summary>
-/// HP цели персонажа ниже порога в % — кто бы в цели ни был: моб, игрок, член пати, сам персонаж. Цели нет или её HP игра не
-/// показывает (максимум неизвестен) — не выполнено.
+/// HP цели персонажа в % меньше, больше или равно порогу (<see cref="Compare"/>) — кто бы в цели ни был: моб, игрок, член пати,
+/// сам персонаж. Цели нет или её HP игра не показывает (максимум неизвестен) — не выполнено. Проценты целые: «равно 100» — полное.
 /// </summary>
 public sealed class TargetHpBelowCondition : PercentBelowCondition
 {
+    private PercentCompare _compare;
+
+    /// <summary>Как сравнивать с порогом; «меньше» в файл не пишется (так было, пока выбора не было).</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public PercentCompare Compare { get => _compare; set => Set(ref _compare, value); }
+
     protected override string Subject => "HP цели";
+
+    private string Sign => Compare switch
+    {
+        PercentCompare.Above => "больше",
+        PercentCompare.Equal => "равно",
+        _ => "меньше",
+    };
+
+    protected override string What() => $"{Subject} {Sign} {Percent} %";
+
+    protected override string? Holds(BrainContext c)
+    {
+        if (Current(c.World) is not { } now)
+            return null;
+        var holds = Compare switch
+        {
+            PercentCompare.Above => now > Percent,
+            PercentCompare.Equal => now == Percent,
+            _ => now < Percent,
+        };
+        return holds ? $"{Subject} {now} % — {Sign} {Percent} %" : null;
+    }
+
+    // «Больше 0» (жива) и «равно 0» — тоже смысл есть
+    public override void Normalize() => Percent = Math.Min(100, Math.Max(0, Percent));
 
     protected override int? Current(WorldState world)
     {
@@ -185,6 +216,14 @@ public sealed class SkillCooldownCondition : ClickerCondition
         Skill = Math.Max(0, Skill);
         SkillName = SkillName.Trim();
     }
+}
+
+/// <summary>Как сравнивать с порогом в процентах.</summary>
+public enum PercentCompare
+{
+    Below,
+    Above,
+    Equal,
 }
 
 public enum TargetIs

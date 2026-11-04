@@ -107,9 +107,14 @@
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:TargetHpBelowCondition}">
     <DockPanel Margin="0,0,0,6">
-      <TextBlock Text="HP цели меньше, %" VerticalAlignment="Center" />
+      <TextBlock Text="HP цели, %" VerticalAlignment="Center" />
       <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
-               ToolTip="Шаг выполняется, только когда здоровье того, кто в цели (моб, игрок, член пати), ниже этого процента. Цели нет — не выполнено" />
+               ToolTip="Здоровье того, кто в цели (моб, игрок, член пати), в процентах — целых: «равно 100» — полное. Цели нет — не выполнено" />
+      <ComboBox DockPanel.Dock="Right" Width="90" Margin="0,0,6,0" SelectedValuePath="Tag" SelectedValue="{Binding Compare}">
+        <ComboBoxItem Content="меньше" Tag="{x:Static clicker:PercentCompare.Below}" />
+        <ComboBoxItem Content="больше" Tag="{x:Static clicker:PercentCompare.Above}" />
+        <ComboBoxItem Content="равно" Tag="{x:Static clicker:PercentCompare.Equal}" />
+      </ComboBox>
       <Grid />
     </DockPanel>
   </DataTemplate>
