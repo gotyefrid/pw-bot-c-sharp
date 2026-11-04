@@ -313,6 +313,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Строки «Игра» и «Патч»: exe сервера, состояние файла, кнопки «Выбрать…», «Пропатчить», «Откат».</summary>
     public ClientPatchPanel Patch { get; }
 
+    /// <summary>Версия бота (Directory.Build.props) — в шапке окна: по ней видно, какой релиз запущен.</summary>
+    public string Version { get; } = typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "";
+
     // ── Состояние ────────────────────────────────────────────────────────────
 
     /// <summary>Персонаж, цель, пет — на вкладке «Бот».</summary>
