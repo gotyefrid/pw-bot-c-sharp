@@ -14,7 +14,7 @@ namespace Notes.Core.Brain;
 /// <item>Из сумки (<see cref="Settings.RepairSettings.FromBag"/>, сервер умеет — <see cref="Capability.RemoteRepair"/>): открыть
 /// лавку кнопкой сумки, «Починить всё», закрыть лавку, как крестиком. Без открытой лавки сервер не чинит: «Служба недоступна».
 /// Не починилось — бьём дальше и пробуем снова: через <see cref="Retry"/>, потом вдвое реже, но не реже <see cref="RetryMax"/>.</item>
-/// <item>У NPC: долететь до места, где он стоял, когда его выбрали (<see cref="FlightTrip"/> на высоте ремонта; без полётника —
+/// <item>У NPC: долететь до места, где он стоял, когда его выбрали (<see cref="FlightTrip"/> на высоте ремонта, даже рядом; без полётника —
 /// пешком), подойти по прямой (в воздухе — подлететь и сесть: говорить можно только на высоте NPC), заговорить, «Починить всё», закрыть окно и лететь обратно в центр фарма (<c>home</c>).</item>
 /// </list>
 /// Начинает, когда боя нет и никто не занят многоходовым делом (слив опыта, возвращение после смерти); пора сливать опыт — слив
@@ -24,8 +24,6 @@ namespace Notes.Core.Brain;
 /// </summary>
 public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, IMultiStepBehavior
 {
-    // Ближе — к NPC идём пешком по прямой, без перелёта
-    public const float WalkTo = 30f;
     public const float TalkDistance = 4f;
     // Говорить — только на высоте NPC: из воздуха над ним сервер отвечает «Служба недоступна»
     public const float TalkHeight = 3f;
@@ -123,8 +121,8 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
 
         _chatSeen = LastChat(w);
         c.Log.Info($"Прочность {worn:0} % — лечу чинить к {npc.Name} ({distance:0} м)");
-        if (distance <= WalkTo)
-            return Next(c, Stage.Approach, "ремонт: иду к NPC");
+        // Всегда перелётом, как бы близко ни был: пешком по прямой — в дом, в гору, под обрыв. Уже у NPC — перелёт сразу «на месте»;
+        // полётника нет — перелёт сам идёт пешком
         _trip = new FlightTrip(new Spot(npc.Position, TripEnd.Ground), s.FlightHeight * 10);
         _stage = Stage.ToNpc;
         return Fly(c);
@@ -287,7 +285,8 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
 
     private bool GoBack(BrainContext c)
     {
-        if (home(c) is not { } spot || c.World.Host.Position.HorizontalDistanceTo(spot.Position) <= WalkTo && !FlightTrip.MustTakeOff(c, spot))
+        // Обратно — тоже всегда перелётом: центр на земле — сесть, в воздухе — взлететь к нему
+        if (home(c) is not { } spot)
         {
             _stage = Stage.Idle;
             return false;

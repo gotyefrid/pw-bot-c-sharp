@@ -198,13 +198,15 @@ public class RepairBehaviorTests
     }
 
     [Fact]
-    public void NearNpcWalksWithoutFlying()
+    public void NearNpcAlsoFlies()
     {
+        // Всегда перелётом на заданной высоте, даже в 20 м: пешком по прямой — в дом или в гору
         Smith(new Position(20, 0, 0));
 
         TickFor(8);
 
-        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly"));
+        Assert.Equal("fly-toggle", _actions.Calls[0]);
+        Assert.Contains(_actions.FlyPoints, p => p.Height == _settings.Repair.FlightHeight * 10);
         Assert.Equal(1, Count("npc-hello"));
         Assert.Equal(1, Count("repair-all"));
     }
@@ -234,8 +236,7 @@ public class RepairBehaviorTests
 
         TickFor(8);
 
-        // Подлетел на своей высоте, а не вниз по прямой
-        Assert.Contains(_actions.FlyPoints, p => p.HorizontalDistanceTo(new Position(20, 0, 0)) <= RepairBehavior.TalkDistance && p.Height == 11);
+        // Перелётом: над ним сел, потом заговорил
         Assert.True(_actions.Calls.IndexOf("fly-toggle") < _actions.Calls.IndexOf("npc-hello"));
         Assert.Equal(1, Count("repair-all"));
     }
