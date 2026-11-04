@@ -174,6 +174,37 @@ internal static class WorldCommands
         return 0;
     }
 
+    /// <summary>Пати — сверить с окном пати в игре: лидер, ники, HP/MP, расстояние до участников.</summary>
+    public static int Party(ServerProfile profile, GameProcess game)
+    {
+        var reader = CreateReader(profile, game, out _);
+        var party = reader.ReadParty();
+        if (party is null)
+        {
+            Console.Error.WriteLine($"❌ {profile.Name}: в профиле нет пати (party)");
+            return 1;
+        }
+
+        if (!party.InParty)
+        {
+            Console.WriteLine("Не в пати");
+            return 0;
+        }
+
+        var host = reader.Read().Host;
+        Console.WriteLine($"Пати: {party.Members.Count} чел.");
+        foreach (var m in party.Members)
+        {
+            var who = m.Wid == host.Wid ? "  (это перс)" : "";
+            var leader = m.Wid == party.LeaderWid ? "★" : " ";
+            var where = m.Position is { } p ? $"{Offset.Between(host.Position, p).Horizontal,6:0.0} м" : "     —  ";
+            var cls = PlayerClasses.Name(m.Class) ?? (m.Class?.ToString() ?? "?");
+            Console.WriteLine($"  {leader} {m.Name,-20} 0x{m.Wid:X8}  {cls,-9} ур.{m.Level,3}  HP {m.Hp}/{m.MaxHp}  MP {m.Mp}/{m.MaxMp}  {where}{who}");
+        }
+
+        return 0;
+    }
+
     /// <summary>Принятые задания — сверить с окном «Задания» в игре: дерево, цель, прогресс, кому сдать.</summary>
     public static int Quests(ServerProfile profile, GameProcess game)
     {

@@ -66,6 +66,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Attacks(profile, game, rest));
                 case "bank":
                     return WithClient(rest, (profile, game) => WorldCommands.Bank(profile, game));
+                case "party":
+                    return WithClient(rest, (profile, game) => WorldCommands.Party(profile, game));
                 case "quests":
                     return WithClient(rest, (profile, game) => WorldCommands.Quests(profile, game));
                 case "chat":
@@ -113,6 +115,7 @@ internal static class Program
         Console.WriteLine("  record    [секунд] [файл.rec] записывать раз в 250 мс снимок и сырые структуры перса и мобов (поиск полей по ходу игры)");
         Console.WriteLine("  attacks   [секунд] [файл.tsv] кто кого бьёт и на сколько: каждый удар раз в 100 мс, в конце итог по парам");
         Console.WriteLine("  bank      что лежит в основной вкладке банка (сначала открыть банк в игре: act bank)");
+        Console.WriteLine("  party     пати: лидер, участники — ник, класс, уровень, HP и MP, где они");
         Console.WriteLine("  quests    принятые задания, как в окне «Задания»: цель, кого убить или что собрать, кому сдать");
         Console.WriteLine("  chat      [сколько] [watch]  последние сообщения окна чата (канал, номер, текст); watch — печатать новые и записывать мир вокруг смерти в logs\\deaths, Ctrl+C — выход");
         Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");

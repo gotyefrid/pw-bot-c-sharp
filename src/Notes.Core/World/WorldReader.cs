@@ -475,6 +475,76 @@ public sealed class WorldReader
         return ReadInventory(Field(hostBlock, _p.Host.Bank), out slots);
     }
 
+    // Участников пати — до 10; корзин в таблице ников у 1.4.6 — 1543
+    private const int MaxPartyMembers = 10;
+    private const int MaxNameBuckets = 16384;
+
+    /// <summary>
+    /// Пати персонажа (по требованию, не в снимке мира): лидер, участники с HP/MP, ники — из таблицы ников игры.
+    /// null — пати в профиле нет; <see cref="PartyInfo.None"/> — персонаж не в пати.
+    /// </summary>
+    public PartyInfo? ReadParty()
+    {
+        var t = _p.Party;
+        if (t.Team == 0)
+            return null;
+
+        var game = GameAddress();
+        ReadHost(game, out var hostBlock);
+        if (!_memory.TryReadUInt32(hostBlock.Address + t.Team, out var team) || team == 0
+            || !_memory.TryReadUInt32(team + t.Leader, out var leader)
+            || !_memory.TryReadUInt32(team + t.Members, out var array)
+            || !_memory.TryReadUInt32(team + t.MemberCount, out var count) || count == 0 || count > MaxPartyMembers
+            || !MemoryBlock.TryRead(_memory, array, (int)count * 4, out var pointers))
+            return PartyInfo.None;
+
+        var size = BlockSize(t.MemberWid, t.MemberLevel, t.MemberHp, t.MemberMp, t.MemberMaxHp, t.MemberMaxMp, t.MemberHasLocation,
+            t.MemberLocation + 8, t.MemberClass);
+        var read = new List<MemoryBlock>();
+        for (var i = 0u; i < count; i++)
+            if (MemoryBlock.TryRead(_memory, pointers.UInt32(i * 4), size, out var m))
+                read.Add(m);
+
+        var names = PartyNames(game, read.Select(m => m.UInt32(t.MemberWid)).ToList());
+        var members = read.Select(m =>
+        {
+            var wid = m.UInt32(t.MemberWid);
+            return new PartyMember(wid, names.TryGetValue(wid, out var name) ? name : "", m.Int32(t.MemberLevel),
+                m.Int32(t.MemberHp), m.Int32(t.MemberMaxHp), m.Int32(t.MemberMp), m.Int32(t.MemberMaxMp),
+                m.Int32(t.MemberHasLocation) != 0 ? ReadPosition(m, t.MemberLocation) : null)
+            {
+                Class = t.MemberClass != 0 ? m.Int32(t.MemberClass) : null,
+            };
+        }).ToList();
+        return new PartyInfo(leader, members);
+    }
+
+    // Ники по WID из таблицы ников игры: корзины подряд, в каждой — цепочка узлов
+    private Dictionary<uint, string> PartyNames(uint game, IReadOnlyCollection<uint> wids)
+    {
+        var t = _p.Party;
+        var names = new Dictionary<uint, string>();
+        if (t.NameTable == 0 || !_memory.TryReadUInt32(game + t.NameTable, out var begin)
+            || !_memory.TryReadUInt32(game + t.NameTable + 4, out var end) || end <= begin || (end - begin) / 4 > MaxNameBuckets
+            || !MemoryBlock.TryRead(_memory, begin, (int)(end - begin), out var buckets))
+            return names;
+
+        var nodeSize = BlockSize(NextNode, t.NameNodeWid, t.NameNodeName);
+        for (var i = 0u; i < end - begin && names.Count < wids.Count; i += 4)
+        {
+            var node = buckets.UInt32(i);
+            for (var chain = 0; node != 0 && chain < MaxChain && MemoryBlock.TryRead(_memory, node, nodeSize, out var n); chain++)
+            {
+                var wid = n.UInt32(t.NameNodeWid);
+                if (wids.Contains(wid))
+                    names[wid] = ReadName(n.UInt32(t.NameNodeName));
+                node = n.UInt32(NextNode);
+            }
+        }
+
+        return names;
+    }
+
     /// <summary>
     /// Принятые задания, по порядку списка игры (родитель раньше своих подзаданий). Не входит в снимок мира — по требованию.
     /// null — заданий в профиле нет.

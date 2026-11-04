@@ -399,6 +399,13 @@
     "class": "0x784"
   },
 
+  // Пати: как найти, см. comeback146.jsonc. Не проверено
+  "party": {
+    "team": "", "leader": "", "members": "", "memberCount": "", "memberWid": "", "memberLevel": "", "memberHp": "", "memberMp": "",
+    "memberMaxHp": "", "memberMaxMp": "", "memberHasLocation": "", "memberLocation": "", "memberClass": "", "nameTable": "",
+    "nameNodeWid": "", "nameNodeName": ""
+  },
+
   // Моб — всё как в 1.4.6 (сопоставление кода: каждое поле осталось на месте, десятки инструкций). Сверено вживую:
   // названия, уровни, тип 6/9, дистанция = расчёт по координатам, запись справочника (+0x3A4) с id вида моба
   "npc": {

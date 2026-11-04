@@ -396,6 +396,13 @@
     "class": "0x6C4"
   },
 
+  // Пати: как найти, см. comeback146.jsonc. Не проверено
+  "party": {
+    "team": "", "leader": "", "members": "", "memberCount": "", "memberWid": "", "memberLevel": "", "memberHp": "", "memberMp": "",
+    "memberMaxHp": "", "memberMaxMp": "", "memberHasLocation": "", "memberLocation": "", "memberClass": "", "nameTable": "",
+    "nameNodeWid": "", "nameNodeName": ""
+  },
+
   // Probe port 08.10: название (+0x244), расстояние (+0x26C) и запись справочника (+0x384) — сдвиг -0x20..-0x28 от comeback136;
   // названия и уровни как на экране (скриншот владельца). HP (+0x128) — только у цели, у пета 386.
   // Бой — запись 08.10 (все мобы раз в 0,25 с, 200 с), владелец дрался с агрессивными мобами и увёл одного полётом.

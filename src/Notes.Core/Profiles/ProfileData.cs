@@ -21,6 +21,7 @@ public sealed class ProfileData
     public WorldOffsets World { get; init; } = new();
     public NpcOffsets Npc { get; init; } = new();
     public PlayerOffsets Player { get; init; } = new();
+    public PartyOffsets Party { get; init; } = new();
     public GroundItemOffsets GroundItem { get; init; } = new();
     public MineEssenceOffsets MineEssence { get; init; } = new();
     /// <summary>Раскладки записей предметов с типом (оружие, банки, снаряды…) — для групп лута. Пусто — групп нет.</summary>
@@ -445,6 +446,37 @@ public sealed class PlayerOffsets
     public uint Target { get; init; }
     /// <summary>Класс (int, номер как в игре: 0 воин … 5 убийца … 7 жрец, см. <see cref="World.PlayerClasses"/>).</summary>
     public uint Class { get; init; }
+}
+
+/// <summary>
+/// Пати: [перс + Team] — объект пати (0 — не в пати); в нём WID лидера и массив указателей на участников. Ников в записи
+/// участника нет — они в общей таблице «WID → ник» игры (<see cref="NameTable"/>).
+/// </summary>
+public sealed class PartyOffsets
+{
+    /// <summary>От персонажа: указатель на объект пати. 0 — не найдено (пати не читаем).</summary>
+    public uint Team { get; init; }
+    public uint Leader { get; init; }
+    /// <summary>Массив указателей на участников и их число.</summary>
+    public uint Members { get; init; }
+    public uint MemberCount { get; init; }
+
+    public uint MemberWid { get; init; }
+    public uint MemberLevel { get; init; }
+    public uint MemberHp { get; init; }
+    public uint MemberMp { get; init; }
+    public uint MemberMaxHp { get; init; }
+    public uint MemberMaxMp { get; init; }
+    /// <summary>int: 1 — координаты участника известны.</summary>
+    public uint MemberHasLocation { get; init; }
+    public uint MemberLocation { get; init; }
+    /// <summary>Класс (int, номер как у <see cref="PlayerOffsets.Class"/>). 0 — не найдено.</summary>
+    public uint MemberClass { get; init; }
+
+    /// <summary>От game: таблица ников — начало массива корзин, за ним (+4) его конец. Узел: +0 следующий, WID, указатель на ник.</summary>
+    public uint NameTable { get; init; }
+    public uint NameNodeWid { get; init; }
+    public uint NameNodeName { get; init; }
 }
 
 /// <summary>Запись моба в справочнике игры (MONSTER_ESSENCE): нападает ли сам, с какого расстояния, где обитает.</summary>

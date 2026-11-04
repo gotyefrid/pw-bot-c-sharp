@@ -58,6 +58,81 @@ public class WorldReaderTests
     }
 
     [Fact]
+    public void PartyIsReadWithNamesFromTheNameTable()
+    {
+        // [перс + team] → пати: лидер, массив участников; ники — в таблице ников игры (корзины, в узле WID и указатель на ник)
+        var comeback = new ProfileCatalog().Load("comeback146").Data;
+        var t = comeback.Party;
+        var host = BuildWorld(profile: comeback);
+        _memory.Map(host, 0x2000);
+        const uint game = 0x1001_0000, team = 0x1005_0000, array = 0x1006_0000, me = 0x1007_0000, mate = 0x1008_0000;
+        const uint buckets = 0x1009_0000, node1 = 0x100A_0000, node2 = 0x100A_0100, name1 = 0x100B_0000, name2 = 0x100B_0100;
+        _memory.Map(game, 0x100);
+        _memory.WriteUInt32(game + comeback.Host.Struct, host);
+        _memory.WriteUInt32(game + comeback.World.World, 0x1003_0000);
+        _memory.WriteUInt32(host + t.Team, team);
+        _memory.Map(team, 0x100);
+        _memory.WriteUInt32(team + t.Leader, 0x184621);
+        _memory.WriteUInt32(team + t.Members, array);
+        _memory.WriteUInt32(team + t.MemberCount, 2);
+        _memory.Map(array, 0x10);
+        _memory.WriteUInt32(array, me);
+        _memory.WriteUInt32(array + 4, mate);
+        Member(me, 0x184621, 26, 1261, 1498, located: false);
+        Member(mate, 0x130ECE0, 52, 2553, 3320, located: true);
+
+        // Три корзины: в первой — цепочка из двух узлов (чужой ник и второй участник), во второй — пусто, в третьей — лидер
+        _memory.WriteUInt32(game + t.NameTable, buckets);
+        _memory.WriteUInt32(game + t.NameTable + 4, buckets + 12);
+        _memory.Map(buckets, 0x10);
+        _memory.WriteUInt32(buckets, node1);
+        _memory.WriteUInt32(buckets + 8, node2);
+        _memory.Map(node1, 0x200);
+        _memory.WriteUInt32(node1, node1 + 0x80);
+        _memory.WriteUInt32(node1 + t.NameNodeWid, 0x999);
+        _memory.WriteUInt32(node1 + 0x80 + t.NameNodeWid, 0x130ECE0);
+        _memory.WriteUInt32(node1 + 0x80 + t.NameNodeName, name2);
+        _memory.WriteUInt32(node2 + t.NameNodeWid, 0x184621);
+        _memory.WriteUInt32(node2 + t.NameNodeName, name1);
+        _memory.Map(name1, 0x200);
+        _memory.WriteBytes(name1, System.Text.Encoding.Unicode.GetBytes("Лидер\0"));
+        _memory.WriteBytes(name2, System.Text.Encoding.Unicode.GetBytes("Друг\0"));
+
+        var party = Reader(comeback).ReadParty()!;
+
+        Assert.Equal(0x184621u, party.LeaderWid);
+        Assert.Equal(["Лидер", "Друг"], party.Members.Select(m => m.Name));
+        var friend = party.Members[1];
+        Assert.Equal((52, 2553, 2553, 3320, 3320, 3), (friend.Level, friend.Hp, friend.MaxHp, friend.Mp, friend.MaxMp, friend.Class));
+        Assert.Equal(new Position(10, 20, 30), friend.Position);
+        Assert.Null(party.Members[0].Position);
+
+        void Member(uint at, uint wid, int level, int hp, int mp, bool located)
+        {
+            _memory.Map(at, 0x80);
+            _memory.WriteUInt32(at + t.MemberWid, wid);
+            _memory.WriteUInt32(at + t.MemberLevel, (uint)level);
+            _memory.WriteUInt32(at + t.MemberHp, (uint)hp);
+            _memory.WriteUInt32(at + t.MemberMaxHp, (uint)hp);
+            _memory.WriteUInt32(at + t.MemberMp, (uint)mp);
+            _memory.WriteUInt32(at + t.MemberMaxMp, (uint)mp);
+            _memory.WriteUInt32(at + t.MemberClass, 3);
+            _memory.WriteUInt32(at + t.MemberHasLocation, located ? 1u : 0u);
+            _memory.WriteBytes(at + t.MemberLocation, [.. System.BitConverter.GetBytes(10f), .. System.BitConverter.GetBytes(20f), .. System.BitConverter.GetBytes(30f)]);
+        }
+    }
+
+    [Fact]
+    public void NotInPartyIsNone()
+    {
+        var comeback = new ProfileCatalog().Load("comeback146").Data;
+        BuildWorld(profile: comeback);
+
+        Assert.False(Reader(comeback).ReadParty()!.InParty);
+        Assert.Null(Reader().ReadParty());
+    }
+
+    [Fact]
     public void QuestsAreReadWithParentGoalAndKills()
     {
         // [перс + quests] → объект заданий, [+active] → список: байт 0 — число записей, записи по entrySize; запись ссылается
