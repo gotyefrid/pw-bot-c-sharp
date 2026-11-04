@@ -105,6 +105,9 @@ public sealed class PacketFormats
 
     /// <summary>Команда «ассист»: взять в цель то же, что в цели у члена пати (данные — его WID). 0 — не найдено.</summary>
     public uint TeamAssistCommand { get; init; }
+
+    /// <summary>Сообщение игре «следовать за игроком» (в очередь сообщений, postMessage; параметр — его WID). 0 — не найдено.</summary>
+    public uint FollowMessage { get; init; }
 }
 
 /// <summary>
@@ -163,6 +166,8 @@ public sealed class BaseOffsets
     public uint Session { get; init; }
     /// <summary>[база + Configs] — настройки игры: в них макросы персонажа (<see cref="MacroOffsets"/>).</summary>
     public uint Configs { get; init; }
+    /// <summary>[game + GameMessages] — очередь сообщений игры; this для функций с "this": "messages" (плюс thisOffset).</summary>
+    public uint GameMessages { get; init; }
 }
 
 /// <summary>Персонаж (CECHostPlayer): [game + Struct].</summary>
@@ -699,6 +704,8 @@ public enum FunctionThis
     ShopDialog,
     /// <summary>Объект заданий персонажа: [перс + host.quests].</summary>
     Quests,
+    /// <summary>Очередь сообщений игры: [game + base.gameMessages].</summary>
+    Messages,
 }
 
 /// <summary>Имена функций в профиле.</summary>
@@ -714,6 +721,7 @@ public static class GameFunctions
     public const string NpcReturnTask = "npcReturnTask";
     public const string NpcAcceptTask = "npcAcceptTask";
     public const string QuestCheck = "questCheck";
+    public const string PostMessage = "postMessage";
     public const string BagMove = "bagMove";
     public const string BankExchange = "bankExchange";
     public const string BankPutCount = "bankPutCount";

@@ -25,6 +25,7 @@ internal static class ActCommands
           act target [имя]      выбрать ближайшего живого моба (в названии которого есть «имя»)
           act untarget          снять цель
           act assist НИК        «Ассист»: взять в цель то же, что у члена пати рядом (часть ника)
+          act follow НИК        «Следовать» за игроком рядом (часть ника) — ведёт сам клиент
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
@@ -399,11 +400,14 @@ internal static class ActCommands
                 return new UnselectAction();
 
             case "assist":
+            case "follow":
                 var who = Word(args);
-                problem = who is null ? "нужно: act assist НИК (член пати рядом)" : $"рядом нет игрока «{who}»";
+                problem = who is null ? $"нужно: act {name} НИК (игрок рядом)" : $"рядом нет игрока «{who}»";
                 var mate = who is null ? null
                     : w.Players.Where(p => p.Name.IndexOf(who, StringComparison.OrdinalIgnoreCase) >= 0).OrderBy(p => p.Offset.Horizontal).FirstOrDefault();
-                return mate is null ? null : new TeamAssistAction(mate.Wid, mate.Name);
+                if (mate is null)
+                    return null;
+                return name == "assist" ? new TeamAssistAction(mate.Wid, mate.Name) : new FollowAction(mate.Wid, mate.Name);
 
             case "attack":
                 return new NormalAttackAction();

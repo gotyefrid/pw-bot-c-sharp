@@ -172,7 +172,9 @@
     // Объект связи с сервером: в нём SendGameData (ecx = [[база]+0x20])
     "session": "0x20",
     // Настройки игры (в них макросы): запуск макроса (hostApplyComboSkill) зовёт разбор макроса, тот читает [[база] + 0x18]
-    "configs": "0x18"
+    "configs": "0x18",
+    // Очередь сообщений игры: как найти, см. comeback146.jsonc. Не проверено
+    "gameMessages": ""
   },
 
   "host": {
@@ -527,7 +529,9 @@
     "learnSkillService": "",
     "hatchPetService": "",
     // «Ассист» члена пати: как найти, см. comeback146.jsonc. Не проверено
-    "teamAssistCommand": ""
+    "teamAssistCommand": "",
+    // «Следовать» за игроком: как найти, см. comeback146.jsonc (функция postMessage там же). Не проверено
+    "followMessage": ""
   },
 
   // Окна игры: [game + 0x10] — менеджеры окон; [+0x8] — окна в мире (CECGameUIMan), если [+0xC] = 1; в них [+0x734] — окно

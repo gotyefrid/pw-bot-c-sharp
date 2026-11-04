@@ -1013,6 +1013,7 @@ public class ActionRunnerTests
         public CallResult NpcAcceptTask(int taskId) => Slow();
         public CallResult NpcLearnSkill(int skillId) => Slow();
         public CallResult TeamAssist(uint wid) => Slow();
+        public CallResult Follow(uint wid) => Slow();
         public CallResult QuestChecks(IReadOnlyList<int> taskIds) => Slow();
         public CallResult NpcHatchPet(int slot, uint eggTid) => Slow();
         public CallResult TalkTo(uint wid) => Slow();

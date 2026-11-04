@@ -61,6 +61,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NpcReturnTask] = ["task", "choice"],
         [GameFunctions.NpcAcceptTask] = ["task", "storage", "refresh"],
         [GameFunctions.QuestCheck] = ["task"],
+        // Сообщение по адресу данных (игра копирует его в очередь)
+        [GameFunctions.PostMessage] = [DataArg],
         [GameFunctions.BagMove] = ["from", "to", "count"],
         [GameFunctions.BankExchange] = ["tab", "bankSlot", "slot"],
         [GameFunctions.BankPutCount] = ["tab", "bankSlot", "slot", "count"],
@@ -226,6 +228,24 @@ public sealed class GameCaller : IGameActions
         Buffer.BlockCopy(BitConverter.GetBytes((ushort)command), 0, packet, 0, 2);
         Buffer.BlockCopy(BitConverter.GetBytes(wid), 0, packet, 2, 4);
         return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
+    }
+
+    /// <summary>
+    /// «Следовать» за игроком <paramref name="wid"/>, как пунктом меню члена пати: сообщение игре в очередь — дальше ведёт сам
+    /// клиент (серверу команды нет). Сообщение: [номер:4][0:4][0:4][WID:4], остальное нули (последнее поле — объект, обязан быть 0).
+    /// </summary>
+    public CallResult Follow(uint wid)
+    {
+        var message = _profile.Packets.FollowMessage;
+        if (message == 0)
+            return CallResult.Refused("следовать: номер сообщения не найден (packets.followMessage)");
+        if (wid == 0)
+            return CallResult.Refused("следовать: нет игрока");
+
+        var data = new byte[0x20];
+        Buffer.BlockCopy(BitConverter.GetBytes(message), 0, data, 0, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes(wid), 0, data, 0xC, 4);
+        return Call(GameFunctions.PostMessage, data);
     }
 
     private CallResult NpcService(uint service, string what, params uint[] data)
@@ -562,6 +582,8 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"{name}: окно лавки не найдено (ui в профиле)");
         if (prepared.Definition.This == FunctionThis.Quests && !TryQuests(out thisPointer))
             return CallResult.Refused($"{name}: объект заданий персонажа не найден (host.quests)");
+        if (prepared.Definition.This == FunctionThis.Messages && !_roots.TryMessages(out thisPointer))
+            return CallResult.Refused($"{name}: очередь сообщений игры не найдена (base.gameMessages)");
         if (prepared.Definition.This != FunctionThis.None)
             thisPointer += prepared.Definition.ThisOffset;
 

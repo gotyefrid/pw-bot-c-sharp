@@ -82,6 +82,9 @@ public interface IGameActions
     /// <summary>«Ассист»: взять в цель то же, что у члена пати.</summary>
     CallResult TeamAssist(uint wid);
 
+    /// <summary>«Следовать» за игроком: ведёт сам клиент.</summary>
+    CallResult Follow(uint wid);
+
     /// <summary>Вывести питомца из яйца (ячейка сумки) у NPC, с которым начат разговор.</summary>
     CallResult NpcHatchPet(int slot, uint eggTid);
 

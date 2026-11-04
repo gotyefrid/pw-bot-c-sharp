@@ -184,6 +184,20 @@ public sealed class TeamAssistAction(uint wid, string name) : GameAction
         => now.Host.TargetWid != start.Host.TargetWid ? Verdict.Confirmed() : Verdict.Pending;
 }
 
+/// <summary>
+/// «Следовать» за игроком (пункт меню члена пати): ведёт сам клиент — как бег, занимает тело. Итог в снимке не виден (идём, только
+/// когда он двигается), поэтому не ждём: ушло сообщение — сделано.
+/// </summary>
+public sealed class FollowAction(uint wid, string name) : GameAction
+{
+    public override string Name => $"следовать за {name}";
+    public override ActionSlot Slot => ActionSlot.Movement;
+    public override ActionResource Resource => ActionResource.Body;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.Follow(wid);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 public sealed class UnselectAction : GameAction
 {
     public override string Name => "снять цель";

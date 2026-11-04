@@ -135,6 +135,17 @@ public sealed class GameRoots
                && dialog != 0;
     }
 
+    /// <summary>Очередь сообщений игры; false — не читается или <see cref="BaseOffsets.GameMessages"/> нет в профиле.</summary>
+    public bool TryMessages(out uint messages)
+    {
+        messages = 0;
+        return _profile.Base.GameMessages != 0
+               && TryBase(out var root)
+               && _memory.TryReadUInt32(root + _profile.Base.Game, out var game) && game != 0
+               && _memory.TryReadUInt32(game + _profile.Base.GameMessages, out messages)
+               && messages != 0;
+    }
+
     /// <summary>Объект связи с сервером; false — не читается или <see cref="BaseOffsets.Session"/> нет в профиле.</summary>
     public bool TrySession(out uint session)
     {
