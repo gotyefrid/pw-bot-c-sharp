@@ -442,12 +442,12 @@
             <TextBlock Text="УВЕДОМЛЕНИЯ" Style="{StaticResource CardTitle}" />
             <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
                        Text="Пока бот запущен, о новых сообщениях в чате он пишет вам в Telegram: кто написал и что. Свои сообщения и то, что было до «Старт», не пересылаются" />
-            <DockPanel Style="{StaticResource SettingRow}">
+            <DockPanel Style="{StaticResource SettingRow}" LastChildFill="True">
               <TextBlock Text="Токен бота" VerticalAlignment="Center" Width="80"
                          ToolTip="Создайте бота у @BotFather в Telegram — он пришлёт токен вида 123456:ABC…" />
               <TextBox Text="{Binding Chat.Token}" />
             </DockPanel>
-            <DockPanel Style="{StaticResource SettingRow}">
+            <DockPanel Style="{StaticResource SettingRow}" LastChildFill="True">
               <TextBlock Text="chat_id" VerticalAlignment="Center" Width="80"
                          ToolTip="Кому писать. Свой chat_id покажет @userinfobot. Своему боту сначала напишите любое сообщение — иначе он не сможет вам писать" />
               <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Проверить" Margin="8,0,0,0"
