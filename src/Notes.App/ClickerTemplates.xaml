@@ -66,13 +66,31 @@
     </DockPanel>
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:FollowMemberAction}">
-    <DockPanel Margin="0,0,0,6">
-      <TextBlock Text="Член пати" VerticalAlignment="Center" />
-      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
-                        OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
-                        ToolTip="Как «Следовать» в меню члена пати: дальше персонажа ведёт сама игра. В списке — пати сейчас, кроме самого персонажа. Его нет в пати — шаг не выйдет. Шаг по кругу шлёт команду заново — как часто, задайте паузой или условием" />
-      <Grid />
-    </DockPanel>
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Член пати" VerticalAlignment="Center" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
+                          OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
+                          ToolTip="За кем идти. В списке — пати сейчас, кроме самого персонажа. Его нет в пати — шаг не выйдет. Шаг по кругу шлёт команду заново — как часто, задайте паузой или условием" />
+        <Grid />
+      </DockPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Кто ведёт" VerticalAlignment="Center" />
+        <ComboBox DockPanel.Dock="Right" Width="250" SelectedValuePath="Tag" SelectedValue="{Binding Way}"
+                  ToolTip="Игра — как «Следовать» в меню пати: дальше персонажа ведёт сама игра. Бот — сам идёт туда, где член пати сейчас, и, если тот отошёл, — к новому месту; пока идёт, другие шаги ждут">
+          <ComboBoxItem Content="Игра (как в меню пати)" Tag="{x:Static clicker:FollowWay.Game}" />
+          <ComboBoxItem Content="Бот, по прямой" Tag="{x:Static clicker:FollowWay.Direct}" />
+          <ComboBoxItem Content="Бот, в обход препятствий" Tag="{x:Static clicker:FollowWay.Smart}" />
+        </ComboBox>
+        <Grid />
+      </DockPanel>
+      <DockPanel Margin="0,0,0,6" IsEnabled="{Binding BotLeads}">
+        <TextBlock Text="Остановиться ближе, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding StopDistance, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Когда ведёт бот: подойти к члену пати на это расстояние. Уже ближе — шаг ничего не делает" />
+        <Grid />
+      </DockPanel>
+    </StackPanel>
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"

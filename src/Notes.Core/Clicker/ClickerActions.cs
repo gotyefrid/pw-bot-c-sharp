@@ -375,8 +375,11 @@ public abstract class PartyMemberAction : ClickerAction
         var mate = world.Party.Members.FirstOrDefault(m => m.Wid != world.Host.Wid && string.Equals(m.Name, Member, StringComparison.OrdinalIgnoreCase));
         if (mate is null)
             return ClickerRuns.Failed($"«{Member}» нет в пати");
-        return Pointless(world, mate) is { } why ? ClickerRuns.Skipped(why) : ClickerRuns.Send(ActionWith(mate), doneWhenSent: true);
+        return Pointless(world, mate) is { } why ? ClickerRuns.Skipped(why) : RunWith(mate);
     }
+
+    /// <summary>Как выполнять с найденным в пати; обычно — отправить <see cref="ActionWith"/> и не ждать итога.</summary>
+    protected virtual IClickerRun RunWith(PartyMember mate) => ClickerRuns.Send(ActionWith(mate), doneWhenSent: true);
 
     public override void Normalize() => Member = Member.Trim();
 }
@@ -406,14 +409,136 @@ public sealed class AssistAction : PartyMemberAction
 }
 
 /// <summary>
-/// «Следовать» за членом пати (как пунктом меню в окне пати): дальше персонажа ведёт сама игра (<see cref="FollowAction"/>).
-/// Шаг по кругу шлёт команду заново — как часто, задают паузой или условиями.
+/// «Следовать» за членом пати. Как — <see cref="Way"/>: ведёт игра (как пунктом меню в окне пати, <see cref="FollowAction"/>,
+/// итог не ждём) или бот сам идёт к нему ходом в точку (<see cref="FollowMemberRun"/>) — до <see cref="StopDistance"/> м. Шаг по
+/// кругу шлёт команду заново — как часто, задают паузой или условиями.
 /// </summary>
 public sealed class FollowMemberAction : PartyMemberAction
 {
-    protected override string What() => $"следовать за {Member}";
+    public const int MaxStopDistance = 50;
+
+    private FollowWay _way;
+    private int _stopDistance = 3;
+
+    /// <summary>Кто ведёт персонажа; «игра» в файл не пишется (так было, пока выбора не было).</summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public FollowWay Way
+    {
+        get => _way;
+        set
+        {
+            Set(ref _way, value);
+            Changed(nameof(BotLeads));
+        }
+    }
+
+    /// <summary>Когда ведёт бот — остановиться ближе этого к члену пати, м.</summary>
+    public int StopDistance { get => _stopDistance; set => Set(ref _stopDistance, value); }
+
+    /// <summary>Для окна: ведёт бот — нужно поле «остановиться ближе».</summary>
+    [JsonIgnore]
+    public bool BotLeads => Way != FollowWay.Game;
+
+    protected override string What() => Way switch
+    {
+        FollowWay.Direct => $"идти к {Member} по прямой, до {StopDistance} м",
+        FollowWay.Smart => $"идти к {Member} в обход препятствий, до {StopDistance} м",
+        _ => $"следовать за {Member}",
+    };
 
     protected override GameAction ActionWith(PartyMember mate) => new FollowAction(mate.Wid, mate.Name);
+
+    protected override IClickerRun RunWith(PartyMember mate)
+        => BotLeads ? new FollowMemberRun(mate.Wid, mate.Name, StopDistance, Way == FollowWay.Smart) : base.RunWith(mate);
+
+    public override void Normalize()
+    {
+        base.Normalize();
+        StopDistance = Math.Min(MaxStopDistance, Math.Max(1, StopDistance));
+    }
+}
+
+/// <summary>Кто ведёт персонажа за членом пати.</summary>
+public enum FollowWay
+{
+    /// <summary>Игра — как «Следовать» в меню пати.</summary>
+    Game,
+    /// <summary>Бот — по прямой.</summary>
+    Direct,
+    /// <summary>Бот — автопутём игры (в обход препятствий); нет его у сервера — по прямой.</summary>
+    Smart,
+}
+
+/// <summary>
+/// Бот идёт к члену пати: ходом в точку, где тот сейчас (в воздухе — летит с его высотой, в воде — плывёт). Уже ближе
+/// <c>stop</c> м — в игру ничего не шлём. Пока идём, он отошёл от точки дальше <see cref="RetargetDistance"/> — идём к новому месту.
+/// Сделано — дошли; встали, не дойдя, или не дошли за время — «не вышло». Где он, игра не знает (далеко) — «не вышло».
+/// </summary>
+internal sealed class FollowMemberRun(uint wid, string name, int stop, bool smart) : IClickerRun
+{
+    private const float RetargetDistance = 5f;
+    private static readonly TimeSpan RetargetPeriod = TimeSpan.FromSeconds(1);
+
+    private MoveAction? _move;
+    private DateTime _movedAt;
+    private ActionOutcome? _outcome;
+
+    public StepState Tick(BrainContext c)
+    {
+        var world = c.World;
+        var mate = world.Party.Members.FirstOrDefault(m => m.Wid == wid);
+        var position = mate?.Position ?? world.Players.FirstOrDefault(p => p.Wid == wid)?.Position;
+
+        if (_move is null)
+        {
+            if (mate is null)
+                return StepState.Failed($"«{name}» нет в пати");
+            if (position is not { } at)
+                return StepState.Failed($"где «{name}» — игра не знает (далеко)");
+            var left = Distance(c, at);
+            if (left <= stop)
+                return new StepState(StepStatus.Done, $"«{name}» рядом, {left:0.0} м");
+            return Go(c, at, replace: false);
+        }
+
+        if (_outcome is { } outcome)
+            return outcome.Status == ActionStatus.Confirmed ? StepState.Done : StepState.Failed(outcome.ToString());
+
+        // Отошёл от точки, к которой идём, — сразу к новому месту (не чаще раза в секунду)
+        if (position is { } now && now.DistanceTo(_move.Point) > RetargetDistance && c.Now - _movedAt >= RetargetPeriod)
+            return Go(c, now, replace: true);
+        return StepState.Running;
+    }
+
+    private StepState Go(BrainContext c, Position at, bool replace)
+    {
+        var move = c.World.Host.Flying == true ? new MoveAction(at, stop, fly: true)
+            : c.Swimming ? new MoveAction(at, stop, swim: true)
+            : new MoveAction(at, stop, smart);
+        switch (replace ? c.Replace(move) : c.Send(move))
+        {
+            case SubmitStatus.Sent:
+                (_move, _movedAt, _outcome) = (move, c.Now, null);
+                return StepState.Running;
+            // Тело занято чужим — попробовать на следующем снимке
+            case SubmitStatus.Busy:
+                return StepState.Running;
+            case SubmitStatus.AlreadyPending:
+                return _move is null ? StepState.Done : StepState.Running;
+            default:
+                return _move is null ? StepState.Failed("не отправлено (причина — в логе выше)") : StepState.Running;
+        }
+    }
+
+    // Как в ходе в точку: по земле — по горизонтали, в воздухе и в воде — с высотой
+    private static float Distance(BrainContext c, Position at)
+        => c.World.Host.Flying == true || c.Swimming ? c.World.Host.Position.DistanceTo(at) : c.World.Host.Position.HorizontalDistanceTo(at);
+
+    public void OnOutcome(BrainContext c, ActionOutcome outcome)
+    {
+        if (ReferenceEquals(outcome.Action, _move))
+            _outcome = outcome;
+    }
 }
 
 /// <summary>
