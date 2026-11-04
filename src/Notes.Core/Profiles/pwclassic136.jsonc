@@ -396,11 +396,15 @@
     "class": "0x6C4"
   },
 
-  // Пати: как найти, см. comeback146.jsonc. Не проверено
+  // Пати: [перс + team] — объект пати (0 — не в пати), внутри и у участников всё как в 1.4.6 (подробно — в comeback146.jsonc);
+  // таблица ников — game + 0x58 (на 4 дальше, как и очередь сообщений). Проверено 04.11 на двух клиентах в одной пати: у обоих
+  // тот же объект, лидер, WID, уровни, HP/MP, координаты другого участника, ники из таблицы (1543 корзины). Как найти на другом
+  // клиенте: поле перса, указывающее на объект, где +0x18 — число участников, а каждый участник +0x8 — тот же объект; таблица
+  // ников — поле game, где массив корзин с узлами {следующий, WID, ник}
   "party": {
-    "team": "", "leader": "", "members": "", "memberCount": "", "memberWid": "", "memberLevel": "", "memberHp": "", "memberMp": "",
-    "memberMaxHp": "", "memberMaxMp": "", "memberHasLocation": "", "memberLocation": "", "memberClass": "", "nameTable": "",
-    "nameNodeWid": "", "nameNodeName": ""
+    "team": "0x790", "leader": "0x4", "members": "0x14", "memberCount": "0x18", "memberWid": "0xC", "memberLevel": "0x10",
+    "memberHp": "0x1C", "memberMp": "0x20", "memberMaxHp": "0x24", "memberMaxMp": "0x28", "memberHasLocation": "0x30",
+    "memberLocation": "0x34", "memberClass": "0x44", "nameTable": "0x58", "nameNodeWid": "0x4", "nameNodeName": "0x8"
   },
 
   // Probe port 08.10: название (+0x244), расстояние (+0x26C) и запись справочника (+0x384) — сдвиг -0x20..-0x28 от comeback136;
