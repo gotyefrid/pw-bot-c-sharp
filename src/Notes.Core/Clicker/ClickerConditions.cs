@@ -125,15 +125,17 @@ public sealed class PetHpBelowCondition : PercentBelowCondition
 /// HP цели персонажа в % меньше, больше или равно порогу (<see cref="Compare"/>) — кто бы в цели ни был: моб, игрок, член пати,
 /// сам персонаж. Цели нет или её HP игра не показывает (максимум неизвестен) — не выполнено. Проценты целые: «равно 100» — полное.
 /// </summary>
-public sealed class TargetHpBelowCondition : PercentBelowCondition
+public sealed class TargetHpCondition : ClickerCondition
 {
-    private PercentCompare _compare;
+    private const string Subject = "HP цели";
 
-    /// <summary>Как сравнивать с порогом; «меньше» в файл не пишется (так было, пока выбора не было).</summary>
-    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    private PercentCompare _compare;
+    private int _percent = 50;
+
+    /// <summary>Как сравнивать с порогом.</summary>
     public PercentCompare Compare { get => _compare; set => Set(ref _compare, value); }
 
-    protected override string Subject => "HP цели";
+    public int Percent { get => _percent; set => Set(ref _percent, value); }
 
     private string Sign => Compare switch
     {
@@ -160,7 +162,8 @@ public sealed class TargetHpBelowCondition : PercentBelowCondition
     // «Больше 0» (жива) и «равно 0» — тоже смысл есть
     public override void Normalize() => Percent = Math.Min(100, Math.Max(0, Percent));
 
-    protected override int? Current(WorldState world)
+    // HP цели, %; null — цели нет или её HP игра не показывает
+    private static int? Current(WorldState world)
     {
         var wid = world.Host.TargetWid;
         if (wid == 0 || wid == uint.MaxValue)

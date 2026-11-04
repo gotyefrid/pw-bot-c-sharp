@@ -9,11 +9,11 @@ namespace Notes.Tests.Clicker;
 /// Условие «HP цели, %» (меньше, больше, равно): моб, игрок, член пати или сам персонаж в цели; цели нет или её максимум HP
 /// неизвестен — не выполнено.
 /// </summary>
-public class TargetHpBelowConditionTests
+public class TargetHpConditionTests
 {
     private readonly FakeWorld _world = new();
 
-    private string? Check(int percent) => new TargetHpBelowCondition { Percent = percent }.Check(ClickerScript.Context(_world.Snapshot()));
+    private string? Check(int percent) => new TargetHpCondition { Percent = percent }.Check(ClickerScript.Context(_world.Snapshot()));
 
     private void MobInTarget(int hp, int maxHp)
     {
@@ -75,7 +75,7 @@ public class TargetHpBelowConditionTests
     {
         MobInTarget(hp, 100);
 
-        var why = new TargetHpBelowCondition { Percent = 50, Compare = compare }.Check(ClickerScript.Context(_world.Snapshot()));
+        var why = new TargetHpCondition { Percent = 50, Compare = compare }.Check(ClickerScript.Context(_world.Snapshot()));
         Assert.Equal(holds, why is not null);
     }
 
@@ -85,7 +85,7 @@ public class TargetHpBelowConditionTests
         MobInTarget(80, 100);
 
         Assert.Equal("HP цели 80 % — больше 50 %",
-            new TargetHpBelowCondition { Percent = 50, Compare = PercentCompare.Above }.Check(ClickerScript.Context(_world.Snapshot())));
+            new TargetHpCondition { Percent = 50, Compare = PercentCompare.Above }.Check(ClickerScript.Context(_world.Snapshot())));
     }
 
     [Theory]
@@ -93,20 +93,20 @@ public class TargetHpBelowConditionTests
     [InlineData(500, 100)]
     [InlineData(-5, 0)]
     public void FileKeepsPercentWithinLimits(int written, int read)
-        => Assert.Equal(read, ClickerScript.RoundTrip(new TargetHpBelowCondition { Percent = written }).Percent);
+        => Assert.Equal(read, ClickerScript.RoundTrip(new TargetHpCondition { Percent = written }).Percent);
 
     [Fact]
     public void FileKeepsCompare()
     {
-        Assert.Equal(PercentCompare.Equal, ClickerScript.RoundTrip(new TargetHpBelowCondition { Compare = PercentCompare.Equal }).Compare);
-        Assert.Equal(PercentCompare.Below, ClickerScript.RoundTrip(new TargetHpBelowCondition()).Compare);
+        Assert.Equal(PercentCompare.Equal, ClickerScript.RoundTrip(new TargetHpCondition { Compare = PercentCompare.Equal }).Compare);
+        Assert.Equal(PercentCompare.Below, ClickerScript.RoundTrip(new TargetHpCondition()).Compare);
     }
 
     [Fact]
     public void Described()
     {
-        Assert.Equal("HP цели меньше 40 %", new TargetHpBelowCondition { Percent = 40 }.Describe());
-        Assert.Equal("HP цели больше 40 %", new TargetHpBelowCondition { Percent = 40, Compare = PercentCompare.Above }.Describe());
-        Assert.Equal("HP цели равно 100 %", new TargetHpBelowCondition { Percent = 100, Compare = PercentCompare.Equal }.Describe());
+        Assert.Equal("HP цели меньше 40 %", new TargetHpCondition { Percent = 40 }.Describe());
+        Assert.Equal("HP цели больше 40 %", new TargetHpCondition { Percent = 40, Compare = PercentCompare.Above }.Describe());
+        Assert.Equal("HP цели равно 100 %", new TargetHpCondition { Percent = 100, Compare = PercentCompare.Equal }.Describe());
     }
 }

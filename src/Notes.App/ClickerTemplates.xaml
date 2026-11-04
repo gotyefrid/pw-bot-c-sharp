@@ -105,7 +105,7 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
-  <DataTemplate DataType="{x:Type clicker:TargetHpBelowCondition}">
+  <DataTemplate DataType="{x:Type clicker:TargetHpCondition}">
     <DockPanel Margin="0,0,0,6">
       <TextBlock Text="HP цели, %" VerticalAlignment="Center" />
       <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
