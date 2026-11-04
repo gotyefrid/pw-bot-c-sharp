@@ -401,9 +401,9 @@
 
   // Пати: как найти, см. comeback146.jsonc. Не проверено
   "party": {
-    "team": "", "leader": "", "members": "", "memberCount": "", "memberWid": "", "memberLevel": "", "memberHp": "", "memberMp": "",
-    "memberMaxHp": "", "memberMaxMp": "", "memberHasLocation": "", "memberLocation": "", "memberClass": "", "nameTable": "",
-    "nameNodeWid": "", "nameNodeName": ""
+    "team": "0x850", "leader": "0x4", "members": "0x14", "memberCount": "0x18", "memberWid": "0xC", "memberLevel": "0x10",
+    "memberHp": "0x1C", "memberMp": "0x20", "memberMaxHp": "0x24", "memberMaxMp": "0x28", "memberHasLocation": "0x30",
+    "memberLocation": "0x34", "memberClass": "0x44", "nameTable": "0x54", "nameNodeWid": "0x4", "nameNodeName": "0x8"
   },
 
   // Моб — всё как в 1.4.6 (сопоставление кода: каждое поле осталось на месте, десятки инструкций). Сверено вживую:
