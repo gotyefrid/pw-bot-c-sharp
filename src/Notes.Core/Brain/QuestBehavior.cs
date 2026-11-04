@@ -33,6 +33,8 @@ public sealed class QuestBehavior : IBehavior
     private const float TalkDistance = 4f;
     // Куда встать у NPC: не упираться в него
     private const float NpcStop = 2.5f;
+    // Стоим под NPC (над ним), а он дальше TalkDistance по высоте — столько ждём (лестница, падение), потом встаём с причиной
+    private static readonly TimeSpan HighNpcWait = TimeSpan.FromSeconds(10);
     // С какого расстояния бьём скиллом; дальше — подходим до CastRange - 3
     private const float CastRange = 18f;
     // Моба цели ищем в этом радиусе; дальше — идём к местам, где они водятся
@@ -68,6 +70,8 @@ public sealed class QuestBehavior : IBehavior
     private readonly Queue<QuestStep> _steps = new();
     private uint _mobWid;
     private DateTime _mobSince;
+    // С какого времени стоим под (над) NPC, а по высоте до него не достать
+    private DateTime? _highSince;
 
     public QuestBehavior(QuestGuide guide) => _guide = guide;
 
@@ -147,8 +151,9 @@ public sealed class QuestBehavior : IBehavior
                 return c.Submit(new UnselectAction());
             }
 
-            if (target.Offset.Horizontal > CastRange)
-                return Walk(c, Toward(w.Host.Position, target.Position, CastRange - 3));
+            // По прямой, с высотой; моб выше дистанции — встать под ним
+            if (!target.Offset.WithinOnFoot(CastRange, NpcStop))
+                return Walk(c, Toward(w.Host.Position, target.Position, Math.Max(1f, target.Offset.FlatWithin(CastRange - 3))));
 
             ForgetWalk(c);
             var skill = c.Settings.Combat.AttackSkillId;
@@ -159,8 +164,8 @@ public sealed class QuestBehavior : IBehavior
         }
 
         var mob = w.Mobs
-            .Where(m => !m.IsDead && tids.Contains((uint)m.Tid) && !_skip.Contains(m.Wid) && m.Offset.Horizontal <= SeeRange)
-            .OrderBy(m => m.Offset.Horizontal)
+            .Where(m => !m.IsDead && tids.Contains((uint)m.Tid) && !_skip.Contains(m.Wid) && m.Offset.Direct <= SeeRange)
+            .OrderBy(m => m.Offset.Direct)
             .FirstOrDefault();
         if (mob is not null)
         {
@@ -233,12 +238,14 @@ public sealed class QuestBehavior : IBehavior
     private bool Visit(BrainContext c, uint npcTid, int task, bool accept, string what)
     {
         var w = c.World;
-        var npc = w.Npcs.Where(n => n.Kind == NpcKind.Npc && n.Tid == npcTid).OrderBy(n => n.Offset.Horizontal).FirstOrDefault();
+        var npc = w.Npcs.Where(n => n.Kind == NpcKind.Npc && n.Tid == npcTid).OrderBy(n => n.Offset.Direct).FirstOrDefault();
         var name = npc?.Name ?? $"NPC {npcTid}";
         Status = $"задания: {what} — {name}";
 
-        if (npc is { Offset.Horizontal: <= TalkDistance })
+        // Говорить — по прямой, с высотой: NPC на этаж выше или под нами сервер не слышит («Служба недоступна»)
+        if (npc is { Offset.Direct: <= TalkDistance })
         {
+            _highSince = null;
             if (c.Runner.BodyBusy(w) is not null)
                 return true;
             ForgetWalk(c);
@@ -249,7 +256,19 @@ public sealed class QuestBehavior : IBehavior
             return true;
         }
 
-        var point = npc is not null ? Toward(w.Host.Position, npc.Position, NpcStop) : _guide.Points.Nearest((int)npcTid, w.Host.Position);
+        if (npc is not null && npc.Offset.WithinOnFoot(TalkDistance, NpcStop))
+        {
+            // Под NPC (над ним), а по высоте не достать: подождать (идём по лестнице, падаем), потом встать с причиной
+            _highSince ??= c.Now;
+            if (c.Now - _highSince >= HighNpcWait)
+                return c.RequestStop($"{name} {(npc.Offset.Vertical > 0 ? "выше" : "ниже")} на {Math.Abs(npc.Offset.Vertical):0} м — "
+                                     + $"не подойти, чтобы заговорить ({what}) — останавливаюсь");
+        }
+        else
+            _highSince = null;
+
+        var point = npc is not null ? Toward(w.Host.Position, npc.Position, Math.Max(1f, npc.Offset.FlatWithin(NpcStop)))
+            : _guide.Points.Nearest((int)npcTid, w.Host.Position);
         if (point is null)
             return c.RequestStop($"Не знаю, где {name} ({what}) — останавливаюсь");
         return Walk(c, point.Value);
@@ -396,6 +415,7 @@ public sealed class QuestBehavior : IBehavior
         _offer = null;
         _refused.Clear();
         _mobWid = 0;
+        _highSince = null;
         _skip.Clear();
         _visited.Clear();
         Status = null;

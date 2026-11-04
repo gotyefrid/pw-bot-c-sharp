@@ -42,6 +42,18 @@ public readonly record struct Offset(float Horizontal, float Vertical)
     /// <summary>Кратчайшее, с высотой: √(по земле² + по высоте²).</summary>
     public float Direct => (float)Math.Sqrt(Horizontal * Horizontal + Vertical * Vertical);
 
+    /// <summary>
+    /// Как близко по земле надо встать, чтобы объект был в <paramref name="distance"/> по прямой (на этой разнице высот); выше
+    /// (ниже) дистанции — 0: только встать под ним (над ним).
+    /// </summary>
+    public float FlatWithin(float distance) => (float)Math.Sqrt(Math.Max(0, distance * distance - Vertical * Vertical));
+
+    /// <summary>
+    /// Пешком ближе не подойти: по прямой, с высотой, не дальше <paramref name="distance"/>; объект выше (ниже) дистанции — уже
+    /// стоим под ним (над ним), ближе <paramref name="under"/> по земле — высоту пешком не набрать.
+    /// </summary>
+    public bool WithinOnFoot(float distance, float under) => Horizontal <= Math.Max(FlatWithin(distance), under);
+
     /// <summary>Где <paramref name="target"/> относительно <paramref name="origin"/> (персонажа).</summary>
     public static Offset Between(Position origin, Position target) => new(origin.HorizontalDistanceTo(target), target.Height - origin.Height);
 

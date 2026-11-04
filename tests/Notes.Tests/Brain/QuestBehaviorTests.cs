@@ -129,6 +129,36 @@ public class QuestBehaviorTests
         Assert.Equal(["npc-hello", "accept-task 1177", "npc-back"], _actions.Calls);
     }
 
+    // Как с кузнецом в игре: стоим над NPC (2 м по карте), а он на 10 м ниже — сервер не слышит («Служба недоступна»)
+    [Fact]
+    public void MentorNearOnMapButFarBelow_WalksThenStops()
+    {
+        var npc = AddNpc(0x80103F91, Mentor, "Наставница", 2);
+        _world.Replace(npc, n => n with { Position = n.Position with { Height = -10 } });
+
+        Tick();
+        Assert.DoesNotContain("npc-hello", _actions.Calls);
+
+        for (var i = 0; i < 50 && _stopped is null; i++)
+            Tick();
+        Assert.DoesNotContain("npc-hello", _actions.Calls);
+        Assert.Contains("ниже на 10 м", _stopped);
+    }
+
+    [Fact]
+    public void QuestMobHighAbove_WalksCloser()
+    {
+        // 15 м по карте, 12 м выше — 19 м по прямой, дальше 18
+        _world.Quests = [KillMoths(3)];
+        var moth = AddMob(0x80103FA0, Moth, "Малахитовый мотыль", 15);
+        _world.Replace(moth, m => m with { Position = m.Position with { Height = 12 } });
+        _world.TargetWid = moth.Wid;
+
+        Tick();
+
+        Assert.StartsWith("move", _actions.Calls.Single());
+    }
+
     [Fact]
     public void QuestMobInRange_SelectsThenCastsWithoutApproach()
     {

@@ -318,7 +318,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         // В воде без хода в точку с высотой (сервер не умеет) — как раньше, по карте: глубину обычный ход не меняет
         var near = w.Host.Flying == true || c.Swimming ? mob.Offset.Direct <= distance
             : w.Host.InWater == true ? mob.Offset.Horizontal <= distance
-            : OnGroundNear(mob.Offset, distance);
+            : mob.Offset.WithinOnFoot(distance, ApproachMargin);
         if (near)
         {
             // Моб уже рядом, а мы ещё бежим к точке — добегаем, не перебивая бег ударом
@@ -352,16 +352,6 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// На земле: по прямой, с высотой, ближе <paramref name="distance"/>; моб выше (ниже) дистанции — достаточно встать под ним
-    /// (над ним), ближе <see cref="ApproachMargin"/> по карте: ближе пешком не подойти.
-    /// </summary>
-    private static bool OnGroundNear(Offset mob, float distance)
-    {
-        var flat = Math.Sqrt(Math.Max(0, distance * distance - mob.Vertical * mob.Vertical));
-        return mob.Horizontal <= Math.Max(flat, ApproachMargin);
     }
 
     // В воздухе и в воде обычный ход ведёт только по горизонтали — летим или плывём в точку вместе с высотой моба
