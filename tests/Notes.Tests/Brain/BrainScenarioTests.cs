@@ -1223,6 +1223,68 @@ public class BrainScenarioTests
         return mob;
     }
 
+    // Моб убит, лут упал — и сразу напал второй: лут бросаем, бьём напавшего (лут первого — запомнен в фоне)
+    private NpcInfo AttackedRightAfterKill()
+    {
+        _settings.Target.PreferAggressive = true;
+        _settings.Loot.Attempts = 1;
+        KillMobForLoot();
+        _world.TargetWid = 0;
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 8094, GroundItemKind.Item, new Position(3, 0, 0), "Мягкий мех"));
+        var second = _world.AddMob(0x80000002, "Волк", 15, targetWid: FakeWorld.HostWid, hp: 100);
+        Tick();
+        Assert.Contains("select 80000002", _actions.Calls);
+        Assert.DoesNotContain("pickup-approach C0000001", _actions.Calls);
+        _world.TargetWid = second.Wid;
+        Tick(1);
+        Tick(1);
+        return second;
+    }
+
+    // Подбор «как в игре»: что подбираем — пропадает с земли
+    private void LootFor(double seconds)
+    {
+        for (var t = 0.0; t < seconds; t += 0.5)
+        {
+            Tick(0.5);
+            if (_actions.Calls.LastOrDefault() is { } call && call.StartsWith("pickup-approach "))
+                _world.Ground.RemoveAll(i => call == $"pickup-approach {i.Id:X}");
+        }
+    }
+
+    [Fact]
+    public void LootLeftWhenAttackedIsPickedAfterNextKill()
+    {
+        var second = AttackedRightAfterKill();
+
+        // Второй убит в 15 м — лут и с него, и запомненный с первого (попыток — на 1 больше настройки)
+        _world.Replace(second, m => m with { State = NpcState.Dead, TargetWid = 0 });
+        _world.TargetWid = 0;
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета"));
+        LootFor(8);
+
+        Assert.Contains("pickup-approach C0000001", _actions.Calls);
+        Assert.Contains("pickup-approach C0000002", _actions.Calls);
+        Assert.Contains(_log, e => e.Message.Contains("из них 1 с прошлых боёв"));
+    }
+
+    [Fact]
+    public void RememberedLootGoneFromGroundIsForgotten()
+    {
+        var second = AttackedRightAfterKill();
+        // Пока дрались, мех подобрал кто-то другой
+        _world.Ground.RemoveAll(i => i.Id == 0xC0000001);
+        Tick();
+
+        _world.Replace(second, m => m with { State = NpcState.Dead, TargetWid = 0 });
+        _world.TargetWid = 0;
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета"));
+        LootFor(8);
+
+        Assert.Equal(1, _actions.Calls.Count(c => c.StartsWith("pickup-approach")));
+        Assert.DoesNotContain(_log, e => e.Message.Contains("с прошлых боёв"));
+    }
+
     [Fact]
     public void FullBagPicksOnlyMoneyAndFittingStacks()
     {
