@@ -14,7 +14,8 @@ namespace Notes.Core.Brain;
 /// <see cref="IdleInside"/> и до центра больше <see cref="NearCenter"/>: при большом радиусе на краю мобы из списка клиенту
 /// не видны, и перс стоял бы там вечно. Центр в воздухе (точку запоминали в полёте), а перс ниже его больше чем на
 /// <see cref="NearCenter"/> (сел копать) — тоже не на месте: снизу мобов в воздухе клиенту не видно; взлетаем и поднимаемся к
-/// центру. Радиус 0 — не возвращаемся. Бег фоновый: любое действие боя его перебивает.
+/// центру. Только что выкопали ресурс — внутри радиуса ждём не <see cref="IdleInside"/>, а <see cref="IdleBefore"/>: копали — значит,
+/// мобов рядом и так не было. Радиус 0 — не возвращаемся. Бег фоновый: любое действие боя его перебивает.
 /// </summary>
 public sealed class ReturnBehavior : IBehavior
 {
@@ -39,6 +40,8 @@ public sealed class ReturnBehavior : IBehavior
     private DateTime _nextTry = DateTime.MinValue;
     private DateTime _idleSince = DateTime.MinValue;
     private DateTime _lastIdle = DateTime.MinValue;
+    // «Нечего делать» началось сразу после копки (а не после боя, который был уже после неё)
+    private bool _afterDig;
 
     public string Name => "возврат";
     public string? Status { get; private set; }
@@ -67,9 +70,12 @@ public sealed class ReturnBehavior : IBehavior
             return false;
 
         if (c.Now - _lastIdle > TickGap)
+        {
             _idleSince = c.Now;
+            _afterDig = c.GatheredAt > _lastIdle;
+        }
         _lastIdle = c.Now;
-        if (c.Now - _idleSince < (inside ? IdleInside : IdleBefore))
+        if (c.Now - _idleSince < (inside && !_afterDig ? IdleInside : IdleBefore))
             return false;
         if (distance > MaxDistance)
         {
@@ -82,7 +88,7 @@ public sealed class ReturnBehavior : IBehavior
         {
             var takeoff = c.Send(new FlyAction(up: true) { Priority = ActionPriority.Background });
             if (takeoff == SubmitStatus.Sent)
-                c.Log.Info($"Целей рядом нет {IdleInside.TotalSeconds:0} с, центр фарма в воздухе — взлетаю к нему");
+                c.Log.Info($"{NoTargets()}, центр фарма в воздухе — взлетаю к нему");
             Status = "взлетаю к центру фарма";
             return takeoff is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
         }
@@ -97,12 +103,14 @@ public sealed class ReturnBehavior : IBehavior
         var sent = c.Send(move);
         if (sent == SubmitStatus.Sent)
             c.Log.Info(inside
-                ? below ? $"Целей рядом нет {IdleInside.TotalSeconds:0} с — поднимаюсь к центру фарма, {center.Height - w.Host.Position.Height:0} м вверх"
-                : $"Целей рядом нет {IdleInside.TotalSeconds:0} с — иду в центр фарма, {distance:0} м"
+                ? below ? $"{NoTargets()} — поднимаюсь к центру фарма, {center.Height - w.Host.Position.Height:0} м вверх"
+                : $"{NoTargets()} — иду в центр фарма, {distance:0} м"
                 : $"Вне радиуса фарма, целей нет — возвращаюсь в центр, {distance:0} м");
         Status = "возвращаюсь в центр фарма";
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
+
+    private string NoTargets() => _afterDig ? "Выкопал, целей рядом нет" : $"Целей рядом нет {IdleInside.TotalSeconds:0} с";
 
     /// <summary>
     /// Центр фарма в воздухе (точку запоминали в полёте), а перс ниже его больше чем на <see cref="NearCenter"/> и может туда
@@ -128,6 +136,7 @@ public sealed class ReturnBehavior : IBehavior
     {
         _nextTry = DateTime.MinValue;
         _idleSince = _lastIdle = DateTime.MinValue;
+        _afterDig = false;
         Status = null;
     }
 }

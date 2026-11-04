@@ -62,6 +62,9 @@ public sealed class BrainContext
     /// <summary>Идёт ли бой или лут и с кем — пишут бой и лут, остальные читают (см. <see cref="FightState"/>).</summary>
     public FightState Fight { get; } = new();
 
+    /// <summary>Когда последний раз выкопали ресурс (копка подтвердилась). Пишет копание; возврат в центр после копки не ждёт.</summary>
+    public DateTime? GatheredAt { get; internal set; }
+
     public WorldState World { get; internal set; } = null!;
 
     /// <summary>Где стоял персонаж, когда бот запустили.</summary>

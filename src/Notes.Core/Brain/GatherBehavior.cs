@@ -184,6 +184,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         {
             case ActionStatus.Confirmed:
                 _knockdowns.Remove(id);
+                c.GatheredAt = c.Now;
                 // Добыча пришла в том же снимке, где кончилась копка, — шага «жду добычу» не было, «выкопал» пишем здесь
                 if (gather.DigTime is { } dig && !(ReferenceEquals(_logged, gather) && _loggedPhase == GatherPhase.Dug))
                     c.Log.Info($"Выкопал {gather.Item.Name} за {dig.TotalSeconds:0.0} с");

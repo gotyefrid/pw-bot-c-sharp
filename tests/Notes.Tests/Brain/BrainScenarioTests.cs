@@ -2123,6 +2123,28 @@ public class BrainScenarioTests
         Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с — поднимаюсь к центру фарма"));
     }
 
+    [Fact]
+    public void AfterDigInsideRadiusGoesToCenterWithoutLongWait()
+    {
+        // Выкопали, мобов нет — в центр через 2 с, а не через 10: копали, значит, рядом и так никого
+        GatherWithPickaxe();
+        FarmAt(30, radius: 60);
+        var ore = AddOre(0xC0000001, 12);
+        Tick();
+        _world.Position = new Position(12, 0, 0);
+        _world.Gather = new GatherProgress(true, 100, 7000);
+        Tick(1);
+        _world.Gather = new GatherProgress(false, 7000, 7000);
+        _world.Ground.Remove(ore);
+        Tick(4);
+
+        for (var i = 0; i < 16; i++) // 4 с
+            Tick();
+
+        Assert.Equal(["gather C0000001", "move (30,0; 0,0; h 0,0) умно"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Выкопал, целей рядом нет — иду в центр фарма, 18 м"));
+    }
+
     [Theory]
     [InlineData(40f, null)]  // в воздухе чуть ниже центра (меньше 15) — на месте
     [InlineData(80f, null)]  // выше центра — мобов в воздухе видно и так
