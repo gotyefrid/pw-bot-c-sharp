@@ -8,7 +8,9 @@ namespace Notes.Core.Brain;
 /// <summary>
 /// «Старт» не в центре фарма — сначала долететь до него (<see cref="FlightTrip"/> на высоте <see cref="TargetSettings.TravelHeight"/>),
 /// как бы близко ни был: с полётом — всегда; без полёта — автопутём пешком, только если центр дальше
-/// <see cref="TargetSettings.TravelFrom"/> (0 — никуда не летим и не идём). Прилетев — как стоял перс, когда точку запоминали:
+/// <see cref="TargetSettings.TravelFrom"/> (0 — никуда не летим и не идём). Центр фарма на земле, а перс на земле в радиусе фарма
+/// (<see cref="TargetSettings.FarmRadius"/>; радиус не задан — ближе <see cref="TargetSettings.TravelFrom"/>) — уже на фарме, никуда
+/// не летим: бой найдёт мобов и отсюда. Прилетев — как стоял перс, когда точку запоминали:
 /// центр на земле — сесть (и дождаться, пока упадёт), в воздухе — взлететь и зависнуть на его высоте, в воде — нырнуть. Только раз за «Старт». Пора сливать опыт
 /// (<see cref="ExpDrainBehavior.Due"/>) и задана точка для смертей — летим сразу на неё: на фарм слив вернёт сам.
 /// <list type="bullet">
@@ -69,14 +71,20 @@ public sealed class StartTripBehavior : IBehavior, IMultiStepBehavior
         // Пора сливать опыт и есть точка для смертей — сразу туда: на фарм всё равно вернёмся после слива
         Spot spot;
         string where;
+        var farm = false;
         if (ExpDrainBehavior.Due(c) && ExpDrainBehavior.DeathSpot(c) is { } death)
             (spot, where) = (death, $"Опыта больше порога — точка для смертей «{c.Settings.ExpDrain.DeathPoint}»");
         else if (target.SelectedFarmPoint is { } point)
-            (spot, where) = (new Spot(point.Position, BrainContext.SpotEnd(point)), $"Центр фарма «{point.Name}»");
+            (spot, where, farm) = (new Spot(point.Position, BrainContext.SpotEnd(point)), $"Центр фарма «{point.Name}»", true);
         else
             return null;
 
-        var distance = c.World.Host.Position.HorizontalDistanceTo(spot.Position);
+        var host = c.World.Host;
+        var distance = host.Position.HorizontalDistanceTo(spot.Position);
+        // Центр фарма на земле, и сами на земле в радиусе фарма — уже на фарме: перелёт на десяток метров ни к чему
+        var radius = target.FarmRadius > 0 ? target.FarmRadius : target.TravelFrom;
+        if (farm && spot.End == TripEnd.Ground && host.Flying != true && host.InWater != true && distance <= radius)
+            return null;
         // С полётом — всегда, если уже не на месте (в воздухе над центром на земле — сесть, на земле под центром в воздухе — взлететь);
         // пешком — только издалека
         if (FlightTrip.CanFly(c) ? FlightTrip.There(c, spot) : distance <= target.TravelFrom)

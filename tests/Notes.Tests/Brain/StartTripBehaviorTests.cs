@@ -175,6 +175,58 @@ public class StartTripBehaviorTests
         Assert.True(_world.Position.HorizontalDistanceTo(new Position(80, 0, 0)) <= FlightTrip.Arrived);
     }
 
+    // Было: в 10 м от центра на земле взлетал и садился почти туда же
+    [Fact]
+    public void GroundPointInsideFarmRadiusStays()
+    {
+        _settings.Target.FarmRadius = 60;
+        FarmAt(new Position(50, 0, 0));
+
+        TickFor(3);
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("fly") || c.StartsWith("move"));
+        Assert.False(Logged("лечу туда"));
+    }
+
+    [Fact]
+    public void GroundPointOutsideFarmRadiusFlies()
+    {
+        _settings.Target.FarmRadius = 30;
+        FarmAt(new Position(50, 0, 0));
+
+        TickFor(10);
+
+        Assert.Equal("fly-toggle", _actions.Calls[0]);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(50, 0, 0)) <= FlightTrip.Arrived);
+    }
+
+    // Радиус не задан — «в радиусе» всегда: тогда рядом — ближе «идти от», как пешком
+    [Fact]
+    public void NoFarmRadiusUsesTravelFrom()
+    {
+        _settings.Target.FarmRadius = 0;
+        FarmAt(new Position(50, 0, 0));
+        TickFor(3);
+        Assert.Empty(_actions.Calls);
+
+        _brain = null;
+        FarmAt(new Position(500, 0, 0));
+        TickFor(1);
+        Assert.Equal("fly-toggle", _actions.Calls[0]);
+    }
+
+    // В воде над центром на земле — не «на земле»: летим, как раньше
+    [Fact]
+    public void InWaterInsideRadiusStillGoes()
+    {
+        _world.InWater = true;
+        FarmAt(new Position(20, 0, 0));
+
+        TickFor(1);
+
+        Assert.True(Logged("лечу туда"));
+    }
+
     [Fact]
     public void NearWithoutFlyerDoesNotWalk()
     {
@@ -317,7 +369,7 @@ public class StartTripBehaviorTests
         _world.Exp = 900;
         _world.ExpToLevel = 1000;
         _world.AddMob(0x80000002, "Волк", 10);
-        _world.HasFlyer = false; // без полёта рядом не летим (с полётом — сперва в центр)
+        _world.HasFlyer = false;
         FarmAt(new Position(20, 0, 0));
 
         Tick();
