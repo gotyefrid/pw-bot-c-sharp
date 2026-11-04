@@ -80,11 +80,13 @@ public class WorldReaderTests
     [Fact]
     public void MacroRunningIsUnknownWhenNotFoundForServer()
     {
-        // На PW Classic поле ещё не найдено (пусто в профиле) — не знаем
-        var classic = new ProfileCatalog().Load("pwclassic136").Data;
-        _memory.Map(BuildWorld(profile: classic), 0x2000);
+        // Сервер, где поле ещё не найдено (пусто в профиле), — не знаем
+        var json = new ProfileCatalog().ReadJson("comeback146");
+        Assert.Contains("\"running\": \"0x1988\"", json);
+        var unknown = ProfileJson.Parse(json.Replace("\"running\": \"0x1988\"", "\"running\": \"\""));
+        _memory.Map(BuildWorld(profile: unknown), 0x2000);
 
-        Assert.Null(Reader(classic).Read().MacroRunning);
+        Assert.Null(Reader(unknown).Read().MacroRunning);
     }
 
     [Fact]
@@ -166,7 +168,18 @@ public class WorldReaderTests
         BuildWorld(profile: comeback);
 
         Assert.False(Reader(comeback).ReadParty()!.InParty);
-        Assert.Null(Reader().ReadParty());
+    }
+
+    [Fact]
+    public void PartyIsUnknownWhenNotFoundForServer()
+    {
+        // Сервер, где пати ещё не найдена (пусто в профиле), — пати не читаем
+        var json = new ProfileCatalog().ReadJson("comeback146");
+        Assert.Contains("\"team\": \"0x858\"", json);
+        var unknown = ProfileJson.Parse(json.Replace("\"team\": \"0x858\"", "\"team\": \"\""));
+        BuildWorld(profile: unknown);
+
+        Assert.Null(Reader(unknown).ReadParty());
     }
 
     [Fact]
