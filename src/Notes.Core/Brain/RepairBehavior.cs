@@ -15,7 +15,7 @@ namespace Notes.Core.Brain;
 /// лавку кнопкой сумки, «Починить всё», закрыть лавку, как крестиком. Без открытой лавки сервер не чинит: «Служба недоступна».
 /// Не починилось — бьём дальше и пробуем снова: через <see cref="Retry"/>, потом вдвое реже, но не реже <see cref="RetryMax"/>.</item>
 /// <item>У NPC: долететь до места, где он стоял, когда его выбрали (<see cref="FlightTrip"/> на высоте ремонта; без полётника —
-/// пешком), подойти по прямой, заговорить, «Починить всё», закрыть окно и лететь обратно в центр фарма (<c>home</c>).</item>
+/// пешком), подойти по прямой (в воздухе — подлететь и сесть: говорить можно только на высоте NPC), заговорить, «Починить всё», закрыть окно и лететь обратно в центр фарма (<c>home</c>).</item>
 /// </list>
 /// Начинает, когда боя нет и никто не занят многоходовым делом (слив опыта, возвращение после смерти); пора сливать опыт — слив
 /// первым. У NPC не вышло (NPC не выбран, далеко, не нашёлся, после ремонта всё ещё поношено) — пишет в лог и до следующего
@@ -27,6 +27,10 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     // Ближе — к NPC идём пешком по прямой, без перелёта
     public const float WalkTo = 30f;
     public const float TalkDistance = 4f;
+    // Говорить — только на высоте NPC: из воздуха над ним сервер отвечает «Служба недоступна»
+    public const float TalkHeight = 3f;
+    // Сели — столько ждём, пока персонаж упадёт до высоты NPC
+    public static readonly TimeSpan FallMax = TimeSpan.FromSeconds(5);
     // Куда встать у NPC: не упираться в него
     private const float NpcStop = 2.5f;
     // NPC ищем у места, где он стоял, когда выбрали
@@ -50,6 +54,8 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     private bool _gaveUp;
     private FlightTrip? _trip;
     private DateTime? _calmSince;
+    // С какого времени у NPC ждём посадки и спуска до его высоты
+    private DateTime? _landedAt;
     private DateTime _stageAt;
     // Из сумки: когда пробовать снова и сколько раз подряд не вышло
     private DateTime? _retryAt;
@@ -159,13 +165,49 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
         if (npc is null)
             return GiveUp(c, $"{saved.Name} на месте нет");
 
+        var here = w.Host.Position;
+        if (w.Host.Flying == true)
+        {
+            // В воздухе: долететь до места над NPC на своей высоте (вниз по пути — врезаться в дом) и сесть
+            _calmSince = null;
+            if (npc.Offset.Horizontal > TalkDistance)
+            {
+                c.Submit(new MoveAction(Toward(here, npc.Position, NpcStop) with { Height = here.Height }, tolerance: 1f, fly: true));
+                Status = $"ремонт: подлетаю к {saved.Name}";
+            }
+            else
+            {
+                _landedAt ??= c.Now;
+                if (c.Now - _landedAt >= FallMax)
+                    return GiveUp(c, $"не сел у {saved.Name}");
+                c.Submit(new FlyAction(up: false));
+                Status = "ремонт: сажусь";
+            }
+            return true;
+        }
+
         if (npc.Offset.Horizontal > TalkDistance)
         {
             _calmSince = null;
-            c.Submit(new MoveAction(Toward(w.Host.Position, npc.Position, NpcStop), tolerance: 1f));
+            c.Submit(new MoveAction(Toward(here, npc.Position, NpcStop), tolerance: 1f));
             Status = $"ремонт: иду к {saved.Name}";
             return true;
         }
+
+        // Рядом по карте, но не на его высоте: после посадки ещё падаем — ждём; так и не спустились (крыша, обрыв) — не чиним.
+        // Из воздуха сервер говорить не даёт: «Служба недоступна»
+        if (Math.Abs(npc.Offset.Vertical) > TalkHeight)
+        {
+            _calmSince = null;
+            _landedAt ??= c.Now;
+            if (c.Now - _landedAt < FallMax)
+            {
+                Status = $"ремонт: спускаюсь к {saved.Name}";
+                return true;
+            }
+            return GiveUp(c, $"{saved.Name} {(npc.Offset.Vertical < 0 ? "ниже" : "выше")} на {Math.Abs(npc.Offset.Vertical):0} м — не спуститься к нему");
+        }
+        _landedAt = null;
 
         if (!Calmed(c))
             return true;
@@ -297,7 +339,7 @@ public sealed class RepairBehavior(Func<BrainContext, Spot?> home) : IBehavior, 
     private bool Next(BrainContext c, Stage stage, string status)
     {
         (_stage, _stageAt, Status) = (stage, c.Now, status);
-        _calmSince = null;
+        (_calmSince, _landedAt) = (null, null);
         return true;
     }
 

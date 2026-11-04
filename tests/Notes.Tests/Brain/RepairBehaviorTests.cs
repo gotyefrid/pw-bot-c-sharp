@@ -210,6 +210,51 @@ public class RepairBehaviorTests
     }
 
     [Fact]
+    public void HoveringAboveNpcLandsBeforeTalking()
+    {
+        // Висим в воздухе в 11 м над кузнецом: по карте он рядом, но из воздуха сервер говорить не даёт
+        Smith(new Position(2, 0, 0));
+        _world.Flying = true;
+        _world.Position = new Position(0, 11, 0);
+
+        TickFor(8);
+
+        var landed = _actions.Calls.IndexOf("fly-toggle");
+        var hello = _actions.Calls.IndexOf("npc-hello");
+        Assert.True(landed >= 0 && hello > landed, string.Join(", ", _actions.Calls));
+        Assert.Equal(1, Count("repair-all"));
+    }
+
+    [Fact]
+    public void HoveringNearNpcFliesOverHimAndLands()
+    {
+        Smith(new Position(20, 0, 0));
+        _world.Flying = true;
+        _world.Position = new Position(0, 11, 0);
+
+        TickFor(8);
+
+        // Подлетел на своей высоте, а не вниз по прямой
+        Assert.Contains(_actions.FlyPoints, p => p.HorizontalDistanceTo(new Position(20, 0, 0)) <= RepairBehavior.TalkDistance && p.Height == 11);
+        Assert.True(_actions.Calls.IndexOf("fly-toggle") < _actions.Calls.IndexOf("npc-hello"));
+        Assert.Equal(1, Count("repair-all"));
+    }
+
+    [Fact]
+    public void NpcFarBelowOnGroundIsNotTalkedTo()
+    {
+        // Стоим на крыше над кузнецом: вниз не спуститься — не говорим и не чиним
+        Smith(new Position(2, 0, 0));
+        _world.Flying = false;
+        _world.Position = new Position(0, 10, 0);
+
+        TickFor(8);
+
+        Assert.Equal(0, Count("npc-hello"));
+        Assert.True(Logged("ниже на 10 м"));
+    }
+
+    [Fact]
     public void NpcWithoutTidIsFoundByName()
     {
         Smith(new Position(20, 0, 0), tid: 0);
