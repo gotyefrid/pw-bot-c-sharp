@@ -31,6 +31,8 @@ public class AccidentalDeathTests
     private int _inertia;
     private int _drift;
     private bool _landedDrifting;
+    // Лечение пета перезаряжается до этого времени
+    private DateTime _healReadyAt;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -69,6 +71,8 @@ public class AccidentalDeathTests
             _drift--;
             _world.Position = _world.Position with { X = _world.Position.X + 1 };
         }
+        if (_world.Skills.Any(s => s.Id == Skills.HealPet) && _world.Time >= _healReadyAt)
+            _world.SetCooldown(Skills.HealPet, 0);
         Brain.Tick(_world.Wait(0.25).Snapshot());
         foreach (var call in _actions.Calls.Skip(_seen).ToList())
         {
@@ -88,6 +92,21 @@ public class AccidentalDeathTests
                 case "move":
                     _world.Position = _actions.MovePoints[_walked++];
                     break;
+                // Пет: воскрешение — жив с малым HP, лечение — +40 %, призыв и отзыв — с тем же HP
+                case "cast" when call == $"cast {Skills.RevivePet} 0":
+                    _world.SetPet(1, hpRatio: 0.1f, summoned: false);
+                    break;
+                case "apply" when call.StartsWith($"apply {Skills.HealPet} "):
+                    _world.SetPet(1, hpRatio: Math.Min(1f, PetHp + 0.4f));
+                    _world.SetCooldown(Skills.HealPet, 1500);
+                    _healReadyAt = _world.Time.AddSeconds(1.5);
+                    break;
+                case "summon":
+                    _world.SetPet(1, hpRatio: PetHp);
+                    break;
+                case "recall":
+                    _world.SetPet(1, hpRatio: PetHp, summoned: false);
+                    break;
                 case "revive-town":
                     _world.Hp = _world.MaxHp;
                     _world.Position = Town;
@@ -95,6 +114,32 @@ public class AccidentalDeathTests
             }
         }
         _seen = _actions.Calls.Count;
+    }
+
+    private bool Logged(string text) => _log.Any(e => e.Message.Contains(text));
+
+    private float PetHp => _world.Pet!.Cages[0].HpRatio;
+
+    // Пет включён, на фарме призван и полный; умираем — пет в таком виде
+    private void DieWithPet(float hp, bool summoned, double seconds = 40)
+    {
+        _settings.Pet.Enabled = true;
+        _settings.Pet.Cage = 1;
+        _world.AddSkill(Skills.RevivePet);
+        _world.AddSkill(Skills.HealPet);
+        _world.SetPet(1);
+        TickFor(1);
+
+        _world.Hp = 0;
+        _world.SetPet(1, hpRatio: hp, summoned: summoned);
+        TickFor(seconds);
+    }
+
+    // Вызовы с «Ближнего города» до взлёта
+    private List<string> InTown()
+    {
+        var calls = _actions.Calls.SkipWhile(c => c != "revive-town").Skip(1).ToList();
+        return calls.TakeWhile(c => c != "fly-toggle").ToList();
     }
 
     private void TickFor(double seconds)
@@ -149,6 +194,62 @@ public class AccidentalDeathTests
         TickFor(5);
 
         Assert.False(_world.Flying);
+    }
+
+    [Fact]
+    public void DeadPetIsRevivedHealedAndRecalledInTownBeforeFlight()
+    {
+        // На месте фарма мобы могут нападать сами: воскрешать и лечить там долго и опасно — всё делаем в городе
+        DieWithPet(0, summoned: false);
+
+        var heal = $"apply {Skills.HealPet} {FakeWorld.PetWid:X}";
+        Assert.Equal([$"cast {Skills.RevivePet} 0", "summon 1", heal, heal, heal, "recall"], InTown());
+        // Долетели с полным петом — на месте только призвали
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= FlightTrip.Arrived);
+        Assert.Equal(1f, PetHp);
+        Assert.Equal("summon 1", _actions.Calls.Last());
+        Assert.True(Logged("Пет вылечен — отзываю"));
+    }
+
+    [Fact]
+    public void WoundedPetIsHealedInTown()
+    {
+        DieWithPet(0.5f, summoned: true);
+
+        var heal = $"apply {Skills.HealPet} {FakeWorld.PetWid:X}";
+        Assert.Equal([heal, heal, "recall"], InTown());
+    }
+
+    [Fact]
+    public void FullPetInCageFliesRightAway()
+    {
+        DieWithPet(1, summoned: false);
+
+        Assert.Empty(InTown());
+        Assert.True(Logged("Пет готов"));
+    }
+
+    [Fact]
+    public void PetNotReadyInAMinuteFliesAnyway()
+    {
+        // Скилл воскрешения перезаряжается дольше минуты — не стоим в городе вечно
+        _world.AddSkill(Skills.RevivePet, cooldownLeftMs: 10 * 60 * 1000);
+        DieWithPet(0, summoned: false, seconds: 90);
+
+        Assert.True(Logged("пета подготовить не вышло"));
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(0, 0, 0)) <= FlightTrip.Arrived);
+        Assert.Null(_stop);
+    }
+
+    [Fact]
+    public void PetOffFliesAsBefore()
+    {
+        TickFor(1);
+
+        Die();
+
+        Assert.Empty(InTown());
+        Assert.DoesNotContain(_log, e => e.Message.ToLowerInvariant().Contains("пет"));
     }
 
     [Fact]

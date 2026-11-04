@@ -20,6 +20,8 @@ public sealed record DeathRecord(int? ExpBefore, int? ExpAfter, double? PercentB
 /// высоте полёта к центру; иначе бот останавливается. Убили снова раньше, чем отфармили <see cref="QuietFarm"/> после возвращения
 /// (или по пути), — перед вылетом стоим в городе, и с каждой такой смертью дольше на <see cref="PauseStep"/>: у места, видимо, тот,
 /// кто убивает раз за разом, — пусть уйдёт. Отфармили <see cref="QuietFarm"/> без смерти — снова без паузы.
+/// Перед вылетом на фарм после случайной смерти пет готовится в городе (<see cref="PetPrep"/>: воскресить, вылечить до полного,
+/// отозвать) — на месте, где мобы нападают сами, остаётся только призвать. Готовим во время паузы, если она есть.
 /// <list type="bullet">
 /// <item>Стоит в наборе первым: пока встаём и летим обратно, ход у него, остальные не ходят — и сам слив тоже.</item>
 /// <item>Куда лететь, спрашиваем у ждавшего уже после воскрешения: он знает, сколько сняла смерть (слив: ещё сливать — в точку
@@ -56,6 +58,7 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
     private Spot _spot;
     private float _cruise;
     private FlightTrip? _trip;
+    private PetPrep? _prep;
     // Случайные смерти подряд (без QuietFarm фарма между ними): от их числа — пауза в городе перед вылетом
     private int _streak;
     private TimeSpan _pause;
@@ -127,6 +130,7 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
 
             _phase = Phase.Dead;
             _trip = null;
+            _prep = null;
             _expBefore = _expAlive;
             _percentBefore = _percentAlive;
             _tries = 0;
@@ -188,10 +192,19 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
     private bool AfterRevival(BrainContext c)
     {
         Status = "встал в городе";
+        if (c.Now - _since < AfterRevive)
+            return true;
+
+        // После случайной смерти — на фарм: пета готовим здесь, пока ждём паузу
+        if (_accidentTrip && _prep is null)
+            _prep = new PetPrep(Habitat(_whereTo!(c).End), c.Now);
+        var petReady = _prep?.Step(c) ?? true;
         var wait = AfterRevive + _pause - (c.Now - _since);
-        if (wait > TimeSpan.Zero)
+        if (wait > TimeSpan.Zero || !petReady)
         {
-            if (_pause > TimeSpan.Zero)
+            if (_prep?.Status is { } pet)
+                Status = pet;
+            else if (_pause > TimeSpan.Zero)
                 Status = $"жду в городе ещё {Math.Ceiling(wait.TotalMinutes):0} мин";
             return true;
         }
@@ -233,6 +246,14 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
         }
     }
 
+    // Среда места: какого пета готовить
+    private static Habitat Habitat(TripEnd end) => end switch
+    {
+        TripEnd.Air => World.Habitat.Air,
+        TripEnd.Water => World.Habitat.Water,
+        _ => World.Habitat.Ground,
+    };
+
     public void OnOutcome(BrainContext c, ActionOutcome outcome) => _trip?.OnOutcome(c, outcome);
 
     public void Reset()
@@ -241,6 +262,7 @@ public sealed class DeathReturnBehavior(Func<BrainContext, Spot?>? home = null) 
         _expected = false;
         _whereTo = null;
         _trip = null;
+        _prep = null;
         _streak = 0;
         _pause = TimeSpan.Zero;
         _accidentTrip = false;
