@@ -67,13 +67,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     // Куда пишутся файлы разбора (логи бота и код, присланный сервером): %exe%\logs
     private readonly string _logsDirectory;
+    // Файл лога: общий, пока персонаж неизвестен, потом — logs\<сервер>\<дата> Ник.log
+    private readonly DailyFileSink _fileLog;
 
     public MainViewModel(string appDirectory, IDialogs dialogs)
     {
         _dialogs = dialogs;
         _logsDirectory = Path.Combine(appDirectory, "logs");
         var ring = new RingBufferSink(LogPanel.MaxLines);
-        var logger = new Logger().AddSink(ring).AddSink(new DailyFileSink(_logsDirectory)).AddSink(_incidents);
+        var logger = new Logger().AddSink(ring).AddSink(_fileLog = new DailyFileSink(_logsDirectory)).AddSink(_incidents);
         _incidents.Closed += SaveIncident;
         ring.Added += entry => UiThread.Run(() => Log.Add(entry));
         _logger = logger;
@@ -794,6 +796,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         FlushSettings();
         Settings.Edited -= SettingsEdited;
         _config.SwitchTo(_profile.Id, nick);
+        _fileLog.SetCharacter(_profile.Id, nick);
         Settings.Edited += SettingsEdited;
 
         _connection?.Bot?.UpdateSettings(Settings);

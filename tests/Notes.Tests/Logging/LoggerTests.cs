@@ -97,6 +97,32 @@ public class LoggerTests
         }
     }
 
+    // Несколько копий бота из одной папки: у каждого персонажа свой файл в папке сервера
+    [Fact]
+    public void CharacterGetsOwnFileInServerFolder()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "notes-log-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var sink = new DailyFileSink(directory);
+            var log = new Logger(() => Noon).AddSink(sink).For("бот");
+            log.Info("до подключения");
+            var common = sink.PathFor(Noon);
+
+            sink.SetCharacter("pwclassic136", "Ник:1");
+            log.Info("персонаж");
+
+            Assert.Equal(Path.Combine(directory, "pwclassic136", "2026-10-01 Ник_1.log"), sink.PathFor(Noon));
+            Assert.Single(File.ReadAllLines(common));
+            Assert.Single(File.ReadAllLines(sink.PathFor(Noon)));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public void FileCanBeReadWhileBotWrites()
     {
