@@ -33,6 +33,13 @@
           </Style>
         </CheckBox.Style>
       </CheckBox>
+      <!-- Общее у всех действий -->
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Выполнять не чаще, с" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding SelectedAction.MinIntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Шаг выполняется не чаще раза в столько секунд (от начала прошлого раза); раньше — пропускается, как будто условия не выполнены. 0 — без ограничения" />
+        <Grid />
+      </DockPanel>
       <TextBlock Text="Условия" Margin="0,6,0,2" />
       <TextBlock Text="Шаг выполняется, когда выполнены все условия. Двойной щелчок по условию — его настройки, Delete — удалить."
                  TextWrapping="Wrap" Style="{StaticResource Muted}" FontSize="11" Margin="0,0,0,4" />

@@ -12,7 +12,7 @@ public sealed class ClickerRow(int number, ClickerStep step) : ObservableObject
 
     public string Number { get; } = $"{number}.";
 
-    public string What => Step.Action.Describe();
+    public string What => Step.Action.DescribeWithInterval();
 
     public string When => Step.DescribeConditions();
 

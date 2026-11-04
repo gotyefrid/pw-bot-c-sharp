@@ -93,6 +93,8 @@ public sealed class ClickerPanel : ObservableObject
         {
             if (Selected is not { } row || value is null || value == row.Step.Action.Kind || ClickerKinds.Actions.Create(value) is not { } action)
                 return;
+            // «Не чаще» — общее у всех действий: при смене вида остаётся
+            action.MinIntervalSeconds = row.Step.Action.MinIntervalSeconds;
             row.Step.Action = action;
             PartReplaced(row);
         }

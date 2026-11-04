@@ -43,6 +43,7 @@ public sealed class ClickerStep
             {
                 s!.Action ??= new PressKeyAction();
                 s.Action.Normalize();
+                s.Action.MinIntervalSeconds = System.Math.Min(ClickerAction.MaxIntervalSeconds, System.Math.Max(0, s.Action.MinIntervalSeconds));
                 s.Conditions = ConditionList.Clean(s.Conditions);
                 return s;
             })

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Brain;
@@ -20,6 +22,10 @@ public interface IClickerProgress
 /// Шаг, который выполнить нечего (клавиша не выбрана), пропускается; таких все — стоп. Шаги поменяли на ходу — идущий
 /// доделывается по-старому, дальше — новые.
 /// </para>
+/// <para>
+/// «Не чаще раза в N с» (<see cref="ClickerAction.MinIntervalSeconds"/>): пока не прошло N с от начала прошлого выполнения
+/// шага — он пропускается, как с невыполненным условием. Время — по снимкам.
+/// </para>
 /// </summary>
 public sealed class ClickerBehavior : IBehavior, IClickerProgress
 {
@@ -27,6 +33,8 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
     private IClickerRun? _run;
     private string _running = "";
     private bool _started;
+    // Когда действие шага начиналось в последний раз (для «не чаще раза в N с»)
+    private readonly Dictionary<ClickerAction, DateTime> _lastStarts = [];
 
     public string Name => "кликер";
     public string? Status { get; private set; }
@@ -61,7 +69,7 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
                 started++;
 
                 var step = steps[_index];
-                if (step.Action.Problem is not null || step.Check(c) is not { } why)
+                if (step.Action.Problem is not null || TooSoon(step.Action, c.World.Time) || step.Check(c) is not { } why)
                 {
                     Next(steps.Count);
                     continue;
@@ -69,6 +77,7 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
 
                 _running = $"шаг {_index + 1}: {step.Action.Describe()}";
                 c.Log.Debug($"Кликер: {_running} — {why}");
+                _lastStarts[step.Action] = c.World.Time;
                 _run = step.Action.Start(c);
             }
 
@@ -92,6 +101,10 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
         return last is not null;
     }
 
+    private bool TooSoon(ClickerAction action, DateTime now)
+        => action.MinIntervalSeconds > 0 && _lastStarts.TryGetValue(action, out var last)
+           && now - last < TimeSpan.FromSeconds(action.MinIntervalSeconds);
+
     private void Next(int count) => _index = _index + 1 >= count ? 0 : _index + 1;
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome) => _run?.OnOutcome(c, outcome);
@@ -101,6 +114,7 @@ public sealed class ClickerBehavior : IBehavior, IClickerProgress
         _index = 0;
         _run = null;
         _started = false;
+        _lastStarts.Clear();
         Status = null;
     }
 }

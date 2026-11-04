@@ -22,6 +22,21 @@ namespace Notes.Core.Clicker;
 /// </summary>
 public abstract class ClickerAction : SettingsPart
 {
+    public const int MaxIntervalSeconds = 24 * 3600;
+
+    private int _minIntervalSeconds;
+
+    /// <summary>
+    /// Выполнять не чаще раза в столько секунд (общее у всех действий): раньше — шаг пропускается, как с невыполненным условием.
+    /// Считается от начала прошлого выполнения. 0 — без ограничения; в файл пишется, только когда задано.
+    /// </summary>
+    [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public int MinIntervalSeconds { get => _minIntervalSeconds; set => Set(ref _minIntervalSeconds, value); }
+
+    /// <summary>Для таблицы шагов: само действие и, если задано, «не чаще раза в N с».</summary>
+    public string DescribeWithInterval()
+        => MinIntervalSeconds > 0 ? $"{Describe()}, не чаще раза в {MinIntervalSeconds} с" : Describe();
+
     /// <summary>Вид в файле настроек («PressKey») — по нему файл читается обратно (<see cref="ClickerJson"/>).</summary>
     [JsonProperty(Order = -2)]
     public string Kind => KindId();
