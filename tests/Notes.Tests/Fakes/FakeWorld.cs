@@ -194,6 +194,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcReturnTask(int taskId) => Record($"return-task {taskId}");
     public CallResult NpcAcceptTask(int taskId) => Record($"accept-task {taskId}");
     public CallResult NpcLearnSkill(int skillId) => Record($"learn-skill {skillId}");
+    public CallResult TeamAssist(uint wid) => Record($"assist {wid:X}");
 
     /// <summary>Ответы проверки «можно взять» по номеру задания; нет в словаре — 0 (можно).</summary>
     public Dictionary<int, uint> QuestCheckAnswers { get; } = [];

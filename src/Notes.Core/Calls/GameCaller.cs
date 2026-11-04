@@ -213,6 +213,21 @@ public sealed class GameCaller : IGameActions
             ? CallResult.Refused($"вывести питомца: неверная ячейка {slot} или яйцо {eggTid}")
             : NpcService(_profile.Packets.HatchPetService, "вывести питомца (packets.hatchPetService)", (uint)slot, eggTid);
 
+    /// <summary>«Ассист»: взять в цель то же, что в цели у члена пати <paramref name="wid"/>, как пунктом его меню. Цель ставит ответ сервера.</summary>
+    public CallResult TeamAssist(uint wid)
+    {
+        var command = _profile.Packets.TeamAssistCommand;
+        if (command == 0)
+            return CallResult.Refused("ассист: команда не найдена (packets.teamAssistCommand)");
+        if (wid == 0)
+            return CallResult.Refused("ассист: нет члена пати");
+
+        var packet = new byte[6];
+        Buffer.BlockCopy(BitConverter.GetBytes((ushort)command), 0, packet, 0, 2);
+        Buffer.BlockCopy(BitConverter.GetBytes(wid), 0, packet, 2, 4);
+        return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
+    }
+
     private CallResult NpcService(uint service, string what, params uint[] data)
     {
         if (service == 0)

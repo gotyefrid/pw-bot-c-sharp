@@ -102,6 +102,9 @@ public sealed class PacketFormats
 
     /// <summary>Номер услуги NPC «вывести питомца из яйца» (данные — ячейка яйца в сумке и его tid). 0 — не найдено.</summary>
     public uint HatchPetService { get; init; }
+
+    /// <summary>Команда «ассист»: взять в цель то же, что в цели у члена пати (данные — его WID). 0 — не найдено.</summary>
+    public uint TeamAssistCommand { get; init; }
 }
 
 /// <summary>

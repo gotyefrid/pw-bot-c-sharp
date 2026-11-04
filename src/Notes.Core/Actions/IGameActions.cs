@@ -79,6 +79,9 @@ public interface IGameActions
     /// <summary>Выучить скилл у NPC, с которым начат разговор.</summary>
     CallResult NpcLearnSkill(int skillId);
 
+    /// <summary>«Ассист»: взять в цель то же, что у члена пати.</summary>
+    CallResult TeamAssist(uint wid);
+
     /// <summary>Вывести питомца из яйца (ячейка сумки) у NPC, с которым начат разговор.</summary>
     CallResult NpcHatchPet(int slot, uint eggTid);
 

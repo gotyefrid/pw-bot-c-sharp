@@ -525,7 +525,9 @@
     "sellEntrySize": "0x10",
     // Услуги NPC «выучить скилл» и «вывести питомца»: как найти, см. comeback146.jsonc. Не проверено
     "learnSkillService": "",
-    "hatchPetService": ""
+    "hatchPetService": "",
+    // «Ассист» члена пати: как найти, см. comeback146.jsonc. Не проверено
+    "teamAssistCommand": ""
   },
 
   // Окна игры: [game + 0x10] — менеджеры окон; [+0x8] — окна в мире (CECGameUIMan), если [+0xC] = 1; в них [+0x734] — окно
