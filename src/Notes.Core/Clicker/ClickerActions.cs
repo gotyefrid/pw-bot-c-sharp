@@ -358,6 +358,9 @@ public abstract class PartyMemberAction : ClickerAction
     /// <summary>Действие игры с найденным в пати.</summary>
     protected abstract GameAction ActionWith(PartyMember mate);
 
+    /// <summary>Почему делать нечего (в игру ничего не шлём, шаг сделан); null — делать.</summary>
+    protected virtual string? Pointless(WorldState world, PartyMember mate) => null;
+
     public override IClickerRun Start(BrainContext c)
     {
         if (Problem is { } problem)
@@ -370,7 +373,9 @@ public abstract class PartyMemberAction : ClickerAction
             return ClickerRuns.Failed($"«{Member}» — это сам персонаж");
 
         var mate = world.Party.Members.FirstOrDefault(m => m.Wid != world.Host.Wid && string.Equals(m.Name, Member, StringComparison.OrdinalIgnoreCase));
-        return mate is null ? ClickerRuns.Failed($"«{Member}» нет в пати") : ClickerRuns.Send(ActionWith(mate), doneWhenSent: true);
+        if (mate is null)
+            return ClickerRuns.Failed($"«{Member}» нет в пати");
+        return Pointless(world, mate) is { } why ? ClickerRuns.Skipped(why) : ClickerRuns.Send(ActionWith(mate), doneWhenSent: true);
     }
 
     public override void Normalize() => Member = Member.Trim();
@@ -378,11 +383,24 @@ public abstract class PartyMemberAction : ClickerAction
 
 /// <summary>
 /// «Ассист» члена пати (как пунктом меню в окне пати): взять в цель то же, что в цели у него (<see cref="TeamAssistAction"/>).
-/// Итог не ждём: у него может не быть цели или та же, что у нас.
+/// Итог не ждём. Он рядом и видно, что цели у него нет или она та же, что у нас, — в игру ничего не шлём (иначе игра молчит, и
+/// действие ждёт подтверждения впустую); его не видно — шлём.
 /// </summary>
 public sealed class AssistAction : PartyMemberAction
 {
+    // Цель игрока рядом: «никого» — все биты; 0 — неизвестно
+    private const uint NoTarget = uint.MaxValue;
+
     protected override string What() => $"ассист {Member}";
+
+    protected override string? Pointless(WorldState world, PartyMember mate)
+    {
+        if (world.Players.FirstOrDefault(p => p.Wid == mate.Wid) is not { TargetWid: not 0 } seen)
+            return null;
+        if (seen.TargetWid == NoTarget)
+            return $"у {mate.Name} нет цели";
+        return seen.TargetWid == world.Host.TargetWid ? $"у {mate.Name} та же цель" : null;
+    }
 
     protected override GameAction ActionWith(PartyMember mate) => new TeamAssistAction(mate.Wid, mate.Name);
 }

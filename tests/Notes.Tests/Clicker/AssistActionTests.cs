@@ -32,6 +32,49 @@ public class AssistActionTests
     }
 
     [Fact]
+    public void MateWithoutTargetSendsNothing()
+    {
+        InParty();
+        MateSeen(target: uint.MaxValue);
+
+        Assert.Equal(["key F1"], WithKey(new AssistAction { Member = "Друг" }));
+        Assert.Contains(_script.Log, e => e.Message.Contains("у Друг нет цели"));
+        Assert.DoesNotContain(_script.Log, e => e.Level >= LogLevel.Warning);
+    }
+
+    [Fact]
+    public void MateWithSameTargetSendsNothing()
+    {
+        InParty();
+        MateSeen(target: 0x80001);
+        _script.World.TargetWid = 0x80001;
+
+        Assert.Equal(["key F1"], WithKey(new AssistAction { Member = "Друг" }));
+        Assert.Contains(_script.Log, e => e.Message.Contains("у Друг та же цель"));
+    }
+
+    [Fact]
+    public void MateTargetUnknownIsAssisted()
+    {
+        InParty();
+        MateSeen(target: 0);
+
+        Assert.Equal([$"assist {MateWid:X}, key F1"], WithKey(new AssistAction { Member = "Друг" }));
+    }
+
+    private void MateSeen(uint target)
+        => _script.World.Players.Add(new PlayerInfo(1, MateWid, "Друг", new Position(3, 0, 0)) { TargetWid = target });
+
+    [Fact]
+    public void MateWithOtherTargetIsAssisted()
+    {
+        InParty();
+        MateSeen(target: 0x80001);
+
+        Assert.Equal([$"assist {MateWid:X}, key F1"], WithKey(new AssistAction { Member = "Друг" }));
+    }
+
+    [Fact]
     public void NotInPartyIsReported()
     {
         Assert.Equal(["key F1"], WithKey(new AssistAction { Member = "Друг" }));
