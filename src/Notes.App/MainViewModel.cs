@@ -37,7 +37,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private readonly ProfileCatalog _catalog = ProfileCatalog.Default();
 
-    // Общие настройки (settings.json: подключение + шаблон) и текущего персонажа (characters\Ник.json)
+    // Общие настройки (settings.json: подключение + шаблон) и текущего персонажа (characters\<сервер>\Ник.json)
     private readonly SettingsService _config;
     private readonly ILogger _log;
     private readonly ILogger _connectionLog;
@@ -787,13 +787,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Подключились к другому персонажу — берём его настройки (новый персонаж — копия общих) и отдаём боту.</summary>
     private void SwitchCharacter(string nick)
     {
-        if (nick == _config.Character)
+        if (nick == _config.Character && _profile.Id == _config.Server)
             return;
 
         // Правки прошлого персонажа — в его файл, пока он ещё текущий
         FlushSettings();
         Settings.Edited -= SettingsEdited;
-        _config.SwitchTo(nick);
+        _config.SwitchTo(_profile.Id, nick);
         Settings.Edited += SettingsEdited;
 
         _connection?.Bot?.UpdateSettings(Settings);

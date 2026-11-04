@@ -23,7 +23,7 @@ namespace Notes.Probe;
 internal static class RepairCommand
 {
     public const string Usage =
-        "  repair --settings <characters\\Ник.json> [--back]  ремонт, как у бота: долететь до NPC из настроек, заговорить, «Починить всё»;\n"
+        "  repair --settings <characters\\сервер\\Ник.json> [--back]  ремонт, как у бота: долететь до NPC из настроек, заговорить, «Починить всё»;\n"
         + "                        --back — потом лететь обратно в центр фарма";
 
     private static readonly TimeSpan Period = TimeSpan.FromMilliseconds(250);
@@ -34,7 +34,7 @@ internal static class RepairCommand
         var at = Array.IndexOf(args, "--settings");
         if (at < 0 || at + 1 >= args.Length || !File.Exists(args[at + 1]))
         {
-            Console.WriteLine("❌ нужно: repair --settings <путь к characters\\Ник.json бота>");
+            Console.WriteLine("❌ нужно: repair --settings <путь к characters\\сервер\\Ник.json бота>");
             return 1;
         }
 
