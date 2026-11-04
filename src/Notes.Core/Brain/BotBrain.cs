@@ -125,6 +125,7 @@ public sealed class BotBrain : IBotRunner
             _context.StartPosition = null;
             _context.StopReason = null;
             _context.Fight.Abort();
+            _context.Fight.LootSpots.Clear();
             foreach (var behavior in _behaviors)
                 behavior.Reset();
             SetStatus("ожидание");

@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using Notes.Core.World;
 
 namespace Notes.Core.Brain;
@@ -9,6 +11,14 @@ public enum FightPhase
     Fighting,
     /// <summary>Моб убит — подбираем лут вокруг места смерти.</summary>
     Looting,
+}
+
+/// <summary>Место смерти моба, где лут ещё не собран, и сколько подборов на нём уже потрачено.</summary>
+public sealed class LootSpot(Position at, DateTime time)
+{
+    public Position At { get; } = at;
+    public DateTime Time { get; } = time;
+    public int Picks { get; set; }
 }
 
 /// <summary>
@@ -28,8 +38,11 @@ public sealed class FightState
 
     public string MobName { get; private set; } = "";
 
-    /// <summary>Где умер моб — вокруг этого места ищем лут.</summary>
-    public Position KilledAt { get; private set; }
+    /// <summary>
+    /// Места смертей, где лут ещё не собран: последнее — только что убитый. Бой добавляет при каждом убийстве (и когда сразу
+    /// напали и лут брошен), лут чистит, когда кончился сам.
+    /// </summary>
+    public List<LootSpot> LootSpots { get; } = [];
 
     /// <summary>Номер убийства: новый — новый лут (счёт попыток с нуля).</summary>
     public int Kill { get; private set; }
@@ -41,10 +54,10 @@ public sealed class FightState
         MobName = mob.Name;
     }
 
-    public void Killed(Position at)
+    public void Killed(Position at, DateTime now)
     {
         Phase = FightPhase.Looting;
-        KilledAt = at;
+        LootSpots.Add(new LootSpot(at, now));
         Kill++;
     }
 

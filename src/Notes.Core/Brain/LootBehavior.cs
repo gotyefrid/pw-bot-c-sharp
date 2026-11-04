@@ -12,12 +12,12 @@ namespace Notes.Core.Brain;
 /// Лут после убийства (<see cref="FightPhase.Looting"/>): до N раз подобрать ближайший разрешённый фильтром предмет в радиусе
 /// от места смерти «как мышкой» (клиент сам подводит), пауза 0.7–1.3 с. Кончился — ход отдаём (первым решает копание ресурсов).
 /// Стоит сразу за боем: моб умер — лут начинается на том же снимке; напали во время лута — бой бросает лут сам.
-/// Лут, до которого не дошло (во время лута напал следующий моб — бой бросил лут), не теряется: места смертей запоминаем в фоне,
-/// не занимая ход (<see cref="Observe"/>), и на луте смотрим радиус вокруг каждого ещё не облутанного места — у каждого свои
-/// N подборов. Список мест очищается, только когда лут кончился сам (всё подобрано, подборы или время вышли), а не брошен боем;
-/// место, не облутанное дольше <see cref="RememberFor"/>, тоже забываем.
+/// Лут, до которого не дошло (во время лута напал следующий моб — бой бросил лут), не теряется: бой копит места смертей
+/// (<see cref="FightState.LootSpots"/>), и на луте смотрим радиус вокруг каждого — у каждого свои N подборов. Список мест
+/// очищается, только когда лут кончился сам (всё подобрано, подборы или время вышли), а не брошен боем; место, не облутанное
+/// дольше <see cref="RememberFor"/>, тоже забываем.
 /// </summary>
-public sealed class LootBehavior : IBehavior, IWatchingBehavior
+public sealed class LootBehavior : IBehavior
 {
     /// <summary>Место смерти, где лут не собран, дольше этого не ждёт.</summary>
     public static readonly TimeSpan RememberFor = TimeSpan.FromMinutes(10);
@@ -32,19 +32,9 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
     private const int ItemFailuresToPause = 2;
     private static readonly TimeSpan ItemPause = TimeSpan.FromMinutes(3);
 
-    // Место смерти, где лут ещё не собран, и сколько подборов на нём уже потрачено
-    private sealed class Spot(Position at, DateTime time)
-    {
-        public Position At { get; } = at;
-        public DateTime Time { get; } = time;
-        public int Picks { get; set; }
-    }
-
     private readonly HashSet<uint> _skipped = [];
-    private readonly List<Spot> _spots = [];
-    private int _seenKill;
     // На какое место списан подбор, что идёт сейчас (отменили — вернуть)
-    private Spot? _picking;
+    private LootSpot? _picking;
 
     private int _kill;
     private DateTime _started;
@@ -63,7 +53,7 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
             return false;
 
         // Новое убийство — лут с нуля (лут ищем вокруг мест смерти, а к ним не ходим: подбор сам подводит)
-        Remember(c);
+        var spots = fight.LootSpots;
         if (_kill != fight.Kill)
         {
             _kill = fight.Kill;
@@ -71,6 +61,7 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
             _attempts = 0;
             _skipped.Clear();
             _nextPickup = DateTime.MinValue;
+            spots.RemoveAll(p => c.Now - p.Time > RememberFor);
         }
 
         var w = c.World;
@@ -78,7 +69,7 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
         if (!loot.Enabled)
             return Done(c);
 
-        var limit = TimeSpan.FromTicks(LootLimit.Ticks * Math.Max(1, _spots.Count));
+        var limit = TimeSpan.FromTicks(LootLimit.Ticks * Math.Max(1, spots.Count));
         if (c.Now - _started > (limit < MaxLootLimit ? limit : MaxLootLimit))
         {
             c.Log.Warning("Лут занял слишком долго — дальше");
@@ -94,10 +85,10 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
         }
 
         // У каждого места свои подборы: вышли везде — лут кончен
-        var open = _spots.Where(s => s.Picks < loot.Attempts).ToList();
+        var open = spots.Where(s => s.Picks < loot.Attempts).ToList();
         if (open.Count == 0)
         {
-            c.Log.Info($"Лут: {_attempts} из {loot.Attempts * _spots.Count}{Places()}");
+            c.Log.Info($"Лут: {_attempts} из {loot.Attempts * spots.Count}{Places(spots)}");
             return Done(c);
         }
 
@@ -125,14 +116,14 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
             }
 
             if (_attempts > 0)
-                c.Log.Info($"Лут: подобрано {_attempts}, больше нечего{Places()}");
+                c.Log.Info($"Лут: подобрано {_attempts}, больше нечего{Places(spots)}");
             return Done(c);
         }
 
         _attempts++;
         _picking = SpotOf(open, item, loot.Radius)!;
         _picking.Picks++;
-        Status = $"лут: {item.Name} ({_attempts}/{loot.Attempts * _spots.Count})";
+        Status = $"лут: {item.Name} ({_attempts}/{loot.Attempts * spots.Count})";
         return c.Submit(new PickupAction(item));
     }
 
@@ -167,37 +158,19 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
         _nextPickup = c.Now + TimeSpan.FromMilliseconds(c.Random.Next(700, 1300));
     }
 
-    /// <summary>В фоне, на каждом снимке: запомнить место нового убийства, забыть старые. Ход не занимает: бой идёт дальше.</summary>
-    public void Observe(BrainContext c, IBehavior? acted)
-    {
-        Remember(c);
-        _spots.RemoveAll(s => c.Now - s.Time > RememberFor);
-        if (!c.Settings.Loot.Enabled)
-            _spots.Clear();
-    }
-
-    // Убийство, которого ещё не видели, — его место в список (и из Tick: лут начинается на том же снимке, что и смерть)
-    private void Remember(BrainContext c)
-    {
-        if (c.Fight.Kill == _seenKill)
-            return;
-        _seenKill = c.Fight.Kill;
-        _spots.Add(new Spot(c.Fight.KilledAt, c.Now));
-    }
-
     // Ближайшее к предмету место, в радиус которого он попадает; null — ни в одно
-    private static Spot? SpotOf(IEnumerable<Spot> spots, GroundItem item, float radius)
+    private static LootSpot? SpotOf(IEnumerable<LootSpot> spots, GroundItem item, float radius)
         => spots.Where(s => item.Position.HorizontalDistanceTo(s.At) <= radius)
             .OrderBy(s => item.Position.HorizontalDistanceTo(s.At))
             .FirstOrDefault();
 
-    private string Places() => _spots.Count > 1 ? $" (мест смерти: {_spots.Count})" : "";
+    private static string Places(List<LootSpot> spots) => spots.Count > 1 ? $" (мест смерти: {spots.Count})" : "";
 
     // Лут кончился сам (не брошен боем): места облутаны — забываем. Цель не выбираем сразу — ход отдаём, на следующем шаге
     // первым решает копание ресурсов
     private bool Done(BrainContext c)
     {
-        _spots.Clear();
+        c.Fight.LootSpots.Clear();
         _picking = null;
         c.Fight.Abort();
         return false;
@@ -206,7 +179,6 @@ public sealed class LootBehavior : IBehavior, IWatchingBehavior
     public void Reset()
     {
         _skipped.Clear();
-        _spots.Clear();
         _picking = null;
         _itemFailures = 0;
         _onlyMoneyUntil = DateTime.MinValue;

@@ -158,7 +158,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         if (mob is { IsDead: true })
         {
             c.Log.Info($"{name} убит за {elapsed.TotalSeconds:0} с");
-            fight.Killed(mob.Position);
+            fight.Killed(mob.Position, c.Now);
             return AttackedWhileLooting(c);
         }
 
