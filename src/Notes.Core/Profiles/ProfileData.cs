@@ -308,6 +308,8 @@ public sealed class NpcOffsets
     public uint Level { get; init; }
     /// <summary>Только у выбранной цели.</summary>
     public uint Hp { get; init; }
+    /// <summary>Максимум HP — тоже только у выбранной цели. 0 — не найдено (процент HP цели не знаем).</summary>
+    public uint MaxHp { get; init; }
     /// <summary>
     /// Расстояние до персонажа, которое держит сама игра (float, по горизонтали). Бот его не читает — считает из координат;
     /// нужно только Probe selftest: сверка «расчёт = память» ловит ошибку в смещении позиции на новом клиенте. 0 — не найдено.

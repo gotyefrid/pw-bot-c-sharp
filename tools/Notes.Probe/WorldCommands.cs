@@ -580,7 +580,7 @@ internal static class WorldCommands
         foreach (var n in npcs)
         {
             var aggro = n.TargetWid == 0 ? "" : n.TargetWid == h.Wid ? "  ⚔ бьёт перса" : w.Pet?.ActiveWid == n.TargetWid ? "  ⚔ бьёт пета" : $"  → 0x{n.TargetWid:X8}";
-            s.AppendLine($"       {n.Offset.Horizontal,6:0.0} м {Height(n.Offset),6}  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}{(n.Tid > 0 ? $" tid {n.Tid}" : "")}  {State(n)}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{(n.Habitat is not null && n.Kind == NpcKind.Mob ? $"  [{Habitats.Text(n.Habitat)}]" : "")}{aggro}");
+            s.AppendLine($"       {n.Offset.Horizontal,6:0.0} м {Height(n.Offset),6}  {Kind(n.Kind),-4} {(n.Level > 0 ? $"ур.{n.Level,3}" : "      ")} {n.Name,-24} 0x{n.Wid:X8}{(n.Tid > 0 ? $" tid {n.Tid}" : "")}  {State(n)}{(n.MaxHp > 0 ? $"  HP {n.Hp}/{n.MaxHp}" : n.Hp > 0 ? $"  HP {n.Hp}" : "")}{(n.Aggressive == true ? $"  агр {n.AggroRadius} м" : "")}{(n.Habitat is not null && n.Kind == NpcKind.Mob ? $"  [{Habitats.Text(n.Habitat)}]" : "")}{aggro}");
         }
 
         if (full)

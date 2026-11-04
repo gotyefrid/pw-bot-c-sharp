@@ -326,6 +326,9 @@ public sealed record NpcInfo(
     /// <summary>Уровень; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Level { get; init; }
 
+    /// <summary>Максимум HP — как и HP, только у выбранной цели; 0 — неизвестен.</summary>
+    public int MaxHp { get; init; }
+
     /// <summary>Вид (tid), как в заданиях и файлах клиента; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Tid { get; init; }
 
