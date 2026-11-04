@@ -373,6 +373,17 @@ public sealed class AssistAction : PartyMemberAction
 }
 
 /// <summary>
+/// «Следовать» за членом пати (как пунктом меню в окне пати): дальше персонажа ведёт сама игра (<see cref="FollowAction"/>).
+/// Шаг по кругу шлёт команду заново — как часто, задают паузой или условиями.
+/// </summary>
+public sealed class FollowMemberAction : PartyMemberAction
+{
+    protected override string What() => $"следовать за {Member}";
+
+    protected override GameAction ActionWith(PartyMember mate) => new FollowAction(mate.Wid, mate.Name);
+}
+
+/// <summary>
 /// Действие вида, которого эта версия бота не знает (файл от более новой копии): не выполняется, но и не теряется — в файл
 /// пишется как было (<see cref="Fields"/>).
 /// </summary>

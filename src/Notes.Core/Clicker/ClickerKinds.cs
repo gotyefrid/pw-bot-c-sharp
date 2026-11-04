@@ -50,7 +50,8 @@ public static class ClickerKinds
         .Add<TakeTargetAction>("TakeTarget", "Взять цель")
         .Add<FeedPetAction>("FeedPet", "Кормить пета")
         .Add<UseSkillAction>("UseSkill", "Использовать скилл")
-        .Add<AssistAction>("Assist", "Ассист члена пати");
+        .Add<AssistAction>("Assist", "Ассист члена пати")
+        .Add<FollowMemberAction>("Follow", "Следовать за членом пати");
 
     public static ClickerKindList<ClickerCondition> Conditions { get; } = new ClickerKindList<ClickerCondition>()
         .Add<AlwaysCondition>("Always", "Всегда")

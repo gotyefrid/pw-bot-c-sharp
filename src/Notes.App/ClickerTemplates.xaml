@@ -65,6 +65,15 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:FollowMemberAction}">
+    <DockPanel Margin="0,0,0,6">
+      <TextBlock Text="Член пати" VerticalAlignment="Center" />
+      <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
+                        OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
+                        ToolTip="Как «Следовать» в меню члена пати: дальше персонажа ведёт сама игра. В списке — пати сейчас, кроме самого персонажа. Его нет в пати — шаг не выйдет. Шаг по кругу шлёт команду заново — как часто, задайте паузой или условием" />
+      <Grid />
+    </DockPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:UnknownAction}">
     <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,6"
                Text="Это действие из другой версии бота — здесь оно не выполняется, но и не теряется." />
