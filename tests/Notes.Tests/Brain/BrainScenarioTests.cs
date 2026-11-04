@@ -1223,14 +1223,15 @@ public class BrainScenarioTests
         return mob;
     }
 
-    // Моб убит, лут упал — и сразу напал второй: лут бросаем, бьём напавшего (лут первого — запомнен в фоне)
-    private NpcInfo AttackedRightAfterKill()
+    // Моб убит, лут упал — и сразу напал второй: лут бросаем, бьём напавшего (место смерти первого — запомнено в фоне)
+    private NpcInfo AttackedRightAfterKill(int attempts = 1)
     {
         _settings.Target.PreferAggressive = true;
-        _settings.Loot.Attempts = 1;
+        _settings.Loot.Attempts = attempts;
         KillMobForLoot();
         _world.TargetWid = 0;
         _world.Ground.Add(new GroundItem(0, 0xC0000001, 8094, GroundItemKind.Item, new Position(3, 0, 0), "Мягкий мех"));
+        _world.Ground.Add(new GroundItem(0, 0xC0000003, 8090, GroundItemKind.Item, new Position(2, 0, 1), "Клык"));
         var second = _world.AddMob(0x80000002, "Волк", 15, targetWid: FakeWorld.HostWid, hp: 100);
         Tick();
         Assert.Contains("select 80000002", _actions.Calls);
@@ -1252,37 +1253,58 @@ public class BrainScenarioTests
         }
     }
 
+    // Второй убит в 15 м, с него упала монета; подбираем
+    private void SecondKilled(NpcInfo second)
+    {
+        _world.Replace(second, m => m with { State = NpcState.Dead, TargetWid = 0 });
+        _world.TargetWid = 0;
+        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета"));
+        LootFor(10);
+    }
+
+    private int Picked(uint id) => _actions.Calls.Count(c => c == $"pickup-approach {id:X}");
+
     [Fact]
     public void LootLeftWhenAttackedIsPickedAfterNextKill()
     {
         var second = AttackedRightAfterKill();
 
-        // Второй убит в 15 м — лут и с него, и запомненный с первого (попыток — на 1 больше настройки)
-        _world.Replace(second, m => m with { State = NpcState.Dead, TargetWid = 0 });
-        _world.TargetWid = 0;
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета"));
-        LootFor(8);
+        SecondKilled(second);
 
-        Assert.Contains("pickup-approach C0000001", _actions.Calls);
-        Assert.Contains("pickup-approach C0000002", _actions.Calls);
-        Assert.Contains(_log, e => e.Message.Contains("из них 1 с прошлых боёв"));
+        // Лут и со второго, и с места смерти первого — у каждого места свой 1 подбор
+        Assert.Equal(1, Picked(0xC0000002));
+        Assert.Equal(1, Picked(0xC0000001) + Picked(0xC0000003));
+        Assert.Contains(_log, e => e.Message.Contains("мест смерти: 2"));
     }
 
     [Fact]
-    public void RememberedLootGoneFromGroundIsForgotten()
+    public void EveryDeathPlaceGetsItsOwnAttempts()
     {
+        var second = AttackedRightAfterKill(attempts: 3);
+
+        SecondKilled(second);
+
+        Assert.Equal(1, Picked(0xC0000001));
+        Assert.Equal(1, Picked(0xC0000002));
+        Assert.Equal(1, Picked(0xC0000003));
+    }
+
+    [Fact]
+    public void DeathPlacesAreForgottenOnlyAfterLootFinished()
+    {
+        // Лут кончился сам — места облутаны: то, что осталось у первого (подборы вышли), на следующем луте не ищем
         var second = AttackedRightAfterKill();
-        // Пока дрались, мех подобрал кто-то другой
-        _world.Ground.RemoveAll(i => i.Id == 0xC0000001);
-        Tick();
+        SecondKilled(second);
+        var picks = _actions.Calls.Count(c => c.StartsWith("pickup-approach"));
 
-        _world.Replace(second, m => m with { State = NpcState.Dead, TargetWid = 0 });
+        var third = _world.AddMob(0x80000004, "Волк", 20, hp: 100);
+        _world.TargetWid = third.Wid;
+        Tick(1);
+        _world.Replace(third, m => m with { State = NpcState.Dead });
         _world.TargetWid = 0;
-        _world.Ground.Add(new GroundItem(0, 0xC0000002, 3044, GroundItemKind.Money, new Position(15, 0, 0), "Монета"));
-        LootFor(8);
+        LootFor(5);
 
-        Assert.Equal(1, _actions.Calls.Count(c => c.StartsWith("pickup-approach")));
-        Assert.DoesNotContain(_log, e => e.Message.Contains("с прошлых боёв"));
+        Assert.Equal(picks, _actions.Calls.Count(c => c.StartsWith("pickup-approach")));
     }
 
     [Fact]
