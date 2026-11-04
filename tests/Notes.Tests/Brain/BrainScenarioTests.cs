@@ -1618,7 +1618,7 @@ public class BrainScenarioTests
             Tick();
 
         Assert.Single(_actions.Calls, c => c.StartsWith("gather"));
-        Assert.Contains(_log, e => e.Message.StartsWith("Железная руда: тест") && e.Message.EndsWith("не копаю 3 мин"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Железная руда: тест") && e.Message.EndsWith("не копаю 1 мин"));
     }
 
     [Fact]

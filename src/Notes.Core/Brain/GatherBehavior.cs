@@ -21,7 +21,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     private readonly IGatherScope _scope = scope ?? FarmAreaScope.Instance;
 
     // Не вышло (не дошли, копание не началось, сбили N раз подряд) — ресурс бросаем на время
-    private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(1);
     private const int KnockdownsToSkip = 3;
 
     private readonly Dictionary<uint, DateTime> _skipped = [];
