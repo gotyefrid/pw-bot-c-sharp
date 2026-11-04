@@ -64,6 +64,7 @@ public static class ClickerKinds
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет")
         .Add<ResourceNearbyCondition>("ResourceNearby", "Рядом можно копать")
         .Add<TargetNearbyCondition>("TargetNearby", "Рядом можно взять цель")
+        .Add<PartyMemberFarCondition>("PartyMemberFar", "Пати: член пати дальше, м")
         .Add<AllCondition>("All", "Все условия (И)")
         .Add<AnyCondition>("Any", "Любое из условий (ИЛИ)");
 }

@@ -171,6 +171,23 @@
                      ToolTip="Кто рядом: мобы, NPC, чужие петы. Ничего не выбрано — кто угодно из них (свой пет — нет). Тот, кто уже в цели, тоже в счёт" />
     </StackPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PartyMemberFarCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Член пати" VerticalAlignment="Center" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
+                          OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
+                          ToolTip="В списке — пати сейчас, кроме самого персонажа. Его нет в пати — не выполнено" />
+        <Grid />
+      </DockPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Дальше от персонажа, м" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Выполнено, когда член пати дальше этого от персонажа (напрямую, с высотой). Где он, игра не знает (очень далеко) — тоже выполнено. «Ближе» — это же условие с «НЕ»" />
+        <Grid />
+      </DockPanel>
+    </StackPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:AllCondition}">
     <StackPanel>
       <TextBlock Text="Выполнено, когда выполнены все условия списка." TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,4" />

@@ -324,6 +324,60 @@ public sealed class TargetNearbyCondition : ClickerCondition
 }
 
 /// <summary>
+/// Член пати <see cref="Member"/> (по нику) дальше <see cref="Radius"/> от персонажа — напрямую, с высотой (лидер может лететь).
+/// Координаты участника игра знает не всегда (далеко) — тогда считаем, что далеко. Персонаж не в пати, выбранного в ней нет или
+/// выбран сам персонаж — не выполнено.
+/// </summary>
+public sealed class PartyMemberFarCondition : ClickerCondition
+{
+    private string _member = "";
+    private int _radius = 15;
+
+    /// <summary>Ник члена пати; пусто — не выбран.</summary>
+    public string Member
+    {
+        get => _member;
+        set
+        {
+            Set(ref _member, value ?? "");
+            Changed(nameof(MemberShown));
+        }
+    }
+
+    /// <summary>Для окна: что показать в поле, когда выбранного сейчас нет в пати (или ещё не выбран).</summary>
+    [JsonIgnore]
+    public string MemberShown => Member.Length == 0 ? "Выберите члена пати" : Member;
+
+    /// <summary>Дальше этого от персонажа, м.</summary>
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
+
+    protected override string What()
+        => Member.Length == 0 ? "член пати не выбран" : $"{Member} дальше {Radius} м";
+
+    protected override string? Holds(BrainContext c)
+    {
+        var world = c.World;
+        if (Member.Length == 0 || string.Equals(world.Host.Name, Member, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var mate = world.Party.Members.FirstOrDefault(m => m.Wid != world.Host.Wid && string.Equals(m.Name, Member, StringComparison.OrdinalIgnoreCase));
+        if (mate is null)
+            return null;
+        if (mate.Position is not { } position)
+            return $"где «{mate.Name}» — игра не знает, считаем далеко";
+
+        var offset = Offset.Between(world.Host.Position, position);
+        return offset.Direct > Radius ? $"«{mate.Name}» в {offset} — дальше {Radius} м" : null;
+    }
+
+    public override void Normalize()
+    {
+        Member = Member.Trim();
+        Radius = GroundItemChoice.CleanRadius(Radius);
+    }
+}
+
+/// <summary>
 /// Группа условий — внутри свой список (<see cref="Conditions"/>), в нём могут быть и группы. Правка внутри — правка группы
 /// (окно и сохранение узнают о ней).
 /// </summary>
