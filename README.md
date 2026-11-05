@@ -72,7 +72,7 @@ msbuild PwBot.sln -restore -p:Configuration=Release
 src/Notes.Core      логика: память, профили серверов, снимок мира, вызовы игры, мозг, настройки
 src/Notes.App       окно (WPF)
 tools/Notes.Probe   консоль для проверок на живом клиенте: снимок мира, сигнатуры, поиск полей
-tools/Notes.Patcher отдельный патчер client.exe: быстрый полёт (кладётся рядом с игрой, делает бэкап .orig)
+tools/Notes.Patcher отдельный патчер client.exe (окно WPF): быстрый полёт (кладётся рядом с игрой, делает бэкап .orig)
 tests/Notes.Tests   тесты без игры: подделки мира и снимок памяти живого клиента
 ```
 

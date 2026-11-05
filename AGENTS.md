@@ -19,8 +19,8 @@ MSB3027 при сборке — `Notes.exe` занят запущенным бо
 ## Где что
 
 `src/Notes.Core` — вся логика, `src/Notes.App` — окно (MVVM, части окна в `Panels/`), `tools/Notes.Probe` — проверки на
-живом клиенте, `tools/Notes.Patcher` — отдельный патчер `client.exe` (быстрый полёт; ищет места по форме кода, делает
-`.orig`), `tests/Notes.Tests` — xUnit без игры (`Fakes/FakeWorld`, снимок памяти в `Fixtures/`).
+живом клиенте, `tools/Notes.Patcher` — отдельный патчер `client.exe` с окном WPF (быстрый полёт; ищет места по форме
+кода, делает `.orig`), `tests/Notes.Tests` — xUnit без игры (`Fakes/FakeWorld`, снимок памяти в `Fixtures/`).
 
 В Core: `Profiles` — профили серверов (`*.jsonc`, вшиты в сборку), `Memory` — чтение процесса, `World` — снимок мира,
 `Calls` — вызовы функций игры (в главном потоке игры через оконную процедуру), `Actions` — действие с проверкой
