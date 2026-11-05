@@ -40,16 +40,16 @@ public class ChatNotifierTests
     public void PrivateMessageIsSentWithSender()
     {
         Start();
-        Say(4, "^00FFFFНезаметно шепчет: привет", Friend);
+        Say(4, "^00FFFFТихоня шепчет: привет", Friend);
         Observe();
 
-        Assert.Equal(["Перс — лично от Незаметно:\nпривет"], _sent);
+        Assert.Equal(["Перс — лично от Тихоня:\nпривет"], _sent);
     }
 
     [Fact]
     public void HistoryBeforeStartIsNotSent()
     {
-        Say(4, "Плюмбум шепчет: давно было", Friend);
+        Say(4, "Странник шепчет: давно было", Friend);
         Observe();
         Start();
         Observe();
@@ -61,7 +61,7 @@ public class ChatNotifierTests
     public void NothingIsSentWhileBotIsStopped()
     {
         Observe();
-        Say(4, "Плюмбум шепчет: привет", Friend);
+        Say(4, "Странник шепчет: привет", Friend);
         Observe();
 
         Assert.Empty(_sent);
@@ -72,7 +72,7 @@ public class ChatNotifierTests
     {
         _settings.Group = true;
         Start();
-        Say(4, "Вы говорите с Плюмбум: написал в личку", uint.MaxValue);
+        Say(4, "Вы говорите с Странник: написал в личку", uint.MaxValue);
         Say(2, "Перс: иду", FakeWorld.HostWid);
         Say(8, "Тест сейчас вне игры.", uint.MaxValue);
         Observe();
@@ -86,13 +86,13 @@ public class ChatNotifierTests
         _settings.Private = false;
         _settings.Common = true;
         Start();
-        Say(4, "Плюмбум шепчет: привет", Friend);
-        Say(2, "Плюмбум: в группу", Friend);
-        Say(0, "Плюмбум: в общий", Friend);
-        Say(1, "Плюмбум: в мир", Friend);
+        Say(4, "Странник шепчет: привет", Friend);
+        Say(2, "Странник: в группу", Friend);
+        Say(0, "Странник: в общий", Friend);
+        Say(1, "Странник: в мир", Friend);
         Observe();
 
-        Assert.Equal(["Перс — общий от Плюмбум:\nв общий"], _sent);
+        Assert.Equal(["Перс — общий от Странник:\nв общий"], _sent);
     }
 
     [Fact]
@@ -100,7 +100,7 @@ public class ChatNotifierTests
     {
         _settings.Clan = true;
         Start();
-        Say(3, "Плюмбум: в клан", Friend);
+        Say(3, "Странник: в клан", Friend);
         Observe();
 
         Assert.Empty(_sent);
@@ -111,7 +111,7 @@ public class ChatNotifierTests
     {
         _settings.ChatId = "";
         Start();
-        Say(4, "Плюмбум шепчет: привет", Friend);
+        Say(4, "Странник шепчет: привет", Friend);
         Observe();
 
         Assert.Empty(_sent);
@@ -122,20 +122,20 @@ public class ChatNotifierTests
     {
         Start();
         _notifier.Active = false;
-        Say(4, "Плюмбум шепчет: пока стоял", Friend);
+        Say(4, "Странник шепчет: пока стоял", Friend);
         Observe();
         Start();
-        Say(4, "Плюмбум шепчет: после старта", Friend);
+        Say(4, "Странник шепчет: после старта", Friend);
         Observe();
 
-        Assert.Equal(["Перс — лично от Плюмбум:\nпосле старта"], _sent);
+        Assert.Equal(["Перс — лично от Странник:\nпосле старта"], _sent);
     }
 
     [Fact]
     public void EachMessageIsSentOnce()
     {
         Start();
-        Say(4, "Плюмбум шепчет: привет", Friend);
+        Say(4, "Странник шепчет: привет", Friend);
         Observe();
         Observe();
 
@@ -143,8 +143,8 @@ public class ChatNotifierTests
     }
 
     [Theory]
-    [InlineData("Незаметно шепчет: привет", "Незаметно", "привет")]
-    [InlineData("Плюмбум: написал в группу: важно", "Плюмбум", "написал в группу: важно")]
+    [InlineData("Тихоня шепчет: привет", "Тихоня", "привет")]
+    [InlineData("Странник: написал в группу: важно", "Странник", "написал в группу: важно")]
     [InlineData("без двоеточия", null, "без двоеточия")]
     public void SenderIsTakenFromText(string plain, string? from, string text)
     {

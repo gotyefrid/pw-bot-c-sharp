@@ -45,7 +45,7 @@ public sealed class DamageLog(ILogger log)
         _aiming = aiming;
     }
 
-    // Ник и что о нём известно: «ГДЗшница (жрец, ур. 6, HP 150/150)»
+    // Ник и что о нём известно: «Лучница (жрец, ур. 6, HP 150/150)»
     private static string Describe(PlayerInfo p)
     {
         var known = new List<string>();

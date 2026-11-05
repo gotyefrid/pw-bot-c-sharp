@@ -317,7 +317,7 @@ public class WorldReaderTests
         var p = comeback.Player;
         _memory.WriteUInt32(player + p.Wid, 0x0019_0AF0);
         _memory.WriteUInt32(player + p.NamePointer, name);
-        _memory.WriteBytes(name, System.Text.Encoding.Unicode.GetBytes("ГДЗшница "));
+        _memory.WriteBytes(name, System.Text.Encoding.Unicode.GetBytes("Лучница "));
         _memory.WriteBytes(player + p.Location, System.BitConverter.GetBytes(6f));
         _memory.WriteBytes(player + p.Location + 8, System.BitConverter.GetBytes(8f));
         _memory.WriteUInt32(player + p.Level, 6);
@@ -329,7 +329,7 @@ public class WorldReaderTests
         var read = Reader(comeback).Read();
 
         var only = Assert.Single(read.Players);
-        Assert.Equal((0x0019_0AF0u, "ГДЗшница", 6, 150, 150, 0x0130_ECE0u), (only.Wid, only.Name, only.Level, only.Hp, only.MaxHp, only.TargetWid));
+        Assert.Equal((0x0019_0AF0u, "Лучница", 6, 150, 150, 0x0130_ECE0u), (only.Wid, only.Name, only.Level, only.Hp, only.MaxHp, only.TargetWid));
         Assert.Equal(10, only.Offset.Direct, 3);
         Assert.Equal("жрец", PlayerClasses.Name(only.Class));
         Assert.Equal(1, read.PlayerCountInGame);

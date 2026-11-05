@@ -94,16 +94,16 @@ public class DamageLogTests
     [Fact]
     public void PlayerHitsCarryTheNick()
     {
-        _world.Players.Add(new PlayerInfo(1, 0x0019_0AF0, "ГДЗшница", new Position(10, 0, 0)));
+        _world.Players.Add(new PlayerInfo(1, 0x0019_0AF0, "Лучница", new Position(10, 0, 0)));
 
-        Assert.Equal(["игрок ГДЗшница → вы: 20 (Оперенная стрела), HP 380/500"],
+        Assert.Equal(["игрок Лучница → вы: 20 (Оперенная стрела), HP 380/500"],
             Lines(Hit(0x0019_0AF0, FakeWorld.HostWid, 20, "Оперенная стрела")));
     }
 
     [Fact]
     public void PlayerAimingAtUsIsWrittenOncePerTarget()
     {
-        var archer = new PlayerInfo(1, 0x0019_0AF0, "ГДЗшница", new Position(10, 0, 0)) { Level = 6, Hp = 150, MaxHp = 150, Class = 7 };
+        var archer = new PlayerInfo(1, 0x0019_0AF0, "Лучница", new Position(10, 0, 0)) { Level = 6, Hp = 150, MaxHp = 150, Class = 7 };
         _world.Players.Add(archer with { TargetWid = FakeWorld.HostWid });
         _world.Players.Add(new PlayerInfo(2, 0x0012_3456, "Торговец", new Position(20, 0, 0)) { TargetWid = 0x0011_1111 });
         Lines();
@@ -114,8 +114,8 @@ public class DamageLogTests
         Lines();
         _world.Players[0] = archer with { TargetWid = FakeWorld.HostWid, Level = 0, MaxHp = 0 };
 
-        Assert.Equal(["Игрок ГДЗшница (жрец, ур. 6, HP 150/150) держит в цели вас, 10 м", "Игрок ГДЗшница (жрец, ур. 6, HP 150/150) держит в цели пета, 10 м",
-            "Игрок ГДЗшница (жрец) держит в цели вас, 10 м"], Lines());
+        Assert.Equal(["Игрок Лучница (жрец, ур. 6, HP 150/150) держит в цели вас, 10 м", "Игрок Лучница (жрец, ур. 6, HP 150/150) держит в цели пета, 10 м",
+            "Игрок Лучница (жрец) держит в цели вас, 10 м"], Lines());
     }
 
     [Fact]

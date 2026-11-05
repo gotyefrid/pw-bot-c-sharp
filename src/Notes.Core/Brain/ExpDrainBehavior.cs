@@ -132,11 +132,9 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         var settings = c.Settings.ExpDrain;
         if (_off is not null || c.Now < _retryAt || host.Level < settings.MaxLevel)
             return false;
+        // Уровень смертью не снять, а фармить дальше — качаться ещё выше: останавливаемся, пусть игрок решит
         if (host.Level > settings.MaxLevel)
-        {
-            c.Say("drain-late", $"Слив опыта: уже {host.Level} ур., выше {settings.MaxLevel} — поздно, уровень смертью не снять", LogLevel.Warning, 3600);
-            return false;
-        }
+            return c.RequestStop($"перс {host.Level} ур. — выше уровня слива опыта ({settings.MaxLevel}), уровень смертью не снять");
         if (host.ExpPercent is not { } percent || percent < settings.StartPercent)
             return false;
         if (settings.TargetPercent >= settings.StartPercent)

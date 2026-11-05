@@ -289,7 +289,7 @@ public class ExpDrainBehaviorTests
     }
 
     [Fact]
-    public void LevelAboveMaxOnlyWarns()
+    public void LevelAboveMaxStopsBot()
     {
         _world.Level = 11;
         AddGroundMobs();
@@ -297,7 +297,8 @@ public class ExpDrainBehaviorTests
         TickFor(1);
 
         Assert.Empty(_actions.Calls);
-        Assert.True(Logged("поздно"));
+        Assert.Contains("выше уровня слива опыта (10)", _stop);
+        Assert.True(Logged("бот остановлен"));
     }
 
     [Fact]
