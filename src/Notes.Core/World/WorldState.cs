@@ -295,6 +295,22 @@ public enum NpcPose
     Falling,
 }
 
+/// <summary>Почему считаем, что моб напал на перса или пета (<see cref="NpcInfo.Aggro"/>).</summary>
+public enum AggroSign
+{
+    None,
+    /// <summary>Его цель — мы: общее поле цели моба.</summary>
+    Target,
+    /// <summary>Бьёт или кастует в нас — цель действия.</summary>
+    Action,
+    /// <summary>Его удар по нам в списке ударов игры.</summary>
+    Hit,
+    /// <summary>Подтверждения сейчас нет, держим прежнее: стоит между ударами, цель мигнула.</summary>
+    Held,
+    /// <summary>Догадка: боевая стойка или бег, а вокруг никого, кроме нас.</summary>
+    Pose,
+}
+
 public static class NpcStates
 {
     /// <summary>Номер действия модели в памяти игры → <see cref="NpcPose"/>.</summary>
@@ -398,6 +414,12 @@ public sealed record NpcInfo(
 
     /// <summary>Что делает модель: стоит, идёт, бежит, боевая стойка; <see cref="NpcPose.Unknown"/> — поле не найдено для сервера.</summary>
     public NpcPose Pose { get; init; }
+
+    /// <summary>
+    /// Почему цель (<see cref="TargetWid"/>) — перс или пет: подтверждено или догадка; ставит <see cref="NpcTracker"/>.
+    /// <see cref="AggroSign.None"/> — цель не наша или моб не толковали (снимок прямо из читателя).
+    /// </summary>
+    public AggroSign Aggro { get; init; }
 
     /// <summary>Боевая стойка или бег: моб в бою (с кем — не говорит).</summary>
     public bool InCombatPose => !IsDead && Pose is NpcPose.Fighting or NpcPose.Running;
