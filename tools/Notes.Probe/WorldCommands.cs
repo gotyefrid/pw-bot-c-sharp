@@ -113,11 +113,12 @@ internal static class WorldCommands
                 var line = attacks
                     ? $"напал → {(mob.TargetWid == w.Host.Wid ? "на меня" : "на пета")} ({AggroText(mob)})"
                     : mob.InCombatPose ? "в бою, но не с нами" : "не нападает";
-                line += $" · {mob.State.Text() ?? "?"} · {PoseText(mob.Pose)} · {mob.Offset.Horizontal:0.0} м";
+                line += $" · {mob.State.Text() ?? "?"} · {PoseText(mob.Pose)}";
+                // Расстояние меняется каждый снимок, пока моб бежит, — в сравнение не входит, только в строку
                 if (shown.TryGetValue(mob.Wid, out var was) && was == line)
                     continue;
 
-                Console.WriteLine($"{stamp}  {mob.Name} 0x{mob.Wid:X8}  {line}");
+                Console.WriteLine($"{stamp}  {mob.Name} 0x{mob.Wid:X8}  {line} · {mob.Offset.Horizontal:0.0} м");
                 if (attacks || mob.InCombatPose)
                     shown[mob.Wid] = line;
                 else
