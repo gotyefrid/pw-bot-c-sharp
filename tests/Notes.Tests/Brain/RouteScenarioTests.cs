@@ -345,15 +345,14 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void StandingDangerousMobWithOurTargetDoesNotScareBot()
+    public void DangerousMobWithStuckTargetDoesNotScareBot()
     {
-        // Опасный стоит с нашей целью (застряла после старого отагра) — не напал: уходить незачем, копаем
+        // Опасный с застрявшей после старого отагра целью: NpcTracker её снимает (цель 0) — не напал, уходить незачем, копаем
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         AddResource(0xC0000001, 30, "Железная руда");
-        var tiger = AddAggressive(0x80000001, "Тигр", 60, level: 30);
-        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Standing });
+        AddAggressive(0x80000001, "Тигр", 60, level: 30);
 
         Tick();
         Tick();

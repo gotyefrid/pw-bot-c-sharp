@@ -7,9 +7,9 @@ using Notes.Core.World;
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Подробный лог нападений: моб взял в цель перса или пета и действует (<see cref="NpcInfo.Engaging"/>) — кто, на кого, что
-/// делает, где; что решил бой и почему (решение даёт хозяин); через сколько бой перешёл на него; когда отстал. Пишет только
-/// перемены, не каждый снимок. Моб, с которым бой начали сами, — не нападение: он просто отвечает, о нём молчим.
+/// Подробный лог нападений: моб напал на перса или пета (<see cref="WorldState.AttacksUs"/>) — кто, на кого, почему так
+/// решили, что делает, где; что решил бой и почему (решение даёт хозяин); через сколько бой перешёл на него; когда отстал.
+/// Пишет только перемены, не каждый снимок. Моб, с которым бой начали сами, — не нападение: он просто отвечает, о нём молчим.
 /// </summary>
 public sealed class AttackWatch
 {
@@ -28,18 +28,15 @@ public sealed class AttackWatch
     public void Observe(BrainContext c, Func<NpcInfo, string> verdict)
     {
         var w = c.World;
-        foreach (var mob in w.Mobs.Where(w.TargetsUs))
+        foreach (var mob in w.Mobs.Where(w.AttacksUs))
         {
             if (!_attackers.TryGetValue(mob.Wid, out var attacker))
             {
-                if (!mob.Engaging)
-                    continue;
-
                 var ours = InFight(c, mob) || w.Host.TargetWid == mob.Wid;
                 attacker = new Attacker(mob.Name, c.Now, ours);
                 _attackers[mob.Wid] = attacker;
                 if (!ours)
-                    c.Log.Info($"Нападение: {mob.Name} 0x{mob.Wid:X8} {Whom(w, mob)}, {Doing(mob)}, {mob.Offset}{(mob.Hp > 0 ? $", HP {mob.Hp}" : "")}; {Now(c)}");
+                    c.Log.Info($"Нападение: {mob.Name} 0x{mob.Wid:X8} {Whom(w, mob)} ({Why(mob)}), {Doing(mob)}, {mob.Offset}{(mob.Hp > 0 ? $", HP {mob.Hp}" : "")}; {Now(c)}");
             }
 
             if (attacker.FirstHit is null && HitsUs(w, mob))
@@ -55,7 +52,7 @@ public sealed class AttackWatch
             c.Log.Info($"{mob.Name}: {now}{(InFight(c, mob) ? Reaction(c, attacker) : "")}");
         }
 
-        foreach (var gone in _attackers.Where(a => w.Npcs.FirstOrDefault(n => n.Wid == a.Key) is not { } n || !w.TargetsUs(n)).ToList())
+        foreach (var gone in _attackers.Where(a => w.Npcs.FirstOrDefault(n => n.Wid == a.Key) is not { } n || !w.AttacksUs(n)).ToList())
         {
             _attackers.Remove(gone.Key);
             if (!gone.Value.Ours)
@@ -70,6 +67,16 @@ public sealed class AttackWatch
     private static string Whom(WorldState w, NpcInfo mob) => mob.TargetWid == w.Host.Wid ? "→ на меня" : "→ на пета";
 
     private static string Doing(NpcInfo mob) => mob.Approaching ? "идёт к нам" : mob.State.Text() ?? "?";
+
+    // Почему решили, что напал (NpcTracker); снимок без толкования — по цели
+    private static string Why(NpcInfo mob) => mob.Aggro switch
+    {
+        AggroSign.Action => "его удар или каст в нас",
+        AggroSign.Hit => "его удар по нам в списке ударов",
+        AggroSign.Held => "бил нас раньше",
+        AggroSign.Pose => mob.Pose == NpcPose.Running ? "бежит, а вокруг никого" : "боевая стойка, а вокруг никого",
+        _ => "его цель — мы",
+    };
 
     private static string Now(BrainContext c) => c.Fight.Phase switch
     {
@@ -95,6 +102,7 @@ public sealed class AttackWatch
         null => "пропал из виду",
         { IsDead: true } => "убит",
         { Returning: true } => "бросил нас, уходит на место",
-        _ => "отстал: сменил цель",
+        { TargetWid: not (0 or uint.MaxValue) } => "отстал: сменил цель",
+        _ => $"отстал: не бьёт нас {NpcTracker.HoldFor.TotalSeconds:0} с",
     };
 }

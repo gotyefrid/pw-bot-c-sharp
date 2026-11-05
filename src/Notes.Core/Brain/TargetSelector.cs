@@ -25,8 +25,7 @@ public static class TargetSelector
     /// <param name="petTakesAggro">«Снимать мобов с меня петом» (и пет призван).</param>
     public static Threat ThreatOf(NpcInfo mob, WorldState w, bool hitsUsFirst, bool petTakesAggro)
     {
-        // Стоит с нашей целью и не бьёт — не напал
-        if (!w.TargetsUs(mob) || !mob.Engaging)
+        if (!w.AttacksUs(mob))
             return Threat.None;
         if (petTakesAggro && mob.TargetWid == w.Host.Wid)
             return Threat.HitsMe;
@@ -48,12 +47,12 @@ public static class TargetSelector
     }
 
     /// <summary>
-    /// Живой моб, который напал на перса или пета: цель — мы, и он бьёт, кастует или идёт к нам (<see cref="NpcInfo.Engaging"/>).
-    /// Ближайший из таких (по прямой, с высотой). Белый список для него не важен.
+    /// Живой моб, который напал на перса или пета (<see cref="WorldState.AttacksUs"/>). Ближайший из таких (по прямой, с высотой).
+    /// Белый список для него не важен.
     /// </summary>
     public static NpcInfo? Aggressor(WorldState w)
         => w.Mobs
-            .Where(m => w.TargetsUs(m) && m.Engaging)
+            .Where(w.AttacksUs)
             .OrderBy(m => m.Offset.Direct)
             .FirstOrDefault();
 

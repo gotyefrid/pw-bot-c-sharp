@@ -236,7 +236,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     private DrainStep WaitDeath(BrainContext c)
     {
         var w = c.World;
-        var hitting = w.Mobs.Count(m => w.TargetsUs(m) && m.TargetWid == w.Host.Wid);
+        var hitting = w.Mobs.Count(m => w.AttacksUs(m) && m.TargetWid == w.Host.Wid);
         Status = $"жду смерти, бьют {hitting}";
         _calmSince = hitting > 0 ? null : _calmSince ?? c.Now;
         var calm = c.Now - _calmSince >= CalmWait;

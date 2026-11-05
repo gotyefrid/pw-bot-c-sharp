@@ -61,7 +61,7 @@ public class AttackWatchTests
         _world.AddMob(0x80000002, "Медведь", 12, FakeWorld.HostWid, hp: 900);
         Tick();
 
-        Assert.Equal("Нападение: Медведь 0x80000002 → на меня, бьёт, 12,0 м, HP 900; сейчас бой: Волк", Line("Нападение"));
+        Assert.Equal("Нападение: Медведь 0x80000002 → на меня (его цель — мы), бьёт, 12,0 м, HP 900; сейчас бой: Волк", Line("Нападение"));
         // Волк тоже бьёт меня и ближе
         Assert.Equal("Медведь: сначала добиваю Волк: он ближе", Line("Медведь:"));
     }
@@ -142,12 +142,13 @@ public class AttackWatchTests
     }
 
     [Fact]
-    public void StandingWithOurTargetIsNotLogged()
+    public void StandingWithOurTargetIsAnAttack()
     {
+        // Моб с нашей целью стоит между ударами — всё равно напал (застрявшую после отагра цель снимает NpcTracker)
         _world.AddMob(0x80000002, "Медведь", 5, FakeWorld.HostWid, NpcState.Standing);
         Tick();
 
-        Assert.DoesNotContain(Lines, l => l.Contains("Медведь"));
+        Assert.StartsWith("Нападение: Медведь 0x80000002 → на меня (его цель — мы), стоит", Line("Нападение"));
     }
 
     [Fact]
@@ -164,7 +165,8 @@ public class AttackWatchTests
 
     [Theory]
     [InlineData("dead", "Медведь: убит")]
-    [InlineData("target", "Медведь: отстал: сменил цель")]
+    [InlineData("target", "Медведь: отстал: не бьёт нас 10 с")]
+    [InlineData("other", "Медведь: отстал: сменил цель")]
     [InlineData("returning", "Медведь: бросил нас, уходит на место")]
     [InlineData("gone", "Медведь: пропал из виду")]
     public void LeavingIsLogged(string how, string line)
@@ -180,6 +182,7 @@ public class AttackWatchTests
             {
                 "dead" => m with { State = NpcState.Dead },
                 "target" => m with { TargetWid = 0 },
+                "other" => m with { TargetWid = 0x0004_1234 },
                 _ => m with { Returning = true },
             });
         Tick();

@@ -112,10 +112,12 @@ public sealed record WorldState(
         => Npcs.Where(n => (n.Kind is NpcKind.Mob or NpcKind.Npc or NpcKind.Pet) && !n.IsDead && n.Wid != Pet?.ActiveWid);
 
     /// <summary>
-    /// Моб нацелен на перса или пета: жив, не возвращается (возвращающийся неуязвим и уже не наш, хотя цель может ещё
-    /// показывать нас) и его цель — мы. Напал ли он на самом деле, а не просто стоит с нашей целью, — <see cref="NpcInfo.Engaging"/>.
+    /// Моб напал на перса или пета: жив, не возвращается (возвращающийся неуязвим и уже не наш, хотя цель может ещё
+    /// показывать нас) и его цель — мы. Цель толкует <see cref="NpcTracker"/>: держит её за мобом между ударами, снимает
+    /// застрявшую после отагра, а где у моба нет поля цели — догадывается по боевой стойке (<see cref="NpcInfo.Aggro"/>).
+    /// Что моб делает сейчас (бьёт, стоит, бежит за убегающим), не важно.
     /// </summary>
-    public bool TargetsUs(NpcInfo mob)
+    public bool AttacksUs(NpcInfo mob)
         => !mob.IsDead && !mob.Returning && mob.TargetWid != 0 && (mob.TargetWid == Host.Wid || mob.TargetWid == Pet?.ActiveWid);
 
     /// <summary>
@@ -423,12 +425,6 @@ public sealed record NpcInfo(
 
     /// <summary>Боевая стойка или бег: моб в бою (с кем — не говорит).</summary>
     public bool InCombatPose => !IsDead && Pose is NpcPose.Fighting or NpcPose.Running;
-
-    /// <summary>
-    /// Действует сейчас: бьёт, кастует или идёт к персонажу. Моб, который просто стоит с нашей целью, — не напал: так бывает,
-    /// когда цель застряла (1.3.6 не сбрасывает её после отагра) или он нас не достаёт.
-    /// </summary>
-    public bool Engaging => State is NpcState.Attacking or NpcState.Casting || Approaching;
 
     public bool IsDead => State == NpcState.Dead;
 }

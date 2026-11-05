@@ -55,9 +55,6 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
             return false;
         }
 
-        // Начинаем уходить, только если моб действует (бьёт, кастует, идёт к нам): стоящий с нашей целью — застрявшая цель
-        if (_from is null && !threat.Engaging)
-            return false;
         if (_from is null || _from.Wid != threat.Wid && !_fighting)
         {
             (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb, _fly) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null, null);
@@ -140,7 +137,7 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
         foreach (var back in w.Mobs.Where(m => _shaken.Contains(m.Wid) && (Hits(m) || m.TargetWid != w.Host.Wid && m.TargetWid != petWid)).ToList())
             _shaken.Remove(back.Wid);
         return w.Mobs
-            .Where(m => w.TargetsUs(m) && !_shaken.Contains(m.Wid) && DangerZones.IsDangerous(m, c.Settings.Route))
+            .Where(m => w.AttacksUs(m) && !_shaken.Contains(m.Wid) && DangerZones.IsDangerous(m, c.Settings.Route))
             .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
     }

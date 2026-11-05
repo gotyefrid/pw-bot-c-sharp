@@ -1702,13 +1702,14 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void StandingMobWithOurTargetIsNotAnAggressor()
+    public void MobWithOurTargetIsAnAggressorWhateverItDoes()
     {
-        // Цель — перс, но моб стоит (застрявшая цель или не достаёт) — не напал; пошёл к нам — напал
+        // Цель — перс: напал, стоит ли он между ударами или бежит за убегающим (застрявшую после отагра цель снимает
+        // NpcTracker — до поведения она не доходит)
         var mob = _world.AddMob(0x80000001, "Паук", 3, targetWid: FakeWorld.HostWid, state: NpcState.Standing);
-        Assert.Null(TargetSelector.Aggressor(_world.Snapshot()));
+        Assert.NotNull(TargetSelector.Aggressor(_world.Snapshot()));
 
-        _world.Replace(mob, m => m with { State = NpcState.Moving, Approaching = true });
+        _world.Replace(mob, m => m with { State = NpcState.Moving, Position = new Position(8, 0, 0) });
         Assert.NotNull(TargetSelector.Aggressor(_world.Snapshot()));
     }
 

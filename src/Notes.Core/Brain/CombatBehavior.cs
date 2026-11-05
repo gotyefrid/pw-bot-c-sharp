@@ -390,8 +390,6 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
             return $"ход занят: {acted?.Name}{(acted?.Status is { } status ? " — " + status : "")}";
         if (!defendOnly && !c.Settings.Target.KillMobs)
             return "«Бить мобов» выключено — не отвечаю";
-        if (!mob.Engaging)
-            return "стоит с нашей целью, но не бьёт — не нападение";
 
         var threat = ThreatOf(c, mob);
         if (threat == Threat.None)
