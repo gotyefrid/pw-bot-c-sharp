@@ -278,8 +278,36 @@ public enum NpcState
     Moving = 5,
 }
 
+/// <summary>
+/// Что делает модель моба — номер действия в памяти игры. Боевая стойка и бег у живого моба — только в бою: стойка встаёт
+/// в момент агра, раньше бега, цели и первого удара. С кем бой — не говорит.
+/// </summary>
+public enum NpcPose
+{
+    /// <summary>Поле не найдено для сервера или незнакомое число.</summary>
+    Unknown,
+    Standing,
+    Walking,
+    Running,
+    /// <summary>Боевая стойка.</summary>
+    Fighting,
+    /// <summary>Падает — умирает (у трупа потом бывает и боевая стойка).</summary>
+    Falling,
+}
+
 public static class NpcStates
 {
+    /// <summary>Номер действия модели в памяти игры → <see cref="NpcPose"/>.</summary>
+    public static NpcPose Pose(uint action) => action switch
+    {
+        0 or 1 => NpcPose.Standing,
+        4 => NpcPose.Walking,
+        7 => NpcPose.Running,
+        8 => NpcPose.Falling,
+        13 => NpcPose.Fighting,
+        _ => NpcPose.Unknown,
+    };
+
     /// <summary>Для людей (окно, Probe): «стоит», «бьёт»…; null — незнакомое состояние.</summary>
     public static string? Text(this NpcState state) => state switch
     {
@@ -367,6 +395,12 @@ public sealed record NpcInfo(
 
     /// <summary>Идёт и стал ближе к персонажу, чем на прошлом снимке (ставит <see cref="NpcTracker"/> — нужна история).</summary>
     public bool Approaching { get; init; }
+
+    /// <summary>Что делает модель: стоит, идёт, бежит, боевая стойка; <see cref="NpcPose.Unknown"/> — поле не найдено для сервера.</summary>
+    public NpcPose Pose { get; init; }
+
+    /// <summary>Боевая стойка или бег: моб в бою (с кем — не говорит).</summary>
+    public bool InCombatPose => !IsDead && Pose is NpcPose.Fighting or NpcPose.Running;
 
     /// <summary>
     /// Действует сейчас: бьёт, кастует или идёт к персонажу. Моб, который просто стоит с нашей целью, — не напал: так бывает,

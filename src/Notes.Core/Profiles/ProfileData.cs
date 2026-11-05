@@ -339,6 +339,8 @@ public sealed class NpcOffsets
     /// <summary>Поле флагов, где <see cref="ReturningFlag"/> — «бросил цель, возвращается (неуязвим)»; 0 — не найдено.</summary>
     public uint Returning { get; init; }
     public uint ReturningFlag { get; init; }
+    /// <summary>Что делает модель моба — номер действия (стоит, идёт, бежит, боевая стойка, падает; <see cref="World.NpcPose"/>); 0 — не найдено.</summary>
+    public uint Pose { get; init; }
 }
 
 /// <summary>

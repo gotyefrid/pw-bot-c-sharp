@@ -79,7 +79,7 @@ public sealed class WorldReader
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Tid, n.Type, n.State, n.Level, n.Hp, n.MaxHp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
-            n.Returning);
+            n.Returning, n.Pose);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
         var pl = profile.Player;
@@ -276,9 +276,10 @@ public sealed class WorldReader
         var kind = (NpcKind)b.Int32(n.Type);
 
         // Кто атакован: обычное поле, а если оно пусто (0 или -1) — цель удара у бьющего, цель каста у кастующего,
-        // у пета — на кого он идёт
+        // у пета — на кого он идёт. В начале каста в обычном поле бывает свой WID моба — это тоже «пусто»
+        var wid = b.UInt32(n.Wid);
         var target = Field(b, n.Target);
-        if (target is 0 or uint.MaxValue)
+        if (target is 0 or uint.MaxValue || target == wid)
         {
             target = state switch
             {
@@ -292,7 +293,7 @@ public sealed class WorldReader
         // Только факты из памяти: цель как есть (застрявшую после отагра и «идёт к нам» толкует NpcTracker — нужна история)
         var npc = new NpcInfo(
             b.Address,
-            b.UInt32(n.Wid),
+            wid,
             kind,
             state,
             target,
@@ -304,6 +305,7 @@ public sealed class WorldReader
             MaxHp = (int)Field(b, n.MaxHp),
             Tid = (int)Field(b, n.Tid),
             Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
+            Pose = n.Pose == 0 ? NpcPose.Unknown : NpcStates.Pose(b.UInt32(n.Pose)),
         };
         return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
             ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius, Habitat = m.Habitat }

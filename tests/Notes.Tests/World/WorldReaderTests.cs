@@ -800,6 +800,34 @@ public class WorldReaderTests
         Assert.Equal(expected, npc.TargetWid);
     }
 
+    [Fact]
+    public void OwnWidInTargetFieldMeansEmpty()
+    {
+        // В начале каста в общем поле цели бывает свой WID моба (Comeback 1.3.6, запись 05.11) — цель берём из поля каста
+        var p = new ProfileCatalog().Load("comeback136").Data;
+        var mob = ComebackWorldWithMob(p);
+        _memory.WriteUInt32(mob + p.Npc.State, (uint)NpcState.Casting);
+        _memory.WriteUInt32(mob + p.Npc.Target, 0x80100018); // WID моба из ComebackWorldWithMob
+        _memory.WriteUInt32(mob + p.Npc.CastTarget, 0x0130ECE0);
+
+        Assert.Equal(0x0130ECE0u, Assert.Single(Reader(p).Read().Npcs).TargetWid);
+    }
+
+    [Theory]
+    [InlineData("pwclassic136", 13u, NpcPose.Fighting)]
+    [InlineData("pwclassic136", 7u, NpcPose.Running)]
+    [InlineData("comeback146", 4u, NpcPose.Walking)]
+    [InlineData("comeback136", 1u, NpcPose.Standing)]
+    [InlineData("comeback136", 99u, NpcPose.Unknown)]
+    public void MobPoseIsRead(string server, uint action, NpcPose expected)
+    {
+        var p = new ProfileCatalog().Load(server).Data;
+        var mob = ComebackWorldWithMob(p);
+        _memory.WriteUInt32(mob + p.Npc.Pose, action);
+
+        Assert.Equal(expected, Assert.Single(Reader(p).Read().Npcs).Pose);
+    }
+
     [Theory]
     [InlineData(9, 0x80100020u)] // пет — на кого идёт
     [InlineData(6, 0u)]          // у моба в этом месте другое — не читаем
