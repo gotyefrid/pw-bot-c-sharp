@@ -61,6 +61,102 @@ internal static class WorldCommands
     }
 
     /// <summary>
+    /// Кто из мобов напал на перса или пета — как решает бот (<see cref="NpcTracker"/>, <see cref="WorldState.AttacksUs"/>): раз в
+    /// 250 мс, пишет только перемены — напал (на кого и почему), что делает, анимация, расстояние; и когда перестал. Мобов
+    /// в боевой стойке или беге пишет и тогда, когда бот их нападавшими не считает (например, рядом есть игроки). До Ctrl+C
+    /// или заданного числа секунд — сверить с тем, что видно в игре.
+    /// </summary>
+    public static int Aggro(ServerProfile profile, GameProcess game, string[] args)
+    {
+        var seconds = args.Select(a => int.TryParse(a, out var n) && n != game.Pid ? n : 0).FirstOrDefault(n => n is > 0 and <= 3600);
+        var reader = CreateReader(profile, game, out _);
+        var tracker = new NpcTracker();
+        var stop = false;
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            stop = true;
+        };
+
+        Console.WriteLine($"Кто напал — как видит бот; {(seconds > 0 ? $"{seconds} с" : "до Ctrl+C")}");
+        var shown = new Dictionary<uint, string>();
+        var players = -1;
+        var watch = Stopwatch.StartNew();
+        while (!stop && !game.HasExited && (seconds == 0 || watch.Elapsed.TotalSeconds < seconds))
+        {
+            var started = watch.ElapsedMilliseconds;
+            WorldState w;
+            try
+            {
+                w = tracker.Track(reader.Read());
+            }
+            catch (WorldNotReadyException e)
+            {
+                Console.WriteLine($"{started / 1000.0,6:0.0} с  ⏳ {e.Message}");
+                Thread.Sleep(250);
+                continue;
+            }
+
+            var stamp = $"{started / 1000.0,6:0.0} с";
+            if (w.Players.Count != players)
+            {
+                players = w.Players.Count;
+                Console.WriteLine($"{stamp}  игроков вокруг: {players}{(players == 0 ? " — догадка по стойке включена" : "")}");
+            }
+
+            foreach (var mob in w.Mobs)
+            {
+                var attacks = w.AttacksUs(mob);
+                if (!attacks && !mob.InCombatPose && !shown.ContainsKey(mob.Wid))
+                    continue;
+
+                var line = attacks
+                    ? $"напал → {(mob.TargetWid == w.Host.Wid ? "на меня" : "на пета")} ({AggroText(mob)})"
+                    : mob.InCombatPose ? "в бою, но не с нами" : "не нападает";
+                line += $" · {mob.State.Text() ?? "?"} · {PoseText(mob.Pose)} · {mob.Offset.Horizontal:0.0} м";
+                if (shown.TryGetValue(mob.Wid, out var was) && was == line)
+                    continue;
+
+                Console.WriteLine($"{stamp}  {mob.Name} 0x{mob.Wid:X8}  {line}");
+                if (attacks || mob.InCombatPose)
+                    shown[mob.Wid] = line;
+                else
+                    shown.Remove(mob.Wid);
+            }
+
+            foreach (var gone in shown.Keys.Where(wid => w.Npcs.All(n => n.Wid != wid)).ToList())
+            {
+                Console.WriteLine($"{stamp}  0x{gone:X8}  пропал из виду");
+                shown.Remove(gone);
+            }
+
+            Thread.Sleep((int)Math.Max(0, 250 - (watch.ElapsedMilliseconds - started)));
+        }
+
+        return 0;
+    }
+
+    private static string AggroText(NpcInfo mob) => mob.Aggro switch
+    {
+        AggroSign.Target => "его цель — мы",
+        AggroSign.Action => "удар или каст в нас",
+        AggroSign.Hit => "удар по нам в списке ударов",
+        AggroSign.Held => "бил нас раньше",
+        AggroSign.Pose => "стойка или бег, вокруг никого",
+        _ => "его цель — мы",
+    };
+
+    private static string PoseText(NpcPose pose) => pose switch
+    {
+        NpcPose.Standing => "стоит",
+        NpcPose.Walking => "шаг",
+        NpcPose.Running => "бег",
+        NpcPose.Fighting => "боевая стойка",
+        NpcPose.Falling => "падает",
+        _ => "анимация ?",
+    };
+
+    /// <summary>
     /// Запись для поиска полей по ходу игры («в бою» и т. п.): раз в 250 мс — что видит снимок (перс; мобы и петы: состояние,
     /// цель, место) и сырые байты их структур. Разбирается вне Probe. Формат (little-endian): «BREC», int версия 1, uint WID
     /// перса; дальше снимки: long мс с начала, uint адрес перса, uint цель перса, byte каст, int длина + байты перса,
