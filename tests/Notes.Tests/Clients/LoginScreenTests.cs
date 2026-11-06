@@ -1,3 +1,4 @@
+using System.Linq;
 using Notes.Core.Clients;
 using Notes.Tests.Fakes;
 using Xunit;
@@ -96,6 +97,30 @@ public class LoginScreenTests
         Assert.Null(view.Focus);
         // Окно 718, 343 + поле 144, 65 + половина 143×23
         Assert.Equal((933, 419), view.AccountAt);
+    }
+
+    [Fact]
+    public void Comeback146EmptySlotsAreHiddenButKeepAPlaceholder()
+    {
+        // Как на живом клиенте: один персонаж, на местах 2…8 спрятанная заглушка из шаблона окна
+        const string placeholder = "Имя может содержать не более 10 символов!";
+        var client = new FakeLoginMemory("comeback146");
+        client.Show(false, new FakeDialog("Win_Select", true,
+            [
+                new FakeControl("Txt_Name1", "Жрица"), new FakeControl("Txt_Level1", "Жрец Ур. 6"),
+                .. Enumerable.Range(2, 7).SelectMany(slot => new[]
+                {
+                    new FakeControl($"Txt_Name{slot}", placeholder, Hidden: true),
+                    new FakeControl($"Txt_Level{slot}", "Рыцарь 18 уровня", Hidden: true),
+                }),
+                new FakeControl("Rdo_Char1", Checked: true),
+            ]));
+
+        var view = new LoginScreen(client.Memory, client.Roots, client.Profile).Read();
+
+        Assert.Equal(LoginStage.Select, view.Stage);
+        Assert.Equal("Жрица", Assert.Single(view.Roles).Name);
+        Assert.Equal(1, view.Selected);
     }
 
     [Fact]

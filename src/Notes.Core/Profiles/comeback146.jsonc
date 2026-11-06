@@ -694,6 +694,9 @@
     "controlName": "0x18",
     "controlText": "0xB8",
     "radioChecked": "0x121",
+    // Байт «элемент показан» (AUIObject): проверено 06.11 на выборе с одним персонажем — у Txt_Name1, Txt_Level1, Rdo_Char1 1,
+    // у мест 2…8 и кнопок страниц 0. Пустые места прячутся, но в Txt_Name остаётся заглушка «Имя может содержать…»
+    "controlShown": "0x78",
     "dialogPosition": "0x98",
     "controlPosition": "0x84",
     // Окно MsgBox_LoginFail: проверено 06.11 — выдуманный логин

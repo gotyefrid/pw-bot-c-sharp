@@ -7,8 +7,8 @@ using Notes.Core.Profiles;
 
 namespace Notes.Tests.Fakes;
 
-/// <summary>Элемент поддельного окна: имя, текст и отметка (у переключателя Rdo_Char).</summary>
-public sealed record FakeControl(string Name, string Text = "", bool Checked = false);
+/// <summary>Элемент поддельного окна: имя, текст, отметка (у переключателя Rdo_Char) и спрятан ли он (пустое место на выборе).</summary>
+public sealed record FakeControl(string Name, string Text = "", bool Checked = false, bool Hidden = false);
 
 /// <summary>Поддельное окно клиента: имя, показано ли, элементы и какой из них в фокусе.</summary>
 public sealed record FakeDialog(string Name, bool Shown, IReadOnlyList<FakeControl> Controls, string? Focus = null)
@@ -89,6 +89,8 @@ public sealed class FakeLoginMemory
             Memory.WriteUInt32(item + o.ControlName, Ansi(control.Name));
             Memory.WriteUInt32(item + o.ControlText, Unicode(control.Text));
             Memory.WriteBytes(item + o.RadioChecked, [control.Checked ? (byte)1 : (byte)0]);
+            if (o.ControlShown != 0)
+                Memory.WriteBytes(item + o.ControlShown, [control.Hidden ? (byte)0 : (byte)1]);
             if (o.ControlPosition != 0)
             {
                 Memory.WriteUInt32(item + o.ControlPosition, (uint)ControlAt.X);

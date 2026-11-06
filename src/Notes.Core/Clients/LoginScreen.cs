@@ -211,7 +211,8 @@ public sealed class LoginScreen : ILoginScreen
         var flag = new byte[1];
         for (var slot = 1; slot <= Slots; slot++)
         {
-            if (Text(controls, $"Txt_Name{slot}") is { Length: > 0 } name)
+            // Пустое место прячется, но текст в нём остаётся (у 1.4.6 — заглушка из шаблона окна)
+            if (Text(controls, $"Txt_Name{slot}") is { Length: > 0 } name && Shown(controls, $"Txt_Name{slot}"))
                 roles.Add(new LoginRole(slot, name, Text(controls, $"Txt_Level{slot}") ?? ""));
             if (_offsets.RadioChecked != 0 && controls.FirstOrDefault(c => c.Name == $"Rdo_Char{slot}") is { } radio
                 && _memory.TryRead(radio.Address + _offsets.RadioChecked, flag, 1) && flag[0] != 0)
@@ -219,6 +220,15 @@ public sealed class LoginScreen : ILoginScreen
         }
 
         return (roles, selected);
+    }
+
+    // Элемент показан; смещения нет в профиле — считаем показанным
+    private bool Shown(List<Control> controls, string name)
+    {
+        if (_offsets.ControlShown == 0 || controls.FirstOrDefault(c => c.Name == name) is not { } control)
+            return true;
+        var flag = new byte[1];
+        return !_memory.TryRead(control.Address + _offsets.ControlShown, flag, 1) || flag[0] != 0;
     }
 
     private string? Focus(uint dialog, List<Control> controls)
