@@ -132,6 +132,18 @@ public sealed class LoginScreen : ILoginScreen
         return LoginView.None with { Stage = stage, Message = message, Dialogs = names };
     }
 
+    /// <summary>Адрес показанного окна по имени (Win_Login); 0 — не показано или окна не читаются.</summary>
+    public uint FindDialog(string name)
+    {
+        if (_offsets.Dialogs == 0 || !_roots.TryUiManager(out var manager, out _) || manager == 0)
+            return 0;
+        return ShownDialogs(manager).FirstOrDefault(d => d.Name == name)?.Address ?? 0;
+    }
+
+    /// <summary>Адрес элемента окна по имени (DEFAULT_Txt_Account); 0 — нет.</summary>
+    public uint FindControl(uint dialog, string name)
+        => dialog == 0 ? 0 : Controls(dialog).FirstOrDefault(c => c.Name == name)?.Address ?? 0;
+
     private sealed record Dialog(uint Address, string Name);
 
     private sealed record Control(uint Address, string Name, string Text);

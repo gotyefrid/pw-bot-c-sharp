@@ -6,19 +6,61 @@ using System.Text;
 using Notes.Core.Clients;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
+using Notes.Core.Session;
 
 namespace Notes.Probe;
 
 /// <summary>
 /// Окна клиента: экран входа, выбор персонажа, сообщения, окна мира. Только чтение.
-/// <c>ui [all]</c> — что видит бот (по профилю) и тексты открытых окон; <c>ui scan …</c> — поиск смещений на новом клиенте.
+/// <c>ui [all]</c> — что видит бот (по профилю) и тексты открытых окон; <c>ui scan …</c> — поиск смещений на новом клиенте;
+/// <c>ui call …</c> — кнопки экрана входа функциями игры (вызов в игру — запускает владелец).
 /// </summary>
 internal static class UiCommands
 {
     public static int Run(ServerProfile profile, GameProcess game, string[] args)
     {
         var roots = new GameRoots(game, BasePointerSearch.Find(game, game.MainModuleBase).Address, profile.Data);
+        if (args.Contains("call"))
+            return Call(profile.Data, roots, game, args.SkipWhile(a => a != "call").Skip(1).Where(a => !a.StartsWith("--")).ToArray());
         return args.Contains("scan") ? Scan(profile.Data, roots, game, args) : Show(profile.Data, roots, game, args.Contains("all"));
+    }
+
+    // Кнопка экрана входа вызовом функции игры: text account|password ТЕКСТ, login, role N, play, agree
+    private static int Call(ProfileData profile, GameRoots roots, GameProcess game, string[] what)
+    {
+        var screen = new LoginScreen(game, roots, profile);
+        using var calls = GameCalls.Open(game, roots, profile, CallTransport.Window, out var problem);
+        if (calls is null)
+        {
+            Console.WriteLine($"❌ вызовы не подключились: {problem}");
+            return 3;
+        }
+
+        var caller = calls.Caller;
+        var login = screen.FindDialog(LoginScreen.LoginDialog);
+        var select = screen.FindDialog(LoginScreen.SelectDialog);
+        var result = what.FirstOrDefault() switch
+        {
+            "text" when what.Length >= 2 => caller.SetText(
+                screen.FindControl(login, what[1] == "password" ? LoginScreen.PasswordField : LoginScreen.AccountField),
+                what.Length >= 3 ? what[2] : ""),
+            "login" => caller.LoginConfirm(login),
+            "role" when what.Length >= 2 && int.TryParse(what[1], out var slot) => caller.SelectRole(select, slot),
+            "play" => caller.SelectPlay(select),
+            "agree" => caller.AgreementAccept(screen.FindDialog(LoginScreen.AgreementDialog)),
+            _ => null,
+        };
+        if (result is null)
+        {
+            Console.WriteLine("ui call text account|password [ТЕКСТ] | login | role N | play | agree");
+            return 2;
+        }
+
+        Console.WriteLine(result.Ok ? "✅ вызвано" : $"❌ {result.Details}");
+        System.Threading.Thread.Sleep(500);
+        var view = screen.Read();
+        Console.WriteLine($"Этап: {view.Stage}, логин «{view.Account}», сообщение: {view.Message ?? "нет"}, отмечен: {view.Selected?.ToString() ?? "?"}");
+        return result.Ok ? 0 : 3;
     }
 
     // Что видит бот и все открытые окна с текстами элементов
