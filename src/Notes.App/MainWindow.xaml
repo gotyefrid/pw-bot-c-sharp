@@ -232,162 +232,166 @@
       </Border>
     </DockPanel>
 
-    <!-- Персонаж, цель, пет -->
-    <Border Grid.Row="3" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
+    <!-- Вкладка «Бот»: в невысоком окне прокручивается -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
       <StackPanel>
-        <DockPanel Margin="0,0,0,12">
-          <TextBlock Text="Режим" Style="{StaticResource Muted}" VerticalAlignment="Center" Width="60" />
-          <ComboBox ItemsSource="{Binding Modes}" DisplayMemberPath="Title" SelectedValuePath="Mode" SelectedValue="{Binding Mode}"
-                    ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
-        </DockPanel>
-        <DockPanel Margin="0,0,0,8">
-          <TextBlock DockPanel.Dock="Right" Text="{Binding Status.HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
-          <TextBlock Text="{Binding Status.HostName}" FontSize="15" FontWeight="SemiBold" />
-        </DockPanel>
-
-        <Grid Margin="0,0,0,6">
-          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource HpBrush}" Value="{Binding Status.HpPercent, Mode=OneWay}" />
-          <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.HpText, StringFormat=HP  {0}}" />
-        </Grid>
-        <Grid>
-          <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource MpBrush}" Value="{Binding Status.MpPercent, Mode=OneWay}" />
-          <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.MpText, StringFormat=MP  {0}}" />
-        </Grid>
-
-        <Border Height="1" Background="{StaticResource CardBorder}" Margin="0,12" />
-
-        <Grid>
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*" />
-            <ColumnDefinition Width="14" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-
+        <!-- Персонаж, цель, пет -->
+        <Border Style="{StaticResource Card}">
           <StackPanel>
-            <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
-            <TextBlock Text="{Binding Status.TargetName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
-              <TextBlock.Style>
-                <Style TargetType="TextBlock">
-                  <Style.Triggers>
-                    <DataTrigger Binding="{Binding Status.HasTarget}" Value="False">
-                      <Setter Property="Foreground" Value="{StaticResource MutedText}" />
-                    </DataTrigger>
-                  </Style.Triggers>
-                </Style>
-              </TextBlock.Style>
-            </TextBlock>
-            <TextBlock Text="{Binding Status.TargetDetails}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0" />
-          </StackPanel>
+            <DockPanel Margin="0,0,0,12">
+              <TextBlock Text="Режим" Style="{StaticResource Muted}" VerticalAlignment="Center" Width="60" />
+              <ComboBox ItemsSource="{Binding Modes}" DisplayMemberPath="Title" SelectedValuePath="Mode" SelectedValue="{Binding Mode}"
+                        ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
+            </DockPanel>
+            <DockPanel Margin="0,0,0,8">
+              <TextBlock DockPanel.Dock="Right" Text="{Binding Status.HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Status.HostName}" FontSize="15" FontWeight="SemiBold" />
+            </DockPanel>
 
-          <StackPanel Grid.Column="2">
-            <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
-            <TextBlock Text="{Binding Status.PetTitle}" FontWeight="SemiBold" Margin="0,0,0,4">
-              <TextBlock.Style>
-                <Style TargetType="TextBlock">
-                  <Style.Triggers>
-                    <DataTrigger Binding="{Binding Status.HasPet}" Value="False">
-                      <Setter Property="Foreground" Value="{StaticResource MutedText}" />
-                    </DataTrigger>
-                  </Style.Triggers>
-                </Style>
-              </TextBlock.Style>
-            </TextBlock>
-            <Grid Visibility="{Binding Status.HasPet, Converter={StaticResource Visible}}">
-              <ProgressBar Style="{StaticResource Bar}" Height="16" Foreground="{StaticResource PetBrush}" Value="{Binding Status.PetHpPercent, Mode=OneWay}" />
-              <TextBlock Style="{StaticResource BarText}" FontSize="11" Text="{Binding Status.PetHpText}" />
+            <Grid Margin="0,0,0,6">
+              <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource HpBrush}" Value="{Binding Status.HpPercent, Mode=OneWay}" />
+              <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.HpText, StringFormat=HP  {0}}" />
             </Grid>
-            <TextBlock Text="{Binding Status.PetDetails}" Style="{StaticResource Muted}" Margin="0,3,0,0" />
+            <Grid>
+              <ProgressBar Style="{StaticResource Bar}" Foreground="{StaticResource MpBrush}" Value="{Binding Status.MpPercent, Mode=OneWay}" />
+              <TextBlock Style="{StaticResource BarText}" Text="{Binding Status.MpText, StringFormat=MP  {0}}" />
+            </Grid>
+
+            <Border Height="1" Background="{StaticResource CardBorder}" Margin="0,12" />
+
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="14" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+
+              <StackPanel>
+                <TextBlock Text="ЦЕЛЬ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding Status.TargetName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Status.HasTarget}" Value="False">
+                          <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding Status.TargetDetails}" Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,2,0,0" />
+              </StackPanel>
+
+              <StackPanel Grid.Column="2">
+                <TextBlock Text="ПЕТ" Style="{StaticResource CardTitle}" Margin="0,0,0,4" />
+                <TextBlock Text="{Binding Status.PetTitle}" FontWeight="SemiBold" Margin="0,0,0,4">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Status.HasPet}" Value="False">
+                          <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+                <Grid Visibility="{Binding Status.HasPet, Converter={StaticResource Visible}}">
+                  <ProgressBar Style="{StaticResource Bar}" Height="16" Foreground="{StaticResource PetBrush}" Value="{Binding Status.PetHpPercent, Mode=OneWay}" />
+                  <TextBlock Style="{StaticResource BarText}" FontSize="11" Text="{Binding Status.PetHpText}" />
+                </Grid>
+                <TextBlock Text="{Binding Status.PetDetails}" Style="{StaticResource Muted}" Margin="0,3,0,0" />
+              </StackPanel>
+            </Grid>
           </StackPanel>
-        </Grid>
-      </StackPanel>
-    </Border>
+        </Border>
 
-    <!-- Бот -->
-    <Border Grid.Row="4" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
-      <DockPanel>
-        <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
-          <TextBlock Text="БОТ" Style="{StaticResource CardTitle}" Margin="0,0,0,2" />
-          <TextBlock Text="{Binding BotState}" FontWeight="SemiBold" TextWrapping="Wrap" />
-          <TextBlock Text="{Binding Status.SnapshotInfo}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
-          <TextBlock Text="{Binding Log.LastEvent}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
-                     ToolTip="Последняя запись лога. Весь лог — на вкладке «Лог»" />
-        </StackPanel>
-      </DockPanel>
-    </Border>
-
-    <!-- Статистика персонажа: занимает остаток окна, список добычи прокручивается -->
-    <Border Grid.Row="5" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
-      <DockPanel DataContext="{Binding Stats}">
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
-          <Border DockPanel.Dock="Right" Background="#E6E9F0" CornerRadius="9" Padding="3">
-            <StackPanel Orientation="Horizontal">
-              <RadioButton Style="{StaticResource Segment}" Content="Сессия" GroupName="StatsPeriod"
-                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=0}"
-                           ToolTip="Последний запуск: от «Старт» до «Стоп»" />
-              <RadioButton Style="{StaticResource Segment}" Content="День" GroupName="StatsPeriod"
-                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=1}" ToolTip="С полуночи" />
-              <RadioButton Style="{StaticResource Segment}" Content="Неделя" GroupName="StatsPeriod"
-                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=2}" ToolTip="С понедельника" />
-              <RadioButton Style="{StaticResource Segment}" Content="Месяц" GroupName="StatsPeriod"
-                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=3}" ToolTip="С первого числа" />
+        <!-- Бот -->
+        <Border Style="{StaticResource Card}">
+          <DockPanel>
+            <StackPanel VerticalAlignment="Center" Margin="0,0,10,0">
+              <TextBlock Text="БОТ" Style="{StaticResource CardTitle}" Margin="0,0,0,2" />
+              <TextBlock Text="{Binding BotState}" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Status.SnapshotInfo}" Style="{StaticResource Muted}" FontSize="11" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+              <TextBlock Text="{Binding Log.LastEvent}" Style="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                         ToolTip="Последняя запись лога. Весь лог — на вкладке «Лог»" />
             </StackPanel>
-          </Border>
-          <TextBlock Text="СТАТИСТИКА" Style="{StaticResource CardTitle}" VerticalAlignment="Center" Margin="0" />
-        </DockPanel>
+          </DockPanel>
+        </Border>
 
-        <Grid DockPanel.Dock="Top">
-          <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-          </Grid.ColumnDefinitions>
-          <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-          </Grid.RowDefinitions>
-          <Grid.Resources>
-            <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
-              <Setter Property="Margin" Value="0,0,12,3" />
-            </Style>
-          </Grid.Resources>
+        <!-- Статистика персонажа: список добычи — во всю длину, вкладка прокручивается целиком -->
+        <Border Style="{StaticResource Card}">
+          <DockPanel DataContext="{Binding Stats}">
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+              <Border DockPanel.Dock="Right" Background="#E6E9F0" CornerRadius="9" Padding="3">
+                <StackPanel Orientation="Horizontal">
+                  <RadioButton Style="{StaticResource Segment}" Content="Сессия" GroupName="StatsPeriod"
+                               IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=0}"
+                               ToolTip="Последний запуск: от «Старт» до «Стоп»" />
+                  <RadioButton Style="{StaticResource Segment}" Content="День" GroupName="StatsPeriod"
+                               IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=1}" ToolTip="С полуночи" />
+                  <RadioButton Style="{StaticResource Segment}" Content="Неделя" GroupName="StatsPeriod"
+                               IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=2}" ToolTip="С понедельника" />
+                  <RadioButton Style="{StaticResource Segment}" Content="Месяц" GroupName="StatsPeriod"
+                               IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=3}" ToolTip="С первого числа" />
+                </StackPanel>
+              </Border>
+              <TextBlock Text="СТАТИСТИКА" Style="{StaticResource CardTitle}" VerticalAlignment="Center" Margin="0" />
+            </DockPanel>
 
-          <TextBlock Grid.Row="0" Text="Работал" />
-          <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Worked}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
-          <TextBlock Grid.Row="1" Text="Убито мобов" ToolTip="Мобы, которых били перс или пет" />
-          <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Kills}" Foreground="{StaticResource Text}" />
-          <TextBlock Grid.Row="2" Text="Смертей" ToolTip="Смерти на фарме; смерти при сливе опыта не считаются" />
-          <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Deaths}" Foreground="{StaticResource Text}" />
-          <TextBlock Grid.Row="3" Text="Опыт" />
-          <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Exp}" Foreground="{StaticResource Text}" />
-          <TextBlock Grid.Row="4" Text="Деньги" ToolTip="Подобранные монеты" />
-          <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Money}" Foreground="{StaticResource Text}" />
-          <TextBlock Grid.Row="5" Text="Ремонтов" />
-          <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Repairs}" Foreground="{StaticResource Text}" />
-          <TextBlock Grid.Row="6" Text="Слив опыта" ToolTip="Сколько раз, когда начинался и сколько шёл" />
-          <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Drains}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
-        </Grid>
+            <Grid DockPanel.Dock="Top">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+              </Grid.ColumnDefinitions>
+              <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+              </Grid.RowDefinitions>
+              <Grid.Resources>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+                  <Setter Property="Margin" Value="0,0,12,3" />
+                </Style>
+              </Grid.Resources>
 
-        <TextBlock DockPanel.Dock="Top" Text="ПОДОБРАНО И ВЫКОПАНО" Style="{StaticResource CardTitle}" Margin="0,10,0,4" />
-        <TextBlock DockPanel.Dock="Top" Text="Пока ничего" Style="{StaticResource Muted}"
-                   Visibility="{Binding HasItems, Converter={StaticResource Hidden}}" />
-        <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding HasItems, Converter={StaticResource Visible}}">
-          <ItemsControl ItemsSource="{Binding Items}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate>
-                <DockPanel Margin="0,0,6,2">
-                  <TextBlock DockPanel.Dock="Right" Text="{Binding Count, StringFormat={}{0:#,0}, ConverterCulture=ru-RU}" FontWeight="SemiBold" />
-                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                </DockPanel>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </ScrollViewer>
-      </DockPanel>
-    </Border>
+              <TextBlock Grid.Row="0" Text="Работал" />
+              <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Worked}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+              <TextBlock Grid.Row="1" Text="Убито мобов" ToolTip="Мобы, которых били перс или пет" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Kills}" Foreground="{StaticResource Text}" />
+              <TextBlock Grid.Row="2" Text="Смертей" ToolTip="Смерти на фарме; смерти при сливе опыта не считаются" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Deaths}" Foreground="{StaticResource Text}" />
+              <TextBlock Grid.Row="3" Text="Опыт" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Exp}" Foreground="{StaticResource Text}" />
+              <TextBlock Grid.Row="4" Text="Деньги" ToolTip="Подобранные монеты" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Money}" Foreground="{StaticResource Text}" />
+              <TextBlock Grid.Row="5" Text="Ремонтов" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Repairs}" Foreground="{StaticResource Text}" />
+              <TextBlock Grid.Row="6" Text="Слив опыта" ToolTip="Сколько раз, когда начинался и сколько шёл" />
+              <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Drains}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+            </Grid>
+
+            <TextBlock DockPanel.Dock="Top" Text="ПОДОБРАНО И ВЫКОПАНО" Style="{StaticResource CardTitle}" Margin="0,10,0,4" />
+            <TextBlock DockPanel.Dock="Top" Text="Пока ничего" Style="{StaticResource Muted}"
+                       Visibility="{Binding HasItems, Converter={StaticResource Hidden}}" />
+            <ItemsControl ItemsSource="{Binding Items}" Visibility="{Binding HasItems, Converter={StaticResource Visible}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <DockPanel Margin="0,0,6,2">
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Count, StringFormat={}{0:#,0}, ConverterCulture=ru-RU}" FontWeight="SemiBold" />
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                  </DockPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </DockPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
 
     <!-- Ресы: маршрут обхода (часть 8, этап 2). Блокнот точек ресурсов работает в фоне и в окне не показывается -->
     <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
