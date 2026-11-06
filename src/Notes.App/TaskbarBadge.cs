@@ -108,13 +108,12 @@ public sealed class TaskbarBadge
         // Центрируем по самим буквам, а не по строкам шрифта (у строчных пустое место сверху)
         var ink = text.BuildGeometry(new Point(0, 0));
         var box = ink.Bounds;
-        // Буквы занимают не больше 72 % значка: место под кружок
-        var scale = Math.Min(1, IconSize * 0.72 / Math.Max(box.Width, box.Height));
+        // Широкие буквы («ww») — уменьшить, чтобы влезли с полями (кружок может задеть угол буквы — так и задумано)
+        var scale = Math.Min(1, IconSize * 0.84 / Math.Max(box.Width, box.Height));
         var group = new TransformGroup();
         group.Children.Add(new TranslateTransform(-(box.Left + box.Width / 2), -(box.Top + box.Height / 2)));
         group.Children.Add(new ScaleTransform(scale, scale));
-        // Чуть левее и выше середины — дальше от кружка в правом нижнем углу
-        group.Children.Add(new TranslateTransform(IconSize / 2.0 - 3, IconSize / 2.0 - 3));
+        group.Children.Add(new TranslateTransform(IconSize / 2.0, IconSize / 2.0));
         ink.Transform = group;
         dc.DrawGeometry(Brushes.White, null, ink);
     }
