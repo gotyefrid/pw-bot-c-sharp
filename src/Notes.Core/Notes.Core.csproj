@@ -16,4 +16,9 @@
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Шифрование паролей персонажей средствами Windows (ProtectedData) -->
+    <Reference Include="System.Security" />
+  </ItemGroup>
 </Project>
