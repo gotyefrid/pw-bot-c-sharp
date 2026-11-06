@@ -110,7 +110,7 @@ public sealed class TaskbarBadge
             {
                 dc.DrawImage(picture, new Rect(0, 0, IconSize, IconSize));
                 var ink = LettersGeometry(nick, FontWeights.Black);
-                dc.DrawGeometry(null, new Pen(Brushes.Black, 7) { LineJoin = PenLineJoin.Round }, ink);
+                dc.DrawGeometry(null, new Pen(Brushes.Black, 4) { LineJoin = PenLineJoin.Round }, ink);
                 dc.DrawGeometry(Brushes.White, null, ink);
             }
             var encoder = new PngBitmapEncoder();
