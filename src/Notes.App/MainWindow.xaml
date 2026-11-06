@@ -161,6 +161,43 @@
                       Visibility="{Binding CanChoose, Converter={StaticResource Visible}}" />
               <Button Style="{StaticResource ButtonBase}" Content="Отключить" Command="{Binding DisconnectCommand}"
                       Visibility="{Binding IsConnected, Converter={StaticResource Visible}}" />
+              <!-- Цвет значка бота на панели задач: свой у персонажа -->
+              <Button x:Name="IconColorButton" Style="{StaticResource ButtonBase}" Margin="6,0,0,0" Padding="10,7"
+                      Command="{Binding OpenIconColorsCommand}" ToolTip="{Binding IconColorHint}"
+                      Visibility="{Binding CanPickIconColor, Converter={StaticResource Visible}}">
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="16" Height="16" CornerRadius="4" Background="{Binding IconColor}" VerticalAlignment="Center" />
+                  <TextBlock Text="Цвет значка" Margin="6,0,0,0" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Popup PlacementTarget="{Binding ElementName=IconColorButton}" Placement="Bottom" StaysOpen="False"
+                     AllowsTransparency="True" PopupAnimation="Fade" IsOpen="{Binding IconColorsOpen}">
+                <Border Background="White" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="8" Padding="6"
+                        Margin="0,4,0,8">
+                  <Border.Effect>
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.18" />
+                  </Border.Effect>
+                  <ItemsControl ItemsSource="{Binding IconColors}" Width="180">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <WrapPanel />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Style="{StaticResource FlatButton}" Padding="3" Command="{Binding Pick}" ToolTip="{Binding Name}">
+                          <Border Width="24" Height="24" CornerRadius="5" Background="{Binding Swatch}"
+                                  BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                            <TextBlock Text="А" FontWeight="SemiBold" Foreground="{StaticResource MutedText}" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Visibility="{Binding IsAuto, Converter={StaticResource Visible}}" />
+                          </Border>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </Border>
+              </Popup>
               <Button Style="{StaticResource ButtonBase}" Content="Подключиться всё равно" Margin="6,0,0,0"
                       Command="{Binding ConnectAnywayCommand}"
                       Visibility="{Binding CanConnectAnyway, Converter={StaticResource Visible}}"

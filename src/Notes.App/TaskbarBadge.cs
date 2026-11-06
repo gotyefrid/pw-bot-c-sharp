@@ -12,7 +12,7 @@ using Notes.Core.Clients;
 namespace Notes.App;
 
 /// <summary>
-/// Кнопка окна на панели задач: на значке — две первые буквы ника на своём цвете (у каждого ника свой, между запусками тот же),
+/// Кнопка окна на панели задач: на значке — буквы ника на цвете персонажа (выбран в окне или по нику, см. <see cref="IconPalette"/>),
 /// справа внизу — кружок: зелёный — бот запущен, красный — подключён, но стоит. Не подключены — обычный значок без кружка.
 /// Кружок рисуем на самом значке, а не значком поверх (overlay): тот Windows ставит сама и крупно — с полкнопки.
 /// <para>
@@ -35,7 +35,7 @@ public sealed class TaskbarBadge
     private readonly Window _window;
     private readonly MainViewModel _model;
     private readonly ImageSource? _appIcon;
-    private (string? Nick, Color? Dot) _drawn;
+    private (string? Nick, string Color, Color? Dot) _drawn;
     // Окно игры с нашим значком: какое, с каким ником, сам значок (освободить, когда снимем)
     private (IntPtr Window, string Nick, IntPtr Icon)? _game;
 
@@ -51,7 +51,7 @@ public sealed class TaskbarBadge
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName is nameof(MainViewModel.Nick) or nameof(MainViewModel.IsRunning) or nameof(MainViewModel.IsConnected)
-            or nameof(MainViewModel.Client))
+            or nameof(MainViewModel.Client) or nameof(MainViewModel.IconColor))
         {
             if (_window.Dispatcher.CheckAccess())
                 Update();
@@ -66,10 +66,11 @@ public sealed class TaskbarBadge
         UpdateGame(_model.Client is { } client && nick is not null ? (client, nick) : null);
 
         Color? dot = !_model.IsConnected ? null : _model.IsRunning ? Running : Stopped;
-        if ((nick, dot) == _drawn)
+        var color = _model.IconColor;
+        if ((nick, color, dot) == _drawn)
             return;
-        _drawn = (nick, dot);
-        _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, dot, _appIcon);
+        _drawn = (nick, color, dot);
+        _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, (Color)ColorConverter.ConvertFromString(color), dot, _appIcon);
     }
 
     private void UpdateGame((GameClient Client, string Nick)? want)
@@ -134,23 +135,14 @@ public sealed class TaskbarBadge
         return text.Length <= Letters / 2 ? [text] : [text.Substring(0, Letters / 2), text.Substring(Letters / 2)];
     }
 
-    /// <summary>Цвет ника: тон по хешу имени (свой, а не string.GetHashCode — тот может меняться между версиями .NET).</summary>
-    public static Color Hue(string nick)
-    {
-        uint hash = 2166136261;
-        foreach (var ch in nick)
-            hash = (hash ^ ch) * 16777619;
-        return FromHsl(hash % 360, 0.55, 0.40);
-    }
-
     /// <summary>Значок: буквы ника (ника ещё нет — обычный значок) и кружок справа внизу.</summary>
-    public static ImageSource Icon(string? nick, Color? dot, ImageSource? appIcon)
+    public static ImageSource Icon(string? nick, Color background, Color? dot, ImageSource? appIcon)
     {
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
             if (nick is not null)
-                DrawLetters(dc, nick);
+                DrawLetters(dc, nick, background);
             else if (appIcon is not null)
                 dc.DrawImage(appIcon, new Rect(0, 0, IconSize, IconSize));
 
@@ -166,9 +158,9 @@ public sealed class TaskbarBadge
         return Render(visual, IconSize);
     }
 
-    private static void DrawLetters(DrawingContext dc, string nick)
+    private static void DrawLetters(DrawingContext dc, string nick, Color background)
     {
-        dc.DrawRoundedRectangle(new SolidColorBrush(Hue(nick)), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
+        dc.DrawRoundedRectangle(new SolidColorBrush(background), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
         dc.DrawGeometry(Brushes.White, null, LettersGeometry(nick, FontWeights.Bold));
     }
 
@@ -198,22 +190,5 @@ public sealed class TaskbarBadge
         bitmap.Render(visual);
         bitmap.Freeze();
         return bitmap;
-    }
-
-    private static Color FromHsl(double hue, double saturation, double lightness)
-    {
-        var c = (1 - Math.Abs(2 * lightness - 1)) * saturation;
-        var x = c * (1 - Math.Abs(hue / 60 % 2 - 1));
-        var m = lightness - c / 2;
-        var (r, g, b) = hue switch
-        {
-            < 60 => (c, x, 0.0),
-            < 120 => (x, c, 0.0),
-            < 180 => (0.0, c, x),
-            < 240 => (0.0, x, c),
-            < 300 => (x, 0.0, c),
-            _ => (c, 0.0, x),
-        };
-        return Color.FromRgb((byte)Math.Round((r + m) * 255), (byte)Math.Round((g + m) * 255), (byte)Math.Round((b + m) * 255));
     }
 }

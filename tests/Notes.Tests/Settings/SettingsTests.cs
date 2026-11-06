@@ -326,4 +326,31 @@ public class SettingsStoreTests : IDisposable
 
         Assert.Equal(BotMode.FarmMobs, s.Mode);
     }
+
+    [Theory]
+    [InlineData("#2e7d32", "#2E7D32")]
+    [InlineData("", "")]
+    [InlineData("зелёный", "")]
+    [InlineData("#12345", "")]
+    [InlineData("#GGGGGG", "")]
+    public void IconColorIsHexOrEmpty(string saved, string expected)
+    {
+        var s = SettingsJson.Parse($$"""{ "iconColor": "{{saved}}" }""");
+
+        Assert.Equal(expected, s.IconColor);
+    }
+
+    [Fact]
+    public void IconColorChangeIsAnEdit()
+    {
+        var s = new BotSettings();
+        var edits = 0;
+        s.Edited += () => edits++;
+
+        s.IconColor = "#C2185B";
+        s.IconColor = "#C2185B";
+
+        Assert.Equal(1, edits);
+        Assert.Equal("#C2185B", s.Clone().IconColor);
+    }
 }

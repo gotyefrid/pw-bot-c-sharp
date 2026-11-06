@@ -27,6 +27,7 @@ public sealed class BotSettings
     private QuestSettings _quests = new();
     private ExpDrainSettings _expDrain = new();
     private RepairSettings _repair = new();
+    private string _iconColor = "";
 
     public BotSettings()
     {
@@ -46,6 +47,20 @@ public sealed class BotSettings
             if (_mode == value)
                 return;
             _mode = value;
+            Edited?.Invoke();
+        }
+    }
+
+    /// <summary>Цвет значка бота на панели задач у этого персонажа, «#RRGGBB»; пусто — по нику (из палитры окна).</summary>
+    public string IconColor
+    {
+        get => _iconColor;
+        set
+        {
+            value ??= "";
+            if (_iconColor == value)
+                return;
+            _iconColor = value;
             Edited?.Invoke();
         }
     }
@@ -84,6 +99,10 @@ public sealed class BotSettings
     private void PartChanged(object? sender, PropertyChangedEventArgs e) => Edited?.Invoke();
 
     public BotSettings Clone() => SettingsJson.Parse(SettingsJson.Serialize(this));
+
+    /// <summary>Цвет «#RRGGBB».</summary>
+    public static bool IsColor(string? text)
+        => text is { Length: 7 } && text[0] == '#' && text.Skip(1).All(Uri.IsHexDigit);
 
     // ── Сохранённые точки: свои у центра фарма (TargetSettings.FarmPoints) и у места для смертей (ExpDrainSettings.DeathPoints) ──
 
@@ -144,6 +163,7 @@ public sealed class BotSettings
         // «Прокачать друида» не доделан и скрыт в окне (MainViewModel.Modes): сохранённый — как «Бить мобов»
         if (Mode == BotMode.LevelUp)
             Mode = BotMode.FarmMobs;
+        IconColor = IsColor(IconColor) ? IconColor.ToUpperInvariant() : "";
         Connection ??= new();
         Connection.ClientPaths ??= new Dictionary<string, string>();
         LogView ??= new();

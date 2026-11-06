@@ -232,6 +232,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             OnPropertyChanged(nameof(CanChoose));
             OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(CanPickIconColor));
             CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -258,7 +259,59 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public string? Nick
     {
         get => _nick;
-        private set => SetProperty(ref _nick, value);
+        private set
+        {
+            if (SetProperty(ref _nick, value))
+                OnPropertyChanged(nameof(IconColor));
+        }
+    }
+
+    // ── Цвет значка на панели задач: свой у персонажа, без выбора — по нику ──
+
+    /// <summary>Пункт палитры: «авто» (по нику) или цвет.</summary>
+    public sealed record IconColorItem(string Name, string Swatch, bool IsAuto, ICommand Pick);
+
+    private IReadOnlyList<IconColorItem>? _iconColors;
+
+    public IReadOnlyList<IconColorItem> IconColors => _iconColors ??=
+    [
+        new("Авто — по нику", "#FFFFFF", true, new RelayCommand(() => PickIconColor(""))),
+        .. IconPalette.Colors.Select(c => new IconColorItem(c.Name, c.Hex, false, new RelayCommand(() => PickIconColor(c.Hex)))),
+    ];
+
+    /// <summary>Цвет значка сейчас, «#RRGGBB»: выбранный у персонажа или по нику.</summary>
+    public string IconColor => Settings.IconColor is { Length: > 0 } chosen ? chosen : IconPalette.Auto(Nick ?? "");
+
+    public string IconColorHint => Settings.IconColor.Length > 0
+        ? $"Цвет значка на панели задач: {IconPalette.NameOf(IconColor)}"
+        : $"Цвет значка на панели задач: по нику ({IconPalette.NameOf(IconColor)})";
+
+    /// <summary>Выбрать цвет можно, когда персонаж известен: цвет — его настройка.</summary>
+    public bool CanPickIconColor => IsConnected && _config.Character is not null;
+
+    private bool _iconColorsOpen;
+
+    public bool IconColorsOpen
+    {
+        get => _iconColorsOpen;
+        set => SetProperty(ref _iconColorsOpen, value);
+    }
+
+    public ICommand OpenIconColorsCommand => _openIconColors ??= new RelayCommand(() => IconColorsOpen = true, () => CanPickIconColor);
+    private ICommand? _openIconColors;
+
+    private void PickIconColor(string hex)
+    {
+        IconColorsOpen = false;
+        Settings.IconColor = hex;
+        IconColorChanged();
+    }
+
+    private void IconColorChanged()
+    {
+        OnPropertyChanged(nameof(IconColor));
+        OnPropertyChanged(nameof(IconColorHint));
+        OnPropertyChanged(nameof(CanPickIconColor));
     }
 
     private GameClient? _client;
@@ -826,6 +879,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
+        IconColorChanged();
         Pets.Rebind();
         Potions.Rebind();
         Repair.Rebind();
