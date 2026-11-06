@@ -40,6 +40,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => WorldCommands.Watch(profile, game));
                 case "selftest":
                     return WithClient(rest, WorldCommands.SelfTest);
+                case "login":
+                    return LoginCommand.Run(LoadProfile(rest), rest);
                 case "cdfind":
                     return CooldownFinder.Find(LoadProfile(rest), rest);
                 case "port":
@@ -131,6 +133,9 @@ internal static class Program
         Console.WriteLine("  protector [exe игры] сторож клиента (pwprotector) рядом с exe: путь, размер, дата, sha256 и сверка с профилем");
         Console.WriteLine(CodeCommands.Usage);
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
+        Console.WriteLine();
+        Console.WriteLine("ЗАПУСК КЛИЕНТА (открывает игру — запускает владелец):");
+        Console.WriteLine(LoginCommand.Usage);
         Console.WriteLine();
         Console.WriteLine("ДЕЙСТВИЯ В ИГРЕ (вызывают функции клиента — запускает владелец):");
         Console.WriteLine(ActCommands.Usage);
