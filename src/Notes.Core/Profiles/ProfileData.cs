@@ -47,6 +47,7 @@ public sealed class ProfileData
     /// <summary>Что сделать у NPC сразу после сдачи задания: номер задания → шаги.</summary>
     public Dictionary<int, QuestScript> QuestScripts { get; init; } = new();
     public UiOffsets Ui { get; init; } = new();
+    public LoginScreenOffsets LoginScreen { get; init; } = new();
     public GameFilesData GameFiles { get; init; } = new();
     /// <summary>Карта пришедшего с сервера кода (<see cref="ServerCodeOffsets"/>): null — на этом клиенте не проверяли.</summary>
     public ServerCodeOffsets? ServerCode { get; init; }
@@ -84,6 +85,38 @@ public sealed class UiOffsets
     public uint Active { get; init; }
     public uint NpcDialog { get; init; }
     public uint ShopDialog { get; init; }
+}
+
+/// <summary>
+/// Окна клиента изнутри (библиотека AUI): по ним бот видит экран входа — логин, ошибку, выбор персонажа — и сообщения в мире.
+/// Текущий менеджер окон — [менеджеры + <see cref="UiOffsets.InGame"/>]: на экране входа CECLoginUIMan, в мире CECGameUIMan,
+/// 0 — грузится. <see cref="Dialogs"/> 0 — не найдено: вход только через аргументы запуска.
+/// </summary>
+public sealed class LoginScreenOffsets
+{
+    /// <summary>[менеджер + Dialogs] и [+4] — начало и конец массива окон (указатели).</summary>
+    public uint Dialogs { get; init; }
+    /// <summary>Имя окна: указатель на строку ANSI («Win_Login»).</summary>
+    public uint DialogName { get; init; }
+    /// <summary>Байт «окно показано».</summary>
+    public uint DialogShown { get; init; }
+    /// <summary>Элемент окна в фокусе (поле ввода, куда идут буквы).</summary>
+    public uint DialogFocus { get; init; }
+    /// <summary>Голова списка элементов окна: узел — [узел + ControlNext] следующий, [узел + ControlItem] элемент.</summary>
+    public uint Controls { get; init; }
+    public uint ControlNext { get; init; }
+    public uint ControlItem { get; init; }
+    /// <summary>Имя элемента: указатель на строку ANSI («Lbl_Ping»).</summary>
+    public uint ControlName { get; init; }
+    /// <summary>Текст элемента: указатель на строку UTF-16 (у поля пароля пусто).</summary>
+    public uint ControlText { get; init; }
+    /// <summary>Байт «отмечен» у переключателя (персонаж на выборе).</summary>
+    public uint RadioChecked { get; init; }
+
+    /// <summary>Начала текстов ошибки входа «неверный логин или пароль»: повторять вход бесполезно.</summary>
+    public List<string> WrongPassword { get; init; } = new();
+    /// <summary>Начала текстов «нет связи с сервером»: войти ещё раз позже.</summary>
+    public List<string> NoServer { get; init; } = new();
 }
 
 /// <summary>Устройство пакетов, которые бот собирает сам (где у команды нет своей функции в клиенте).</summary>

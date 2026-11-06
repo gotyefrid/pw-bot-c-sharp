@@ -135,6 +135,26 @@ public sealed class GameRoots
                && dialog != 0;
     }
 
+    /// <summary>
+    /// Текущий менеджер окон: на экране входа — окна входа, в мире (<paramref name="inWorld"/>) — окна мира, 0 — грузится.
+    /// false — не читается или <see cref="UiOffsets.Managers"/> нет в профиле.
+    /// </summary>
+    public bool TryUiManager(out uint manager, out bool inWorld)
+    {
+        manager = 0;
+        inWorld = false;
+        var ui = _profile.Ui;
+        if (ui.Managers == 0 || !TryBase(out var root)
+            || !_memory.TryReadUInt32(root + _profile.Base.Game, out var game) || game == 0
+            || !_memory.TryReadUInt32(game + ui.Managers, out var managers) || managers == 0
+            || !_memory.TryReadUInt32(managers + ui.Active, out var active)
+            || !_memory.TryReadUInt32(managers + ui.InGame, out manager))
+            return false;
+
+        inWorld = active == 1;
+        return true;
+    }
+
     /// <summary>Очередь сообщений игры; false — не читается или <see cref="BaseOffsets.GameMessages"/> нет в профиле.</summary>
     public bool TryMessages(out uint messages)
     {
