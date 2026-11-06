@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Notes.Core.Actions;
 using Notes.Core.Clients;
 using Notes.Core.Profiles;
 
@@ -23,8 +22,6 @@ internal static class LoginCommand
           ключи: --server id, --wait с, --no-enter, --force, --check (только показать, не запускать)
         """;
 
-    private static readonly TimeSpan EnterWait = TimeSpan.FromSeconds(20);
-
     public static int Run(ServerProfile profile, string[] args)
     {
         Options options;
@@ -42,7 +39,7 @@ internal static class LoginCommand
         ClientLaunch launch;
         try
         {
-            launch = Build(options);
+            launch = Build(options, profile);
         }
         catch (Exception e)
         {
@@ -98,15 +95,16 @@ internal static class LoginCommand
         using (process)
         {
             Console.WriteLine($"Клиент запущен: PID {process.Id}. Жду окно и персонажа…");
-            var started = Stopwatch.StartNew();
-            var result = ClientLogin.WaitForWorld(process.Id, profile.Data, TimeSpan.FromSeconds(options.Wait), Note);
-            if (result.State == LoginState.InWorld)
-                return Success(result, process.Id, started.Elapsed);
-
-            if (result.State == LoginState.Exited)
+            var result = ClientLogin.EnterWorld(process.Id, profile.Data, TimeSpan.FromSeconds(options.Wait),
+                options.Enter ? 2 : 0, Note);
+            switch (result.State)
             {
-                Console.Error.WriteLine($"❌ Клиент закрылся, не дойдя до мира ({started.Elapsed.TotalSeconds:0} с).");
-                return 3;
+                case LoginState.InWorld:
+                    Console.WriteLine($"✅ Вошёл: {result.Nick} (PID {process.Id}, {result.Elapsed.TotalSeconds:0} с).");
+                    return 0;
+                case LoginState.Exited:
+                    Console.Error.WriteLine($"❌ Клиент закрылся, не дойдя до мира ({result.Elapsed.TotalSeconds:0} с).");
+                    return 3;
             }
 
             if (!result.WindowFound)
@@ -115,30 +113,7 @@ internal static class LoginCommand
                 return 3;
             }
 
-            if (options.Enter)
-            {
-                for (var attempt = 1; attempt <= 2; attempt++)
-                {
-                    Console.WriteLine($"⚠️ Персонаж не появился за {options.Wait} с — похоже, клиент стоит на выборе. "
-                                      + $"Жму Enter (попытка {attempt} из 2).");
-                    var keys = new WindowKeys(process.Id);
-                    var pressed = keys.Press(new KeyStroke(0x0D));
-                    Console.WriteLine(pressed.Ok ? "  Enter отправлена." : $"  ❌ {pressed.Details}");
-                    if (!pressed.Ok)
-                        break;
-
-                    result = ClientLogin.WaitForWorld(process.Id, profile.Data, EnterWait, Note);
-                    if (result.State == LoginState.InWorld)
-                        return Success(result, process.Id, started.Elapsed);
-                    if (result.State == LoginState.Exited)
-                    {
-                        Console.Error.WriteLine($"❌ Клиент закрылся ({started.Elapsed.TotalSeconds:0} с).");
-                        return 3;
-                    }
-                }
-            }
-
-            Console.Error.WriteLine($"❌ Персонаж не появился за {started.Elapsed.TotalSeconds:0} с. "
+            Console.Error.WriteLine($"❌ Персонаж не появился за {result.Elapsed.TotalSeconds:0} с. "
                                     + "Клиент стоит на входе или на выборе персонажа — посмотрите окно игры.");
             if (result.Problem is { } problem)
                 Console.Error.WriteLine($"   Последняя ошибка чтения: {problem}");
@@ -146,16 +121,10 @@ internal static class LoginCommand
         }
     }
 
-    private static int Success(LoginWait result, int pid, TimeSpan elapsed)
-    {
-        Console.WriteLine($"✅ Вошёл: {result.Nick} (PID {pid}, {elapsed.TotalSeconds:0} с).");
-        return 0;
-    }
-
     private static void Note(string message) => Console.WriteLine($"  {message}");
 
     /// <summary>Либо файл запуска, либо логин/пароль/роль и exe — вместе нельзя: непонятно, что главнее.</summary>
-    private static ClientLaunch Build(Options options)
+    private static ClientLaunch Build(Options options, ServerProfile profile)
     {
         if (options.File is { } file)
         {
@@ -172,8 +141,10 @@ internal static class LoginCommand
 
         var exe = Path.GetFullPath(options.Exe);
         var directory = options.Directory is null ? Path.GetDirectoryName(exe)! : Path.GetFullPath(options.Directory);
-        // Те же постоянные аргументы, что в bat этих клиентов: через сторожа, игра cpw, с консолью
-        return ClientLaunch.WithCredentials(exe, directory, ["startbypatcher", "game:cpw", "console:1"],
+        // Постоянные аргументы — из профиля сервера, как в bat его клиентов
+        if (profile.Data.LaunchArguments.Count == 0)
+            throw new ArgumentException($"В профиле {profile.Id} нет launchArguments — запуск без файла не настроен.");
+        return ClientLaunch.WithCredentials(exe, directory, profile.Data.LaunchArguments,
             options.Login, options.Password, options.Role);
     }
 

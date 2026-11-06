@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using Notes.Core.Actions;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
 using Notes.Core.World;
@@ -88,6 +89,33 @@ public static class ClientLogin
             game?.Dispose();
         }
     }
+
+    /// <summary>
+    /// Дождаться персонажа после запуска клиента. Окно есть, а персонажа нет за <paramref name="timeout"/> — клиент обычно
+    /// стоит на выборе персонажа: жмём Enter (до <paramref name="enterAttempts"/> раз) и ждём ещё по 20 с.
+    /// </summary>
+    public static LoginWait EnterWorld(int pid, ProfileData profile, TimeSpan timeout, int enterAttempts = 2,
+        Action<string>? progress = null)
+    {
+        var started = DateTime.UtcNow;
+        var result = WaitForWorld(pid, profile, timeout, progress);
+        for (var attempt = 1; attempt <= enterAttempts && result is { State: LoginState.Timeout, WindowFound: true }; attempt++)
+        {
+            progress?.Invoke($"персонаж не появился — похоже, выбор персонажа: жму Enter (попытка {attempt} из {enterAttempts})");
+            var pressed = new WindowKeys(pid).Press(new KeyStroke(0x0D));
+            if (!pressed.Ok)
+            {
+                progress?.Invoke($"Enter не нажалась: {pressed.Details}");
+                break;
+            }
+
+            result = WaitForWorld(pid, profile, EnterWait, progress);
+        }
+
+        return result with { Elapsed = DateTime.UtcNow - started };
+    }
+
+    private static readonly TimeSpan EnterWait = TimeSpan.FromSeconds(20);
 
     private static bool Alive(int pid)
     {

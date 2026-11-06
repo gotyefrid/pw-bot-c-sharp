@@ -64,6 +64,12 @@ public sealed class ProfileData
     /// Сторож клиента (pwprotector) для проверки перед подключением: null — файл не проверен на этом клиенте.
     /// </summary>
     public ProtectorSpec? Protector { get; init; }
+
+    /// <summary>
+    /// Постоянные аргументы exe клиента при запуске из бота (как в bat рядом с клиентом); логин, пароль и роль бот добавляет
+    /// сам. Пусто — запуск для сервера не проверен, «Открыть» в «Персонажах» не запускает.
+    /// </summary>
+    public List<string> LaunchArguments { get; init; } = new();
 }
 
 /// <summary>

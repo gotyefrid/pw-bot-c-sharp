@@ -113,6 +113,14 @@ public class ProfileCatalogTests
     }
 
     [Fact]
+    public void LaunchArgumentsOnEveryServer()
+    {
+        // Из bat рядом с клиентами всех трёх серверов: одинаковые до user:
+        foreach (var id in new[] { "comeback146", "comeback136", "pwclassic136" })
+            Assert.Equal(["startbypatcher", "game:cpw", "console:1"], _catalog.Load(id).Data.LaunchArguments);
+    }
+
+    [Fact]
     public void Comeback136IsPortedFrom146()
     {
         // Та же ветка клиента, что 1.4.6, другая сборка: все функции 1.4.6 на новых адресах, у перса сдвинуты поля
