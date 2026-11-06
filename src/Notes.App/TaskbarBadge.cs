@@ -17,6 +17,8 @@ public sealed class TaskbarBadge
 {
     // Рисуем крупнее, чем на панели (24…32 пикселя): Windows уменьшит сама, буквы остаются чёткими
     private const int IconSize = 64;
+    // Сколько букв ника на значке — в две строки
+    private const int Letters = 6;
     // Кружок — треть значка, вплотную к правому нижнему углу
     private const double DotSize = IconSize / 3.0;
 
@@ -58,12 +60,12 @@ public sealed class TaskbarBadge
         _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, dot, _appIcon);
     }
 
-    /// <summary>Четыре первые буквы (или цифры) ника строчными, по две в строку: «MoonLight» → «mo» и «on». Букв нет — первые знаки.</summary>
+    /// <summary>Шесть первых букв (или цифр) ника строчными, по три в строку: «MoonLight» → «moo» и «nli». Букв нет — первые знаки.</summary>
     public static string[] Initials(string nick)
     {
-        var letters = nick.Where(char.IsLetterOrDigit).Take(4).ToArray();
-        var text = new string(letters.Length > 0 ? letters : nick.Take(4).ToArray()).ToLower(CultureInfo.CurrentCulture);
-        return text.Length <= 2 ? [text] : [text.Substring(0, 2), text.Substring(2)];
+        var letters = nick.Where(char.IsLetterOrDigit).Take(Letters).ToArray();
+        var text = new string(letters.Length > 0 ? letters : nick.Take(Letters).ToArray()).ToLower(CultureInfo.CurrentCulture);
+        return text.Length <= Letters / 2 ? [text] : [text.Substring(0, Letters / 2), text.Substring(Letters / 2)];
     }
 
     /// <summary>Цвет ника: тон по хешу имени (свой, а не string.GetHashCode — тот может меняться между версиями .NET).</summary>
