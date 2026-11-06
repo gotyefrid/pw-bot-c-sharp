@@ -202,6 +202,49 @@ public class StatsWatcherTests
     }
 
     [Fact]
+    public void ExpResetBeforeLevelChangeIsNotWholeLevel()
+    {
+        // Как было на 59 → 60: снимок, где опыт уже сброшен, а уровень ещё старый
+        (_world.Level, _world.Exp, _world.ExpToLevel) = (59, 439_680, 439_845);
+        Tick();
+        _world.Exp = 165;
+        Tick();
+        (_world.Level, _world.ExpToLevel) = (60, 468_000);
+        Tick();
+        _world.Exp = 531;
+        Tick();
+
+        Assert.Equal([165L + 165, 366L], Of(StatKind.Exp).Select(e => e.Amount));
+    }
+
+    [Fact]
+    public void LevelChangeBeforeExpResetIsNotDoubled()
+    {
+        (_world.Level, _world.Exp, _world.ExpToLevel) = (59, 439_680, 439_845);
+        Tick();
+        (_world.Level, _world.Exp, _world.ExpToLevel) = (60, 440_046, 468_000); // уровень новый, опыт ещё старый
+        Tick();
+        _world.Exp = 201;
+        Tick();
+
+        Assert.Equal(165 + 201, Of(StatKind.Exp).Sum(e => e.Amount));
+    }
+
+    [Fact]
+    public void ExpLostOnDeathIsNotSubtractedAndGainsCountAfter()
+    {
+        (_world.Level, _world.Exp, _world.ExpToLevel) = (59, 200_000, 439_845);
+        Tick();
+        _world.Exp = 180_000; // смерть
+        Tick();
+        Tick(5);
+        _world.Exp = 180_366;
+        Tick();
+
+        Assert.Equal([366L], Of(StatKind.Exp).Select(e => e.Amount));
+    }
+
+    [Fact]
     public void RepairIsDurabilityGrowth()
     {
         _world.Equipment.Add(new InventoryItem(0, 100, 0, 1, null, null) { Durability = 2000, MaxDurability = 6600 });

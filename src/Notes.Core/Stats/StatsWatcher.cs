@@ -15,7 +15,7 @@ namespace Notes.Core.Stats;
 /// <item>Подобрано и выкопано — прибавка в сумке и денег, пока бот ждёт подбора или копания и ещё <see cref="CollectGrace"/>
 /// после: покупка, банк и награда за задание сюда не попадают.</item>
 /// <item>Смерть перса — кроме слива опыта (там смерти нарочно). Слив — начало и конец.</item>
-/// <item>Опыт — только прибавка (на новом уровне — добор до уровня и опыт на новом); уровень — каждый новый.</item>
+/// <item>Опыт — только прибавка (<see cref="ExpCounter"/>); уровень — каждый новый.</item>
 /// <item>Ремонт — у надетых вещей выросла прочность (сама она только падает).</item>
 /// </list>
 /// </summary>
@@ -39,6 +39,7 @@ public sealed class StatsWatcher
     private DateTime _aliveAt;
     private DateTime _collectUntil = DateTime.MinValue;
     private DateTime _repairedAt = DateTime.MinValue;
+    private ExpCounter _exp = new();
 
     /// <summary>Снимок после хода мозга.</summary>
     /// <param name="draining">Идёт слив опыта.</param>
@@ -67,12 +68,14 @@ public sealed class StatsWatcher
 
             if (last.Host is { IsDead: false } && now.Host is { IsDead: true, MaxHp: > 0 } && !draining && !_draining)
                 Add(StatKind.Death);
-            ExpAndLevel(last.Host, now.Host, Add);
+            Levels(last.Host, now.Host, Add);
             if (time <= _collectUntil)
                 Collected(last, now, Add);
             Repairs(last, now, Add);
         }
 
+        if (_exp.Gained(now.Host, time) is var gained and > 0)
+            Add(StatKind.Exp, "", gained);
         if (draining != _draining)
             Add(draining ? StatKind.DrainStart : StatKind.DrainEnd);
         Kills(now, Add);
@@ -98,6 +101,7 @@ public sealed class StatsWatcher
         _engaged.Clear();
         _collectUntil = DateTime.MinValue;
         _repairedAt = DateTime.MinValue;
+        _exp = new ExpCounter();
         return events;
     }
 
@@ -125,7 +129,7 @@ public sealed class StatsWatcher
             _engaged.Remove(old);
     }
 
-    private static void ExpAndLevel(HostState was, HostState now, Action<StatKind, string, long> add)
+    private static void Levels(HostState was, HostState now, Action<StatKind, string, long> add)
     {
         // Уровень 0 — перс ещё не прочитан как следует; падать уровень не может
         if (was.Level <= 0 || now.Level < was.Level)
@@ -133,16 +137,6 @@ public sealed class StatsWatcher
 
         for (var level = was.Level + 1; level <= now.Level; level++)
             add(StatKind.Level, "", level);
-
-        if (was.Exp is not { } before || now.Exp is not { } after)
-            return;
-
-        // Новый уровень: добор до уровня (сколько не хватало) и опыт на новом. Через несколько уровней разом — не посчитать
-        long gained = now.Level == was.Level ? after - before
-            : now.Level == was.Level + 1 && was.ExpToLevel is { } need ? Math.Max(0, need - before) + Math.Max(0, after)
-            : 0;
-        if (gained > 0)
-            add(StatKind.Exp, "", gained);
     }
 
     private static void Collected(WorldState was, WorldState now, Action<StatKind, string, long> add)
@@ -173,5 +167,75 @@ public sealed class StatsWatcher
         if (now.Time - _repairedAt > RepairMerge)
             add(StatKind.Repair, "", 1);
         _repairedAt = now.Time;
+    }
+}
+
+/// <summary>
+/// Прибавка опыта по снимкам. Уровень и опыт игра обновляет не в один снимок: на новом уровне опыт бывает уже сброшен, а
+/// уровень ещё старый (59 ур. с опытом нового уровня), или наоборот — уровень новый, а опыт ещё старый. Поэтому падение опыта
+/// на том же уровне ждём <see cref="Settle"/>: пришёл новый уровень — это переход (добор до уровня и опыт на новом), нет —
+/// потеря (смерть, слив), её не вычитаем. Новый уровень со старым опытом — ждём сброса столько же: опыт после сброса — прибавка.
+/// </summary>
+internal sealed class ExpCounter
+{
+    public static readonly TimeSpan Settle = TimeSpan.FromSeconds(3);
+
+    // От чего считаем прибавку: уровень, опыт на нём, сколько нужно до следующего
+    private (int Level, int Exp, int? Need)? _base;
+    // Опыт упал на том же уровне — ждём, не придёт ли новый уровень
+    private DateTime? _droppedAt;
+    // Уровень вырос, а опыт ещё старый — ждём сброса
+    private DateTime? _levelUpAt;
+
+    public long Gained(HostState now, DateTime time)
+    {
+        // Опыт не читается (сервер) или перс ещё не прочитан — считать не от чего
+        if (now.Exp is not { } exp || now.Level <= 0)
+            return 0;
+        if (_base is not { } b)
+        {
+            _base = (now.Level, exp, now.ExpToLevel);
+            return 0;
+        }
+
+        if (now.Level == b.Level)
+        {
+            if (exp >= b.Exp)
+            {
+                _base = (b.Level, exp, now.ExpToLevel ?? b.Need);
+                return exp - b.Exp;
+            }
+
+            // Уровень только что вырос, опыт был старый — теперь сброшен: весь он прибавка нового уровня
+            if (_levelUpAt is { } up && time - up <= Settle)
+            {
+                _levelUpAt = null;
+                _base = (b.Level, exp, now.ExpToLevel ?? b.Need);
+                return Math.Max(0, exp);
+            }
+
+            // Упал: смерть, слив — или сейчас придёт новый уровень. Не пришёл — считаем от нового
+            _droppedAt ??= time;
+            if (time - _droppedAt.Value > Settle)
+            {
+                _droppedAt = null;
+                _base = (b.Level, exp, now.ExpToLevel ?? b.Need);
+            }
+            return 0;
+        }
+
+        _droppedAt = null;
+        _levelUpAt = null;
+        _base = (now.Level, exp, now.ExpToLevel);
+        if (now.Level != b.Level + 1 || b.Need is not { } need)
+            return 0;
+
+        // Добор до уровня — от опыта до падения; опыт на новом — если уже сброшен, иначе ждём сброса
+        long gained = Math.Max(0, need - b.Exp);
+        if (exp < b.Exp)
+            gained += Math.Max(0, exp);
+        else
+            _levelUpAt = time;
+        return gained;
     }
 }
