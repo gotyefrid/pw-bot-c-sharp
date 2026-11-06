@@ -140,6 +140,15 @@ public sealed class LoginScreen : ILoginScreen
         return ShownDialogs(manager).FirstOrDefault(d => d.Name == name)?.Address ?? 0;
     }
 
+    /// <summary>Адрес показанного окна-сообщения (MsgBox_…) с текстом; 0 — сообщения нет.</summary>
+    public uint FindMessage()
+    {
+        if (_offsets.Dialogs == 0 || !_roots.TryUiManager(out var manager, out _) || manager == 0)
+            return 0;
+        return ShownDialogs(manager).FirstOrDefault(d => d.Name.StartsWith(MessagePrefix, StringComparison.Ordinal)
+                                                         && Controls(d.Address).Any(c => !string.IsNullOrEmpty(c.Text)))?.Address ?? 0;
+    }
+
     /// <summary>Адрес элемента окна по имени (DEFAULT_Txt_Account); 0 — нет.</summary>
     public uint FindControl(uint dialog, string name)
         => dialog == 0 ? 0 : Controls(dialog).FirstOrDefault(c => c.Name == name)?.Address ?? 0;

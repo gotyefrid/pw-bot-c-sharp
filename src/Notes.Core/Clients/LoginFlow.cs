@@ -43,6 +43,9 @@ public interface ILoginCalls
 
     /// <summary>«Принять» пользовательское соглашение.</summary>
     CallResult Agree();
+
+    /// <summary>«Да» окна-сообщения (ошибка прошлой попытки, разрыв связи): закрыть его.</summary>
+    CallResult CloseMessage();
 }
 
 /// <summary>Время для входа: настоящее или подставное в тестах (там ожидание двигает поддельный клиент).</summary>
@@ -194,7 +197,7 @@ public sealed class LoginFlow
         if (view.Message is not null && view.Stage != LoginStage.World)
         {
             progress($"закрываю сообщение: {view.Message}");
-            Press(EnterKey);
+            Button(GameFunctions.DialogCommand, c => c.CloseMessage(), () => Press(EnterKey));
             view = WaitFor(v => v.Message is null, Timeouts.Step, "сообщение клиента не закрывается", token);
         }
 

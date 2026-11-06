@@ -19,7 +19,10 @@ public class LoginFlowTests
     private LoginFlow Flow() => new(_client, _client, _client.HostName, () => _client.Alive, Texts, _client, _client);
 
     private static readonly string[] AllButtons =
-        [GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole, GameFunctions.SelectPlay, GameFunctions.AgreementAccept];
+        [
+            GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole, GameFunctions.SelectPlay, GameFunctions.AgreementAccept,
+            GameFunctions.DialogCommand,
+        ];
 
     private LoginResult Enter(string nick = "Флай", string password = "secret", CancellationToken token = default)
         => Flow().Enter("login", password, nick, null, token);
@@ -105,6 +108,21 @@ public class LoginFlowTests
         Assert.All(_client.Input, i => Assert.StartsWith("вызов: ", i));
         Assert.Equal(["вызов: соглашение", $"вызов: текст {LoginScreen.AccountField}", $"вызов: текст {LoginScreen.PasswordField}",
             "вызов: вход", "вызов: персонаж 2", "вызов: играть"], _client.Input);
+    }
+
+    [Fact]
+    public void LeftoverMessageIsClosedByGameFunction()
+    {
+        // Прошлая попытка оставила «сервер недоступен»; следующая закрывает его вызовом, как кнопкой «Да», и входит без клавиш
+        _client.Functions.UnionWith(AllButtons);
+        _client.ServerDown = true;
+        Assert.Equal(LoginOutcome.NoServer, Enter().Outcome);
+        _client.Input.Clear();
+
+        _client.ServerDown = false;
+        Assert.True(Enter().Ok);
+        Assert.Equal("вызов: сообщение", _client.Input[0]);
+        Assert.All(_client.Input, i => Assert.StartsWith("вызов: ", i));
     }
 
     [Fact]

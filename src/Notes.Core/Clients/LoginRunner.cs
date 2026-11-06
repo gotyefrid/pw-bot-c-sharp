@@ -99,7 +99,10 @@ public sealed class LoginRunner
 public sealed class ClientLoginAttempt : ILoginAttempt, ILoginScreen, ILoginCalls, IDisposable
 {
     private static readonly string[] LoginFunctions =
-        [GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole, GameFunctions.SelectPlay, GameFunctions.AgreementAccept];
+    [
+        GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole, GameFunctions.SelectPlay, GameFunctions.AgreementAccept,
+        GameFunctions.DialogCommand,
+    ];
 
     private readonly int _pid;
     private readonly ProfileData _profile;
@@ -152,6 +155,8 @@ public sealed class ClientLoginAttempt : ILoginAttempt, ILoginScreen, ILoginCall
     public CallResult Play() => With((caller, screen) => caller.SelectPlay(screen.FindDialog(LoginScreen.SelectDialog)));
 
     public CallResult Agree() => With((caller, screen) => caller.AgreementAccept(screen.FindDialog(LoginScreen.AgreementDialog)));
+
+    public CallResult CloseMessage() => With((caller, screen) => caller.MessageBoxOk(screen.FindMessage()));
 
     // Окно или поле — свежим адресом на каждом вызове: окна входа клиент пересоздаёт
     private CallResult With(Func<GameCaller, LoginScreen, CallResult> call)

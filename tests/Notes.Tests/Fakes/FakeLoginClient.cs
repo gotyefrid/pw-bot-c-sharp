@@ -183,6 +183,8 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock, ILo
 
     public CallResult Agree() => Call("соглашение", () => Agreement = false);
 
+    public CallResult CloseMessage() => Call("сообщение", () => Message = null);
+
     private CallResult Call(string what, Action action)
     {
         Input.Add($"вызов: {what}");
