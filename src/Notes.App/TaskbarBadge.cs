@@ -58,12 +58,12 @@ public sealed class TaskbarBadge
         _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, dot, _appIcon);
     }
 
-    /// <summary>Две первые буквы (или цифры) ника: «StarFox» → «Sa». Букв нет — два первых знака.</summary>
-    public static string Initials(string nick)
+    /// <summary>Четыре первые буквы (или цифры) ника строчными, по две в строку: «MoonLight» → «mo» и «on». Букв нет — первые знаки.</summary>
+    public static string[] Initials(string nick)
     {
-        var letters = nick.Where(char.IsLetterOrDigit).Take(2).ToArray();
-        var text = letters.Length > 0 ? new string(letters) : new string(nick.Take(2).ToArray());
-        return text.Length == 0 ? "" : char.ToUpper(text[0], CultureInfo.CurrentCulture) + text.Substring(1);
+        var letters = nick.Where(char.IsLetterOrDigit).Take(4).ToArray();
+        var text = new string(letters.Length > 0 ? letters : nick.Take(4).ToArray()).ToLower(CultureInfo.CurrentCulture);
+        return text.Length <= 2 ? [text] : [text.Substring(0, 2), text.Substring(2)];
     }
 
     /// <summary>Цвет ника: тон по хешу имени (свой, а не string.GetHashCode — тот может меняться между версиями .NET).</summary>
@@ -100,16 +100,23 @@ public sealed class TaskbarBadge
 
     private static void DrawLetters(DrawingContext dc, string nick)
     {
-        var text = Initials(nick);
         dc.DrawRoundedRectangle(new SolidColorBrush(Hue(nick)), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
         var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-        var size = IconSize * 0.62;
-        FormattedText Format(double em) => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, em, Brushes.White, 1.0);
-        var formatted = Format(size);
-        // Широкие буквы («Ww») — уменьшить, чтобы влезли с полями
-        if (formatted.Width > IconSize * 0.9)
-            formatted = Format(size * IconSize * 0.9 / formatted.Width);
-        dc.DrawText(formatted, new Point((IconSize - formatted.Width) / 2, (IconSize - formatted.Height) / 2));
+        var em = IconSize * 0.42;
+        var text = new FormattedText(string.Join("\n", Initials(nick)), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, em,
+            Brushes.White, 1.0) { TextAlignment = TextAlignment.Center, LineHeight = em * 0.95 };
+        // Центрируем по самим буквам, а не по строкам шрифта (у строчных пустое место сверху)
+        var ink = text.BuildGeometry(new Point(0, 0));
+        var box = ink.Bounds;
+        // Буквы занимают не больше 72 % значка: место под кружок
+        var scale = Math.Min(1, IconSize * 0.72 / Math.Max(box.Width, box.Height));
+        var group = new TransformGroup();
+        group.Children.Add(new TranslateTransform(-(box.Left + box.Width / 2), -(box.Top + box.Height / 2)));
+        group.Children.Add(new ScaleTransform(scale, scale));
+        // Чуть левее и выше середины — дальше от кружка в правом нижнем углу
+        group.Children.Add(new TranslateTransform(IconSize / 2.0 - 3, IconSize / 2.0 - 3));
+        ink.Transform = group;
+        dc.DrawGeometry(Brushes.White, null, ink);
     }
 
     private static ImageSource Render(Visual visual, int size)
