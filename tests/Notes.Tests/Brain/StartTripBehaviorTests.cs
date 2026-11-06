@@ -27,6 +27,8 @@ public class StartTripBehaviorTests
     private int _walked;
     // Слез с полётника — падает к земле на столько метров за шаг (0 — сразу на земле)
     private float _fallStep;
+    // Столько нажатий «Полёт» в воздухе игра не примет (перс так и висит)
+    private int _ignoredLandings;
 
     private sealed class ListSink(List<LogEntry> entries) : ILogSink
     {
@@ -63,6 +65,9 @@ public class StartTripBehaviorTests
             switch (call.Split(' ')[0])
             {
                 // Отказ клиента — не взлетели
+                case "fly-toggle" when _world.Flying == true && _ignoredLandings > 0:
+                    _ignoredLandings--;
+                    break;
                 case "fly-toggle" when !_actions.Refuse.Contains("fly-toggle"):
                     _world.Flying = _world.Flying != true;
                     if (_world.Flying == false && _fallStep == 0)
@@ -124,6 +129,35 @@ public class StartTripBehaviorTests
         }
         TickFor(1);
         Assert.True(Logged("Долетел"));
+    }
+
+    // Было: «сесть» не подтвердилось — путь всё равно «на месте», перс висел на 65 м и часами выбирал моба в цель
+    [Fact]
+    public void LandingIgnoredIsPressedAgain()
+    {
+        _ignoredLandings = 2;
+        FarmAt(new Position(500, 0, 0));
+
+        TickFor(60);
+
+        Assert.False(_world.Flying);
+        Assert.Equal(4, _actions.Calls.Count(x => x == "fly-toggle"));
+        Assert.True(Logged("Не сел"));
+        Assert.True(Logged("Долетел"));
+    }
+
+    [Fact]
+    public void NeverLandsIsNotArrived()
+    {
+        _ignoredLandings = int.MaxValue;
+        FarmAt(new Position(500, 0, 0));
+
+        TickFor(120);
+
+        Assert.True(_world.Flying);
+        Assert.Equal(1 + FlightTrip.LandFails, _actions.Calls.Count(x => x == "fly-toggle"));
+        Assert.True(Logged("не смог сесть"));
+        Assert.False(Logged("Долетел"));
     }
 
     [Fact]

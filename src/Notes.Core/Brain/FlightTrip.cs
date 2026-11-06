@@ -36,6 +36,8 @@ public enum TripStep
 /// <see cref="SettleMax"/>): с хода игра опускает по дуге, с инерцией, а не отвесно вниз. Не долетели — выше на <see cref="FailClimb"/>; не долетели <see cref="FlightFails"/> раз или полёта
 /// в точку у сервера нет — пешком автопутём. Полётника нет (<see cref="WorldState.HasFlyer"/>) — сразу пешком, «Полёт» не жмём; надет —
 /// не взлетели, жмём снова через <see cref="TakeoffRetry"/>, сколько угодно раз. Не знаем, надет ли, — не взлетели, идём пешком.
+/// Не сели — жмём «Полёт» снова через <see cref="LandRetry"/>; не сели <see cref="LandFails"/> раз — не добрались: «на месте»
+/// в воздухе над земной точкой не бывает (было: висел на 65 м и часами выбирал моба в цель).
 /// Не поведение, а деталь поведения: шаги — из его Tick, итоги — из его OnOutcome; действия уходят от его имени.
 /// </summary>
 public sealed class FlightTrip
@@ -50,6 +52,12 @@ public sealed class FlightTrip
     public const float FailClimb = 20f;
     public const int FlightFails = 5;
     public static readonly TimeSpan TakeoffRetry = TimeSpan.FromSeconds(3);
+
+    /// <summary>Не сели — жмём «Полёт» снова через столько.</summary>
+    public static readonly TimeSpan LandRetry = TimeSpan.FromSeconds(3);
+
+    /// <summary>Столько раз подряд не сели — путь не удался.</summary>
+    public const int LandFails = 5;
 
     /// <summary>Между двумя шагами сдвинулись меньше этого (по горизонтали) — стоим над точкой, можно садиться.</summary>
     public const float StillMove = 0.3f;
@@ -73,7 +81,8 @@ public sealed class FlightTrip
     private bool _started;
     private bool _climbed;
     private bool _walk;
-    private bool _landFailed;
+    private int _landFails;
+    private DateTime _landAt = DateTime.MinValue;
     private bool _diveFailed;
     private int _fails;
     private int _takeoffFails;
@@ -159,11 +168,11 @@ public sealed class FlightTrip
                 c.Submit(new FlyAction(up: true));
             if (air)
                 return host.Flying == true ? TripStep.Arrived : TripStep.Going;
-            if (host.Flying == true && !_landFailed)
+            if (host.Flying == true)
             {
                 _overSince ??= c.Now;
                 var still = last is { } was && was.HorizontalDistanceTo(here) < StillMove;
-                if (still || c.Now - _overSince >= SettleMax)
+                if ((still || c.Now - _overSince >= SettleMax) && c.Now >= _landAt)
                 {
                     c.Submit(new FlyAction(up: false));
                     _landing = true;
@@ -237,8 +246,15 @@ public sealed class FlightTrip
                 c.Log.Warning("Не взлетел — иду пешком");
                 _walk = true;
                 break;
+            // Не сели (игра не приняла «Полёт») — снова; не вышло столько раз — не добрались
             case FlyAction:
-                _landFailed = true;
+                if (++_landFails >= LandFails)
+                    Failed = $"не смог сесть: {LandFails} раз подряд";
+                else
+                {
+                    _landAt = c.Now + LandRetry;
+                    c.Log.Warning($"Не сел ({outcome.Details}) — пробую снова");
+                }
                 break;
             case MoveAction { Fly: true } when ++_fails > FlightFails:
                 c.Log.Warning("Не долетел — дальше пешком");

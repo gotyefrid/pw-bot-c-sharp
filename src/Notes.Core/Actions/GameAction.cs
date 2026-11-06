@@ -960,8 +960,8 @@ public sealed class FlyAction(bool up) : GameAction
     public override bool SameInGame(GameAction pending) => pending is FlyAction fly && fly.Up == Up;
     public override ActionResource Resource => ActionResource.Body;
 
-    // Взлёт ~1 с; посадка — спуск до земли, с высоты дольше
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(Up ? 5 : 30);
+    // Взлёт ~1 с; «не летит» после посадки — тоже за 0,3…1,1 с (1.4.6), с запасом: не сели — путь жмёт снова, а не ждёт полминуты
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(Up ? 5 : 10);
 
     public override string? Precondition(WorldState now)
         => now.Host.Flying switch
