@@ -257,6 +257,19 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void MessageBoxOkIsTheCommandOfTheMessageWindow()
+    {
+        // «Да (Y)» окна-сообщения — команда «IDOK» в общую функцию окна, this — само окно
+        const uint message = 0x070A5CF8;
+
+        Assert.True(Caller().MessageBoxOk(message).Ok);
+
+        var run = _runner.Runs.Single();
+        Assert.Equal("IDOK\0"u8.ToArray(), run.Data);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.DialogCommand), CallingConvention.Thiscall, message, [DataAddress]), run.Stub);
+    }
+
+    [Fact]
     public void LoginScreenButtonWithoutWindowOrFunctionIsRefused()
     {
         Assert.False(Caller().LoginConfirm(0).Ok);

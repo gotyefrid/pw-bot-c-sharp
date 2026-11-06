@@ -859,4 +859,5 @@ public static class GameFunctions
     public const string SelectRole = "selectRole";
     public const string SelectPlay = "selectPlay";
     public const string AgreementAccept = "agreementAccept";
+    public const string DialogCommand = "dialogCommand";
 }

@@ -95,6 +95,7 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.SelectRole] = [DataArg],
         [GameFunctions.SelectPlay] = [],
         [GameFunctions.AgreementAccept] = [DataArg],
+        [GameFunctions.DialogCommand] = [DataArg],
     };
 
     /// <summary>Методы, у которых this подставляет сам бот (менеджер работ, созданная работа), а не профиль.</summary>
@@ -102,7 +103,7 @@ public sealed class GameCaller : IGameActions
     [
         GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart, GameFunctions.WorkTraceTarget,
         GameFunctions.WorkTraceSetTarget, GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole,
-        GameFunctions.SelectPlay, GameFunctions.AgreementAccept,
+        GameFunctions.SelectPlay, GameFunctions.AgreementAccept, GameFunctions.DialogCommand,
     ];
 
     /// <summary>Причина работы «подойти»: действовать с выбранной целью — с NPC заговорить, моба атаковать (второй клик по цели).</summary>
@@ -551,6 +552,9 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>«Принять» окна соглашения <paramref name="dialog"/>.</summary>
     public CallResult AgreementAccept(uint dialog) => CallOn(GameFunctions.AgreementAccept, dialog, Command("IDOK"));
+
+    /// <summary>«Да (Y)» окна-сообщения <paramref name="dialog"/> (MsgBox_…): ответ OK, окно закрывается.</summary>
+    public CallResult MessageBoxOk(uint dialog) => CallOn(GameFunctions.DialogCommand, dialog, Command("IDOK"));
 
     // Строка команды кнопки — ANSI с нулём, как её отдаёт игра
     private static byte[] Command(string command) => System.Text.Encoding.ASCII.GetBytes(command + "\0");

@@ -63,7 +63,8 @@ public class ProfileCatalogTests
         // Найдено и проверено пока только на одном клиенте; на остальных бот обходится без него (проверка заданий; кнопки экрана
         // входа — без них бот жмёт клавиши)
         static bool Everywhere(string function) => function is not (GameFunctions.QuestCheck or GameFunctions.UiSetText
-            or GameFunctions.LoginConfirm or GameFunctions.SelectRole or GameFunctions.SelectPlay or GameFunctions.AgreementAccept);
+            or GameFunctions.LoginConfirm or GameFunctions.SelectRole or GameFunctions.SelectPlay or GameFunctions.AgreementAccept
+            or GameFunctions.DialogCommand);
 
         Assert.Equal(
             _catalog.Load("comeback136").Data.Functions.Keys
