@@ -92,6 +92,8 @@ internal static class Program
                     return Protector(rest);
                 case "code":
                     return WithClient(rest, (profile, game) => CodeCommands.Run(profile, game, rest));
+                case "ui":
+                    return WithClient(rest, (profile, game) => UiCommands.Run(profile, game, rest));
             }
         }
         catch (Exception e)
@@ -132,6 +134,8 @@ internal static class Program
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
         Console.WriteLine("  protector [exe игры] сторож клиента (pwprotector) рядом с exe: путь, размер, дата, sha256 и сверка с профилем");
         Console.WriteLine(CodeCommands.Usage);
+        Console.WriteLine("  ui        [all]  окна клиента: этап входа, пинг, поле логина, персонажи на выборе, сообщение; тексты открытых окон (all — и закрытых)");
+        Console.WriteLine("  ui scan   [bytes] [Win_…] [0xАДРЕС [find ТЕКСТ|strings|raw файл]]  поиск смещений окон на новом клиенте");
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
         Console.WriteLine();
         Console.WriteLine("ЗАПУСК КЛИЕНТА (открывает игру — запускает владелец):");
