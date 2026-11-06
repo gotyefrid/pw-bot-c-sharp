@@ -893,9 +893,27 @@
     "workTraceSetTarget": { "rva": "0x333580", "convention": "thiscall",
                             "signature": "55 8B EC 8A 45 0C 83 EC 18 56 8B F1 57 8B 7D 08 6A 00 88 46 3A" },
     "workStart": { "rva": "0x328B20", "convention": "thiscall", "args": [ "1", "work", "0" ],
-                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
-    // Экран входа — кнопки окон функциями игры (uiSetText, loginConfirm, selectRole, selectPlay, agreementAccept; как и что это —
-    // см. pwclassic136.jsonc): на этом клиенте не искали — бот жмёт клавиши
+                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" },
+
+    // Экран входа — кнопки окон функциями игры (как и что это — см. pwclassic136.jsonc; таблицы команд окон — те же). Проверено
+    // 06.11 на живом клиенте (Probe ui call, вход по этапам).
+    // Вписать текст в поле ввода: здесь слот +0x48 таблицы методов поля (у PW Classic +0x44) — так его зовёт обработчик Lst_Account
+    // окна логина ([окно+0x250]->SetText)
+    "uiSetText": { "rva": "0x66A770", "convention": "thiscall",
+                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? ?? ?? ?? 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F9 FF 75 08 C7 87" },
+    // «Вход» — команда «confirm» окна Win_Login
+    "loginConfirm": { "rva": "0x17E470", "convention": "thiscall",
+                      "signature": "55 8B EC 83 EC 08 53 56 8B F1 57 89 75 FC E8 ??" },
+    // Щелчок по персонажу — команда «char*» окна Win_Select
+    "selectRole": { "rva": "0x1DA4D0", "convention": "thiscall",
+                    "signature": "55 8B EC 8B 45 08 56 83 C0 04 8B F1 50 FF 15 ?? ?? ?? ?? 8B" },
+    // «Играть» — то, что зовут команды «confirm», «IDOK», «Btn_Game» окна Win_Select («call это; ret 4»). Без аргументов
+    "selectPlay": { "rva": "0x1D9DA0", "convention": "thiscall",
+                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? ?? ?? ?? 00 00 00 50 81 EC 2C 01 00 00 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 89 75 D8" },
+    // «Принять» соглашения — команда «agree» кнопки Btn_Agree окна Win_Agreement: прячет окно и пускает к логину. Enter даёт
+    // команду «IDOK» — та пускает к логину, но окно не прячет (так и висело до мира)
+    "agreementAccept": { "rva": "0xCACF0", "convention": "thiscall",
+                         "signature": "56 8B F1 6A 01 6A 00 6A 00 8B 06 FF 50 1C 8B 4E" }
   },
 
   // Правка exe клиента: фиксированный набор байтовых правок под конкретный билд (originalSha256) плюс пересчёт
