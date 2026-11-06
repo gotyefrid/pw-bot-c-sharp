@@ -111,6 +111,9 @@
               <Button Style="{StaticResource ButtonBase}" Content="Персонажи…" Click="OpenCharacters"
                       IsEnabled="{Binding CanOpenCharacters}"
                       ToolTip="Список персонажей: запустить клиент нужного персонажа, войти и подключить бота" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Отмена" Margin="6,0,0,0"
+                      Command="{Binding CancelLaunchCommand}" Visibility="{Binding IsLaunching, Converter={StaticResource Visible}}"
+                      ToolTip="Остановить вход (клиент останется открытым)" />
               <TextBlock Text="{Binding LaunchText}" ToolTip="{Binding LaunchText}" Style="{StaticResource Muted}"
                          VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
             </DockPanel>

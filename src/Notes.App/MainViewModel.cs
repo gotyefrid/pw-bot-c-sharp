@@ -160,6 +160,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         ToggleConnectionCommand = new RelayCommand(() => ConnectionExpanded = !ConnectionExpanded);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
+        CancelLaunchCommand = new RelayCommand(CancelLaunch, () => IsLaunching);
 
         _log.Info("Запущено");
     }
@@ -456,10 +457,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        // Профиль знает окна клиента — бот входит сам, по этапам; нет — клиент входит по логину и паролю в аргументах
+        var steps = LoginScreen.Supported(profile.Data);
         ClientLaunch launch;
+        string password;
         try
         {
-            launch = account.Launch(profile.Data.LaunchArguments, Patch.GamePath);
+            launch = account.Launch(profile.Data.LaunchArguments, Patch.GamePath, credentials: !steps);
+            password = account.PlainPassword();
         }
         catch (InvalidOperationException e)
         {
@@ -471,8 +476,59 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsLaunching = true;
         LaunchText = $"{account.Nick}: запускаю клиент…";
         // Пароль в лог не попадает: ToString его не показывает
-        _connectionLog.Info($"Запуск {account.Nick}: {launch}");
-        Task.Run(() => Login(account, profile, launch));
+        _connectionLog.Info($"Запуск {account.Nick}{(steps ? " (вход по этапам)" : "")}: {launch}");
+        var cancel = _launchCancel = new CancellationTokenSource();
+        if (steps)
+            Task.Run(() => LoginBySteps(account, profile, launch, password, cancel.Token));
+        else
+            Task.Run(() => Login(account, profile, launch));
+    }
+
+    private CancellationTokenSource? _launchCancel;
+
+    private void CancelLaunch()
+    {
+        _launchCancel?.Cancel();
+        LaunchText = "останавливаю вход…";
+    }
+
+    // Не в потоке окна: вход с повторами — до десятка минут
+    private void LoginBySteps(CharacterAccount account, ServerProfile profile, ClientLaunch launch, string password, CancellationToken token)
+    {
+        LoginRun run;
+        try
+        {
+            var runner = new LoginRunner(() =>
+            {
+                using var process = launch.Start();
+                _connectionLog.Info($"{account.Nick}: клиент запущен, PID {process.Id}");
+                return process.Id;
+            }, pid => new ClientLoginAttempt(pid, profile.Data), pid =>
+            {
+                _connectionLog.Warning($"{account.Nick}: закрываю зависший клиент PID {pid}");
+                ClientLoginAttempt.Close(pid);
+            });
+            run = runner.Run(account.Login.Trim(), password, account.Nick, text =>
+            {
+                _connectionLog.Info($"{account.Nick}: {text}");
+                UiThread.Run(() => LaunchText = $"{account.Nick}: {text}");
+            }, token);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            UiThread.Run(() => LaunchFailed($"Не удалось запустить клиент {account.Nick}: {e.Message}"));
+            return;
+        }
+
+        UiThread.Run(() =>
+        {
+            if (run.Result is { Ok: true, Nick: { } nick } && run.Pid is { } pid)
+                Entered(account, profile, launch.ExePath, pid, nick);
+            else if (run.Result.Outcome == LoginOutcome.Cancelled)
+                LaunchFailed($"Вход {account.Nick} остановлен.");
+            else
+                LaunchFailed($"{account.Nick} не вошёл: {run.Result.Text}");
+        });
     }
 
     // Не в потоке окна: вход — до пары минут ожидания
@@ -508,15 +564,22 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        _connectionLog.Info($"{result.Nick} в игре ({result.Elapsed.TotalSeconds:0} с)");
+        Entered(account, profile, launch.ExePath, pid, result.Nick!);
+    }
+
+    /// <summary>Персонаж в мире — подключить к нему окно бота.</summary>
+    private void Entered(CharacterAccount account, ServerProfile profile, string exePath, int pid, string nick)
+    {
         IsLaunching = false;
         LaunchText = "";
-        _connectionLog.Info($"{result.Nick} в игре (PID {pid}, {result.Elapsed.TotalSeconds:0} с)");
-        if (result.Nick != account.Nick)
-            _connectionLog.Warning($"Вошёл {result.Nick}, а в «Персонажах» записан {account.Nick} — проверьте ник");
+        _connectionLog.Info($"{nick} в игре (PID {pid})");
+        if (nick != account.Nick)
+            _connectionLog.Warning($"Вошёл {nick}, а в «Персонажах» записан {account.Nick} — проверьте ник");
         // Пока ждали, окно подключили к другому клиенту — его не трогаем
         if (IsConnected)
         {
-            _connectionLog.Info($"Окно уже подключено — {result.Nick} можно подключить в другом окне бота");
+            _connectionLog.Info($"Окно уже подключено — {nick} можно подключить в другом окне бота");
             return;
         }
 
@@ -524,7 +587,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (Clients.FirstOrDefault(c => c.Pid == pid) is not { } client)
         {
             // Клиент персонажа — не «Игра» сервера: в списке его нет, добавляем сами
-            client = new GameClient(pid, result.Nick, NativeWindows.FindMainWindow(pid, includeHidden: false), launch.ExePath);
+            client = new GameClient(pid, nick, NativeWindows.FindMainWindow(pid, includeHidden: false), exePath);
             Clients.Add(client);
         }
 
@@ -609,6 +672,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public ICommand ToggleConnectionCommand { get; }
     public ICommand StartCommand { get; }
     public ICommand StopCommand { get; }
+
+    /// <summary>Остановить вход из «Персонажей» (клиент, который бот запустил, остаётся открытым).</summary>
+    public ICommand CancelLaunchCommand { get; }
 
     private bool _isRunning;
 
