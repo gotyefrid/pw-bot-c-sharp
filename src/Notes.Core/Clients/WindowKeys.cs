@@ -18,8 +18,11 @@ namespace Notes.Core.Clients;
 /// клиенте: в оконной процедуре ветка WM_ACTIVATEAPP → флаг из неё → функция, которая проверяет его перед WM_KEYDOWN.
 /// </para>
 /// </summary>
-public sealed class WindowKeys : IGameKeys
+public sealed class WindowKeys : IGameKeys, ILoginKeys
 {
+    // Между буквами: поле ввода игры берёт буквы из очереди раз в кадр, пачку сразу может и не съесть
+    private static readonly TimeSpan BetweenChars = TimeSpan.FromMilliseconds(30);
+
     // Между «нажал» и «отпустил»: игра, которая смотрит, зажата ли клавиша, раз в кадр, иначе нажатие пропустит
     private static readonly TimeSpan Hold = TimeSpan.FromMilliseconds(50);
 
@@ -27,7 +30,8 @@ public sealed class WindowKeys : IGameKeys
     // должен дожить до него. Приди «в фоне» одной пачкой с клавишей — нажатие пропало бы
     private static readonly TimeSpan AfterRelease = TimeSpan.FromMilliseconds(50);
 
-    private const uint WmActivateApp = 0x001C, WmKeyDown = 0x0100, WmKeyUp = 0x0101, WmSysKeyDown = 0x0104, WmSysKeyUp = 0x0105;
+    private const uint WmActivateApp = 0x001C, WmKeyDown = 0x0100, WmKeyUp = 0x0101, WmChar = 0x0102, WmSysKeyDown = 0x0104,
+        WmSysKeyUp = 0x0105;
     private const int VkShift = 0x10, VkControl = 0x11, VkMenu = 0x12;
 
     private readonly int _pid;
@@ -100,6 +104,80 @@ public sealed class WindowKeys : IGameKeys
             return CallResult.Refused($"окно игры не приняло нажатие (ошибка {error})");
         if (!released)
             return CallResult.Refused($"окно игры не приняло отпускание (ошибка {releaseError})");
+        return back ? CallResult.Done : CallResult.Refused($"окно игры не приняло возврат в фон (ошибка {Marshal.GetLastWin32Error()})");
+    }
+
+    /// <summary>
+    /// Нажать клавишу без Ctrl/Alt/Shift несколько раз за одну «активность» окна — стереть поле, пройти по списку. С
+    /// модификаторами — по одной, как <see cref="Press(KeyStroke)"/>.
+    /// </summary>
+    public CallResult Press(KeyStroke key, int times)
+    {
+        if (times <= 1 || key.Ctrl || key.Alt || key.Shift)
+        {
+            for (var i = 1; i < times; i++)
+            {
+                if (Press(key) is { Ok: false } failed)
+                    return failed;
+            }
+
+            return Press(key);
+        }
+
+        var window = Window;
+        if (window == IntPtr.Zero)
+            return CallResult.Refused("окно игры не найдено");
+        if (!_system.Post(window, WmActivateApp, 1, 0))
+            return CallResult.Refused($"окно игры не приняло нажатие (ошибка {Marshal.GetLastWin32Error()})");
+
+        var pressed = true;
+        for (var i = 0; i < times && pressed; i++)
+        {
+            pressed = Post(window, WmKeyDown, key.Key, false, up: false);
+            if (pressed)
+                _system.Wait(BetweenChars);
+            // Отпустить даже то, что не нажалось целиком
+            pressed &= Post(window, WmKeyUp, key.Key, false, up: true);
+            _system.Wait(BetweenChars);
+        }
+
+        var error = pressed ? 0 : Marshal.GetLastWin32Error();
+        _system.Wait(AfterRelease);
+        var back = Deactivate(window);
+        if (!pressed)
+            return CallResult.Refused($"окно игры не приняло нажатие (ошибка {error})");
+        return back ? CallResult.Done : CallResult.Refused($"окно игры не приняло возврат в фон (ошибка {Marshal.GetLastWin32Error()})");
+    }
+
+    /// <summary>
+    /// Напечатать текст в поле ввода игры, где сейчас фокус: буквы сообщениями WM_CHAR, тоже между «ты активна» и «ты в фоне».
+    /// Проверено на экране входа PW Classic: логин дошёл в фоне, окно не активировалось.
+    /// </summary>
+    public CallResult Type(string text)
+    {
+        var window = Window;
+        if (window == IntPtr.Zero)
+            return CallResult.Refused("окно игры не найдено");
+        if (text.Length == 0)
+            return CallResult.Done;
+
+        if (!_system.Post(window, WmActivateApp, 1, 0))
+            return CallResult.Refused($"окно игры не приняло ввод (ошибка {Marshal.GetLastWin32Error()})");
+
+        var typed = true;
+        foreach (var c in text)
+        {
+            typed = _system.Post(window, WmChar, c, 1);
+            if (!typed)
+                break;
+            _system.Wait(BetweenChars);
+        }
+
+        var error = typed ? 0 : Marshal.GetLastWin32Error();
+        _system.Wait(AfterRelease);
+        var back = Deactivate(window);
+        if (!typed)
+            return CallResult.Refused($"окно игры не приняло букву (ошибка {error})");
         return back ? CallResult.Done : CallResult.Refused($"окно игры не приняло возврат в фон (ошибка {Marshal.GetLastWin32Error()})");
     }
 

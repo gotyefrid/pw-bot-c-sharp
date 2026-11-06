@@ -14,7 +14,7 @@ namespace Notes.Tests.Clients;
 public class WindowKeysTests
 {
     private const int Pid = 100, OtherPid = 200;
-    private const uint ActivateApp = 0x1C, KeyDown = 0x100, KeyUp = 0x101, SysKeyDown = 0x104;
+    private const uint ActivateApp = 0x1C, KeyDown = 0x100, KeyUp = 0x101, Char = 0x102, SysKeyDown = 0x104;
 
     [Fact]
     public void KeyGoesBetweenActiveAndBackground()
@@ -109,6 +109,26 @@ public class WindowKeysTests
         Assert.Equal([50, 50], window.Waits.Select(w => (int)w.TotalMilliseconds));
     }
 
+    [Fact]
+    public void TextGoesAsCharsBetweenActiveAndBackground()
+    {
+        var window = new FakeKeyWindow { ForegroundNow = (Thread: 7, Process: OtherPid) };
+
+        Assert.True(new WindowKeys(Pid, window).Type("Аб1").Ok);
+
+        Assert.Equal(["активна", "«А»", "«б»", "«1»", "в фоне, поток 7"], window.Sent);
+    }
+
+    [Fact]
+    public void RejectedCharStillReturnsToBackground()
+    {
+        var window = new FakeKeyWindow { ForegroundNow = (Thread: 7, Process: OtherPid), Rejects = Char };
+
+        Assert.False(new WindowKeys(Pid, window).Type("x").Ok);
+
+        Assert.Equal(["активна", "в фоне, поток 7"], window.Sent);
+    }
+
     private sealed class FakeKeyWindow : IKeyWindow
     {
         public IntPtr Window = new(0x1234);
@@ -133,6 +153,7 @@ public class WindowKeysTests
                 ActivateApp => $"в фоне, поток {lParam}",
                 KeyDown => $"↓ {wParam:X2}",
                 SysKeyDown => $"сист↓ {wParam:X2}",
+                Char => $"«{(char)wParam}»",
                 _ => $"↑ {wParam:X2}",
             });
             return true;
