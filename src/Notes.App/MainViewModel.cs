@@ -252,6 +252,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         }
     }
 
+    private string? _nick;
+
+    /// <summary>Ник подключённого персонажа для значка на панели задач; null — не подключены или ник ещё не знаем.</summary>
+    public string? Nick
+    {
+        get => _nick;
+        private set => SetProperty(ref _nick, value);
+    }
+
     // ── Карточка «Подключение»: свёрнутая строка, подсказка следующего шага ──
 
     /// <summary>Строка свёрнутой карточки: «Вася · Comeback 1.4.6 · патч ✓».</summary>
@@ -667,6 +676,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
+            Nick = client.Nick;
             ConnectionExpanded = false;
             _connectionLog.Info($"Подключено: {client.Display}, сервер {_profile.Name}");
             connection.Start();
@@ -699,6 +709,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         BotState = "Ожидание";
         IsConnected = false;
         ConnectionText = "";
+        Nick = null;
         ConnectionExpanded = true;
         ClearWorld();
     }
@@ -750,7 +761,10 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Farm.Observe(w);
         var h = w.Host;
         if (h.Name.Length > 0)
+        {
             SwitchCharacter(h.Name);
+            Nick = h.Name;
+        }
         ConnectionText = h.Name;
         Status.Show(w);
         Farm.ShowFor(w);

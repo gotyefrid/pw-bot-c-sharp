@@ -22,6 +22,8 @@ public partial class MainWindow : Window
         // Первый список клиентов — когда окно уже показано; никуда не подключаемся, только «Подключить»
         Loaded += (_, _) => _model.StartUp();
         DataContext = _model;
+        // Значок на панели задач: буквы ника и кружок «запущен / стоит»
+        _ = new TaskbarBadge(this, _model);
 
         var clicker = _model.Clicker;
         clicker.EditRequested += () => new StepWindow { Owner = this, DataContext = clicker }.ShowDialog();
