@@ -16,7 +16,10 @@ public class LoginFlowTests
 
     private readonly FakeLoginClient _client = new();
 
-    private LoginFlow Flow() => new(_client, _client, _client.HostName, () => _client.Alive, Texts, _client);
+    private LoginFlow Flow() => new(_client, _client, _client.HostName, () => _client.Alive, Texts, _client, _client);
+
+    private static readonly string[] AllButtons =
+        [GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole, GameFunctions.SelectPlay, GameFunctions.AgreementAccept];
 
     private LoginResult Enter(string nick = "Флай", string password = "secret", CancellationToken token = default)
         => Flow().Enter("login", password, nick, null, token);
@@ -81,6 +84,38 @@ public class LoginFlowTests
 
         Assert.True(Enter().Ok);
         Assert.Equal(2, _client.Input.SkipWhile(i => !i.Contains("↓")).Count(i => i == "Enter"));
+    }
+
+    [Fact]
+    public void ButtonsByGameFunctionsWithoutAnyKey()
+    {
+        // Всё неудобное для клавиш сразу: соглашение, нет фокуса, старый логин и пароль в полях, подсказка поверх выбора
+        _client.Functions.UnionWith(AllButtons);
+        _client.Agreement = true;
+        _client.DropFocus();
+        _client.KeepsFields = true;
+        _client.Account = "probetest";
+        _client.Hint = true;
+
+        var result = Enter();
+
+        Assert.Equal(LoginOutcome.InWorld, result.Outcome);
+        Assert.Equal("login", _client.Account);
+        Assert.Equal("secret", _client.TypedPassword);
+        Assert.All(_client.Input, i => Assert.StartsWith("вызов: ", i));
+        Assert.Equal(["вызов: соглашение", $"вызов: текст {LoginScreen.AccountField}", $"вызов: текст {LoginScreen.PasswordField}",
+            "вызов: вход", "вызов: персонаж 2", "вызов: играть"], _client.Input);
+    }
+
+    [Fact]
+    public void FailedCallsFallBackToKeys()
+    {
+        _client.Functions.UnionWith(AllButtons);
+        _client.CallsFail = true;
+
+        Assert.True(Enter().Ok);
+        Assert.Equal("secret", _client.TypedPassword);
+        Assert.Contains("Enter", _client.Input);
     }
 
     [Fact]

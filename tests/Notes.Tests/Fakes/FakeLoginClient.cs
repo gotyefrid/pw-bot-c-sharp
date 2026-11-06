@@ -5,6 +5,7 @@ using System.Threading;
 using Notes.Core.Actions;
 using Notes.Core.Calls;
 using Notes.Core.Clients;
+using Notes.Core.Profiles;
 
 namespace Notes.Tests.Fakes;
 
@@ -13,7 +14,7 @@ namespace Notes.Tests.Fakes;
 /// Enter на логине — ответ сервера (выбор персонажа или сообщение), стрелки двигают отметку, Enter на выборе — мир через пару
 /// секунд, Enter при сообщении — закрыть его. Время подставное: ожидание двигает часы.
 /// </summary>
-public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
+public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock, ILoginCalls
 {
     public const string WrongPasswordText = "Неверный пароль или имя учетной записи";
     public const string NoServerText = "Соединение с сервером было разорвано. Пожалуйста, попробуйте зайти еще раз.";
@@ -64,6 +65,12 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
     public string? Host { get; private set; }
 
     private DateTime? _worldAt;
+
+    /// <summary>Какие кнопки есть функциями игры (<see cref="GameFunctions"/>); пусто — только клавиши.</summary>
+    public HashSet<string> Functions { get; } = [];
+
+    /// <summary>Вызовы в игру не доходят (окно игры не приняло) — бот должен перейти на клавиши.</summary>
+    public bool CallsFail { get; set; }
 
     /// <summary>Что нажимали и печатали — для проверок.</summary>
     public List<string> Input { get; } = [];
@@ -142,6 +149,48 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
     }
 
     public void Wait(TimeSpan time, CancellationToken token) => Now += time;
+
+    public bool Can(string function) => Functions.Contains(function);
+
+    public CallResult SetText(string field, string text) => Call($"текст {field}", () =>
+    {
+        if (Stage != LoginStage.Login || Message is not null || Agreement)
+            return;
+        if (field == LoginScreen.AccountField)
+            Account = text;
+        else
+        {
+            TypedPassword = text;
+            _passwordInMemory = text.Length;
+        }
+    });
+
+    // Как кнопка «Вход»: то же, что Enter на экране логина
+    CallResult ILoginCalls.Login() => Call("вход", () => Key(0x0D));
+
+    public CallResult SelectRole(int slot) => Call($"персонаж {slot}", () =>
+    {
+        if (Stage == LoginStage.Select && Message is null)
+            Selected = slot;
+    });
+
+    // «Играть» мимо подсказки: она закрывается вместе с выбором
+    public CallResult Play() => Call("играть", () =>
+    {
+        Hint = false;
+        Key(0x0D);
+    });
+
+    public CallResult Agree() => Call("соглашение", () => Agreement = false);
+
+    private CallResult Call(string what, Action action)
+    {
+        Input.Add($"вызов: {what}");
+        if (CallsFail)
+            return CallResult.Refused("окно игры не приняло вызов");
+        action();
+        return CallResult.Done;
+    }
 
     private void Key(int key)
     {

@@ -20,6 +20,31 @@ public interface ILoginKeys
     CallResult Type(string text);
 }
 
+/// <summary>
+/// Кнопки экрана входа функциями игры (<see cref="Calls.GameCaller"/>): как нажатие кнопки мышью, но без фокуса, места на экране
+/// и активного окна. Функции нет в профиле клиента — <see cref="Can"/> false, шаг идёт клавишами.
+/// </summary>
+public interface ILoginCalls
+{
+    /// <summary>Функция <paramref name="function"/> (<see cref="GameFunctions"/>) есть в профиле и найдена в клиенте.</summary>
+    bool Can(string function);
+
+    /// <summary>Вписать текст в поле окна логина (<see cref="LoginScreen.AccountField"/> или <see cref="LoginScreen.PasswordField"/>).</summary>
+    CallResult SetText(string field, string text);
+
+    /// <summary>«Вход».</summary>
+    CallResult Login();
+
+    /// <summary>Отметить персонажа на месте <paramref name="slot"/> (1…8).</summary>
+    CallResult SelectRole(int slot);
+
+    /// <summary>«Играть» отмеченным персонажем.</summary>
+    CallResult Play();
+
+    /// <summary>«Принять» пользовательское соглашение.</summary>
+    CallResult Agree();
+}
+
 /// <summary>Время для входа: настоящее или подставное в тестах (там ожидание двигает поддельный клиент).</summary>
 public interface ILoginClock
 {
@@ -100,7 +125,8 @@ public sealed record LoginTimeouts
 /// Вход в уже запущенный клиент по этапам, как человек: экран логина → логин, Tab, пароль, Enter → ответ сервера (выбор
 /// персонажа или окно-сообщение) → свой ник стрелками → Enter → мир. Каждый шаг проверяется чтением экрана
 /// (<see cref="ILoginScreen"/>): бот знает, где он, и отличает ошибку (клиент показал текст) от зависания (этап не сменился
-/// вовремя). Повторы — снаружи (<see cref="LoginRunner"/>). Память только читается, в окно идут клавиши.
+/// вовремя). Повторы — снаружи (<see cref="LoginRunner"/>). Память только читается. Кнопки — функциями игры
+/// (<see cref="ILoginCalls"/>), где они есть в профиле; нет или вызов не прошёл — клавишами в окно.
 /// </summary>
 public sealed class LoginFlow
 {
@@ -113,14 +139,18 @@ public sealed class LoginFlow
     private readonly Func<bool> _alive;
     private readonly LoginScreenOffsets _texts;
     private readonly ILoginClock _clock;
+    private readonly ILoginCalls? _calls;
+    private Action<string> _progress = _ => { };
 
     /// <param name="hostName">Ник персонажа в мире (пусто — ещё не в мире).</param>
     /// <param name="alive">Процесс клиента жив.</param>
+    /// <param name="calls">Кнопки функциями игры; null — только клавиши.</param>
     public LoginFlow(ILoginScreen screen, ILoginKeys keys, Func<string?> hostName, Func<bool> alive, LoginScreenOffsets texts,
-        ILoginClock? clock = null)
+        ILoginClock? clock = null, ILoginCalls? calls = null)
     {
         _screen = screen;
         _keys = keys;
+        _calls = calls;
         _hostName = hostName;
         _alive = alive;
         _texts = texts;
@@ -145,6 +175,7 @@ public sealed class LoginFlow
 
     private LoginResult Run(string login, string password, string nick, Action<string> progress, CancellationToken token)
     {
+        _progress = progress;
         progress("жду экран логина");
         var view = WaitFor(v => v.Stage is LoginStage.Agreement or LoginStage.Login or LoginStage.Select or LoginStage.World
                                 || v.Message is not null,
@@ -154,7 +185,7 @@ public sealed class LoginFlow
         if (view.Stage == LoginStage.Agreement && view.Message is null)
         {
             progress("принимаю пользовательское соглашение");
-            Press(EnterKey);
+            Button(GameFunctions.AgreementAccept, c => c.Agree(), () => Press(EnterKey));
             view = WaitFor(v => v.Stage is LoginStage.Login or LoginStage.Select or LoginStage.World || v.Message is not null,
                 Timeouts.Step, "соглашение не принимается", token);
         }
@@ -172,7 +203,7 @@ public sealed class LoginFlow
             progress(string.IsNullOrEmpty(view.Ping) ? "экран логина" : $"экран логина, пинг {view.Ping}");
             TypeLogin(login, password, token);
             progress("логин и пароль введены, жду ответ сервера");
-            Press(EnterKey);
+            Button(GameFunctions.LoginConfirm, c => c.Login(), () => Press(EnterKey));
             view = WaitFor(v => v.Stage is LoginStage.Select or LoginStage.World || v.Message is not null, Timeouts.Answer,
                 "сервер не ответил на вход", token);
             if (view.Message is { } message)
@@ -185,10 +216,10 @@ public sealed class LoginFlow
             ChooseRole(nick, token);
             progress($"вхожу {nick}, жду мир");
             // Comeback 1.3.6: поверх выбора бывает окно «Подсказка» (Win_PwdHint) — первый Enter закрывает его, а не входит.
-            // Не ушли с выбора — Enter ещё раз
+            // Не ушли с выбора — Enter ещё раз. Вызову «Играть» подсказка не мешает
             for (var enter = 1; ; enter++)
             {
-                Press(EnterKey);
+                Button(GameFunctions.SelectPlay, c => c.Play(), () => Press(EnterKey));
                 if (enter == 3 || TryWaitFor(v => v.Stage != LoginStage.Select || v.Message is not null, Timeouts.Step, token) is not null)
                     break;
             }
@@ -203,9 +234,19 @@ public sealed class LoginFlow
         return new LoginResult(LoginOutcome.InWorld, name == nick ? $"{name} в мире" : $"в мире {name}, а не {nick}", name);
     }
 
-    // Логин — в поле логина с проверкой, что дошёл; Tab; пароль. Пароль из памяти не читается: проверит ответ сервера
+    // Логин — в поле логина с проверкой, что дошёл; пароль. Пароль из памяти не проверить: проверит ответ сервера
     private void TypeLogin(string login, string password, CancellationToken token)
     {
+        // Функцией игры: поле получает весь текст сразу — ни фокуса, ни стирания старого
+        if (_calls is { } calls && calls.Can(GameFunctions.UiSetText))
+        {
+            var account = calls.SetText(LoginScreen.AccountField, login);
+            if (account.Ok && TryWaitFor(v => v.Account == login, Timeouts.Step, token) is not null
+                && calls.SetText(LoginScreen.PasswordField, password) is { Ok: true })
+                return;
+            _progress($"текст функцией игры не вписался ({(account.Ok ? "логин не в поле" : account.Details)}) — печатаю");
+        }
+
         Focus(LoginScreen.AccountField, token);
         for (var attempt = 1; ; attempt++)
         {
@@ -273,6 +314,16 @@ public sealed class LoginFlow
                 $"на аккаунте нет персонажа {nick} (есть: {string.Join(", ", view.Roles.Select(r => r.Name))})"));
         }
 
+        // Функцией игры — как щелчок по персонажу
+        if (_calls is { } calls && calls.Can(GameFunctions.SelectRole))
+        {
+            var result = calls.SelectRole(role.Slot);
+            if (result.Ok && TryWaitFor(v => v.Selected == role.Slot, Timeouts.Step, token) is not null)
+                return;
+            var why = result.Ok ? $"отмечен {_screen.Read().Selected?.ToString() ?? "никто"}" : result.Details;
+            _progress($"персонаж функцией игры не отметился ({why}) — стрелками");
+        }
+
         for (var attempt = 1; ; attempt++)
         {
             var selected = _screen.Read().Selected ?? 1;
@@ -315,6 +366,20 @@ public sealed class LoginFlow
                 return null;
             _clock.Wait(Timeouts.Poll, token);
         }
+    }
+
+    // Кнопка: функцией игры, если она есть; нет или не вышло — клавишами
+    private void Button(string function, Func<ILoginCalls, CallResult> call, Action keys)
+    {
+        if (_calls is { } calls && calls.Can(function))
+        {
+            var result = call(calls);
+            if (result.Ok)
+                return;
+            _progress($"{function}: {result.Details} — жму клавиши");
+        }
+
+        keys();
     }
 
     private void Press(KeyStroke key, int times = 1)
