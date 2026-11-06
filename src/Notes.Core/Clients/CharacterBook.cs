@@ -30,6 +30,9 @@ public sealed class CharacterAccount
     /// <summary>Exe клиента; пусто — «Игра» сервера.</summary>
     public string ExePath { get; set; } = "";
 
+    /// <summary>Заметка игрока о персонаже — что угодно, бот её только показывает.</summary>
+    public string Comment { get; set; } = "";
+
     /// <summary>Класс (номер как в игре, <see cref="World.PlayerClasses"/>); null — ещё не видели.</summary>
     public int? Class { get; set; }
 

@@ -34,11 +34,13 @@ public class CharacterBookTests : IDisposable
     public void SavedCharacterComesBack()
     {
         var druid = Druid();
+        druid.Comment = "Фарм пчёл\nкачать до 60";
         _book.Save(druid);
 
         var loaded = Assert.Single(new CharacterBook(_book.Path).Load(out _));
         Assert.Equal(druid.Id, loaded.Id);
         Assert.Equal("Друид", loaded.Nick);
+        Assert.Equal("Фарм пчёл\nкачать до 60", loaded.Comment);
         Assert.Equal("секрет 1", PasswordVault.Unprotect(loaded.Password));
     }
 
