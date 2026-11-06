@@ -109,10 +109,11 @@ public class LoginScreenTests
     [Fact]
     public void ProfileWithoutWindowsIsUnknown()
     {
-        var comeback = Notes.Core.Profiles.ProfileCatalog.Default().Load("comeback146").Data;
+        // Новый клиент, у которого окна ещё не искали: смещения пустые
+        var unknown = new Notes.Core.Profiles.ProfileData();
 
-        Assert.False(LoginScreen.Supported(comeback));
+        Assert.False(LoginScreen.Supported(unknown));
         Assert.True(LoginScreen.Supported(_client.Profile));
-        Assert.Equal(LoginStage.Unknown, new LoginScreen(_client.Memory, _client.Roots, comeback).Read().Stage);
+        Assert.Equal(LoginStage.Unknown, new LoginScreen(_client.Memory, _client.Roots, unknown).Read().Stage);
     }
 }

@@ -677,25 +677,33 @@
   // в [this+0x7E0]; его же читает код окна торговли («mov ecx,[eax+0x7E0]» рядом с push "Win_Shop")
   "ui": { "managers": "0x10", "inGame": "0x8", "active": "0xC", "npcDialog": "0x734", "shopDialog": "0x7E0" },
 
-  // Экран входа и сообщения — окна клиента изнутри (как и что это — см. pwclassic136.jsonc). На этом клиенте не проверено:
-  // пусто — «Персонажи» входят через аргументы запуска (user:, pwd:, role:)
+  // Экран входа и сообщения — окна клиента изнутри (как и что это — см. pwclassic136.jsonc). Проверено 06.11 на живом клиенте
+  // (Probe ui scan, ui): всё как у 1.3.6 — менеджер CECLoginUIMan в [менеджеры + 0x8], массив окон +0xC4, элементы +0x1CC,
+  // текст +0xB8, фокус +0xE8. Соглашения при запуске нет — сразу Win_Login, в поле логина последний аккаунт.
+  // Места: Win_Login +0x98 = 424, 320 при окне игры 1576×991; DEFAULT_Txt_Account +0x84 = 289, 95, 159×36 — на снимке окна
+  // поле там (и Txt_PassWord, и Btn_Game тоже). Отметка персонажа (radioChecked) — как у 1.3.6, вживую не проверена:
+  // настоящий вход выбил бы фармящего бота
   "loginScreen": {
-    "dialogs": "",
-    "dialogName": "",
-    "dialogShown": "",
-    "dialogFocus": "",
-    "controls": "",
-    "controlNext": "",
-    "controlItem": "",
-    "controlName": "",
-    "controlText": "",
-    "radioChecked": "",
-    "dialogPosition": "",
-    "controlPosition": "",
-    "wrongPassword": [],
-    "noServer": [],
-    // Окно обрыва в мире: в 1.4.6 это MsgBox_RemindReconnect с вопросом «Восстановить соединение?» — текст не проверен
-    "disconnected": []
+    "dialogs": "0xC4",
+    "dialogName": "0x4C",
+    "dialogShown": "0x90",
+    "dialogFocus": "0xE8",
+    "controls": "0x1CC",
+    "controlNext": "0x4",
+    "controlItem": "0x8",
+    "controlName": "0x18",
+    "controlText": "0xB8",
+    "radioChecked": "0x121",
+    "dialogPosition": "0x98",
+    "controlPosition": "0x84",
+    // Окно MsgBox_LoginFail: проверено 06.11 — выдуманный логин
+    "wrongPassword": [ "Неверный пароль или имя учетной записи" ],
+    // Нет связи на экране входа: этот текст есть в памяти клиента (как у 1.3.6), но обрывом не проверен
+    "noServer": [ "Соединение с сервером было разорвано" ],
+    // Окно обрыва в мире: MsgBox_RemindReconnect «Соединение с сервером разорвано. Восстановить соединение?» — текст из таблицы
+    // строк клиента (в памяти рядом с «…исключает вас из гильдии»). Обрывом в мире не проверено. «Да» бот не жмёт: закрывает
+    // клиент и входит заново
+    "disconnected": [ "Соединение с сервером разорвано" ]
   },
 
   // Карта кода, который сервер присылает для исполнения в клиенте (приёмник команд античита). Бот её только ЧИТАЕТ
@@ -1043,9 +1051,27 @@
     "workTraceSetTarget": { "rva": "0x3555C0", "convention": "thiscall",
                             "signature": "55 8B EC 8A 45 0C 83 EC 18 56 8B F1 57 8B 7D 08 6A 00 88 46 3A" },
     "workStart": { "rva": "0x34AAA0", "convention": "thiscall", "args": [ "1", "work", "0" ],
-                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
-    // Экран входа — кнопки окон функциями игры (uiSetText, loginConfirm, selectRole, selectPlay, agreementAccept, dialogCommand; как и что это —
-    // см. pwclassic136.jsonc): на этом клиенте не искали — бот жмёт клавиши
+                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" },
+
+    // Экран входа — кнопки окон функциями игры (как и что это — см. pwclassic136.jsonc). Найдено 06.11 по таблицам команд окон
+    // живого клиента; сигнатуры те же, что у 1.3.6, и находятся по одному разу.
+    // Вписать текст в поле ввода (AUIEditBox::SetText — слот +0x48 таблицы методов поля, как у 1.3.6)
+    "uiSetText": { "rva": "0x697220", "convention": "thiscall",
+                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? ?? ?? ?? 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F9 FF 75 08 C7 87" },
+    // «Войти» — команда «confirm» окна Win_Login
+    "loginConfirm": { "rva": "0x1930C0", "convention": "thiscall",
+                      "signature": "55 8B EC 83 EC 08 53 56 8B F1 57 89 75 FC E8 ??" },
+    // Щелчок по персонажу — команда «char*» окна Win_Select. Вживую не нажимали: настоящий вход выбил бы фармящего бота
+    "selectRole": { "rva": "0x1F2820", "convention": "thiscall",
+                    "signature": "55 8B EC 8B 45 08 56 83 C0 04 8B F1 50 FF 15 ?? ?? ?? ?? 8B" },
+    // «Играть» — то, что зовут команды «IDOK», «confirm», «Btn_Game» окна Win_Select («call это; ret 4»). Вживую не нажимали
+    "selectPlay": { "rva": "0x1F20F0", "convention": "thiscall",
+                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? ?? ?? ?? 00 00 00 50 81 EC 2C 01 00 00 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 89 75 D8" },
+    // Команда окна (AUIDialog::OnCommand, слот +0x30 таблицы методов окна): «IDOK» закрывает окно-сообщение, как «Да (Y)»
+    "dialogCommand": { "rva": "0x656A50", "convention": "thiscall",
+                       "signature": "55 8B EC 51 53 57 8B 7D 08 8B D9 8B D7 89 5D FC 8D 4A 01 8A 02 42 84 C0 75 F9 2B D1 75 0A 5F B0 01 5B 8B E5 5D C2 04 00 83 7B 78 01" }
+    // agreementAccept: у окна Win_Agreement есть команда «agree» (0xD03A0, сигнатура 1.3.6 находится), но при запуске соглашение
+    // не показывается — проверить нечем, поэтому не вписано
   },
 
   // Правка exe клиента: фиксированный набор байтовых правок под конкретный билд (originalSha256) плюс пересчёт
