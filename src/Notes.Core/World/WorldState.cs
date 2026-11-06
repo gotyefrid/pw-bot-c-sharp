@@ -247,6 +247,9 @@ public sealed record HostState(
     /// <summary>Деньги перса; null — поле не найдено для этого сервера.</summary>
     public int? Money { get; init; }
 
+    /// <summary>Класс, номер как в игре (<see cref="PlayerClasses"/>); null — поле не найдено для этого сервера.</summary>
+    public int? Class { get; init; }
+
     public double? ExpPercent => Exp is { } exp && ExpToLevel is > 0 and { } need ? exp * 100.0 / need : null;
 
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;

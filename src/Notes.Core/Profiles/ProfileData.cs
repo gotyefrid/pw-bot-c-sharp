@@ -193,6 +193,8 @@ public sealed class HostOffsets
     public uint MaxMp { get; init; }
     /// <summary>Опыт на текущем уровне (int). 0 — не найдено.</summary>
     public uint Exp { get; init; }
+    /// <summary>Класс перса (int, номер как у <see cref="PlayerOffsets.Class"/>). 0 — не найдено.</summary>
+    public uint Class { get; init; }
     /// <summary>Деньги перса (int, как внизу сумки). 0 — не найдено.</summary>
     public uint Money { get; init; }
     /// <summary>

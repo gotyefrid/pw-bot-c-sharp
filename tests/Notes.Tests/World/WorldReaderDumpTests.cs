@@ -33,6 +33,8 @@ public class WorldReaderDumpTests
 
         Assert.Equal("Персонаж", h.Name);
         Assert.Equal(22, h.Level);
+        // Друид: пет-скорпион и пчела в клетках
+        Assert.Equal(3, h.Class);
         Assert.Equal(0x0015A420u, h.Wid);
         Assert.Equal((1013, 1013), (h.Hp, h.MaxHp));
         Assert.Equal((1068, 1068), (h.Mp, h.MaxMp));
