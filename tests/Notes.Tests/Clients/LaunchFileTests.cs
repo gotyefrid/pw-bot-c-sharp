@@ -58,6 +58,19 @@ public class LaunchFileTests : IDisposable
     }
 
     [Fact]
+    public void PwClassicBatWithClientExeKeepsCyrillicRole()
+    {
+        var path = PutBat("bot136pwclassic.bat",
+            "start Client.exe startbypatcher game:cpw console:1 user:u pwd:p role:Тест", new UTF8Encoding(false));
+
+        var launch = LaunchFile.Read(path);
+
+        Assert.Equal(Path.Combine(_element, "Client.exe"), launch.ExePath);
+        Assert.Equal("Тест", launch.Role);
+        Assert.Equal(["startbypatcher", "game:cpw", "console:1", "user:u", "pwd:p", "role:Тест"], launch.Arguments);
+    }
+
+    [Fact]
     public void Cp1251BatKeepsCyrillicRole()
     {
         var path = PutBat("main_pers.bat", "start ElementClient.exe startbypatcher user:u pwd:p role:Мелок", Encoding.GetEncoding(1251));
