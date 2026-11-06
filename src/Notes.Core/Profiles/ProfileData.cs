@@ -187,6 +187,8 @@ public sealed class HostOffsets
     public uint MaxMp { get; init; }
     /// <summary>Опыт на текущем уровне (int). 0 — не найдено.</summary>
     public uint Exp { get; init; }
+    /// <summary>Деньги перса (int, как внизу сумки). 0 — не найдено.</summary>
+    public uint Money { get; init; }
     /// <summary>
     /// Код, который читает таблицу «опыт до следующего уровня» по уровню перса: на месте <see cref="ExpTableAt"/> — адрес X,
     /// нужно на уровне L — [X + L × 4]. null — не найдено для сервера.

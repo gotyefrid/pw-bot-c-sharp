@@ -658,7 +658,8 @@ internal static class WorldCommands
         var h = w.Host;
         s.AppendLine($"Снимок {w.Time.ToLocalTime():HH:mm:ss.fff}, прочитан за {w.ReadDuration.TotalMilliseconds:0.0} мс");
         s.AppendLine($"Перс   {h.Name}, ур. {h.Level}, WID 0x{h.Wid:X8}");
-        s.AppendLine($"       опыт {h.Exp?.ToString() ?? "?"}/{h.ExpToLevel?.ToString() ?? "?"}{(h.ExpPercent is { } exp ? $" ({exp:0.0} %)" : "")}");
+        s.AppendLine($"       опыт {h.Exp?.ToString() ?? "?"}/{h.ExpToLevel?.ToString() ?? "?"}{(h.ExpPercent is { } exp ? $" ({exp:0.0} %)" : "")}"
+                     + $", деньги {h.Money?.ToString() ?? "?"}");
         s.AppendLine($"       HP {h.Hp}/{h.MaxHp} ({h.HpPercent} %)  MP {h.Mp}/{h.MaxMp?.ToString() ?? "?"}  {h.Position}");
         s.AppendLine($"       каст: {(h.IsCasting ? "да" : "нет")}, корм пета: {(h.PetFoodCooldownMs == 0 ? "можно" : $"перезарядка {h.PetFoodCooldownMs / 1000.0:0} с")}");
 

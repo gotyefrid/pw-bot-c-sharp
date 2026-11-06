@@ -244,6 +244,9 @@ public sealed record HostState(
     public int? ExpToLevel { get; init; }
 
     /// <summary>Опыт в процентах от нужного до уровня (может быть больше 100 и меньше 0); null — опыт или таблица неизвестны.</summary>
+    /// <summary>Деньги перса; null — поле не найдено для этого сервера.</summary>
+    public int? Money { get; init; }
+
     public double? ExpPercent => Exp is { } exp && ExpToLevel is > 0 and { } need ? exp * 100.0 / need : null;
 
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
