@@ -315,6 +315,80 @@
       </DockPanel>
     </Border>
 
+    <!-- Статистика персонажа: занимает остаток окна, список добычи прокручивается -->
+    <Border Grid.Row="5" Style="{StaticResource Card}" Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=0}">
+      <DockPanel DataContext="{Binding Stats}">
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+          <Border DockPanel.Dock="Right" Background="#E6E9F0" CornerRadius="9" Padding="3">
+            <StackPanel Orientation="Horizontal">
+              <RadioButton Style="{StaticResource Segment}" Content="Сессия" GroupName="StatsPeriod"
+                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=0}"
+                           ToolTip="Последний запуск: от «Старт» до «Стоп»" />
+              <RadioButton Style="{StaticResource Segment}" Content="День" GroupName="StatsPeriod"
+                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=1}" ToolTip="С полуночи" />
+              <RadioButton Style="{StaticResource Segment}" Content="Неделя" GroupName="StatsPeriod"
+                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=2}" ToolTip="С понедельника" />
+              <RadioButton Style="{StaticResource Segment}" Content="Месяц" GroupName="StatsPeriod"
+                           IsChecked="{Binding Period, Converter={StaticResource TabChecked}, ConverterParameter=3}" ToolTip="С первого числа" />
+            </StackPanel>
+          </Border>
+          <TextBlock Text="СТАТИСТИКА" Style="{StaticResource CardTitle}" VerticalAlignment="Center" Margin="0" />
+        </DockPanel>
+
+        <Grid DockPanel.Dock="Top">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+          <Grid.Resources>
+            <Style TargetType="TextBlock" BasedOn="{StaticResource Muted}">
+              <Setter Property="Margin" Value="0,0,12,3" />
+            </Style>
+          </Grid.Resources>
+
+          <TextBlock Grid.Row="0" Text="Работал" />
+          <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Worked}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+          <TextBlock Grid.Row="1" Text="Убито мобов" ToolTip="Мобы, которых били перс или пет" />
+          <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Kills}" Foreground="{StaticResource Text}" />
+          <TextBlock Grid.Row="2" Text="Смертей" ToolTip="Смерти на фарме; смерти при сливе опыта не считаются" />
+          <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Deaths}" Foreground="{StaticResource Text}" />
+          <TextBlock Grid.Row="3" Text="Опыт" />
+          <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding Exp}" Foreground="{StaticResource Text}" />
+          <TextBlock Grid.Row="4" Text="Деньги" ToolTip="Подобранные монеты" />
+          <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding Money}" Foreground="{StaticResource Text}" />
+          <TextBlock Grid.Row="5" Text="Ремонтов" />
+          <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding Repairs}" Foreground="{StaticResource Text}" />
+          <TextBlock Grid.Row="6" Text="Слив опыта" ToolTip="Сколько раз, когда начинался и сколько шёл" />
+          <TextBlock Grid.Row="6" Grid.Column="1" Text="{Binding Drains}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+        </Grid>
+
+        <TextBlock DockPanel.Dock="Top" Text="ПОДОБРАНО И ВЫКОПАНО" Style="{StaticResource CardTitle}" Margin="0,10,0,4" />
+        <TextBlock DockPanel.Dock="Top" Text="Пока ничего" Style="{StaticResource Muted}"
+                   Visibility="{Binding HasItems, Converter={StaticResource Hidden}}" />
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Visibility="{Binding HasItems, Converter={StaticResource Visible}}">
+          <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate>
+                <DockPanel Margin="0,0,6,2">
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding Count, StringFormat={}{0:#,0}, ConverterCulture=ru-RU}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </DockPanel>
+    </Border>
+
     <!-- Ресы: маршрут обхода (часть 8, этап 2). Блокнот точек ресурсов работает в фоне и в окне не показывается -->
     <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
                   Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=3}">

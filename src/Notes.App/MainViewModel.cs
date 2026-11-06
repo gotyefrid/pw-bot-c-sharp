@@ -23,6 +23,7 @@ using Notes.Core.Profiles;
 using Notes.Core.Resources;
 using Notes.Core.Session;
 using Notes.Core.Settings;
+using Notes.Core.Stats;
 using Notes.Core.World;
 
 namespace Notes.App;
@@ -70,9 +71,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     // Файл лога: общий, пока персонаж неизвестен, потом — logs\<сервер>\<дата> Ник.log
     private readonly DailyFileSink _fileLog;
 
+    // Папка бота: в ней stats\<сервер>\Ник — статистика персонажа
+    private readonly string _appDirectory;
+
     public MainViewModel(string appDirectory, IDialogs dialogs)
     {
         _dialogs = dialogs;
+        _appDirectory = appDirectory;
         _logsDirectory = Path.Combine(appDirectory, "logs");
         var ring = new RingBufferSink(LogPanel.MaxLines);
         var logger = new Logger().AddSink(ring).AddSink(_fileLog = new DailyFileSink(_logsDirectory)).AddSink(_incidents);
@@ -394,6 +399,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Персонаж, цель, пет — на вкладке «Бот».</summary>
     public StatusPanel Status { get; } = new();
 
+    /// <summary>Статистика персонажа: убито, добыто, смерти, опыт — за сессию, день, неделю, месяц.</summary>
+    public StatsPanel Stats { get; } = new();
+
     /// <summary>Лог в окне.</summary>
     public LogPanel Log { get; } = new();
 
@@ -441,7 +449,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
 
         // Обход — с точки, выбранной в списке (не выбрана — с первой)
-        var result = _connection.StartBot(Settings.Mode, Settings, Route.StartIndex, transport);
+        var result = _connection.StartBot(Settings.Mode, Settings, Route.StartIndex, transport, Stats.Book);
         switch (result.Status)
         {
             case StartStatus.Started:
@@ -876,6 +884,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _config.SwitchTo(_profile.Id, nick);
         _fileLog.SetCharacter(_profile.Id, nick);
         Settings.Edited += SettingsEdited;
+        OpenStats(nick);
 
         _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
@@ -889,6 +898,14 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         Quests.Load();
         ModeChanged();
         OnPropertyChanged(nameof(SettingsOwner));
+    }
+
+    // Статистика персонажа: старые месяцы дочитываются в фоне, бот может писать сразу
+    private void OpenStats(string nick)
+    {
+        var book = new StatsBook(StatsBook.DirectoryFor(_appDirectory, _profile.Id, nick), DateTime.Now, _log);
+        Stats.SetBook(book, moneyKnown: _profile.Data.Host.Money != 0);
+        Task.Run(book.Load);
     }
 
     private WorldState? _lastWorld;
