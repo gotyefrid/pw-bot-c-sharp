@@ -1,10 +1,13 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Notes.Core.Clients;
 
 namespace Notes.App;
 
@@ -12,6 +15,10 @@ namespace Notes.App;
 /// Кнопка окна на панели задач: на значке — две первые буквы ника на своём цвете (у каждого ника свой, между запусками тот же),
 /// справа внизу — кружок: зелёный — бот запущен, красный — подключён, но стоит. Не подключены — обычный значок без кружка.
 /// Кружок рисуем на самом значке, а не значком поверх (overlay): тот Windows ставит сама и крупно — с полкнопки.
+/// <para>
+/// Окну игры, к которому подключены, — его родной значок (у каждого клиента свой) с теми же буквами поверх: видно, какое окно
+/// чьё. Отключились — родной значок обратно (наш значок живёт, пока жив бот: без этого после выхода окно осталось бы без значка).
+/// </para>
 /// </summary>
 public sealed class TaskbarBadge
 {
@@ -29,6 +36,8 @@ public sealed class TaskbarBadge
     private readonly MainViewModel _model;
     private readonly ImageSource? _appIcon;
     private (string? Nick, Color? Dot) _drawn;
+    // Окно игры с нашим значком: какое, с каким ником, сам значок (освободить, когда снимем)
+    private (IntPtr Window, string Nick, IntPtr Icon)? _game;
 
     public TaskbarBadge(Window window, MainViewModel model)
     {
@@ -41,7 +50,8 @@ public sealed class TaskbarBadge
 
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainViewModel.Nick) or nameof(MainViewModel.IsRunning) or nameof(MainViewModel.IsConnected))
+        if (e.PropertyName is nameof(MainViewModel.Nick) or nameof(MainViewModel.IsRunning) or nameof(MainViewModel.IsConnected)
+            or nameof(MainViewModel.Client))
         {
             if (_window.Dispatcher.CheckAccess())
                 Update();
@@ -53,11 +63,67 @@ public sealed class TaskbarBadge
     private void Update()
     {
         var nick = _model.IsConnected ? _model.Nick : null;
+        UpdateGame(_model.Client is { } client && nick is not null ? (client, nick) : null);
+
         Color? dot = !_model.IsConnected ? null : _model.IsRunning ? Running : Stopped;
         if ((nick, dot) == _drawn)
             return;
         _drawn = (nick, dot);
         _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, dot, _appIcon);
+    }
+
+    private void UpdateGame((GameClient Client, string Nick)? want)
+    {
+        if (_game is { } had && want is { } same && had.Window == same.Client.Window && had.Nick == same.Nick)
+            return;
+
+        // Снять прежний: окно снова со значком класса (родным)
+        if (_game is { } old)
+        {
+            NativeWindows.SetIcon(old.Window, IntPtr.Zero);
+            NativeWindows.DestroyIcon(old.Icon);
+            _game = null;
+        }
+        if (want is not { } now || now.Client.Window == IntPtr.Zero)
+            return;
+
+        var icon = GameIcon(now.Client, now.Nick);
+        if (icon == IntPtr.Zero)
+            return;
+        if (NativeWindows.SetIcon(now.Client.Window, icon))
+            _game = (now.Client.Window, now.Nick, icon);
+        else
+            NativeWindows.DestroyIcon(icon);
+    }
+
+    // Родной значок окна игры и буквы ника поверх — белые с чёрной обводкой, чтобы читались на любой картинке
+    private static IntPtr GameIcon(GameClient client, string nick)
+    {
+        var (original, owned) = NativeWindows.OriginalIcon(client.Window, client.ExePath);
+        if (original == IntPtr.Zero)
+            return IntPtr.Zero;
+        try
+        {
+            var picture = Imaging.CreateBitmapSourceFromHIcon(original, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawImage(picture, new Rect(0, 0, IconSize, IconSize));
+                var ink = LettersGeometry(nick, FontWeights.Black);
+                dc.DrawGeometry(null, new Pen(Brushes.Black, 7) { LineJoin = PenLineJoin.Round }, ink);
+                dc.DrawGeometry(Brushes.White, null, ink);
+            }
+            var encoder = new PngBitmapEncoder();
+            encoder.Frames.Add(BitmapFrame.Create((BitmapSource)Render(visual, IconSize)));
+            using var png = new MemoryStream();
+            encoder.Save(png);
+            return NativeWindows.IconFromPng(png.ToArray(), IconSize);
+        }
+        finally
+        {
+            if (owned)
+                NativeWindows.DestroyIcon(original);
+        }
     }
 
     /// <summary>Шесть первых букв (или цифр) ника строчными, по три в строку: «MoonLight» → «moo» и «nli». Букв нет — первые знаки.</summary>
@@ -103,7 +169,13 @@ public sealed class TaskbarBadge
     private static void DrawLetters(DrawingContext dc, string nick)
     {
         dc.DrawRoundedRectangle(new SolidColorBrush(Hue(nick)), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
-        var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        dc.DrawGeometry(Brushes.White, null, LettersGeometry(nick, FontWeights.Bold));
+    }
+
+    // Буквы ника в две строки по центру значка
+    private static Geometry LettersGeometry(string nick, FontWeight weight)
+    {
+        var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, weight, FontStretches.Normal);
         var em = IconSize * 0.42;
         var text = new FormattedText(string.Join("\n", Initials(nick)), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, em,
             Brushes.White, 1.0) { TextAlignment = TextAlignment.Center, LineHeight = em * 0.95 };
@@ -117,7 +189,7 @@ public sealed class TaskbarBadge
         group.Children.Add(new ScaleTransform(scale, scale));
         group.Children.Add(new TranslateTransform(IconSize / 2.0, IconSize / 2.0));
         ink.Transform = group;
-        dc.DrawGeometry(Brushes.White, null, ink);
+        return ink;
     }
 
     private static ImageSource Render(Visual visual, int size)

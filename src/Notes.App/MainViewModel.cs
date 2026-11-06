@@ -261,6 +261,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         private set => SetProperty(ref _nick, value);
     }
 
+    private GameClient? _client;
+
+    /// <summary>Клиент, к которому подключены (его окну — значок с ником); null — не подключены.</summary>
+    public GameClient? Client
+    {
+        get => _client;
+        private set => SetProperty(ref _client, value);
+    }
+
     // ── Карточка «Подключение»: свёрнутая строка, подсказка следующего шага ──
 
     /// <summary>Строка свёрнутой карточки: «Вася · Comeback 1.4.6 · патч ✓».</summary>
@@ -677,6 +686,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
             Nick = client.Nick;
+            Client = client;
             ConnectionExpanded = false;
             _connectionLog.Info($"Подключено: {client.Display}, сервер {_profile.Name}");
             connection.Start();
@@ -710,6 +720,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         IsConnected = false;
         ConnectionText = "";
         Nick = null;
+        Client = null;
         ConnectionExpanded = true;
         ClearWorld();
     }
