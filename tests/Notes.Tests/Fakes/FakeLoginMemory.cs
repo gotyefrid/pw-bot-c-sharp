@@ -19,7 +19,7 @@ public sealed record FakeDialog(string Name, bool Shown, IReadOnlyList<FakeContr
 }
 
 /// <summary>
-/// Память клиента с окнами (AUI) по смещениям профиля PW Classic: база → game → менеджеры окон → текущий менеджер → массив
+/// Память клиента с окнами (AUI) по смещениям профиля (по умолчанию PW Classic): база → game → менеджеры окон → текущий менеджер → массив
 /// окон → список элементов. <see cref="Show"/> перекладывает экран заново — как клиент, у которого сменились окна.
 /// </summary>
 public sealed class FakeLoginMemory
@@ -28,9 +28,13 @@ public sealed class FakeLoginMemory
 
     private uint _next = 0x10000000;
 
-    public FakeLoginMemory()
+    /// <summary>Место окна и любого элемента в нём — если профиль знает, где их читать (как поле логина у Comeback 1.3.6).</summary>
+    public static readonly (int X, int Y) DialogAt = (718, 343);
+    public static readonly (int X, int Y, int Width, int Height) ControlAt = (144, 65, 143, 23);
+
+    public FakeLoginMemory(string server = "pwclassic136")
     {
-        Profile = ProfileCatalog.Default().Load("pwclassic136").Data;
+        Profile = ProfileCatalog.Default().Load(server).Data;
         Roots = new GameRoots(Memory, Pointer, Profile);
         Memory.WriteUInt32(Pointer, Root);
         Memory.WriteUInt32(Root + Profile.Base.Game, Game);
@@ -70,6 +74,11 @@ public sealed class FakeLoginMemory
         var address = Allocate(0x400);
         Memory.WriteUInt32(address + o.DialogName, Ansi(dialog.Name));
         Memory.WriteBytes(address + o.DialogShown, [dialog.Shown ? (byte)1 : (byte)0]);
+        if (o.DialogPosition != 0)
+        {
+            Memory.WriteUInt32(address + o.DialogPosition, (uint)DialogAt.X);
+            Memory.WriteUInt32(address + o.DialogPosition + 4, (uint)DialogAt.Y);
+        }
 
         // Список с конца: узел — [следующий, элемент]
         var head = 0u;
@@ -80,6 +89,13 @@ public sealed class FakeLoginMemory
             Memory.WriteUInt32(item + o.ControlName, Ansi(control.Name));
             Memory.WriteUInt32(item + o.ControlText, Unicode(control.Text));
             Memory.WriteBytes(item + o.RadioChecked, [control.Checked ? (byte)1 : (byte)0]);
+            if (o.ControlPosition != 0)
+            {
+                Memory.WriteUInt32(item + o.ControlPosition, (uint)ControlAt.X);
+                Memory.WriteUInt32(item + o.ControlPosition + 4, (uint)ControlAt.Y);
+                Memory.WriteUInt32(item + o.ControlPosition + 8, (uint)ControlAt.Width);
+                Memory.WriteUInt32(item + o.ControlPosition + 12, (uint)ControlAt.Height);
+            }
             controls[control.Name] = item;
 
             var node = Allocate(0x10);
@@ -114,7 +130,7 @@ public sealed class FakeLoginMemory
 
     // Экраны, как их видели на живом клиенте PW Classic
 
-    public static FakeDialog LoginWindow(string ping = "344 ms", string account = "", string focus = "DEFAULT_Txt_Account") => new(
+    public static FakeDialog LoginWindow(string ping = "344 ms", string account = "", string? focus = "DEFAULT_Txt_Account") => new(
         "Win_Login", true,
         [
             new FakeControl("Lbl_Ping", ping), new FakeControl("Lbl_ServerName", "[Classic] RU"),

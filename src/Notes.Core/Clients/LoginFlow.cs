@@ -10,6 +10,9 @@ namespace Notes.Core.Clients;
 /// <summary>Клавиши и текст в окно клиента на экране входа (<see cref="WindowKeys"/>).</summary>
 public interface ILoginKeys
 {
+    /// <summary>Щелчок левой кнопкой в точке окна игры (клиентские координаты).</summary>
+    CallResult Click(int x, int y);
+
     /// <summary>Нажать клавишу <paramref name="times"/> раз подряд (стереть поле, пройти по списку).</summary>
     CallResult Press(KeyStroke key, int times = 1);
 
@@ -143,8 +146,18 @@ public sealed class LoginFlow
     private LoginResult Run(string login, string password, string nick, Action<string> progress, CancellationToken token)
     {
         progress("жду экран логина");
-        var view = WaitFor(v => v.Stage is LoginStage.Login or LoginStage.Select or LoginStage.World || v.Message is not null,
+        var view = WaitFor(v => v.Stage is LoginStage.Agreement or LoginStage.Login or LoginStage.Select or LoginStage.World
+                                || v.Message is not null,
             Timeouts.Screen, "экран логина не появился", token);
+
+        // Пользовательское соглашение (Comeback, при каждом запуске): «Принять» — Enter. Владелец разрешил принимать за него
+        if (view.Stage == LoginStage.Agreement && view.Message is null)
+        {
+            progress("принимаю пользовательское соглашение");
+            Press(EnterKey);
+            view = WaitFor(v => v.Stage is LoginStage.Login or LoginStage.Select or LoginStage.World || v.Message is not null,
+                Timeouts.Step, "соглашение не принимается", token);
+        }
 
         // Сообщение от прошлой попытки («соединение разорвано») — закрыть, как кнопкой «Да»
         if (view.Message is not null && view.Stage != LoginStage.World)
@@ -171,7 +184,14 @@ public sealed class LoginFlow
             progress("выбор персонажа");
             ChooseRole(nick, token);
             progress($"вхожу {nick}, жду мир");
-            Press(EnterKey);
+            // Comeback 1.3.6: поверх выбора бывает окно «Подсказка» (Win_PwdHint) — первый Enter закрывает его, а не входит.
+            // Не ушли с выбора — Enter ещё раз
+            for (var enter = 1; ; enter++)
+            {
+                Press(EnterKey);
+                if (enter == 3 || TryWaitFor(v => v.Stage != LoginStage.Select || v.Message is not null, Timeouts.Step, token) is not null)
+                    break;
+            }
         }
 
         view = WaitFor(v => v.Stage == LoginStage.World && !string.IsNullOrEmpty(_hostName()) || v.Message is not null,
@@ -198,15 +218,29 @@ public sealed class LoginFlow
                 throw Stuck($"логин не вводится в поле (там «{_screen.Read().Account}»)");
         }
 
-        // Поле пароля всегда пустое: у свежего клиента и после ошибки (клиент сам чистит оба поля) — не стираем
+        // У PW Classic поле пароля всегда пустое (после ошибки клиент сам чистит оба поля) и не читается — не стираем.
+        // Comeback 1.3.6 после ошибки оставляет пароль, и в памяти видно, сколько там букв — стираем, иначе новый допишется
+        // к старому. Что стёрлось, по памяти не проверить: при стирании клиент этот текст не обновляет (06.11 на экране поле
+        // пустое, в памяти те же буквы). Проверит ответ сервера
         Press(Tab);
         Focus(LoginScreen.PasswordField, token);
+        if (_screen.Read().PasswordLength is var left and > 0)
+            Clear(left + 2);
+
         Type(password);
     }
 
-    // Фокус в нужное поле: Tab ходит между полями окна логина
+    // Фокус в нужное поле: Tab ходит между полями окна логина. Фокуса нет совсем (свежий клиент Comeback) — Tab некуда
+    // двигать: сначала щёлкнуть в поле логина
     private void Focus(string field, CancellationToken token)
     {
+        if (_screen.Read() is { Focus: null, AccountAt: { } at })
+        {
+            if (_keys.Click(at.X, at.Y) is { Ok: false } result)
+                throw Stuck($"щелчок в поле логина не дошёл: {result.Details}");
+            TryWaitFor(v => v.Focus is not null, Timeouts.Step, token);
+        }
+
         for (var tabs = 0; tabs <= 3; tabs++)
         {
             if (TryWaitFor(v => v.Focus == field, tabs == 0 ? TimeSpan.Zero : Timeouts.Step, token) is not null)
@@ -301,6 +335,7 @@ public sealed class LoginFlow
     public static string Where(LoginStage stage) => stage switch
     {
         LoginStage.Loading => "загрузка",
+        LoginStage.Agreement => "пользовательское соглашение",
         LoginStage.Login => "экран логина",
         LoginStage.Select => "выбор персонажа",
         LoginStage.World => "в мире",

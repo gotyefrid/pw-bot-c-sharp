@@ -129,6 +129,18 @@ public class WindowKeysTests
         Assert.Equal(["активна", "в фоне, поток 7"], window.Sent);
     }
 
+    [Fact]
+    public void ClickMovesPressesAndReleasesInBackground()
+    {
+        var window = new FakeKeyWindow { ForegroundNow = (Thread: 7, Process: OtherPid) };
+
+        Assert.True(new WindowKeys(Pid, window).Click(933, 419).Ok);
+
+        // Точка — y в старшем слове, x в младшем
+        var point = (419 << 16) | 933;
+        Assert.Equal(["активна", $"мышь {point:X}", $"нажата {point:X}", $"отпущена {point:X}", "в фоне, поток 7"], window.Sent);
+    }
+
     private sealed class FakeKeyWindow : IKeyWindow
     {
         public IntPtr Window = new(0x1234);
@@ -154,6 +166,9 @@ public class WindowKeysTests
                 KeyDown => $"↓ {wParam:X2}",
                 SysKeyDown => $"сист↓ {wParam:X2}",
                 Char => $"«{(char)wParam}»",
+                0x0200 => $"мышь {lParam:X}",
+                0x0201 => $"нажата {lParam:X}",
+                0x0202 => $"отпущена {lParam:X}",
                 _ => $"↑ {wParam:X2}",
             });
             return true;

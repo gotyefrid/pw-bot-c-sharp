@@ -46,6 +46,51 @@ public class LoginFlowTests
     }
 
     [Fact]
+    public void ComebackAcceptsAgreementAndClicksIntoTheEmptyFocus()
+    {
+        _client.Agreement = true;
+        _client.DropFocus();
+        _client.Account = "probetest";
+
+        var result = Enter();
+
+        Assert.Equal(LoginOutcome.InWorld, result.Outcome);
+        Assert.Equal("login", _client.Account);
+        Assert.Equal("secret", _client.TypedPassword);
+        Assert.Equal("Enter", _client.Input[0]);
+        Assert.Equal($"щелчок {FakeLoginClient.AccountAt.X},{FakeLoginClient.AccountAt.Y}", _client.Input[1]);
+    }
+
+    [Fact]
+    public void ComebackKeepsTheOldPasswordAfterAnErrorItIsErased()
+    {
+        _client.KeepsFields = true;
+        _client.ServerDown = true;
+        Assert.Equal(LoginOutcome.NoServer, Enter().Outcome);
+        Assert.Equal("secret", _client.TypedPassword);
+
+        _client.ServerDown = false;
+        Assert.True(Enter().Ok);
+        Assert.Equal("secret", _client.TypedPassword);
+    }
+
+    [Fact]
+    public void HintOverSelectTakesTheFirstEnter()
+    {
+        _client.Hint = true;
+
+        Assert.True(Enter().Ok);
+        Assert.Equal(2, _client.Input.SkipWhile(i => !i.Contains("↓")).Count(i => i == "Enter"));
+    }
+
+    [Fact]
+    public void FocusInPlaceNoClick()
+    {
+        Assert.True(Enter().Ok);
+        Assert.DoesNotContain(_client.Input, i => i.StartsWith("щелчок"));
+    }
+
+    [Fact]
     public void WrongPasswordIsFinal()
     {
         var result = Enter(password: "wrong");

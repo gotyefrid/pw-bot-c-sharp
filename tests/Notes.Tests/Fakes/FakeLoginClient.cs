@@ -18,7 +18,10 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
     public const string WrongPasswordText = "Неверный пароль или имя учетной записи";
     public const string NoServerText = "Соединение с сервером было разорвано. Пожалуйста, попробуйте зайти еще раз.";
 
-    private string _focus = LoginScreen.AccountField;
+    private string? _focus = LoginScreen.AccountField;
+
+    /// <summary>Где поле логина на экране: щелчок туда ставит в него фокус.</summary>
+    public static readonly (int X, int Y) AccountAt = (933, 419);
 
     public DateTime Now { get; private set; } = new(2026, 11, 6, 12, 0, 0, DateTimeKind.Utc);
 
@@ -36,6 +39,23 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
 
     public bool Alive { get; set; } = true;
 
+    /// <summary>
+    /// Как Comeback 1.3.6: в памяти видно, сколько букв в поле пароля, после ошибки оба поля остаются как были. Стирание
+    /// память не обновляет (на экране пусто, в памяти те же буквы) — только ввод.
+    /// </summary>
+    public bool KeepsFields { get; set; }
+
+    private int _passwordInMemory;
+
+    /// <summary>Поверх выбора персонажа — окно «Подсказка» (Comeback 1.3.6): первый Enter закрывает его.</summary>
+    public bool Hint { get; set; }
+
+    /// <summary>Перед экраном логина — пользовательское соглашение (Comeback): Enter принимает.</summary>
+    public bool Agreement { get; set; }
+
+    /// <summary>Фокуса нет ни в одном поле (свежий клиент Comeback): Tab не работает, пока не щёлкнуть в поле логина.</summary>
+    public void DropFocus() => _focus = null;
+
     public LoginStage Stage { get; private set; } = LoginStage.Login;
     public string Account { get; set; } = "";
     public string TypedPassword { get; private set; } = "";
@@ -52,6 +72,8 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
     {
         if (Now < LoginScreenAt)
             return LoginView.None with { Stage = LoginStage.Loading };
+        if (Agreement)
+            return LoginView.None with { Stage = LoginStage.Agreement };
         if (_worldAt is { } at && Now >= at)
         {
             Stage = LoginStage.World;
@@ -60,7 +82,11 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
 
         return Stage switch
         {
-            LoginStage.Login => LoginView.None with { Stage = Stage, Ping = "344 ms", Account = Account, Focus = _focus, Message = Message },
+            LoginStage.Login => LoginView.None with
+            {
+                Stage = Stage, Ping = "344 ms", Account = Account, Focus = _focus, Message = Message, AccountAt = AccountAt,
+                PasswordLength = KeepsFields ? _passwordInMemory : 0,
+            },
             LoginStage.Select => LoginView.None with
             {
                 Stage = Stage, Message = Message, Selected = Selected,
@@ -82,6 +108,14 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
 
     public string? HostName() => Stage == LoginStage.World ? Host : null;
 
+    public CallResult Click(int x, int y)
+    {
+        Input.Add($"щелчок {x},{y}");
+        if (Stage == LoginStage.Login && Message is null && !Agreement && (x, y) == AccountAt)
+            _focus = LoginScreen.AccountField;
+        return CallResult.Done;
+    }
+
     public CallResult Press(KeyStroke key, int times = 1)
     {
         Input.Add(times == 1 ? $"{key}" : $"{key}×{times}");
@@ -93,12 +127,15 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
     public CallResult Type(string text)
     {
         Input.Add($"«{text}»");
-        if (Stage == LoginStage.Login && Message is null)
+        if (Stage == LoginStage.Login && Message is null && !Agreement)
         {
             if (_focus == LoginScreen.AccountField)
                 Account += text;
-            else
+            else if (_focus == LoginScreen.PasswordField)
+            {
                 TypedPassword += text;
+                _passwordInMemory = Math.Max(_passwordInMemory, TypedPassword.Length);
+            }
         }
 
         return CallResult.Done;
@@ -108,6 +145,13 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
 
     private void Key(int key)
     {
+        if (Agreement)
+        {
+            if (key == 0x0D)
+                Agreement = false;
+            return;
+        }
+
         if (Message is not null)
         {
             // Окно-сообщение ловит Enter («Да»), остальное — мимо
@@ -118,7 +162,8 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
 
         switch (Stage, key)
         {
-            case (LoginStage.Login, 0x09):
+            // Без фокуса Tab некуда двигать
+            case (LoginStage.Login, 0x09) when _focus is not null:
                 _focus = _focus == LoginScreen.AccountField ? LoginScreen.PasswordField : LoginScreen.AccountField;
                 break;
             case (LoginStage.Login, 0x08):
@@ -136,8 +181,8 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
                     Message = WrongPasswordText;
                 else
                     Stage = LoginStage.Select;
-                // Как у живого клиента после ошибки: поле логина пустое, фокус в нём
-                if (Message is not null)
+                // Как у живого PW Classic после ошибки: поле логина пустое, фокус в нём
+                if (Message is not null && !KeepsFields)
                 {
                     Account = "";
                     TypedPassword = "";
@@ -150,6 +195,9 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
                 break;
             case (LoginStage.Select, 0x26):
                 Selected = Math.Max(Selected - 1, 1);
+                break;
+            case (LoginStage.Select, 0x0D) when Hint:
+                Hint = false;
                 break;
             case (LoginStage.Select, 0x0D):
                 Stage = LoginStage.Loading;

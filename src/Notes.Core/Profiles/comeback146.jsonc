@@ -690,6 +690,8 @@
     "controlName": "",
     "controlText": "",
     "radioChecked": "",
+    "dialogPosition": "",
+    "controlPosition": "",
     "wrongPassword": [],
     "noServer": [],
     // Окно обрыва в мире: в 1.4.6 это MsgBox_RemindReconnect с вопросом «Восстановить соединение?» — текст не проверен

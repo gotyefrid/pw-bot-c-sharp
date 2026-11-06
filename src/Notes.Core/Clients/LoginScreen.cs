@@ -16,6 +16,9 @@ public enum LoginStage
     /// <summary>Менеджера окон нет или ни одно знакомое окно не открыто: грузится.</summary>
     Loading,
 
+    /// <summary>Пользовательское соглашение перед экраном логина (Comeback): «Принять» — Enter.</summary>
+    Agreement,
+
     /// <summary>Окно ввода логина и пароля.</summary>
     Login,
 
@@ -35,6 +38,8 @@ public sealed record LoginRole(int Slot, string Name, string Info);
 /// <param name="Focus">Имя элемента в фокусе окна логина (поле логина или пароля).</param>
 /// <param name="Selected">Отмеченное место на выборе персонажа; null — не видно.</param>
 /// <param name="Dialogs">Имена открытых окон — для лога.</param>
+/// <param name="PasswordLength">Сколько букв в поле пароля (сам пароль не отдаём); 0 — пусто или клиент его не показывает (PW Classic).</param>
+/// <param name="AccountAt">Середина поля логина в окне игры (клиентские координаты) — щёлкнуть, если фокуса нет; null — не знаем.</param>
 public sealed record LoginView(
     LoginStage Stage,
     string? Message,
@@ -43,7 +48,9 @@ public sealed record LoginView(
     string? Focus,
     IReadOnlyList<LoginRole> Roles,
     int? Selected,
-    IReadOnlyList<string> Dialogs)
+    IReadOnlyList<string> Dialogs,
+    (int X, int Y)? AccountAt = null,
+    int PasswordLength = 0)
 {
     public static readonly LoginView None = new(LoginStage.Unknown, null, null, null, null, [], null, []);
 }
@@ -60,7 +67,7 @@ public interface ILoginScreen
 /// </summary>
 public sealed class LoginScreen : ILoginScreen
 {
-    public const string LoginDialog = "Win_Login", SelectDialog = "Win_Select", MessagePrefix = "MsgBox";
+    public const string LoginDialog = "Win_Login", SelectDialog = "Win_Select", AgreementDialog = "Win_Agreement", MessagePrefix = "MsgBox";
     public const string AccountField = "DEFAULT_Txt_Account", PasswordField = "Txt_PassWord", PingLabel = "Lbl_Ping";
 
     /// <summary>Мест на выборе персонажа: Txt_Name1…8, Txt_Level1…8, Rdo_Char1…8.</summary>
@@ -114,11 +121,15 @@ public sealed class LoginScreen : ILoginScreen
                 Ping = Text(controls, PingLabel),
                 Account = controls.FirstOrDefault(c => c.Name == AccountField)?.Text ?? "",
                 Focus = Focus(login.Address, controls),
+                AccountAt = Center(login.Address, controls.FirstOrDefault(c => c.Name == AccountField)),
+                PasswordLength = Text(controls, PasswordField)?.Length ?? 0,
                 Dialogs = names,
             };
         }
 
-        return LoginView.None with { Stage = LoginStage.Loading, Message = message, Dialogs = names };
+        // Соглашение — только пока нет экрана логина: после «Принять» его байт «показано» гаснет не сразу
+        var stage = names.Contains(AgreementDialog) ? LoginStage.Agreement : LoginStage.Loading;
+        return LoginView.None with { Stage = stage, Message = message, Dialogs = names };
     }
 
     private sealed record Dialog(uint Address, string Name);
@@ -194,6 +205,26 @@ public sealed class LoginScreen : ILoginScreen
         if (_offsets.DialogFocus == 0 || !_memory.TryReadUInt32(dialog + _offsets.DialogFocus, out var focus) || focus == 0)
             return null;
         return controls.FirstOrDefault(c => c.Address == focus)?.Name;
+    }
+
+    // Середина элемента на экране: место окна + место элемента в окне + половина размера
+    private (int X, int Y)? Center(uint dialog, Control? control)
+    {
+        if (control is null || _offsets.DialogPosition == 0 || _offsets.ControlPosition == 0)
+            return null;
+
+        var bytes = new byte[16];
+        if (!_memory.TryRead(dialog + _offsets.DialogPosition, bytes, 8))
+            return null;
+        int dialogX = BitConverter.ToInt32(bytes, 0), dialogY = BitConverter.ToInt32(bytes, 4);
+        if (!_memory.TryRead(control.Address + _offsets.ControlPosition, bytes, 16))
+            return null;
+        int x = BitConverter.ToInt32(bytes, 0), y = BitConverter.ToInt32(bytes, 4), width = BitConverter.ToInt32(bytes, 8),
+            height = BitConverter.ToInt32(bytes, 12);
+        // Мусор вместо места — не щёлкаем куда попало
+        if (width is <= 0 or > 4000 || height is <= 0 or > 4000 || dialogX is < -4000 or > 8000 || dialogY is < -4000 or > 8000)
+            return null;
+        return (dialogX + x + width / 2, dialogY + y + height / 2);
     }
 
     private static string? Text(List<Control> controls, string name) => controls.FirstOrDefault(c => c.Name == name)?.Text;

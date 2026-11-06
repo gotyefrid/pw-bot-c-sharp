@@ -584,21 +584,30 @@
   // [this+0x7E0] (как в 1.4.6)
   "ui": { "managers": "0x10", "inGame": "0x8", "active": "0xC", "npcDialog": "0x734", "shopDialog": "0x7E0" },
 
-  // Экран входа и сообщения — окна клиента изнутри (как и что это — см. pwclassic136.jsonc). На этом клиенте не проверено:
-  // пусто — «Персонажи» входят через аргументы запуска (user:, pwd:, role:)
+  // Экран входа и сообщения — окна клиента изнутри (как и что это — см. pwclassic136.jsonc). Проверено 06.11 на живом клиенте
+  // (Probe ui scan): менеджер CECLoginUIMan, массив окон в +0xC4 (у PW Classic +0x414), окна Win_Agreement, Win_Login,
+  // Win_Select. Элементы — как у PW Classic, но список на 8 раньше (+0x1CC), текст на 4 раньше (+0xB8), фокус +0xE8 (Tab меняет
+  // DEFAULT_Txt_Account ↔ Txt_PassWord). У свежего клиента фокуса нет совсем — Tab не работает, пока не щёлкнуть в поле логина
   "loginScreen": {
-    "dialogs": "",
-    "dialogName": "",
-    "dialogShown": "",
-    "dialogFocus": "",
-    "controls": "",
-    "controlNext": "",
-    "controlItem": "",
-    "controlName": "",
-    "controlText": "",
-    "radioChecked": "",
-    "wrongPassword": [],
-    "noServer": [],
+    "dialogs": "0xC4",
+    "dialogName": "0x4C",
+    "dialogShown": "0x90",
+    "dialogFocus": "0xE8",
+    "controls": "0x1CC",
+    "controlNext": "0x4",
+    "controlItem": "0x8",
+    "controlName": "0x18",
+    "controlText": "0xB8",
+    // На аккаунте один персонаж: байт 1 только у Rdo_Char1 (у Rdo_Char2…8 — 0); как переезжает по стрелке — не проверено
+    "radioChecked": "0x121",
+    // Win_Login +0x98 = 718, 343 при окне игры 1766×1038; DEFAULT_Txt_Account +0x84 = 144, 65, 143×23 — на скриншоте поле там.
+    // Как найти: у кнопки «Вход» (Btn_Game) по этому смещению четыре числа, которые совпадают с её местом на скриншоте
+    "dialogPosition": "0x98",
+    "controlPosition": "0x84",
+    // Тексты окна MsgBox_LoginFail (начало строки) — как у PW Classic. Проверено 06.11: выдуманный логин; сервер закрыт на
+    // роутере. В отличие от PW Classic после ошибки клиент оставляет логин и пароль в полях (бот их стирает)
+    "wrongPassword": [ "Неверный пароль или имя учетной записи" ],
+    "noServer": [ "Соединение с сервером было разорвано" ],
     // Окно обрыва в мире: в 1.4.6 это MsgBox_RemindReconnect с вопросом «Восстановить соединение?» — текст не проверен
     "disconnected": []
   },

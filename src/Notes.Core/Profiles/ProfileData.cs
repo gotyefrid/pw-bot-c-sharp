@@ -112,6 +112,10 @@ public sealed class LoginScreenOffsets
     public uint ControlText { get; init; }
     /// <summary>Байт «отмечен» у переключателя (персонаж на выборе).</summary>
     public uint RadioChecked { get; init; }
+    /// <summary>Где окно на экране: x и [+4] y (int, клиентские координаты окна игры).</summary>
+    public uint DialogPosition { get; init; }
+    /// <summary>Где элемент в окне: x, [+4] y, [+8] ширина, [+0xC] высота (int, от угла окна). 0 — щёлкать нельзя.</summary>
+    public uint ControlPosition { get; init; }
 
     /// <summary>Начала текстов ошибки входа «неверный логин или пароль»: повторять вход бесполезно.</summary>
     public List<string> WrongPassword { get; init; } = new();

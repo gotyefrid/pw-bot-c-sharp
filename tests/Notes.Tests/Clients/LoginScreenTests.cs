@@ -71,6 +71,42 @@ public class LoginScreenTests
     }
 
     [Fact]
+    public void ComebackAgreementBeforeLogin()
+    {
+        var client = new FakeLoginMemory("comeback136");
+        client.Show(false, new FakeDialog("Win_Agreement"), new FakeDialog("Win_LoginVersion"), new FakeDialog("Win_Login", false, []));
+
+        Assert.Equal(LoginStage.Agreement, new LoginScreen(client.Memory, client.Roots, client.Profile).Read().Stage);
+
+        // После «Принять» байт соглашения гаснет не сразу — экран логина главнее
+        client.Show(false, new FakeDialog("Win_Agreement"), FakeLoginMemory.LoginWindow(focus: null));
+        Assert.Equal(LoginStage.Login, new LoginScreen(client.Memory, client.Roots, client.Profile).Read().Stage);
+    }
+
+    [Fact]
+    public void ComebackLoginWithoutFocusTellsWhereTheAccountFieldIs()
+    {
+        var client = new FakeLoginMemory("comeback136");
+        client.Show(false, FakeLoginMemory.LoginWindow(account: "probetest", focus: null));
+
+        var view = new LoginScreen(client.Memory, client.Roots, client.Profile).Read();
+
+        Assert.Equal(LoginStage.Login, view.Stage);
+        Assert.Equal("probetest", view.Account);
+        Assert.Null(view.Focus);
+        // Окно 718, 343 + поле 144, 65 + половина 143×23
+        Assert.Equal((933, 419), view.AccountAt);
+    }
+
+    [Fact]
+    public void NoPositionsInProfileNoClickPoint()
+    {
+        _client.Show(false, FakeLoginMemory.LoginWindow());
+
+        Assert.Null(Read().AccountAt);
+    }
+
+    [Fact]
     public void ProfileWithoutWindowsIsUnknown()
     {
         var comeback = Notes.Core.Profiles.ProfileCatalog.Default().Load("comeback146").Data;

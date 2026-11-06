@@ -32,7 +32,8 @@ public sealed class WindowKeys : IGameKeys, ILoginKeys
     private static readonly TimeSpan AfterRelease = TimeSpan.FromMilliseconds(50);
 
     private const uint WmActivateApp = 0x001C, WmKeyDown = 0x0100, WmKeyUp = 0x0101, WmChar = 0x0102, WmSysKeyDown = 0x0104,
-        WmSysKeyUp = 0x0105;
+        WmSysKeyUp = 0x0105, WmMouseMove = 0x0200, WmLButtonDown = 0x0201, WmLButtonUp = 0x0202;
+    private const int MkLButton = 0x0001;
     private const int VkShift = 0x10, VkControl = 0x11, VkMenu = 0x12;
 
     private readonly int _pid;
@@ -179,6 +180,35 @@ public sealed class WindowKeys : IGameKeys, ILoginKeys
         var back = Deactivate(window);
         if (!typed)
             return CallResult.Refused($"окно игры не приняло букву (ошибка {error})");
+        return back ? CallResult.Done : CallResult.Refused($"окно игры не приняло возврат в фон (ошибка {Marshal.GetLastWin32Error()})");
+    }
+
+    /// <summary>
+    /// Щелчок левой кнопкой в точке окна (клиентские координаты): мышь туда, нажать, отпустить — сообщениями, тоже между «ты
+    /// активна» и «ты в фоне»; настоящая мышь не двигается. Проверено на экране входа Comeback 1.3.6: щелчок в поле логина
+    /// поставил в него фокус, окно не активировалось.
+    /// </summary>
+    public CallResult Click(int x, int y)
+    {
+        var window = Window;
+        if (window == IntPtr.Zero)
+            return CallResult.Refused("окно игры не найдено");
+        if (!_system.Post(window, WmActivateApp, 1, 0))
+            return CallResult.Refused($"окно игры не приняло щелчок (ошибка {Marshal.GetLastWin32Error()})");
+
+        var point = (y << 16) | (x & 0xFFFF);
+        var clicked = _system.Post(window, WmMouseMove, 0, point) && _system.Post(window, WmLButtonDown, MkLButton, point);
+        var error = clicked ? 0 : Marshal.GetLastWin32Error();
+        if (clicked)
+            _system.Wait(Hold);
+        // Отпустить, даже если нажатие не ушло: зажатая кнопка в игре хуже лишнего сообщения
+        var released = _system.Post(window, WmLButtonUp, 0, point);
+        _system.Wait(AfterRelease);
+        var back = Deactivate(window);
+        if (!clicked)
+            return CallResult.Refused($"окно игры не приняло щелчок (ошибка {error})");
+        if (!released)
+            return CallResult.Refused($"окно игры не приняло отпускание кнопки (ошибка {Marshal.GetLastWin32Error()})");
         return back ? CallResult.Done : CallResult.Refused($"окно игры не приняло возврат в фон (ошибка {Marshal.GetLastWin32Error()})");
     }
 
