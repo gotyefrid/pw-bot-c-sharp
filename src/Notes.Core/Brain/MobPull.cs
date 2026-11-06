@@ -26,12 +26,16 @@ public enum PullStep
 /// <item>Выстрел удачный, когда в цели этот моб и скилл ушёл на перезарядку — сразу следующий; не
 /// ушёл (каст сбили) — ещё раз, до <see cref="ShotsPerMob"/>. Скилл — атакующий из настроек боя, иначе основной у класса;
 /// нет ни того, ни другого — обычная атака, удачная, только когда моб взял перса в цель.</item>
+/// <item>В цель не берётся <see cref="SelectTries"/> раз — следующий (было: перс висел в воздухе и выбирал одну пчелу 6,5 часа).</item>
 /// </list>
 /// Не поведение, а деталь поведения: шаги — из его Tick, действия уходят от его имени.
 /// </summary>
 public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
 {
     public const int ShotsPerMob = 10;
+
+    /// <summary>Столько раз моб не взялся в цель — берём другого.</summary>
+    public const int SelectTries = 5;
 
     // Выстрел: ждём, пока скилл уйдёт на перезарядку (с подбеганием клиента); дольше — каст сбит
     private static readonly TimeSpan ShotWait = TimeSpan.FromSeconds(5);
@@ -43,6 +47,7 @@ public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
     private readonly HashSet<uint> _shot = [];
     private uint _mob;
     private int _shots;
+    private int _selects;
     private GameAction? _shotAction;
     private DateTime _shotAt;
 
@@ -67,6 +72,7 @@ public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
 
             _mob = mob.Wid;
             _shots = 0;
+            _selects = 0;
             _shot.Add(mob.Wid);
             c.Log.Debug($"Сбор мобов: беру {mob.Name} ур. {mob.Level}, {mob.Offset.Horizontal:0} м ({Pulled + 1}/{need})");
         }
@@ -74,7 +80,17 @@ public sealed class MobPull(int need, Func<NpcInfo, bool> allowed, bool inSpace)
         if (w.Host.TargetWid != mob.Wid)
         {
             Drop(c);
-            c.Submit(new SelectTargetAction(mob));
+            // Попытка — когда прошлая кончилась (подтверждения нет 2 с или отказ клиента)
+            if (c.Mine.OfType<SelectTargetAction>().Any(a => a.Npc.Wid == mob.Wid))
+                return PullStep.Pulling;
+            if (_selects >= SelectTries)
+            {
+                c.Log.Debug($"Сбор мобов: {mob.Name} {SelectTries} раз не взялся в цель — беру другого");
+                _mob = 0;
+                return PullStep.Pulling;
+            }
+            if (c.Send(new SelectTargetAction(mob)) is SubmitStatus.Sent or SubmitStatus.Failed)
+                _selects++;
             return PullStep.Pulling;
         }
 

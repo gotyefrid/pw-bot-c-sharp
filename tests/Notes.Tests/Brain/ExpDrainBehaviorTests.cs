@@ -38,6 +38,9 @@ public class ExpDrainBehaviorTests
     /// <summary>Столько нажатий «Полёт» в воздухе игра не примет (перс так и висит).</summary>
     private int _ignoredLandings;
 
+    /// <summary>Этих мобов игра в цель не берёт.</summary>
+    private readonly HashSet<uint> _unselectable = [];
+
     // Кто-то посреди дела из нескольких шагов (банк)
     private sealed class Holder : IBehavior, IMultiStepBehavior
     {
@@ -115,6 +118,8 @@ public class ExpDrainBehaviorTests
             var parts = call.Split(' ');
             switch (parts[0])
             {
+                case "select" when _unselectable.Contains(Convert.ToUInt32(parts[1], 16)):
+                    break;
                 case "select":
                     _world.TargetWid = Convert.ToUInt32(parts[1], 16);
                     _world.SetCooldown(Arrow, 0); // пока выбирали, прошлая перезарядка кончилась
@@ -173,6 +178,34 @@ public class ExpDrainBehaviorTests
         AddGroundMobs();
         TickFor(3);
         Assert.Contains("unselect", _actions.Calls);
+    }
+
+    // Было: одну пчелу выбирали в цель 6,5 часа
+    [Fact]
+    public void MobThatIsNotSelectedIsLeftForNext()
+    {
+        _unselectable.Add(0x80000002);
+        AddGroundMobs();
+
+        // Один сбор (следующий, через 10 с покоя, пробует всех заново)
+        TickFor(15);
+
+        Assert.Equal(MobPull.SelectTries, _actions.Calls.Count(c => c == "select 80000002"));
+        Assert.Contains("apply 125 80000003", _actions.Calls);
+        Assert.True(Logged("собрал"));
+    }
+
+    [Fact]
+    public void NoMobSelectedGivesUp()
+    {
+        _unselectable.UnionWith([0x80000001, 0x80000002, 0x80000003, 0x80000004]);
+        AddGroundMobs();
+
+        // 4 моба по 5 попыток в цель (2 с), потом минута «рядом нет мобов»
+        TickFor(120);
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
+        Assert.True(Logged("Слив опыта брошен: рядом нет подходящих мобов"));
     }
 
     [Fact]
