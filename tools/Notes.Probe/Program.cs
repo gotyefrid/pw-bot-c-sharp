@@ -136,7 +136,7 @@ internal static class Program
         Console.WriteLine(CodeCommands.Usage);
         Console.WriteLine("  ui        [all]  окна клиента: этап входа, пинг, поле логина, персонажи на выборе, сообщение; тексты открытых окон (all — и закрытых)");
         Console.WriteLine("  ui scan   [bytes] [Win_…] [0xАДРЕС [find ТЕКСТ|strings|raw файл]]  поиск смещений окон на новом клиенте");
-        Console.WriteLine("  ui call   text account|password [ТЕКСТ] | login | role N | play | agree  кнопки экрана входа функциями игры");
+        Console.WriteLine("  ui call   text account|password [ТЕКСТ] | login | role N | play | agree | ok  кнопки экрана входа функциями игры (ok — «Да» окна-сообщения)");
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
         Console.WriteLine();
         Console.WriteLine("ЗАПУСК КЛИЕНТА (открывает игру — запускает владелец):");

@@ -25,7 +25,7 @@ internal static class UiCommands
         return args.Contains("scan") ? Scan(profile.Data, roots, game, args) : Show(profile.Data, roots, game, args.Contains("all"));
     }
 
-    // Кнопка экрана входа вызовом функции игры: text account|password ТЕКСТ, login, role N, play, agree
+    // Кнопка экрана входа вызовом функции игры: text account|password ТЕКСТ, login, role N, play, agree, ok
     private static int Call(ProfileData profile, GameRoots roots, GameProcess game, string[] what)
     {
         var screen = new LoginScreen(game, roots, profile);
@@ -48,11 +48,12 @@ internal static class UiCommands
             "role" when what.Length >= 2 && int.TryParse(what[1], out var slot) => caller.SelectRole(select, slot),
             "play" => caller.SelectPlay(select),
             "agree" => caller.AgreementAccept(screen.FindDialog(LoginScreen.AgreementDialog)),
+            "ok" => caller.MessageBoxOk(screen.FindMessage()),
             _ => null,
         };
         if (result is null)
         {
-            Console.WriteLine("ui call text account|password [ТЕКСТ] | login | role N | play | agree");
+            Console.WriteLine("ui call text account|password [ТЕКСТ] | login | role N | play | agree | ok");
             return 2;
         }
 
