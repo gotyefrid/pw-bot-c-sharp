@@ -60,8 +60,10 @@ public class ProfileCatalogTests
         // (банк из сумки — только Comeback; на PW Classic банк открывается у банкира): там возможность честно недоступна, с причиной
         var profile = _catalog.Load(id);
         var hasRemoteBank = id != "pwclassic136";
-        // Найдено и проверено пока только на одном клиенте; на остальных бот обходится без него (проверка заданий)
-        static bool Everywhere(string function) => function is not GameFunctions.QuestCheck;
+        // Найдено и проверено пока только на одном клиенте; на остальных бот обходится без него (проверка заданий; кнопки экрана
+        // входа — без них бот жмёт клавиши)
+        static bool Everywhere(string function) => function is not (GameFunctions.QuestCheck or GameFunctions.UiSetText
+            or GameFunctions.LoginConfirm or GameFunctions.SelectRole or GameFunctions.SelectPlay or GameFunctions.AgreementAccept);
 
         Assert.Equal(
             _catalog.Load("comeback136").Data.Functions.Keys

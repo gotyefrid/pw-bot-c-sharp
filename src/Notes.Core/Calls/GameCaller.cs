@@ -89,11 +89,21 @@ public sealed class GameCaller : IGameActions
         // 1.3.6: SetDestination(type, &point), StartWork(1, work, 1, 0)
         [GameFunctions.WorkMoveSetDestination] = [TypeArg, DataArg],
         [GameFunctions.WorkStart] = ["1", WorkArg, "1", "0"],
+        // Экран входа: текст в поле (UTF-16) и команды окон (строка команды, как её передаёт кнопка)
+        [GameFunctions.UiSetText] = [DataArg],
+        [GameFunctions.LoginConfirm] = [DataArg],
+        [GameFunctions.SelectRole] = [DataArg],
+        [GameFunctions.SelectPlay] = [],
+        [GameFunctions.AgreementAccept] = [DataArg],
     };
 
     /// <summary>Методы, у которых this подставляет сам бот (менеджер работ, созданная работа), а не профиль.</summary>
     private static readonly HashSet<string> OwnThis =
-        [GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart, GameFunctions.WorkTraceTarget, GameFunctions.WorkTraceSetTarget];
+    [
+        GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart, GameFunctions.WorkTraceTarget,
+        GameFunctions.WorkTraceSetTarget, GameFunctions.UiSetText, GameFunctions.LoginConfirm, GameFunctions.SelectRole,
+        GameFunctions.SelectPlay, GameFunctions.AgreementAccept,
+    ];
 
     /// <summary>Причина работы «подойти»: действовать с выбранной целью — с NPC заговорить, моба атаковать (второй клик по цели).</summary>
     private const uint TraceInteract = 2;
@@ -522,6 +532,42 @@ public sealed class GameCaller : IGameActions
             return StubBuilder.TraceTo(workMan, _functions[names[0]].Address, _functions[names[1]].Address, wid, TraceInteract,
                 _functions[names[2]].Address, _functions[names[3]].Address, start.Args.Select(Slot).ToArray());
         }));
+    }
+
+    // ── Экран входа: кнопки окон функциями игры ─────────────────────────────
+
+    /// <summary>Вписать текст в поле ввода <paramref name="control"/> (адрес элемента окна), как это делает сама игра.</summary>
+    public CallResult SetText(uint control, string text)
+        => CallOn(GameFunctions.UiSetText, control, System.Text.Encoding.Unicode.GetBytes(text + "\0"));
+
+    /// <summary>«Вход» окна логина <paramref name="dialog"/>.</summary>
+    public CallResult LoginConfirm(uint dialog) => CallOn(GameFunctions.LoginConfirm, dialog, Command("confirm"));
+
+    /// <summary>Щелчок по персонажу на месте <paramref name="slot"/> (1…8) окна выбора <paramref name="dialog"/>.</summary>
+    public CallResult SelectRole(uint dialog, int slot) => CallOn(GameFunctions.SelectRole, dialog, Command($"char{slot}"));
+
+    /// <summary>«Играть» окна выбора <paramref name="dialog"/>: вход отмеченным персонажем.</summary>
+    public CallResult SelectPlay(uint dialog) => CallOn(GameFunctions.SelectPlay, dialog, null);
+
+    /// <summary>«Принять» окна соглашения <paramref name="dialog"/>.</summary>
+    public CallResult AgreementAccept(uint dialog) => CallOn(GameFunctions.AgreementAccept, dialog, Command("IDOK"));
+
+    // Строка команды кнопки — ANSI с нулём, как её отдаёт игра
+    private static byte[] Command(string command) => System.Text.Encoding.ASCII.GetBytes(command + "\0");
+
+    // Метод, у которого this даёт бот (окно, поле): проверить функцию и вызвать
+    private CallResult CallOn(string name, uint thisPointer, byte[]? data)
+    {
+        if (Check(name) is { } refused)
+            return refused;
+        if (thisPointer == 0)
+            return CallResult.Refused($"{name}: нет окна");
+
+        var prepared = _prepared[name];
+        var address = _functions[name].Address;
+        var known = new Dictionary<string, uint>();
+        return Result(_runner.Run(data, dataAddress => StubBuilder.Call(address, prepared.Definition.Convention, thisPointer,
+            prepared.Args.Select(a => Value(a, known, dataAddress)).ToArray(), null, null)));
     }
 
     // ── Разбор профиля и вызов ───────────────────────────────────────────────

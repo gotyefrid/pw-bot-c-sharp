@@ -237,6 +237,35 @@ public class GameCallerTests
     }
 
     [Fact]
+    public void LoginScreenButtonsAreMethodsOfTheWindowWithCommandString()
+    {
+        const uint field = 0x2322BFC8, login = 0x1C9914D8, select = 0x1D650B00;
+        var caller = Caller();
+
+        Assert.True(caller.SetText(field, "логин").Ok);
+        Assert.True(caller.LoginConfirm(login).Ok);
+        Assert.True(caller.SelectRole(select, 2).Ok);
+        Assert.True(caller.SelectPlay(select).Ok);
+
+        // Текст — UTF-16 с нулём, команды — как их передаёт кнопка: ANSI с нулём; this — окно или поле
+        Assert.Equal(System.Text.Encoding.Unicode.GetBytes("логин\0"), _runner.Runs[0].Data);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.UiSetText), CallingConvention.Thiscall, field, [DataAddress]), _runner.Runs[0].Stub);
+        Assert.Equal("confirm\0"u8.ToArray(), _runner.Runs[1].Data);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.LoginConfirm), CallingConvention.Thiscall, login, [DataAddress]), _runner.Runs[1].Stub);
+        Assert.Equal("char2\0"u8.ToArray(), _runner.Runs[2].Data);
+        Assert.Equal(StubBuilder.Call(Address(GameFunctions.SelectPlay), CallingConvention.Thiscall, select, []), _runner.Runs[3].Stub);
+    }
+
+    [Fact]
+    public void LoginScreenButtonWithoutWindowOrFunctionIsRefused()
+    {
+        Assert.False(Caller().LoginConfirm(0).Ok);
+        // На PW Classic соглашения нет — и функции в профиле нет
+        Assert.Contains("не найдена", Caller().AgreementAccept(0x1000).Details);
+        Assert.Empty(_runner.Runs);
+    }
+
+    [Fact]
     public void ChangedBytesBeforeCallCancelIt()
     {
         var caller = Caller();

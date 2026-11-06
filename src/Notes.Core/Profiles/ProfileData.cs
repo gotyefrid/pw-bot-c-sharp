@@ -854,4 +854,9 @@ public static class GameFunctions
     public const string WorkStart = "workStart";
     public const string WorkTraceTarget = "workTraceTarget";
     public const string WorkTraceSetTarget = "workTraceSetTarget";
+    public const string UiSetText = "uiSetText";
+    public const string LoginConfirm = "loginConfirm";
+    public const string SelectRole = "selectRole";
+    public const string SelectPlay = "selectPlay";
+    public const string AgreementAccept = "agreementAccept";
 }

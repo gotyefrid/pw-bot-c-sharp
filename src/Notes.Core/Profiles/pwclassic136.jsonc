@@ -889,7 +889,28 @@
     "workTraceSetTarget": { "rva": "0x3FDB60", "convention": "thiscall",
                             "signature": "55 8B EC 8A 45 0C 83 EC 18 56 8B F1 57 8B 7D 08 6A 00 88 46 3A" },
     "workStart": { "rva": "0x3F1980", "convention": "thiscall", "args": [ "1", "work", "0" ],
-                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" }
+                   "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" },
+
+    // Экран входа — кнопки окон функциями игры, а не клавишами (this — окно или поле, его даёт бот: loginScreen).
+    // Как найти: у окна AUI второй метод таблицы методов отдаёт таблицу команд: { имя команды (AString), _, обработчик, … } по 0x18
+    // байт до пустого имени. Команда кнопки — строка по [кнопка + 0x1C] («confirm» у Btn_Game окна Win_Login, «char8» у Rdo_Char8).
+    // Обработчик — thiscall, один аргумент — строка команды (char*), ret 4.
+    // Вписать текст в поле ввода (AUIEditBox::SetText, слот +0x44 таблицы методов поля): так окно логина само заполняет логин
+    // из списка аккаунтов и чистит пароль (обработчик Lst_Account: [окно+0x268]->SetText(логин), [окно+0x26C]->SetText(L"")).
+    // Аргумент — строка UTF-16
+    "uiSetText": { "rva": "0x72ABB0", "convention": "thiscall",
+                   "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F9 8B 75 08 56 C7" },
+    // «Вход» (Btn_Game, команда «confirm» окна Win_Login): проверки и сам вход — логин и пароль из полей
+    "loginConfirm": { "rva": "0x1C5540", "convention": "thiscall",
+                      "signature": "55 8B EC 83 E4 F8 83 EC 0C 53 56 57 8B F9 89 7C" },
+    // Щелчок по персонажу на выборе (команда «char*» окна Win_Select): номер — atoi(команда + 4) плюс начало страницы
+    "selectRole": { "rva": "0x245760", "convention": "thiscall",
+                    "signature": "55 8B EC 8B 45 08 56 83 C0 04 8B F1 50 E8 ?? ?? ?? ?? 8B 96" },
+    // «Играть» (команды «confirm», «IDOK», «Btn_Game» окна Win_Select ведут в 0x244ED0 — «call это; ret 4»): вход отмеченным
+    // персонажем. Без аргументов
+    "selectPlay": { "rva": "0x244EE0", "convention": "thiscall",
+                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 81 EC EC 00 00 00 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B D9 89 5D E4" }
+    // agreementAccept («Принять» окна Win_Agreement) — на этом клиенте соглашения нет
   },
 
   // Сторож клиента (element/reportbugs/pwprotector.exe): на этом клиенте файл не проверен — не проверяем.
