@@ -29,6 +29,7 @@ internal sealed class FakeWorld
     /// <summary>Опыт и сколько нужно до уровня; null — не найдено на сервере.</summary>
     public int? Exp { get; set; }
     public int? ExpToLevel { get; set; }
+    public int? Money { get; set; }
     public Position Position { get; set; } = new(0, 0, 0);
     public uint TargetWid { get; set; }
     public int PetFoodCooldownMs { get; set; }
@@ -92,7 +93,7 @@ internal sealed class FakeWorld
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
-            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel },
+            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel, Money = Money },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList(), Party = Party, MacroRunning = MacroRunning };
 
     /// <param name="state">Не задано: с целью — бьёт, без — стоит.</param>

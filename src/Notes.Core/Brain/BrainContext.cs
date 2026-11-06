@@ -4,6 +4,7 @@ using Notes.Core.Actions;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Notes.Core.Settings;
+using Notes.Core.Stats;
 using Notes.Core.World;
 
 namespace Notes.Core.Brain;
@@ -55,6 +56,9 @@ public sealed class BrainContext
     public ClassSkills Skills { get; }
     public ILogger Log { get; }
     public Random Random { get; }
+
+    /// <summary>Куда мозг отдаёт события статистики (<see cref="StatsWatcher"/>); null — не ведём. Поведениям не нужна.</summary>
+    internal IStatsSink? Stats { get; init; }
 
     /// <summary>Копия настроек для мозга (окно правит свою, сюда попадает новая копия между шагами).</summary>
     public BotSettings Settings { get; internal set; } = new();

@@ -6,6 +6,7 @@ using Notes.Core.GameFiles;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Notes.Core.Settings;
+using Notes.Core.Stats;
 using Notes.Core.World;
 
 namespace Notes.Core.Brain;
@@ -51,11 +52,13 @@ public static class BotModes
     /// <param name="routeStart">Обход: с какой точки начинать (с 0) — выбранная в окне.</param>
     /// <param name="random">Паузы и разброс; тесты задают свой, чтобы ход повторялся.</param>
     /// <param name="quests">Прокачка: где мобы и NPC; нет — без точек (идти можно только к тем, кого видно).</param>
+    /// <param name="stats">Куда писать статистику (персонажа); нет — не ведём.</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
-        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null, QuestGuide? quests = null)
+        IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null, QuestGuide? quests = null,
+        IStatsSink? stats = null)
     {
         // Копия настроек: окно может менять свои дальше (новые мозг получит через UpdateSettings)
-        var context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone() };
+        var context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone(), Stats = stats };
         var tools = gatherTools ?? [];
         return mode switch
         {

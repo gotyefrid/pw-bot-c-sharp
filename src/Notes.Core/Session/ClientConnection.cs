@@ -11,6 +11,7 @@ using Notes.Core.Logging;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
 using Notes.Core.Settings;
+using Notes.Core.Stats;
 using Notes.Core.World;
 
 namespace Notes.Core.Session;
@@ -187,7 +188,8 @@ public sealed class ClientConnection : IDisposable
     /// если согласен, позвать ещё раз с <see cref="CallTransport.Thread"/>. Сам на запасной не переходит.
     /// </summary>
     /// <param name="routeStart">Обход: с какой точки начинать (с 0).</param>
-    public StartResult StartBot(BotMode mode, BotSettings settings, int routeStart, CallTransport transport)
+    /// <param name="stats">Статистика персонажа: куда бот пишет убийства, добычу, смерти; нет — не ведём.</param>
+    public StartResult StartBot(BotMode mode, BotSettings settings, int routeStart, CallTransport transport, IStatsSink? stats = null)
     {
         lock (_lock)
         {
@@ -206,7 +208,7 @@ public sealed class ClientConnection : IDisposable
 
             var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid), _requests), _logger.For(LogSources.Actions));
             var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For(LogSources.Brain), _profile.GatherTools, routeStart,
-                quests: mode == BotMode.LevelUp ? LoadQuestGuide() : null);
+                quests: mode == BotMode.LevelUp ? LoadQuestGuide() : null, stats: stats);
             var memoryLog = _logger.For(LogSources.Memory);
             var inspector = new ProcessInspector(_game);
             var guard = new GameMemoryGuard(inspector.QueryFreeMemory, memoryLog);
