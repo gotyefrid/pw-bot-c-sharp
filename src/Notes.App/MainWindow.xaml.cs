@@ -104,6 +104,17 @@ public partial class MainWindow : Window
 
     private void OpenLogFilters(object sender, RoutedEventArgs e) => new LogFilterWindow { Owner = this, DataContext = _model.Log }.ShowDialog();
 
+    // «Персонажи»: список и правка. «Открыть» закрывает окно — запуск и вход идут в главном окне
+    private void OpenCharacters(object sender, RoutedEventArgs e)
+    {
+        var window = new CharactersWindow { Owner = this };
+        var panel = _model.CreateCharacters(new WindowDialogs(window));
+        panel.EditRequested = draft => new CharacterWindow { Owner = window, DataContext = draft }.ShowDialog() == true;
+        panel.Opened += window.Close;
+        window.DataContext = panel;
+        window.ShowDialog();
+    }
+
     // Двойной щелчок по строке (не по заголовку и не по пустому месту) — окно шага
     private void EditClickerStep(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {

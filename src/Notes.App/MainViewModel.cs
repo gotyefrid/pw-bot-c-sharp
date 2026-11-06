@@ -74,6 +74,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     // Папка бота: в ней stats\<сервер>\Ник — статистика персонажа
     private readonly string _appDirectory;
 
+    // «Персонажи»: логин, пароль и клиент каждого — characters\accounts.json, общий у копий бота из этой папки
+    private readonly CharacterBook _book;
+
     public MainViewModel(string appDirectory, IDialogs dialogs)
     {
         _dialogs = dialogs;
@@ -90,6 +93,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _telegram = new TelegramSender(_chatLog);
 
         _config = new SettingsService(appDirectory, _log);
+        _book = new CharacterBook(Path.Combine(appDirectory, "characters", CharacterBook.FileName));
         // Что показывать в логе — своё у окна, как подключение: в settings.json
         Log.Load(_config.App.LogView);
         Log.FilterChanged += () =>
@@ -236,6 +240,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
                 return;
 
             OnPropertyChanged(nameof(CanChoose));
+            OnPropertyChanged(nameof(CanOpenCharacters));
             OnPropertyChanged(nameof(Summary));
             OnPropertyChanged(nameof(CanPickIconColor));
             CommandManager.InvalidateRequerySuggested();
@@ -385,6 +390,193 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     }
 
     private void ClearHint() => ShowHint(null, "");
+
+    // ── Персонажи: запуск клиента с автовходом ──────────────────────────────
+
+    // Клиент грузится и входит до минуты; после — ещё до двух нажатий Enter на выборе персонажа
+    private static readonly TimeSpan LoginTimeout = TimeSpan.FromSeconds(90);
+
+    /// <summary>Модель окна «Персонажи»: новая на каждое открытие (список читается с диска заново).</summary>
+    public CharactersPanel CreateCharacters(IDialogs dialogs)
+        => new(_book, Servers, GamePathFor, dialogs, _connectionLog, OpenCharacter);
+
+    private string? GamePathFor(string server) => _config.App.Connection.ClientPaths.TryGetValue(server, out var path) ? path : null;
+
+    private bool _isLaunching;
+
+    /// <summary>Идёт запуск клиента из «Персонажей»: второй не начинаем, пока этот не вошёл или не сдался.</summary>
+    public bool IsLaunching
+    {
+        get => _isLaunching;
+        private set
+        {
+            if (SetProperty(ref _isLaunching, value))
+                OnPropertyChanged(nameof(CanOpenCharacters));
+        }
+    }
+
+    public bool CanOpenCharacters => !IsConnected && !IsLaunching;
+
+    private string _launchText = "";
+
+    /// <summary>Как идёт запуск: «запускаю», «жду персонажа: 20 с», «жму Enter».</summary>
+    public string LaunchText
+    {
+        get => _launchText;
+        private set => SetProperty(ref _launchText, value);
+    }
+
+    /// <summary>
+    /// «Открыть» в «Персонажах»: сервер персонажа → он уже в игре — подключаемся к нему, нет — запускаем клиент с логином,
+    /// паролем и ником, ждём персонажа в мире (в фоне) и подключаемся. Бот не запускается — только подключение.
+    /// </summary>
+    private void OpenCharacter(CharacterAccount account)
+    {
+        if (!CanOpenCharacters)
+            return;
+
+        if (Servers.FirstOrDefault(s => s.Id == account.Server) is not { } profile)
+        {
+            ShowHint(null, $"Сервера {account.Server} нет в этой версии бота.");
+            return;
+        }
+
+        ChooseServer(profile);
+        if (Clients.FirstOrDefault(c => c.Nick == account.Nick) is { } running)
+        {
+            if (ClientLock.IsTaken(running.Pid))
+            {
+                ShowHint(null, $"{account.Nick} уже в игре, и к нему подключено другое окно бота.");
+                return;
+            }
+
+            _connectionLog.Info($"{account.Nick} уже в игре (PID {running.Pid}) — подключаюсь");
+            SelectedClient = running;
+            Connect(anyway: false);
+            return;
+        }
+
+        ClientLaunch launch;
+        try
+        {
+            launch = account.Launch(profile.Data.LaunchArguments, Patch.GamePath);
+        }
+        catch (InvalidOperationException e)
+        {
+            LaunchFailed(e.Message);
+            return;
+        }
+
+        ClearHint();
+        IsLaunching = true;
+        LaunchText = $"{account.Nick}: запускаю клиент…";
+        // Пароль в лог не попадает: ToString его не показывает
+        _connectionLog.Info($"Запуск {account.Nick}: {launch}");
+        Task.Run(() => Login(account, profile, launch));
+    }
+
+    // Не в потоке окна: вход — до пары минут ожидания
+    private void Login(CharacterAccount account, ServerProfile profile, ClientLaunch launch)
+    {
+        int pid;
+        LoginWait result;
+        try
+        {
+            using var process = launch.Start();
+            pid = process.Id;
+            result = ClientLogin.EnterWorld(pid, profile.Data, LoginTimeout,
+                progress: text => UiThread.Run(() => LaunchText = $"{account.Nick}: {text}"));
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            UiThread.Run(() => LaunchFailed($"Не удалось запустить клиент {account.Nick}: {e.Message}"));
+            return;
+        }
+
+        UiThread.Run(() => LoggedIn(account, profile, launch, pid, result));
+    }
+
+    private void LoggedIn(CharacterAccount account, ServerProfile profile, ClientLaunch launch, int pid, LoginWait result)
+    {
+        if (result.State != LoginState.InWorld)
+        {
+            if (result.Problem is { } problem)
+                _connectionLog.Info($"Последняя ошибка чтения при входе: {problem}");
+            LaunchFailed(result.State == LoginState.Exited ? $"Клиент {account.Nick} закрылся, не дойдя до игры."
+                : !result.WindowFound ? $"Окно клиента {account.Nick} не появилось."
+                : $"{account.Nick} не вошёл в игру за {result.Elapsed.TotalSeconds:0} с — посмотрите окно игры (вход или выбор персонажа).");
+            return;
+        }
+
+        IsLaunching = false;
+        LaunchText = "";
+        _connectionLog.Info($"{result.Nick} в игре (PID {pid}, {result.Elapsed.TotalSeconds:0} с)");
+        if (result.Nick != account.Nick)
+            _connectionLog.Warning($"Вошёл {result.Nick}, а в «Персонажах» записан {account.Nick} — проверьте ник");
+        // Пока ждали, окно подключили к другому клиенту — его не трогаем
+        if (IsConnected)
+        {
+            _connectionLog.Info($"Окно уже подключено — {result.Nick} можно подключить в другом окне бота");
+            return;
+        }
+
+        ChooseServer(profile);
+        if (Clients.FirstOrDefault(c => c.Pid == pid) is not { } client)
+        {
+            // Клиент персонажа — не «Игра» сервера: в списке его нет, добавляем сами
+            client = new GameClient(pid, result.Nick, NativeWindows.FindMainWindow(pid, includeHidden: false), launch.ExePath);
+            Clients.Add(client);
+        }
+
+        SelectedClient = client;
+        Connect(anyway: false);
+    }
+
+    private void LaunchFailed(string text)
+    {
+        IsLaunching = false;
+        LaunchText = "";
+        _connectionLog.Warning(text);
+        ConnectionExpanded = true;
+        ShowHint(null, text);
+    }
+
+    /// <summary>Сервер персонажа и свежий список его клиентов.</summary>
+    private void ChooseServer(ServerProfile profile)
+    {
+        if (_profile != profile)
+            SelectedServer = profile;
+        else
+            ReloadClients();
+    }
+
+    // Что бот уже записал в «Персонажи» про подключённого: сервер, ник, класс, уровень
+    private string? _seen;
+
+    /// <summary>Подключённый персонаж есть в «Персонажах» — запомнить класс и уровень (в фоне: файл общий, под замком).</summary>
+    private void NoteSeen(HostState host)
+    {
+        if (host.Level <= 0)
+            return;
+
+        var (server, nick, @class, level) = (_profile.Id, host.Name, host.Class, host.Level);
+        var key = $"{server}|{nick}|{@class}|{level}";
+        if (key == _seen)
+            return;
+
+        _seen = key;
+        Task.Run(() =>
+        {
+            try
+            {
+                _book.Seen(server, nick, @class, level, DateTime.Now);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                _connectionLog.Warning($"Не удалось записать уровень {nick} в «Персонажи»: {e.Message}");
+            }
+        });
+    }
 
     // ── Игра и патч (панель: путь, состояние, кнопки) ───────────────────────
 
@@ -836,6 +1028,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         {
             SwitchCharacter(h.Name);
             Nick = h.Name;
+            NoteSeen(h);
         }
         ConnectionText = h.Name;
         Status.Show(w);
