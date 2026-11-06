@@ -58,6 +58,8 @@ public sealed class ClientConnection : IDisposable
     private volatile SkillIcons _skillIcons = SkillIcons.Empty;
     private volatile IconAtlas _macroIcons = IconAtlas.Empty;
     private RunningBot? _bot;
+    private LinkWatch? _watch;
+    private LoginScreen? _screen;
     private Task _stopping = Task.CompletedTask;
     private readonly WorldRequests _requests;
 
@@ -130,6 +132,12 @@ public sealed class ClientConnection : IDisposable
 
     /// <summary>Бот сам просит остановку (погиб, у игры кончается память) — из потока снимков, посреди хода: остановить не здесь.</summary>
     public event Action<string>? BotStopRequested;
+
+    /// <summary>
+    /// Пока бот работает, персонаж выпал из игры (<see cref="LinkWatch"/>): разрыв связи, экран входа, клиент закрылся — из
+    /// потока сторожа, один раз за запуск бота. Бот при этом не останавливается — решает окно.
+    /// </summary>
+    public event Action<string>? LinkLost;
 
     /// <summary>Иконки скиллов клиента; пока не загрузились (или их нет) — пусто.</summary>
     public SkillIcons SkillIcons => _skillIcons;
@@ -221,6 +229,7 @@ public sealed class ClientConnection : IDisposable
             lock (_lock)
                 _bot = bot;
             bot.Start();
+            WatchLink();
             return new StartResult(StartStatus.Started);
         }
         catch (Exception e) when (e is not OutOfMemoryException)
@@ -242,8 +251,44 @@ public sealed class ClientConnection : IDisposable
                 return _stopping;
 
             _bot = null;
+            _watch?.Dispose();
+            _watch = null;
             _stopping = Task.Run(bot.Dispose);
             return _stopping;
+        }
+    }
+
+    /// <summary>Сторож связи — только пока бот работает и профиль знает окна клиента (иначе разрыв не увидеть).</summary>
+    private void WatchLink()
+    {
+        if (!LoginScreen.Supported(_profile))
+            return;
+
+        var watch = new LinkWatch(() => !_game.HasExited, ReadScreen, _profile.LoginScreen.Disconnected);
+        watch.Lost += reason => LinkLost?.Invoke(reason);
+        lock (_lock)
+        {
+            // «Стоп» успел раньше — сторож не нужен
+            if (_bot is null)
+                return;
+            _watch?.Dispose();
+            _watch = watch;
+        }
+
+        watch.Start();
+    }
+
+    /// <summary>Экран клиента: мир, вход, окно-сообщение. Не прочитался — <see cref="LoginView.None"/>.</summary>
+    public LoginView ReadScreen()
+    {
+        try
+        {
+            _screen ??= new LoginScreen(_game, _roots, _profile);
+            return _screen.Read();
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            return LoginView.None;
         }
     }
 

@@ -457,6 +457,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             return;
         }
 
+        Launch(account, profile, resume: null);
+    }
+
+    /// <summary>
+    /// Запустить клиент персонажа и войти (в фоне). <paramref name="resume"/> — переподключение: сначала закрыть выпавший
+    /// клиент, после входа снова «Старт» с той же точки маршрута.
+    /// </summary>
+    private void Launch(CharacterAccount account, ServerProfile profile, Resume? resume)
+    {
         // Профиль знает окна клиента — бот входит сам, по этапам; нет — клиент входит по логину и паролю в аргументах
         var steps = LoginScreen.Supported(profile.Data);
         ClientLaunch launch;
@@ -474,14 +483,58 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         ClearHint();
         IsLaunching = true;
-        LaunchText = $"{account.Nick}: запускаю клиент…";
+        _resume = resume;
+        LaunchText = resume is null ? $"{account.Nick}: запускаю клиент…" : $"{account.Nick}: переподключаюсь…";
         // Пароль в лог не попадает: ToString его не показывает
         _connectionLog.Info($"Запуск {account.Nick}{(steps ? " (вход по этапам)" : "")}: {launch}");
         var cancel = _launchCancel = new CancellationTokenSource();
-        if (steps)
-            Task.Run(() => LoginBySteps(account, profile, launch, password, cancel.Token));
-        else
-            Task.Run(() => Login(account, profile, launch));
+        Task.Run(() =>
+        {
+            if (resume is not null)
+            {
+                _connectionLog.Info($"{account.Nick}: закрываю клиент PID {resume.Pid}");
+                ClientLoginAttempt.Close(resume.Pid);
+            }
+
+            if (steps)
+                LoginBySteps(account, profile, launch, password, cancel.Token);
+            else
+                Login(account, profile, launch);
+        });
+    }
+
+    /// <summary>Переподключение: какой клиент закрыть и с какой точки маршрута продолжить.</summary>
+    private sealed record Resume(int Pid, int? RouteIndex);
+
+    // Идёт переподключение: после входа — снова «Старт»
+    private Resume? _resume;
+
+    /// <summary>
+    /// Персонаж выпал из игры, пока бот работал (после «Стопа» сторож не смотрит — переподключения нет). Персонаж есть в
+    /// «Персонажах» с логином — остановить бота, закрыть клиент, войти заново и снова «Старт». Нет — только остановить:
+    /// клиент остаётся, как есть.
+    /// </summary>
+    private void LinkLost(ClientConnection connection, string reason)
+    {
+        if (_connection != connection || !IsRunning)
+            return;
+
+        var nick = Nick;
+        var profile = _profile;
+        _log.Warning(Capitalize(reason));
+        var account = nick is null ? null : _book.Load(out _).FirstOrDefault(a => a.Is(profile.Id, nick));
+        if (account is null || account.Login.Trim().Length == 0)
+        {
+            _log.Warning($"Переподключиться нечем: {nick ?? "персонаж"} не записан в «Персонажах» с логином — бот остановлен");
+            Stop();
+            return;
+        }
+
+        var resume = new Resume(connection.Pid, connection.Bot?.Brain.Part<IRouteProgress>()?.Index);
+        Disconnect();
+        _log.Info($"Переподключаю {account.Nick}");
+        BotState = "Переподключение…";
+        Launch(account, profile, resume);
     }
 
     private CancellationTokenSource? _launchCancel;
@@ -571,6 +624,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Персонаж в мире — подключить к нему окно бота.</summary>
     private void Entered(CharacterAccount account, ServerProfile profile, string exePath, int pid, string nick)
     {
+        var resume = _resume;
+        _resume = null;
         IsLaunching = false;
         LaunchText = "";
         _connectionLog.Info($"{nick} в игре (PID {pid})");
@@ -593,10 +648,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
         SelectedClient = client;
         Connect(anyway: false);
+        if (resume is not null && IsConnected)
+        {
+            _log.Info($"{nick} снова в игре — продолжаю");
+            Start(CallTransport.Window, resume.RouteIndex);
+        }
     }
 
     private void LaunchFailed(string text)
     {
+        if (_resume is not null)
+            BotState = "Ожидание";
+        _resume = null;
         IsLaunching = false;
         LaunchText = "";
         _connectionLog.Warning(text);
@@ -701,13 +764,13 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public void Start() => Start(CallTransport.Window);
 
-    private void Start(CallTransport transport)
+    /// <param name="routeStart">Обход: с какой точки (переподключение — где был); null — выбранная в списке (не выбрана — первая).</param>
+    private void Start(CallTransport transport, int? routeStart = null)
     {
         if (IsRunning || IsStopping || _connection is null)
             return;
 
-        // Обход — с точки, выбранной в списке (не выбрана — с первой)
-        var result = _connection.StartBot(Settings.Mode, Settings, Route.StartIndex, transport, Stats.Book);
+        var result = _connection.StartBot(Settings.Mode, Settings, routeStart ?? Route.StartIndex, transport, Stats.Book);
         switch (result.Status)
         {
             case StartStatus.Started:
@@ -831,6 +894,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         FlushSettings();
+        _launchCancel?.Cancel();
         Disconnect();
         _spots.Save();
         _telegram.Dispose();
@@ -1001,6 +1065,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));
             // Из хода бота — остановку не здесь, а в потоке окна (бот ждёт как раз этот ход)
             connection.BotStopRequested += _ => UiThread.Run(Stop);
+            connection.LinkLost += reason => UiThread.Run(() => LinkLost(connection, reason));
 
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
@@ -1105,8 +1170,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private void ShowFailure(string message)
     {
-        if (_connection is { HasExited: true })
+        if (_connection is { HasExited: true } connection)
         {
+            // Бот работал — переподключиться (сторож увидел бы то же самое через пару секунд)
+            if (IsRunning)
+            {
+                LinkLost(connection, "клиент игры закрылся");
+                return;
+            }
+
             _connectionLog.Warning("Клиент игры закрыт");
             Disconnect();
             RefreshClients();
