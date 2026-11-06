@@ -16,8 +16,8 @@ namespace Notes.App;
 /// справа внизу — кружок: зелёный — бот запущен, красный — подключён, но стоит. Не подключены — обычный значок без кружка.
 /// Кружок рисуем на самом значке, а не значком поверх (overlay): тот Windows ставит сама и крупно — с полкнопки.
 /// <para>
-/// Окну игры, к которому подключены, — его родной значок (у каждого клиента свой) с теми же буквами поверх: видно, какое окно
-/// чьё. Отключились — родной значок обратно (наш значок живёт, пока жив бот: без этого после выхода окно осталось бы без значка).
+/// Окну игры, к которому подключены, — его родной значок (у каждого клиента свой) с кружком цвета бота справа внизу: видно,
+/// какое окно чьё. Отключились — родной значок обратно (наш значок живёт, пока жив бот: без этого после выхода окно осталось бы без значка).
 /// </para>
 /// </summary>
 public sealed class TaskbarBadge
@@ -36,8 +36,8 @@ public sealed class TaskbarBadge
     private readonly MainViewModel _model;
     private readonly ImageSource? _appIcon;
     private (string? Nick, string Color, Color? Dot) _drawn;
-    // Окно игры с нашим значком: какое, с каким ником, сам значок (освободить, когда снимем)
-    private (IntPtr Window, string Nick, IntPtr Icon)? _game;
+    // Окно игры с нашим значком: какое, какого цвета кружок, сам значок (освободить, когда снимем)
+    private (IntPtr Window, string Color, IntPtr Icon)? _game;
 
     public TaskbarBadge(Window window, MainViewModel model)
     {
@@ -63,7 +63,7 @@ public sealed class TaskbarBadge
     private void Update()
     {
         var nick = _model.IsConnected ? _model.Nick : null;
-        UpdateGame(_model.Client is { } client && nick is not null ? (client, nick) : null);
+        UpdateGame(_model.Client is { } client && nick is not null ? (client, _model.IconColor) : null);
 
         Color? dot = !_model.IsConnected ? null : _model.IsRunning ? Running : Stopped;
         var color = _model.IconColor;
@@ -73,9 +73,9 @@ public sealed class TaskbarBadge
         _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, (Color)ColorConverter.ConvertFromString(color), dot, _appIcon);
     }
 
-    private void UpdateGame((GameClient Client, string Nick)? want)
+    private void UpdateGame((GameClient Client, string Color)? want)
     {
-        if (_game is { } had && want is { } same && had.Window == same.Client.Window && had.Nick == same.Nick)
+        if (_game is { } had && want is { } same && had.Window == same.Client.Window && had.Color == same.Color)
             return;
 
         // Снять прежний: окно снова со значком класса (родным)
@@ -88,17 +88,17 @@ public sealed class TaskbarBadge
         if (want is not { } now || now.Client.Window == IntPtr.Zero)
             return;
 
-        var icon = GameIcon(now.Client, now.Nick);
+        var icon = GameIcon(now.Client, (Color)ColorConverter.ConvertFromString(now.Color));
         if (icon == IntPtr.Zero)
             return;
         if (NativeWindows.SetIcon(now.Client.Window, icon))
-            _game = (now.Client.Window, now.Nick, icon);
+            _game = (now.Client.Window, now.Color, icon);
         else
             NativeWindows.DestroyIcon(icon);
     }
 
-    // Родной значок окна игры и буквы ника поверх — белые с чёрной обводкой, чтобы читались на любой картинке
-    private static IntPtr GameIcon(GameClient client, string nick)
+    // Родной значок окна игры и кружок цвета бота справа внизу — крупнее кружка «запущен / стоит»: по нему ищут пару окну бота
+    private static IntPtr GameIcon(GameClient client, Color color)
     {
         var (original, owned) = NativeWindows.OriginalIcon(client.Window, client.ExePath);
         if (original == IntPtr.Zero)
@@ -110,9 +110,7 @@ public sealed class TaskbarBadge
             using (var dc = visual.RenderOpen())
             {
                 dc.DrawImage(picture, new Rect(0, 0, IconSize, IconSize));
-                var ink = LettersGeometry(nick, FontWeights.Black);
-                dc.DrawGeometry(null, new Pen(Brushes.Black, 4) { LineJoin = PenLineJoin.Round }, ink);
-                dc.DrawGeometry(Brushes.White, null, ink);
+                DrawDot(dc, color, IconSize * 0.45);
             }
             var encoder = new PngBitmapEncoder();
             encoder.Frames.Add(BitmapFrame.Create((BitmapSource)Render(visual, IconSize)));
@@ -147,27 +145,30 @@ public sealed class TaskbarBadge
                 dc.DrawImage(appIcon, new Rect(0, 0, IconSize, IconSize));
 
             if (dot is { } color)
-            {
-                // Белая обводка: кружок виден и на цвете значка, и на тёмной или светлой панели
-                var r = DotSize / 2;
-                var center = new Point(IconSize - r, IconSize - r);
-                dc.DrawEllipse(Brushes.White, null, center, r, r);
-                dc.DrawEllipse(new SolidColorBrush(color), null, center, r - 3, r - 3);
-            }
+                DrawDot(dc, color, DotSize);
         }
         return Render(visual, IconSize);
+    }
+
+    // Кружок вплотную к правому нижнему углу; белая обводка — виден на любом значке и на тёмной или светлой панели
+    private static void DrawDot(DrawingContext dc, Color color, double size)
+    {
+        var r = size / 2;
+        var center = new Point(IconSize - r, IconSize - r);
+        dc.DrawEllipse(Brushes.White, null, center, r, r);
+        dc.DrawEllipse(new SolidColorBrush(color), null, center, r - 3, r - 3);
     }
 
     private static void DrawLetters(DrawingContext dc, string nick, Color background)
     {
         dc.DrawRoundedRectangle(new SolidColorBrush(background), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
-        dc.DrawGeometry(Brushes.White, null, LettersGeometry(nick, FontWeights.Bold));
+        dc.DrawGeometry(Brushes.White, null, LettersGeometry(nick));
     }
 
     // Буквы ника в две строки по центру значка
-    private static Geometry LettersGeometry(string nick, FontWeight weight)
+    private static Geometry LettersGeometry(string nick)
     {
-        var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, weight, FontStretches.Normal);
+        var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
         var em = IconSize * 0.42;
         var text = new FormattedText(string.Join("\n", Initials(nick)), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, em,
             Brushes.White, 1.0) { TextAlignment = TextAlignment.Center, LineHeight = em * 0.95 };
