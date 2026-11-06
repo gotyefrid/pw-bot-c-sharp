@@ -20,6 +20,10 @@ internal static class LoginCommand
           login --login X --password Y --role Z --exe <exe> [ключи]
                                                 то же без файла: логин, пароль и роль прямо в команде
           ключи: --server id, --wait с, --no-enter, --force, --check (только показать, не запускать)
+          login --character Ник [--accounts <charactersccounts.json>] [--exe <exe>] [--pid PID] [--retry] [--check]
+                                                вход по этапам, как «Персонажи»: клиент без пароля в аргументах, бот
+                                                сам вводит логин и пароль и выбирает ник. --pid — клиент уже открыт на
+                                                экране логина; --retry — повторы через 1, 3, 5 мин
         """;
 
     public static int Run(ServerProfile profile, string[] args)
@@ -35,6 +39,9 @@ internal static class LoginCommand
             Console.Error.WriteLine(Usage);
             return 1;
         }
+
+        if (options.Character is not null)
+            return Steps(options);
 
         ClientLaunch launch;
         try
@@ -123,6 +130,75 @@ internal static class LoginCommand
 
     private static void Note(string message) => Console.WriteLine($"  {message}");
 
+    // Вход по этапам персонажем из «Персонажей»: логин и пароль бот вводит сам, пароль в консоль не печатается
+    private static int Steps(Options options)
+    {
+        var path = options.Accounts ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "characters", CharacterBook.FileName);
+        var accounts = new CharacterBook(path).Load(out var problem);
+        if (problem is not null)
+            Console.Error.WriteLine($"⚠️ {problem}");
+        var account = accounts.FirstOrDefault(a => a.Nick == options.Character);
+        if (account is null)
+        {
+            Console.Error.WriteLine($"❌ В {path} нет персонажа {options.Character} (есть: {string.Join(", ", accounts.Select(a => a.Nick))})");
+            return 2;
+        }
+
+        var profile = ProfileCatalog.Default().Load(account.Server);
+        if (!LoginScreen.Supported(profile.Data))
+        {
+            Console.Error.WriteLine($"❌ В профиле {profile.Id} нет окон клиента (loginScreen) — вход по этапам там ещё не проверен");
+            return 2;
+        }
+
+        ClientLaunch launch;
+        string password;
+        try
+        {
+            launch = account.Launch(profile.Data.LaunchArguments, options.Exe, credentials: false);
+            password = account.PlainPassword();
+        }
+        catch (InvalidOperationException e)
+        {
+            Console.Error.WriteLine($"❌ {e.Message}{(account.ExePath.Length == 0 && options.Exe is null ? " (в Probe — ключ --exe)" : "")}");
+            return 2;
+        }
+
+        Console.WriteLine($"Персонаж: {account.Nick}, сервер {profile.Name}, логин есть, пароль есть (в консоль не печатаю)");
+        Console.WriteLine($"exe:      {launch.ExePath} {string.Join(" ", launch.Arguments)}");
+        if (options.Check)
+            return 0;
+
+        var same = RunningSame(launch.ExePath);
+        if (options.Pid is null && same.Count > 0 && !options.Force)
+        {
+            Console.Error.WriteLine($"❌ Клиент этого exe уже запущен (PID {string.Join(", ", same)}): --pid, чтобы войти в него, "
+                                    + "или --force, чтобы открыть ещё один.");
+            return 3;
+        }
+
+        using var cancel = new System.Threading.CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) =>
+        {
+            e.Cancel = true;
+            cancel.Cancel();
+        };
+        var started = DateTime.Now;
+        var runner = new LoginRunner(() =>
+            {
+                using var process = launch.Start();
+                Console.WriteLine($"  клиент запущен: PID {process.Id}");
+                return process.Id;
+            }, pid => new ClientLoginAttempt(pid, profile.Data), ClientLoginAttempt.Close)
+            { Delays = options.Retry ? LoginRunner.DefaultDelays : [] };
+        var run = runner.Run(account.Login.Trim(), password, account.Nick, text => Console.WriteLine($"  {(DateTime.Now - started).TotalSeconds,5:0.0} с  {text}"),
+            cancel.Token, options.Pid);
+        var mark = run.Result.Ok ? "✅" : "❌";
+        Console.WriteLine($"{mark} {run.Result.Outcome}: {run.Result.Text} (PID {run.Pid?.ToString() ?? "—"}, попыток {run.Attempts}, "
+                          + $"{(DateTime.Now - started).TotalSeconds:0} с)");
+        return run.Result.Ok ? 0 : 3;
+    }
+
     /// <summary>Либо файл запуска, либо логин/пароль/роль и exe — вместе нельзя: непонятно, что главнее.</summary>
     private static ClientLaunch Build(Options options, ServerProfile profile)
     {
@@ -189,6 +265,18 @@ internal static class LoginCommand
                 case "--check":
                     options.Check = true;
                     break;
+                case "--character":
+                    options.Character = Next(args, ref index, "--character");
+                    break;
+                case "--accounts":
+                    options.Accounts = Next(args, ref index, "--accounts");
+                    break;
+                case "--pid":
+                    options.Pid = int.TryParse(Next(args, ref index, "--pid"), out var pid) ? pid : throw new ArgumentException("У --pid не число.");
+                    break;
+                case "--retry":
+                    options.Retry = true;
+                    break;
                 default:
                     if (args[index].StartsWith("--", StringComparison.Ordinal))
                         throw new ArgumentException($"Неизвестный ключ: {args[index]}");
@@ -221,6 +309,10 @@ internal static class LoginCommand
         public bool Enter { get; set; } = true;
         public bool Force { get; set; }
         public bool Check { get; set; }
+        public string? Character { get; set; }
+        public string? Accounts { get; set; }
+        public int? Pid { get; set; }
+        public bool Retry { get; set; }
     }
 
     /// <summary>PID уже запущенных клиентов ровно с этим exe (другие серверы и папки не трогаем).</summary>
