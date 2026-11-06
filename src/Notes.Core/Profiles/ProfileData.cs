@@ -117,6 +117,8 @@ public sealed class LoginScreenOffsets
     public List<string> WrongPassword { get; init; } = new();
     /// <summary>Начала текстов «нет связи с сервером»: войти ещё раз позже.</summary>
     public List<string> NoServer { get; init; } = new();
+    /// <summary>Начала текстов окна «связь с сервером разорвана» в мире: персонаж выпал из игры — переподключиться.</summary>
+    public List<string> Disconnected { get; init; } = new();
 }
 
 /// <summary>Устройство пакетов, которые бот собирает сам (где у команды нет своей функции в клиенте).</summary>
