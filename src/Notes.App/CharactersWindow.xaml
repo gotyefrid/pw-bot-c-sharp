@@ -14,7 +14,7 @@
       <TextBlock Style="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,8"
                  Text="«Открыть» запускает клиент, входит персонажем и подключает к нему бота. Класс и уровень — какими бот видел персонажа последний раз." />
       <ListView Height="240" ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected}" BorderThickness="0" Background="Transparent"
-                MouseDoubleClick="OpenRow" KeyDown="RowKey">
+                MouseDoubleClick="EditRow" KeyDown="RowKey">
         <ListView.ItemContainerStyle>
           <Style TargetType="ListViewItem">
             <Setter Property="ToolTip" Value="{Binding Hint}" />
