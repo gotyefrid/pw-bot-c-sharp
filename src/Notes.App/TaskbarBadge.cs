@@ -5,19 +5,20 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Shell;
 
 namespace Notes.App;
 
 /// <summary>
 /// Кнопка окна на панели задач: на значке — две первые буквы ника на своём цвете (у каждого ника свой, между запусками тот же),
-/// в углу — кружок: зелёный — бот запущен, красный — подключён, но стоит. Не подключены — обычный значок без кружка.
+/// справа внизу — кружок: зелёный — бот запущен, красный — подключён, но стоит. Не подключены — обычный значок без кружка.
+/// Кружок рисуем на самом значке, а не значком поверх (overlay): тот Windows ставит сама и крупно — с полкнопки.
 /// </summary>
 public sealed class TaskbarBadge
 {
     // Рисуем крупнее, чем на панели (24…32 пикселя): Windows уменьшит сама, буквы остаются чёткими
     private const int IconSize = 64;
-    private const int DotSize = 32;
+    // Кружок — треть значка, вплотную к правому нижнему углу
+    private const double DotSize = IconSize / 3.0;
 
     private static readonly Color Running = Color.FromRgb(0x2E, 0xA0, 0x43);
     private static readonly Color Stopped = Color.FromRgb(0xE5, 0x48, 0x4D);
@@ -25,16 +26,13 @@ public sealed class TaskbarBadge
     private readonly Window _window;
     private readonly MainViewModel _model;
     private readonly ImageSource? _appIcon;
-    private readonly ImageSource _runningDot = Dot(Running);
-    private readonly ImageSource _stoppedDot = Dot(Stopped);
-    private string? _drawnNick;
+    private (string? Nick, Color? Dot) _drawn;
 
     public TaskbarBadge(Window window, MainViewModel model)
     {
         _window = window;
         _model = model;
         _appIcon = window.Icon;
-        window.TaskbarItemInfo ??= new TaskbarItemInfo();
         model.PropertyChanged += Changed;
         Update();
     }
@@ -53,13 +51,11 @@ public sealed class TaskbarBadge
     private void Update()
     {
         var nick = _model.IsConnected ? _model.Nick : null;
-        if (nick != _drawnNick)
-        {
-            _drawnNick = nick;
-            _window.Icon = nick is null ? _appIcon : Letters(nick);
-        }
-
-        _window.TaskbarItemInfo.Overlay = !_model.IsConnected ? null : _model.IsRunning ? _runningDot : _stoppedDot;
+        Color? dot = !_model.IsConnected ? null : _model.IsRunning ? Running : Stopped;
+        if ((nick, dot) == _drawn)
+            return;
+        _drawn = (nick, dot);
+        _window.Icon = nick is null && dot is null ? _appIcon : Icon(nick, dot, _appIcon);
     }
 
     /// <summary>Две первые буквы (или цифры) ника: «StarFox» → «Sa». Букв нет — два первых знака.</summary>
@@ -79,35 +75,41 @@ public sealed class TaskbarBadge
         return FromHsl(hash % 360, 0.55, 0.40);
     }
 
-    private static ImageSource Letters(string nick)
+    /// <summary>Значок: буквы ника (ника ещё нет — обычный значок) и кружок справа внизу.</summary>
+    public static ImageSource Icon(string? nick, Color? dot, ImageSource? appIcon)
     {
-        var text = Initials(nick);
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
         {
-            dc.DrawRoundedRectangle(new SolidColorBrush(Hue(nick)), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
-            var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
-            var size = IconSize * 0.62;
-            FormattedText Format(double em) => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, em, Brushes.White, 1.0);
-            var formatted = Format(size);
-            // Широкие буквы («Ww») — уменьшить, чтобы влезли с полями
-            if (formatted.Width > IconSize * 0.9)
-                formatted = Format(size * IconSize * 0.9 / formatted.Width);
-            dc.DrawText(formatted, new Point((IconSize - formatted.Width) / 2, (IconSize - formatted.Height) / 2));
+            if (nick is not null)
+                DrawLetters(dc, nick);
+            else if (appIcon is not null)
+                dc.DrawImage(appIcon, new Rect(0, 0, IconSize, IconSize));
+
+            if (dot is { } color)
+            {
+                // Белая обводка: кружок виден и на цвете значка, и на тёмной или светлой панели
+                var r = DotSize / 2;
+                var center = new Point(IconSize - r, IconSize - r);
+                dc.DrawEllipse(Brushes.White, null, center, r, r);
+                dc.DrawEllipse(new SolidColorBrush(color), null, center, r - 3, r - 3);
+            }
         }
         return Render(visual, IconSize);
     }
 
-    private static ImageSource Dot(Color color)
+    private static void DrawLetters(DrawingContext dc, string nick)
     {
-        var visual = new DrawingVisual();
-        using (var dc = visual.RenderOpen())
-        {
-            var r = DotSize / 2.0;
-            // Белая обводка: кружок виден и на тёмной, и на светлой панели, и на цвете значка
-            dc.DrawEllipse(new SolidColorBrush(color), new Pen(Brushes.White, 3), new Point(r, r), r - 2, r - 2);
-        }
-        return Render(visual, DotSize);
+        var text = Initials(nick);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Hue(nick)), null, new Rect(0, 0, IconSize, IconSize), 12, 12);
+        var face = new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal);
+        var size = IconSize * 0.62;
+        FormattedText Format(double em) => new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, face, em, Brushes.White, 1.0);
+        var formatted = Format(size);
+        // Широкие буквы («Ww») — уменьшить, чтобы влезли с полями
+        if (formatted.Width > IconSize * 0.9)
+            formatted = Format(size * IconSize * 0.9 / formatted.Width);
+        dc.DrawText(formatted, new Point((IconSize - formatted.Width) / 2, (IconSize - formatted.Height) / 2));
     }
 
     private static ImageSource Render(Visual visual, int size)
