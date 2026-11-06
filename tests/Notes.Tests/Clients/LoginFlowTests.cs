@@ -146,6 +146,7 @@ public class LoginFlowTests
         {
             launches.Add(100 + launches.Count);
             // Новый клиент — сервер уже отвечает
+            _client.Restart();
             _client.ServerSilent = launches.Count == 1;
             return launches.Last();
         }, closed.Add);

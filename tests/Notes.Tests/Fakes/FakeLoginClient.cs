@@ -70,6 +70,16 @@ public sealed class FakeLoginClient : ILoginScreen, ILoginKeys, ILoginClock
         };
     }
 
+    /// <summary>Новый клиент вместо закрытого: экран логина, поля пустые.</summary>
+    public void Restart()
+    {
+        Stage = LoginStage.Login;
+        Account = "";
+        TypedPassword = "";
+        Message = null;
+        _focus = LoginScreen.AccountField;
+    }
+
     public string? HostName() => Stage == LoginStage.World ? Host : null;
 
     public CallResult Press(KeyStroke key, int times = 1)

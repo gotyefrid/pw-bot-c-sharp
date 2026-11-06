@@ -89,8 +89,8 @@ public sealed record LoginTimeouts
     /// <summary>Поле или отметка откликнулись на нажатие.</summary>
     public TimeSpan Step { get; init; } = TimeSpan.FromSeconds(5);
 
-    /// <summary>Как часто смотреть на экран.</summary>
-    public TimeSpan Poll { get; init; } = TimeSpan.FromMilliseconds(300);
+    /// <summary>Как часто смотреть на экран: чтение дешёвое, а каждая проверка шага (логин в поле, фокус) ждёт хотя бы один раз.</summary>
+    public TimeSpan Poll { get; init; } = TimeSpan.FromMilliseconds(100);
 }
 
 /// <summary>
@@ -103,9 +103,6 @@ public sealed class LoginFlow
 {
     private static readonly KeyStroke EnterKey = new(0x0D), Tab = new(0x09), Backspace = new(0x08), Delete = new(0x2E),
         Up = new(0x26), Down = new(0x28);
-
-    // Пароль не читается из памяти, его длина неизвестна: стираем с запасом (у PW пароль до 20 букв)
-    private const int PasswordClear = 32;
 
     private readonly ILoginScreen _screen;
     private readonly ILoginKeys _keys;
@@ -201,9 +198,9 @@ public sealed class LoginFlow
                 throw Stuck($"логин не вводится в поле (там «{_screen.Read().Account}»)");
         }
 
+        // Поле пароля всегда пустое: у свежего клиента и после ошибки (клиент сам чистит оба поля) — не стираем
         Press(Tab);
         Focus(LoginScreen.PasswordField, token);
-        Clear(PasswordClear);
         Type(password);
     }
 

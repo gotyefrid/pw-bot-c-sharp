@@ -20,8 +20,9 @@ namespace Notes.Core.Clients;
 /// </summary>
 public sealed class WindowKeys : IGameKeys, ILoginKeys
 {
-    // Между буквами: поле ввода игры берёт буквы из очереди раз в кадр, пачку сразу может и не съесть
-    private static readonly TimeSpan BetweenChars = TimeSpan.FromMilliseconds(30);
+    // Между буквами и повторами клавиши. Игра разбирает всю очередь сообщений: проверено на экране входа PW Classic — 30 букв
+    // подряд без пауз и 25 Backspace по 1 мс дошли все. Небольшая пауза — на случай медленного кадра
+    private static readonly TimeSpan BetweenChars = TimeSpan.FromMilliseconds(5);
 
     // Между «нажал» и «отпустил»: игра, которая смотрит, зажата ли клавиша, раз в кадр, иначе нажатие пропустит
     private static readonly TimeSpan Hold = TimeSpan.FromMilliseconds(50);
