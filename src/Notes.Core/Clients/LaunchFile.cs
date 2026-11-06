@@ -29,6 +29,26 @@ public sealed class ClientLaunch
         HasPassword = Value(PasswordKey) is not null;
     }
 
+    /// <summary>
+    /// Команда запуска без файла: логин, пароль и роль переданы прямо. <paramref name="arguments"/> — то, что клиент
+    /// получает всегда (startbypatcher, game, console); логин, пароль и роль добавляются в конец.
+    /// </summary>
+    public static ClientLaunch WithCredentials(string exePath, string workingDirectory, IEnumerable<string> arguments,
+        string login, string password, string? role)
+    {
+        if (string.IsNullOrWhiteSpace(login))
+            throw new ArgumentException("Пустой логин", nameof(login));
+        if (password.Length == 0)
+            throw new ArgumentException("Пустой пароль", nameof(password));
+
+        var all = arguments.ToList();
+        all.Add($"user:{login}");
+        all.Add($"pwd:{password}");
+        if (!string.IsNullOrWhiteSpace(role))
+            all.Add($"role:{role}");
+        return new ClientLaunch(exePath, exePath, workingDirectory, all);
+    }
+
     /// <summary>Откуда прочитана команда (bat или ярлык).</summary>
     public string SourcePath { get; }
 

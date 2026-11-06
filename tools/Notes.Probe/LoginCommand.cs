@@ -10,35 +10,39 @@ using Notes.Core.Profiles;
 namespace Notes.Probe;
 
 /// <summary>
-/// Тестовый автовход: открыть клиент по файлу запуска (bat или ярлык), дождаться персонажа и, если клиент застрял на
-/// выборе, нажать Enter. Пароль читается из файла и в консоль не печатается. Живой запуск — по команде владельца.
+/// Тестовый автовход: открыть клиент по файлу запуска (bat или ярлык) или по данным прямо из команды, дождаться
+/// персонажа и, если клиент застрял на выборе, нажать Enter. Пароль в консоль не печатается. Живой запуск — по команде
+/// владельца.
 /// </summary>
 internal static class LoginCommand
 {
     public const string Usage = """
-          login <файл.bat|.lnk> [--server id] [--wait с] [--no-enter] [--force]
-                                    открыть клиент по данным файла запуска и войти персонажем (пароль не печатается)
+          login <файл.bat|.lnk> [ключи]       открыть клиент по данным файла запуска и войти персонажем
+          login --login X --password Y --role Z --exe <exe> [ключи]
+                                                то же без файла: логин, пароль и роль прямо в команде
+          ключи: --server id, --wait с, --no-enter, --force, --check (только показать, не запускать)
         """;
 
     private static readonly TimeSpan EnterWait = TimeSpan.FromSeconds(20);
 
     public static int Run(ServerProfile profile, string[] args)
     {
-        var path = PathArgument(args);
-        if (path is null)
+        Options options;
+        try
         {
+            options = Parse(args);
+        }
+        catch (ArgumentException e)
+        {
+            Console.Error.WriteLine($"❌ {e.Message}");
             Console.Error.WriteLine(Usage);
             return 1;
         }
 
-        var wait = Seconds(args, "--wait", 90);
-        var enter = !args.Contains("--no-enter");
-        var force = args.Contains("--force");
-
         ClientLaunch launch;
         try
         {
-            launch = LaunchFile.Read(path);
+            launch = Build(options);
         }
         catch (Exception e)
         {
@@ -46,13 +50,16 @@ internal static class LoginCommand
             return 2;
         }
 
-        Console.WriteLine($"Файл:    {launch.SourcePath}");
+        Console.WriteLine($"Файл:    {(options.File is null ? "данные команды" : launch.SourcePath)}");
         Console.WriteLine($"exe:     {launch.ExePath}");
         Console.WriteLine($"папка:   {launch.WorkingDirectory}");
         Console.WriteLine($"логин:   {launch.Login ?? "—"}");
         Console.WriteLine($"роль:    {launch.Role ?? "—"}");
         Console.WriteLine($"пароль:  {(launch.HasPassword ? "есть (в консоль не печатаю)" : "нет")}");
         Console.WriteLine($"сервер:  {profile.Name} ({profile.Id})");
+        if (options.File is null)
+            Console.WriteLine("⚠️ Пароль передан в командной строке: он виден в списке процессов, пока идёт запуск. "
+                              + "Для постоянного автовхода лучше файл запуска.");
 
         if (!File.Exists(launch.ExePath))
         {
@@ -60,8 +67,14 @@ internal static class LoginCommand
             return 2;
         }
 
+        if (options.Check)
+        {
+            Console.WriteLine("Проверка: клиент не запускается.");
+            return 0;
+        }
+
         var same = RunningSame(launch.ExePath);
-        if (same.Count > 0 && !force)
+        if (same.Count > 0 && !options.Force)
         {
             Console.Error.WriteLine($"❌ Клиент этого exe уже запущен (PID {string.Join(", ", same)}). "
                                     + "Закройте его или добавьте --force, чтобы открыть второй.");
@@ -86,7 +99,7 @@ internal static class LoginCommand
         {
             Console.WriteLine($"Клиент запущен: PID {process.Id}. Жду окно и персонажа…");
             var started = Stopwatch.StartNew();
-            var result = ClientLogin.WaitForWorld(process.Id, profile.Data, TimeSpan.FromSeconds(wait), Note);
+            var result = ClientLogin.WaitForWorld(process.Id, profile.Data, TimeSpan.FromSeconds(options.Wait), Note);
             if (result.State == LoginState.InWorld)
                 return Success(result, process.Id, started.Elapsed);
 
@@ -98,15 +111,15 @@ internal static class LoginCommand
 
             if (!result.WindowFound)
             {
-                Console.Error.WriteLine($"❌ За {wait} с окно клиента не появилось.");
+                Console.Error.WriteLine($"❌ За {options.Wait} с окно клиента не появилось.");
                 return 3;
             }
 
-            if (enter)
+            if (options.Enter)
             {
                 for (var attempt = 1; attempt <= 2; attempt++)
                 {
-                    Console.WriteLine($"⚠️ Персонаж не появился за {wait} с — похоже, клиент стоит на выборе. "
+                    Console.WriteLine($"⚠️ Персонаж не появился за {options.Wait} с — похоже, клиент стоит на выборе. "
                                       + $"Жму Enter (попытка {attempt} из 2).");
                     var keys = new WindowKeys(process.Id);
                     var pressed = keys.Press(new KeyStroke(0x0D));
@@ -141,29 +154,102 @@ internal static class LoginCommand
 
     private static void Note(string message) => Console.WriteLine($"  {message}");
 
-    private static string? PathArgument(string[] args)
+    /// <summary>Либо файл запуска, либо логин/пароль/роль и exe — вместе нельзя: непонятно, что главнее.</summary>
+    private static ClientLaunch Build(Options options)
     {
-        for (var i = 0; i < args.Length; i++)
+        if (options.File is { } file)
         {
-            if (args[i] is "--server" or "--wait")
-            {
-                i++;
-                continue;
-            }
-
-            if (!args[i].StartsWith("--", StringComparison.Ordinal))
-                return args[i];
+            if (options.Login is not null || options.Password is not null || options.Role is not null
+                || options.Exe is not null || options.Directory is not null)
+                throw new ArgumentException("Укажите либо файл запуска, либо --login/--password/--role/--exe.");
+            return LaunchFile.Read(file);
         }
 
-        return null;
+        if (options.Login is null || options.Password is null)
+            throw new ArgumentException("Без файла нужны --login и --password.");
+        if (options.Exe is null)
+            throw new ArgumentException("Без файла нужен --exe — путь к ElementClient.exe.");
+
+        var exe = Path.GetFullPath(options.Exe);
+        var directory = options.Directory is null ? Path.GetDirectoryName(exe)! : Path.GetFullPath(options.Directory);
+        // Те же постоянные аргументы, что в bat этих клиентов: через сторожа, игра cpw, с консолью
+        return ClientLaunch.WithCredentials(exe, directory, ["startbypatcher", "game:cpw", "console:1"],
+            options.Login, options.Password, options.Role);
     }
 
-    private static int Seconds(string[] args, string name, int fallback)
+    private static Options Parse(string[] args)
     {
-        var index = Array.IndexOf(args, name);
-        return index >= 0 && index + 1 < args.Length && int.TryParse(args[index + 1], out var value)
-            ? Math.Min(600, Math.Max(10, value))
-            : fallback;
+        var options = new Options();
+        for (var index = 0; index < args.Length; index++)
+        {
+            switch (args[index])
+            {
+                case "--server":
+                    // Значение разбирает Program.LoadProfile; здесь только пропускаем, чтобы не принять за файл
+                    if (++index >= args.Length)
+                        throw new ArgumentException("У --server нет значения.");
+                    break;
+                case "--wait":
+                    if (++index >= args.Length || !int.TryParse(args[index], out var wait))
+                        throw new ArgumentException("У --wait нет числа секунд.");
+                    options.Wait = Math.Min(600, Math.Max(10, wait));
+                    break;
+                case "--login":
+                    options.Login = Next(args, ref index, "--login");
+                    break;
+                case "--password":
+                    options.Password = Next(args, ref index, "--password");
+                    break;
+                case "--role":
+                    options.Role = Next(args, ref index, "--role");
+                    break;
+                case "--exe":
+                    options.Exe = Next(args, ref index, "--exe");
+                    break;
+                case "--dir":
+                    options.Directory = Next(args, ref index, "--dir");
+                    break;
+                case "--no-enter":
+                    options.Enter = false;
+                    break;
+                case "--force":
+                    options.Force = true;
+                    break;
+                case "--check":
+                    options.Check = true;
+                    break;
+                default:
+                    if (args[index].StartsWith("--", StringComparison.Ordinal))
+                        throw new ArgumentException($"Неизвестный ключ: {args[index]}");
+                    if (options.File is not null)
+                        throw new ArgumentException("Укажите один файл запуска.");
+                    options.File = args[index];
+                    break;
+            }
+        }
+
+        return options;
+    }
+
+    private static string Next(string[] args, ref int index, string name)
+    {
+        if (index + 1 >= args.Length)
+            throw new ArgumentException($"У {name} нет значения.");
+        return args[++index];
+    }
+
+    private sealed class Options
+    {
+        public string? File { get; set; }
+        public string? Login { get; set; }
+        public string? Password { get; set; }
+        public string? Role { get; set; }
+        public string? Exe { get; set; }
+        public string? Directory { get; set; }
+        public int Wait { get; set; } = 90;
+        public bool Enter { get; set; } = true;
+        public bool Force { get; set; }
+        public bool Check { get; set; }
     }
 
     /// <summary>PID уже запущенных клиентов ровно с этим exe (другие серверы и папки не трогаем).</summary>

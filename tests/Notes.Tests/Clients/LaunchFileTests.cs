@@ -104,6 +104,20 @@ public class LaunchFileTests : IDisposable
     }
 
     [Fact]
+    public void CredentialsCanBePassedWithoutFile()
+    {
+        var launch = ClientLaunch.WithCredentials(@"D:\Game\ElementClient.exe", @"D:\Game",
+            ["startbypatcher", "console:1"], "user1", "secret", "Мой Перс");
+
+        Assert.Equal(@"D:\Game\ElementClient.exe", launch.ExePath);
+        Assert.Equal(@"D:\Game", launch.WorkingDirectory);
+        Assert.Equal("user1", launch.Login);
+        Assert.Equal("Мой Перс", launch.Role);
+        Assert.Equal(["startbypatcher", "console:1", "user:user1", "pwd:secret", "role:Мой Перс"], launch.Arguments);
+        Assert.DoesNotContain("secret", launch.ToString());
+    }
+
+    [Fact]
     public void ArgumentsLineQuotesSpacesOnly()
     {
         Assert.Equal("role:Тихоня", ClientLaunch.Quote("role:Тихоня"));
