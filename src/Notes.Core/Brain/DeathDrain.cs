@@ -164,12 +164,16 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
         return false;
     }
 
-    // Перед первым сбором: летающих ждём в воздухе — взлететь, земных — сесть (на месте, никуда не летим)
+    // Перед первым сбором: летающих ждём в воздухе — взлететь, земных — сесть (на месте, никуда не летим). Не сели — не сливаем:
+    // из воздуха земных не собрать. После смерти так встаёт путь из города (точка — как велит вид мобов)
     private DrainStep Settle(BrainContext c)
     {
         Status = "готовлюсь";
-        if (_settle!.Step(c) == TripStep.Going)
+        var step = _settle!.Step(c);
+        if (step == TripStep.Going)
             return DrainStep.Working;
+        if (step == TripStep.Failed)
+            return DrainStep.GaveUp(_settle.Failed!);
         _settle = null;
         _rounds = 0;
         NewRound(c);

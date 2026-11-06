@@ -35,6 +35,9 @@ public class ExpDrainBehaviorTests
     /// <summary>«Ближний город» срабатывает.</summary>
     private bool _revives = true;
 
+    /// <summary>Столько нажатий «Полёт» в воздухе игра не примет (перс так и висит).</summary>
+    private int _ignoredLandings;
+
     // Кто-то посреди дела из нескольких шагов (банк)
     private sealed class Holder : IBehavior, IMultiStepBehavior
     {
@@ -124,6 +127,9 @@ public class ExpDrainBehaviorTests
                     break;
                 case "recall":
                     _world.SetPet(1, summoned: false);
+                    break;
+                case "fly-toggle" when _world.Flying == true && _ignoredLandings > 0:
+                    _ignoredLandings--;
                     break;
                 case "fly-toggle":
                     _world.Flying = _world.Flying != true;
@@ -646,5 +652,22 @@ public class ExpDrainBehaviorTests
 
         Assert.Equal("fly-toggle", _actions.Calls[0]);
         Assert.Contains("select 80000001", _actions.Calls);
+    }
+
+    // Было: не сел — всё равно собирать, из воздуха выбирать земных в цель
+    [Fact]
+    public void GroundMobsNeverLandedGivesUpWithoutPulling()
+    {
+        _settings.ExpDrain.DeathMobs = DrainMobs.Ground;
+        _world.Flying = true;
+        _world.Position = new Position(0, 650, 0);
+        _ignoredLandings = int.MaxValue;
+        AddGroundMobs();
+
+        TickFor(80);
+
+        Assert.True(_world.Flying);
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("select"));
+        Assert.True(Logged("Слив опыта брошен: не смог сесть"));
     }
 }
