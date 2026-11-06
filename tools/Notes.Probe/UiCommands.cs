@@ -66,7 +66,11 @@ internal static class UiCommands
                     break;
                 var controlName = game.TryReadUInt32(control + o.ControlName, out var cn) ? Ansi(game, cn) : null;
                 if (game.TryReadUInt32(control + o.ControlText, out var t) && Wide(game, t) is { } text)
-                    Console.WriteLine($"    {controlName} «{text}»");
+                {
+                    // Пароль в консоль не печатаем (у Comeback 1.3.6 поле читается) — только сколько букв
+                    var printed = controlName == LoginScreen.PasswordField ? new string('•', text.Length) : text;
+                    Console.WriteLine($"    {controlName} «{printed}»");
+                }
                 if (!game.TryReadUInt32(node + o.ControlNext, out node))
                     break;
             }
