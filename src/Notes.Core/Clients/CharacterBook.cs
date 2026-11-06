@@ -47,10 +47,11 @@ public sealed class CharacterAccount
     public CharacterAccount Clone() => (CharacterAccount)MemberwiseClone();
 
     /// <summary>
-    /// Команда запуска клиента с автовходом. <paramref name="gamePath"/> — «Игра» сервера, если у персонажа свой exe не задан.
-    /// Не из чего собрать — <see cref="InvalidOperationException"/> с текстом для игрока.
+    /// Команда запуска клиента. <paramref name="credentials"/> — с автовходом (логин, пароль и ник в аргументах); без них
+    /// клиент встаёт на экран логина, и бот входит сам (<see cref="LoginFlow"/>). <paramref name="gamePath"/> — «Игра» сервера,
+    /// если у персонажа свой exe не задан. Не из чего собрать — <see cref="InvalidOperationException"/> с текстом для игрока.
     /// </summary>
-    public ClientLaunch Launch(IReadOnlyList<string> launchArguments, string? gamePath)
+    public ClientLaunch Launch(IReadOnlyList<string> launchArguments, string? gamePath, bool credentials = true)
     {
         var exe = ExePath.Length > 0 ? ExePath : gamePath;
         if (string.IsNullOrWhiteSpace(exe))
@@ -59,12 +60,21 @@ public sealed class CharacterAccount
             throw new InvalidOperationException($"Нет файла клиента: {exe}");
         if (launchArguments.Count == 0)
             throw new InvalidOperationException("Запуск клиента для этого сервера ещё не настроен.");
+        var password = PlainPassword();
+
+        var directory = System.IO.Path.GetDirectoryName(exe)!;
+        return credentials
+            ? ClientLaunch.WithCredentials(exe!, directory, launchArguments, Login.Trim(), password, Nick.Trim())
+            : new ClientLaunch(exe!, exe!, directory, launchArguments.ToList());
+    }
+
+    /// <summary>Пароль открытым текстом — только чтобы ввести его в клиент. Нет логина или не расшифровать — с текстом для игрока.</summary>
+    public string PlainPassword()
+    {
         if (Login.Trim().Length == 0)
             throw new InvalidOperationException("У персонажа не задан логин.");
-        var password = PasswordVault.Unprotect(Password)
-                       ?? throw new InvalidOperationException("Пароль не расшифровать (другая учётная запись Windows?) — введите его заново.");
-
-        return ClientLaunch.WithCredentials(exe!, System.IO.Path.GetDirectoryName(exe)!, launchArguments, Login.Trim(), password, Nick.Trim());
+        return PasswordVault.Unprotect(Password)
+               ?? throw new InvalidOperationException("Пароль не расшифровать (другая учётная запись Windows?) — введите его заново.");
     }
 }
 

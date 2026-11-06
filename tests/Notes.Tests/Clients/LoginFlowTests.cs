@@ -171,6 +171,19 @@ public class LoginFlowTests
         Assert.Contains("попыток: 4", run.Result.Text);
     }
 
+    [Fact]
+    public void RunnerDoesNotCloseSomeoneElsesClient()
+    {
+        _client.ServerSilent = true;
+        var runner = Runner(() => throw new InvalidOperationException("запускать не надо"),
+            _ => throw new InvalidOperationException("чужой клиент не закрываем"));
+
+        var run = runner.Run("login", "secret", "Флай", running: 77);
+
+        Assert.Equal(LoginOutcome.Stuck, run.Result.Outcome);
+        Assert.Equal(77, run.Pid);
+    }
+
     private LoginRunner Runner(Func<int> launch, Action<int> close) => new(launch, _ => new Attempt(Flow()), close, _client);
 
     private sealed class Attempt(LoginFlow flow) : ILoginAttempt

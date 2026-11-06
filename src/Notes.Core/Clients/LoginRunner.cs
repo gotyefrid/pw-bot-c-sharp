@@ -40,18 +40,25 @@ public sealed class LoginRunner
         _clock = clock ?? SystemLoginClock.Instance;
     }
 
-    public IReadOnlyList<TimeSpan> Delays { get; init; } = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(5)];
+    /// <summary>Паузы между попытками: 1, 3, 5 минут — сервер успевает подняться, а бот не стучится каждую секунду.</summary>
+    public static readonly IReadOnlyList<TimeSpan> DefaultDelays = [TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(3), TimeSpan.FromMinutes(5)];
 
-    public LoginRun Run(string login, string password, string nick, Action<string>? progress = null, CancellationToken token = default)
+    public IReadOnlyList<TimeSpan> Delays { get; init; } = DefaultDelays;
+
+    /// <param name="running">Уже открытый клиент (стоит на экране логина): начать с него. Его бот не закрывает — только свои.</param>
+    public LoginRun Run(string login, string password, string nick, Action<string>? progress = null, CancellationToken token = default,
+        int? running = null)
     {
         var say = progress ?? (_ => { });
-        int? pid = null;
+        var pid = running;
+        var own = false;
         for (var attempt = 1; ; attempt++)
         {
             if (pid is null)
             {
                 say("запускаю клиент");
                 pid = _launch();
+                own = true;
             }
 
             var result = _attach(pid.Value).Enter(login, password, nick, say, token);
@@ -60,6 +67,9 @@ public sealed class LoginRunner
 
             if (result.NeedsNewClient)
             {
+                // Чужой клиент завис — не закрываем, игрок разберётся сам
+                if (!own)
+                    return new LoginRun(result, pid, attempt);
                 _close(pid.Value);
                 pid = null;
             }
