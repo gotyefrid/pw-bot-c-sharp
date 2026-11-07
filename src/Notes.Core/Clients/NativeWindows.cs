@@ -83,6 +83,33 @@ public static class NativeWindows
     public static bool SetTitle(IntPtr window, string title)
         => window != IntPtr.Zero && (GetTitle(window) == title || SetWindowText(window, title));
 
+    /// <summary>
+    /// Окно — на передний план, свёрнутое — развернуть. Windows даёт это только активной программе: звать по действию
+    /// пользователя в окне бота (двойной щелчок по вкладке). false — не вышло.
+    /// </summary>
+    public static bool BringToFront(IntPtr window)
+    {
+        if (window == IntPtr.Zero)
+            return false;
+        if (IsIconic(window))
+            ShowWindow(window, SwRestore);
+        return SetForegroundWindow(window);
+    }
+
+    /// <summary>Окно видно (не скрыто в трей).</summary>
+    public static bool IsVisible(IntPtr window) => window != IntPtr.Zero && IsWindowVisible(window);
+
+    private const int SwRestore = 9;
+
+    [DllImport("user32.dll")]
+    private static extern bool IsIconic(IntPtr window);
+
+    [DllImport("user32.dll")]
+    private static extern bool ShowWindow(IntPtr window, int command);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr window);
+
     private const uint GwOwner = 4;
 
     private delegate bool EnumWindowsProc(IntPtr window, IntPtr parameter);

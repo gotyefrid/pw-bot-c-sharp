@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using System.Windows.Media;
 
 namespace Notes.App;
 
@@ -33,6 +37,22 @@ public partial class MainWindow : Window
     private void Added(CharacterTab tab) => _views[tab] = new CharacterView(tab);
 
     private void Removed(CharacterTab tab) => _views.Remove(tab);
+
+    // Двойной щелчок по вкладке — окно игры её персонажа вперёд; по крестику — нет (он закрывает вкладку)
+    private void TabDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        for (var at = e.OriginalSource as DependencyObject; at is not null && at != sender; at = at is Visual ? VisualTreeHelper.GetParent(at) : LogicalTreeHelper.GetParent(at))
+        {
+            if (at is ButtonBase)
+                return;
+        }
+
+        if (sender is ListBoxItem { DataContext: CharacterTab tab })
+        {
+            tab.ShowGameWindow();
+            e.Handled = true;
+        }
+    }
 
     private void SelectionChanged(object? sender, PropertyChangedEventArgs e)
     {

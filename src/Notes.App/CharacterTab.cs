@@ -867,6 +867,27 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>Лог окна — для страховки выхода (<see cref="ExitWatchdog"/>), когда модель уже освобождена.</summary>
     internal ILogger WindowLog => _log;
 
+    /// <summary>
+    /// Двойной щелчок по вкладке: окно игры её персонажа — на передний план. Окно ищем сейчас, по PID подключения (после
+    /// переподключения клиент другой); не подключены — клиента, выбранного в списке.
+    /// </summary>
+    public void ShowGameWindow()
+    {
+        if ((_connection?.Pid ?? SelectedClient?.Pid) is not { } pid)
+        {
+            _connectionLog.Info("Окно игры: вкладка не подключена и клиент не выбран");
+            return;
+        }
+
+        var window = NativeWindows.FindMainWindow(pid, includeHidden: true);
+        if (window == IntPtr.Zero)
+            _connectionLog.Warning($"Окно игры PID {pid} не найдено");
+        else if (!NativeWindows.IsVisible(window))
+            _connectionLog.Info($"Окно игры PID {pid} скрыто в трей — откройте его значком в трее");
+        else if (!NativeWindows.BringToFront(window))
+            _connectionLog.Info($"Окно игры PID {pid}: Windows не дала вывести его вперёд");
+    }
+
     /// <summary>Лог «Чат» вкладки — туда же пишут команды из Telegram.</summary>
     internal ILogger ChatLog => _chatLog;
 

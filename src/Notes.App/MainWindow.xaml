@@ -5,10 +5,12 @@
         WindowStartupLocation="CenterScreen" Icon="app.ico"
         Style="{StaticResource AppWindow}">
   <Window.Resources>
-    <!-- Вкладка персонажа в полосе: кружок «нет связи / стоит / работает», ник, крестик -->
+    <!-- Вкладка персонажа в полосе: кружок «нет связи / стоит / работает», ник, крестик; двойной щелчок — окно игры вперёд -->
     <Style x:Key="CharacterTabItem" TargetType="ListBoxItem">
       <Setter Property="Margin" Value="0,0,4,4" />
       <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="ToolTip" Value="Двойной щелчок — окно игры этого персонажа на передний план" />
+      <EventSetter Event="MouseDoubleClick" Handler="TabDoubleClick" />
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="ListBoxItem">
