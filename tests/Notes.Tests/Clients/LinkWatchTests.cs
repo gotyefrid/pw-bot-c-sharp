@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Notes.Core.Clients;
+using Notes.Core.Profiles;
 using Xunit;
 
 namespace Notes.Tests.Clients;
@@ -42,6 +43,20 @@ public class LinkWatchTests
         // Дальше молчит
         Assert.Null(watch.Check(T0.AddSeconds(9)));
         Assert.Single(_lost);
+    }
+
+    [Theory]
+    [InlineData("comeback146", "Соединение с сервером разорвано. Восстановить соединение?")]
+    [InlineData("comeback146", Broken)]
+    [InlineData("comeback136", Broken)]
+    [InlineData("pwclassic136", Broken)]
+    public void ProfileTextsCatchBrokenLinkWindows(string server, string message)
+    {
+        var texts = new ProfileCatalog().Load(server).Data.LoginScreen.Disconnected;
+        var watch = new LinkWatch(() => true, () => World(message), texts);
+
+        watch.Check(T0);
+        Assert.NotNull(watch.Check(T0.AddSeconds(5)));
     }
 
     [Fact]
