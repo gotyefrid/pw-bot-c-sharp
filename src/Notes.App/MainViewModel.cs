@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Windows.Input;
 using Notes.App.Mvvm;
 using Notes.Core.Logging;
+using Notes.Core.Notify;
 using Notes.Core.Session;
 using Notes.Core.Settings;
 
@@ -21,6 +22,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     private readonly WindowServices _services;
     private readonly IDialogs _dialogs;
     private readonly OpenTabsFile _remembered;
+    private readonly TelegramPoller _commands;
     private CharacterTab _selected;
     private bool _loading = true;
 
@@ -38,6 +40,9 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         if (problem is not null)
             _selected.WindowLog.Warning($"Список вкладок испорчен — открыта одна новая. {problem}");
         _loading = false;
+        // Команды из Telegram — одни на окно; что не так — в лог «Чат» выбранной вкладки
+        _commands = new TelegramPoller(() => _services.Settings.Value.ChatNotify, message => UiThread.Run(() => Answer(message)),
+            text => UiThread.Run(() => Selected.ChatLog.Info(text)), text => UiThread.Run(() => Selected.ChatLog.Warning(text)));
         AddTabCommand = new RelayCommand(AddTab);
         CloseTabCommand = new RelayCommand<CharacterTab>(CloseTab);
     }
@@ -71,6 +76,20 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     {
         foreach (var tab in Tabs)
             tab.StartUp();
+        _commands.Start();
+    }
+
+    // Сообщение из Telegram (в потоке окна): ответ — в тот же чат, ответом на него
+    private void Answer(TelegramMessage message)
+    {
+        var connected = Tabs.Where(t => t.IsConnected && t.Nick is not null)
+            .Select(t => new TelegramCharacter(t.Nick!, t.SelectedServer.Name, t.IsRunning)).ToList();
+        var log = Selected.ChatLog;
+        log.Info($"Из Telegram: {message.Text.Replace('\n', ' ')}");
+        if (TelegramCommands.Answer(message, connected) is not { } reply)
+            return;
+        var s = _services.Settings.Value.ChatNotify;
+        _services.Telegram.Post(s.Token, s.ChatId, reply, log, html: true, replyTo: message.MessageId);
     }
 
     private CharacterTab New(OpenTab? remembered)
@@ -133,6 +152,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     public void Dispose()
     {
         _loading = true;
+        _commands.Dispose();
         var closing = Tabs.Select(tab => tab.CloseAsync()).ToArray();
         Task.WaitAll(closing, ClientConnection.StopWait + TimeSpan.FromSeconds(1));
         _services.Dispose();

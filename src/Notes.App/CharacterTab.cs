@@ -867,6 +867,9 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>Лог окна — для страховки выхода (<see cref="ExitWatchdog"/>), когда модель уже освобождена.</summary>
     internal ILogger WindowLog => _log;
 
+    /// <summary>Лог «Чат» вкладки — туда же пишут команды из Telegram.</summary>
+    internal ILogger ChatLog => _chatLog;
+
     /// <summary>
     /// Закрыть вкладку: настройки и точки — на диск, вход из «Персонажей» — прервать, отключиться. Задача — когда подключение
     /// закрыто (бот работал — до 7 с: окно закрывает все вкладки разом и ждёт их вместе).

@@ -19,7 +19,7 @@ public sealed class TelegramSender : IDisposable
 {
     private const int TimeoutMs = 15000;
 
-    private readonly BlockingCollection<(string Token, string ChatId, string Text, ILogger Log)> _queue = new();
+    private readonly BlockingCollection<(string Token, string ChatId, string Text, ILogger Log, bool Html, long? ReplyTo)> _queue = new();
 
     static TelegramSender()
     {
@@ -30,12 +30,14 @@ public sealed class TelegramSender : IDisposable
     public TelegramSender() => new Thread(Run) { IsBackground = true, Name = "Telegram" }.Start();
 
     /// <summary>Отправить в фоне; не дошло — предупреждение в <paramref name="log"/>.</summary>
-    public void Post(string token, string chatId, string text, ILogger log)
+    /// <param name="html">Текст в разметке HTML Telegram (&lt;code&gt;, &lt;b&gt;; &lt;, &gt;, &amp; — сущностями).</param>
+    /// <param name="replyTo">Ответ на это сообщение (номер в чате).</param>
+    public void Post(string token, string chatId, string text, ILogger log, bool html = false, long? replyTo = null)
     {
         try
         {
             if (!_queue.IsAddingCompleted)
-                _queue.Add((token, chatId, text, log));
+                _queue.Add((token, chatId, text, log, html, replyTo));
         }
         catch (InvalidOperationException)
         {
@@ -44,13 +46,21 @@ public sealed class TelegramSender : IDisposable
     }
 
     /// <summary>Отправить и дождаться ответа (до 15 с). null — дошло, иначе — почему нет (без токена).</summary>
-    public static string? Send(string token, string chatId, string text)
+    public static string? Send(string token, string chatId, string text, bool html = false, long? replyTo = null)
     {
         try
         {
             using var web = new TimeoutWebClient { Encoding = Encoding.UTF8 };
-            web.UploadValues($"https://api.telegram.org/bot{token}/sendMessage",
-                new NameValueCollection { ["chat_id"] = chatId, ["text"] = text });
+            var values = new NameValueCollection { ["chat_id"] = chatId, ["text"] = text };
+            if (html)
+                values["parse_mode"] = "HTML";
+            if (replyTo is { } id)
+            {
+                values["reply_to_message_id"] = id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                // Сообщение, на которое отвечаем, успели удалить — всё равно отправить
+                values["allow_sending_without_reply"] = "true";
+            }
+            web.UploadValues($"https://api.telegram.org/bot{token}/sendMessage", values);
             return null;
         }
         catch (WebException e) when (e.Response is HttpWebResponse response)
@@ -80,9 +90,9 @@ public sealed class TelegramSender : IDisposable
 
     private void Run()
     {
-        foreach (var (token, chatId, text, log) in _queue.GetConsumingEnumerable())
+        foreach (var (token, chatId, text, log, html, replyTo) in _queue.GetConsumingEnumerable())
         {
-            if (Send(token, chatId, text) is { } problem)
+            if (Send(token, chatId, text, html, replyTo) is { } problem)
                 log.Warning($"Уведомление в Telegram не отправлено: {problem}");
         }
     }
