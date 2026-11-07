@@ -78,7 +78,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     // «Персонажи»: логин, пароль и клиент каждого — characters\accounts.json, общий у копий бота из этой папки
     private readonly CharacterBook _book;
 
-    public CharacterTab(string appDirectory, IDialogs dialogs)
+    /// <param name="remembered">Вкладка из прошлого запуска (tabs.json); null — новая.</param>
+    public CharacterTab(string appDirectory, IDialogs dialogs, OpenTab? remembered = null)
     {
         _dialogs = dialogs;
         _appDirectory = appDirectory;
@@ -111,7 +112,9 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
-        _profile = Servers.FirstOrDefault(s => s.Id == _config.App.Connection.ServerId) ?? Servers.First();
+        // Вкладка из прошлого запуска — её сервер и персонаж; новая — сервер из общих настроек
+        _wanted = remembered?.Nick;
+        _profile = Servers.FirstOrDefault(s => s.Id == (remembered?.Server ?? _config.App.Connection.ServerId)) ?? Servers.First();
         Patch = new ClientPatchPanel(() => _profile, () => _config.App.Connection, SaveSettings, dialogs, _connectionLog);
         // Сменилась «Игра» — в списке теперь клиенты её exe. Подключённого не подменяем: список заперт до отключения,
         // а после отключения его обновит ⟳
@@ -168,9 +171,18 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     /// <summary>
     /// Первое обновление списка клиентов — отдельно от конструктора: окно зовёт это по Loaded, когда оно уже показано.
-    /// Только заполняет список, никуда не подключаясь.
+    /// Вкладка из прошлого запуска (tabs.json) и клиент её персонажа запущен и свободен — подключиться к нему (бот не
+    /// стартует); иначе только заполнить список.
     /// </summary>
-    public void StartUp() => RefreshClients();
+    public void StartUp()
+    {
+        RefreshClients();
+        if (_wanted is { } nick && SelectedClient is { } client && client.Nick == nick && !ClientLock.IsTaken(client.Pid))
+        {
+            _connectionLog.Info($"{nick}: вкладка из прошлого запуска — подключаюсь");
+            Connect(anyway: false);
+        }
+    }
 
     // ── Подключение ──────────────────────────────────────────────────────────
 
@@ -191,6 +203,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanStashToBank));
             OnPropertyChanged(nameof(CanRepairFromBag));
             OnPropertyChanged(nameof(Summary));
+            OnPropertyChanged(nameof(Remembered));
             Chat.Refresh();
             // Читать клиента теперь по другим смещениям — старое подключение не годится
             Disconnect();
@@ -273,16 +286,24 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         get => _nick;
         private set
         {
-            if (SetProperty(ref _nick, value))
-            {
-                OnPropertyChanged(nameof(IconColor));
-                OnPropertyChanged(nameof(TabTitle));
-            }
+            if (!SetProperty(ref _nick, value))
+                return;
+            if (value is not null)
+                _wanted = value;
+            OnPropertyChanged(nameof(IconColor));
+            OnPropertyChanged(nameof(TabTitle));
+            OnPropertyChanged(nameof(Remembered));
         }
     }
 
-    /// <summary>Надпись на вкладке окна: ник подключённого, иначе — «Новый персонаж».</summary>
-    public string TabTitle => Nick ?? "Новый персонаж";
+    // Чей это вкладка: последний подключённый здесь персонаж (или из tabs.json) — его клиент выбирается и после отключения
+    private string? _wanted;
+
+    /// <summary>Надпись на вкладке окна: ник подключённого, иначе — чья это вкладка, иначе «Новый персонаж».</summary>
+    public string TabTitle => Nick ?? _wanted ?? "Новый персонаж";
+
+    /// <summary>Что запомнить о вкладке до следующего запуска (tabs.json): сервер и персонаж.</summary>
+    public OpenTab Remembered => new(_profile.Id, Nick ?? _wanted);
 
     // ── Цвет значка на панели задач: свой у персонажа, без выбора — по нику ──
 
@@ -958,7 +979,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             Clients.Clear();
             foreach (var client in clients)
                 Clients.Add(client);
-            SelectedClient = ClientList.KeepSelection(clients, keep, _config.App.Connection.LastCharacter, ClientLock.IsTaken);
+            SelectedClient = ClientList.KeepSelection(clients, keep, _wanted ?? _config.App.Connection.LastCharacter, ClientLock.IsTaken);
         }
         finally
         {

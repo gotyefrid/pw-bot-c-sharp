@@ -1,28 +1,41 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Notes.App.Mvvm;
+using Notes.Core.Logging;
 using Notes.Core.Session;
+using Notes.Core.Settings;
 
 namespace Notes.App;
 
 /// <summary>
 /// Модель главного окна: вкладки персонажей (<see cref="CharacterTab"/>) и выбранная. У каждой вкладки своё подключение и
 /// свой бот в своих потоках; окно показывает выбранную. Вкладка есть всегда: закрыли последнюю — на её месте новая.
+/// Какие вкладки открыты — в tabs.json (<see cref="OpenTabsFile"/>): при запуске они открываются снова.
 /// </summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
     private readonly string _appDirectory;
     private readonly IDialogs _dialogs;
+    private readonly OpenTabsFile _remembered;
     private CharacterTab _selected;
+    private bool _loading = true;
 
     public MainViewModel(string appDirectory, IDialogs dialogs)
     {
         _appDirectory = appDirectory;
         _dialogs = dialogs;
-        _selected = New();
+        _remembered = new OpenTabsFile(appDirectory);
+        var (tabs, selected) = _remembered.Load(out var problem);
+        foreach (var tab in tabs)
+            New(tab);
+        _selected = Tabs.Count > 0 ? Tabs[selected] : New(null);
+        if (problem is not null)
+            _selected.WindowLog.Warning($"Список вкладок испорчен — открыта одна новая. {problem}");
+        _loading = false;
         AddTabCommand = new RelayCommand(AddTab);
         CloseTabCommand = new RelayCommand<CharacterTab>(CloseTab);
     }
@@ -34,8 +47,8 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         get => _selected;
         set
         {
-            if (value is not null)
-                SetProperty(ref _selected, value);
+            if (value is not null && SetProperty(ref _selected, value))
+                Remember();
         }
     }
 
@@ -51,24 +64,41 @@ public sealed class MainViewModel : ObservableObject, IDisposable
     /// <summary>Вкладка закрыта и освобождена (окну — убрать её вид).</summary>
     public event Action<CharacterTab>? TabClosed;
 
-    /// <summary>Окно показано: первые списки клиентов во вкладках.</summary>
+    /// <summary>Окно показано: первые списки клиентов во вкладках, вкладки прошлого запуска подключаются к своим.</summary>
     public void StartUp()
     {
         foreach (var tab in Tabs)
             tab.StartUp();
     }
 
-    private CharacterTab New()
+    private CharacterTab New(OpenTab? remembered)
     {
-        var tab = new CharacterTab(_appDirectory, _dialogs);
+        var tab = new CharacterTab(_appDirectory, _dialogs, remembered);
+        tab.PropertyChanged += TabChanged;
         Tabs.Add(tab);
         TabAdded?.Invoke(tab);
+        Remember();
         return tab;
+    }
+
+    private void TabChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CharacterTab.Remembered))
+            Remember();
+    }
+
+    // Список вкладок — в tabs.json (при каждой перемене: окно может и упасть)
+    private void Remember()
+    {
+        if (_loading || Tabs.Count == 0)
+            return;
+        if (_remembered.TrySave(Tabs.Select(t => t.Remembered).ToList(), Math.Max(0, Tabs.IndexOf(_selected))) is { } problem)
+            _selected.WindowLog.Warning($"Не удалось запомнить вкладки: {problem}");
     }
 
     private void AddTab()
     {
-        var tab = New();
+        var tab = New(null);
         Selected = tab;
         tab.StartUp();
     }
@@ -86,15 +116,18 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         else if (tab == Selected)
             Selected = Tabs[index == Tabs.Count - 1 ? index - 1 : index + 1];
 
+        tab.PropertyChanged -= TabChanged;
         Tabs.Remove(tab);
+        Remember();
         // Бот работал — его остановка дожидается в фоне, окно не ждёт
         _ = tab.CloseAsync();
         TabClosed?.Invoke(tab);
     }
 
-    /// <summary>Окно закрывается: все вкладки отключаются разом, ждём их вместе (а не по 7 с на каждую).</summary>
+    /// <summary>Окно закрывается: все вкладки отключаются разом, ждём их вместе (а не по 7 с на каждую). Список вкладок остаётся.</summary>
     public void Dispose()
     {
+        _loading = true;
         var closing = Tabs.Select(tab => tab.CloseAsync()).ToArray();
         Task.WaitAll(closing, ClientConnection.StopWait + TimeSpan.FromSeconds(1));
     }
