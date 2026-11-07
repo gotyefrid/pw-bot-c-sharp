@@ -30,7 +30,8 @@ namespace Notes.App;
 
 /// <summary>
 /// Вкладка персонажа в главном окне: подключение к клиенту, запуск и остановка бота, режим, настройки персонажа (сохранение
-/// через 0,5 с). У каждой вкладки всё своё — подключение, бот, настройки, лог, — как у отдельной копии бота.
+/// через 0,5 с). У каждой вкладки своё подключение, бот, настройки персонажа и лог; общие настройки (settings.json) и отправка
+/// в Telegram — одни на окно (<see cref="WindowServices"/>).
 /// Разделы внутри вкладки («Бот», «Мобы», «Лог»…) — свои маленькие классы (<see cref="Status"/>, <see cref="Farm"/>, <see cref="Pets"/>, <see cref="Route"/>,
 /// <see cref="Clicker"/>, <see cref="Log"/>): новая вкладка — ещё один такой класс, а не поля здесь. Снимок мира читается в фоне
 /// (<see cref="WorldMonitor"/>), в поток окна переносится только последний.
@@ -59,8 +60,10 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(0.5);
     private readonly DispatcherTimer _saveTimer = new() { Interval = SaveDelay };
 
-    // Уведомления в Telegram: отправка — одна на всё время работы, слежение за чатом — своё у подключения
+    // Уведомления в Telegram: отправка — одна на окно (общая у вкладок), слежение за чатом — своё у подключения
     private readonly TelegramSender _telegram;
+    // Общие настройки окна: правку в другой вкладке — показать и здесь
+    private readonly AppSettings _appSettings;
     private readonly ILogger _chatLog;
     private ChatNotifier? _notifier;
 
@@ -78,9 +81,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     // «Персонажи»: логин, пароль и клиент каждого — characters\accounts.json, общий у копий бота из этой папки
     private readonly CharacterBook _book;
 
+    /// <param name="services">Общее у вкладок окна: настройки settings.json и отправка в Telegram.</param>
     /// <param name="remembered">Вкладка из прошлого запуска (tabs.json); null — новая.</param>
-    public CharacterTab(string appDirectory, IDialogs dialogs, OpenTab? remembered = null)
+    public CharacterTab(WindowServices services, IDialogs dialogs, OpenTab? remembered = null)
     {
+        var appDirectory = services.AppDirectory;
         _dialogs = dialogs;
         _appDirectory = appDirectory;
         _logsDirectory = Path.Combine(appDirectory, "logs");
@@ -92,9 +97,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         _log = logger.For(LogSources.Window);
         _connectionLog = logger.For(LogSources.Connection);
         _chatLog = logger.For(LogSources.Chat);
-        _telegram = new TelegramSender(_chatLog);
+        _telegram = services.Telegram;
 
-        _config = new SettingsService(appDirectory, _log);
+        _appSettings = services.Settings;
+        _config = new SettingsService(_appSettings, _log, owner: this);
+        _appSettings.Saved += AppSettingsSaved;
         _book = new CharacterBook(Path.Combine(appDirectory, "characters", CharacterBook.FileName));
         // Что показывать в логе — своё у окна, как подключение: в settings.json
         Log.Load(_config.App.LogView);
@@ -870,8 +877,17 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         _launchCancel?.Cancel();
         var closing = Disconnect();
         _spots.Save();
-        _telegram.Dispose();
+        _appSettings.Saved -= AppSettingsSaved;
         return closing;
+    }
+
+    // Общие настройки сохранила другая вкладка — показать её правку (уведомления, переименование окон)
+    private void AppSettingsSaved(object? by)
+    {
+        if (by == this)
+            return;
+        Chat.Reload();
+        OnPropertyChanged(nameof(RenameWindows));
     }
 
     public void Dispose() => CloseAsync().Wait(ClientConnection.StopWait + TimeSpan.FromSeconds(1));
@@ -881,7 +897,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     {
         var s = _config.App.ChatNotify;
         _chatLog.Info($"В Telegram: {text.Replace('\n', ' ')}");
-        _telegram.Post(s.Token, s.ChatId, text);
+        _telegram.Post(s.Token, s.ChatId, text, _chatLog);
     }
 
     // ── Внутреннее ──────────────────────────────────────────────────────────

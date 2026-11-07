@@ -80,6 +80,26 @@ public class SettingsServiceTests : IDisposable
     }
 
     [Fact]
+    public void TabsShareAppSettingsButNotCharacters()
+    {
+        var app = new AppSettings(_folder);
+        var first = new SettingsService(app, NullLogger.Instance, owner: "первая");
+        var second = new SettingsService(app, NullLogger.Instance, owner: "вторая");
+        var savedBy = new System.Collections.Generic.List<object?>();
+        app.Saved += by => savedBy.Add(by);
+
+        first.App.ChatNotify.Token = "123:abc";
+        first.SaveApp();
+        first.SwitchTo(Server, "Заметно");
+        second.SwitchTo(Server, "Ёжик");
+
+        Assert.Equal("123:abc", second.App.ChatNotify.Token);
+        Assert.NotSame(first.Current, second.Current);
+        Assert.Equal("первая", savedBy[0]);
+        Assert.Equal("123:abc", new AppSettings(_folder).Value.ChatNotify.Token);
+    }
+
+    [Fact]
     public void SameNickOnOtherServerSwitchesSettings()
     {
         var config = Service();

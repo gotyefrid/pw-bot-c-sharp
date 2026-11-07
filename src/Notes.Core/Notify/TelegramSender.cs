@@ -12,14 +12,14 @@ namespace Notes.Core.Notify;
 
 /// <summary>
 /// Сообщения в Telegram (Bot API, sendMessage). <see cref="Post"/> — в очередь: шлёт свой фоновый поток по одному, бот и поток
-/// снимков не ждут сети. Не дошло — предупреждение в лог (без токена), бот работает дальше.
+/// снимков не ждут сети. Не дошло — предупреждение в лог того, кто отправлял (без токена), бот работает дальше. Один на окно:
+/// очередь общая у всех вкладок.
 /// </summary>
 public sealed class TelegramSender : IDisposable
 {
     private const int TimeoutMs = 15000;
 
-    private readonly BlockingCollection<(string Token, string ChatId, string Text)> _queue = new();
-    private readonly ILogger _log;
+    private readonly BlockingCollection<(string Token, string ChatId, string Text, ILogger Log)> _queue = new();
 
     static TelegramSender()
     {
@@ -27,17 +27,20 @@ public sealed class TelegramSender : IDisposable
         ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;
     }
 
-    public TelegramSender(ILogger log)
-    {
-        _log = log;
-        new Thread(Run) { IsBackground = true, Name = "Telegram" }.Start();
-    }
+    public TelegramSender() => new Thread(Run) { IsBackground = true, Name = "Telegram" }.Start();
 
-    /// <summary>Отправить в фоне.</summary>
-    public void Post(string token, string chatId, string text)
+    /// <summary>Отправить в фоне; не дошло — предупреждение в <paramref name="log"/>.</summary>
+    public void Post(string token, string chatId, string text, ILogger log)
     {
-        if (!_queue.IsAddingCompleted)
-            _queue.Add((token, chatId, text));
+        try
+        {
+            if (!_queue.IsAddingCompleted)
+                _queue.Add((token, chatId, text, log));
+        }
+        catch (InvalidOperationException)
+        {
+            // Окно закрывается: очередь закрыли между проверкой и добавлением
+        }
     }
 
     /// <summary>Отправить и дождаться ответа (до 15 с). null — дошло, иначе — почему нет (без токена).</summary>
@@ -77,10 +80,10 @@ public sealed class TelegramSender : IDisposable
 
     private void Run()
     {
-        foreach (var (token, chatId, text) in _queue.GetConsumingEnumerable())
+        foreach (var (token, chatId, text, log) in _queue.GetConsumingEnumerable())
         {
             if (Send(token, chatId, text) is { } problem)
-                _log.Warning($"Уведомление в Telegram не отправлено: {problem}");
+                log.Warning($"Уведомление в Telegram не отправлено: {problem}");
         }
     }
 

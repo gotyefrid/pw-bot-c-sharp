@@ -7,28 +7,36 @@ namespace Notes.Core.Settings;
 /// <summary>
 /// Настройки бота на диске: общие (settings.json — подключение и шаблон для новых персонажей) и текущего персонажа
 /// (characters\&lt;сервер&gt;\Ник.json). Пока персонаж неизвестен, «текущие» — это общие. Про подключение и бота ничего не знает:
-/// окно само отдаёт новые настройки работающему боту.
+/// окно само отдаёт новые настройки работающему боту. Общие (<see cref="AppSettings"/>) — одни у всех вкладок окна, настройки
+/// персонажа — свои у вкладки.
 /// </summary>
 public sealed class SettingsService
 {
-    private readonly SettingsStore _store;
+    private readonly AppSettings _app;
     private readonly CharacterSettings _characters;
     private readonly ILogger _log;
+    private readonly object? _owner;
 
-    /// <param name="folder">Папка бота: settings.json и characters\.</param>
-    public SettingsService(string folder, ILogger log)
+    /// <param name="folder">Папка бота: settings.json и characters\. Общие настройки — свои (одна вкладка, тесты).</param>
+    public SettingsService(string folder, ILogger log) : this(new AppSettings(folder), log)
     {
-        _log = log;
-        _store = new SettingsStore(Path.Combine(folder, "settings.json"));
-        App = _store.Load(out var problem);
-        Current = App;
-        _characters = new CharacterSettings(Path.Combine(folder, "characters"));
-        if (problem is not null)
+        if (_app.Problem is { } problem)
             log.Warning(problem);
     }
 
+    /// <param name="app">Общие настройки окна (о том, что файл испорчен, пишет окно — один раз).</param>
+    /// <param name="owner">Кто сохраняет общие (вкладка): <see cref="AppSettings.Saved"/> — с ним.</param>
+    public SettingsService(AppSettings app, ILogger log, object? owner = null)
+    {
+        _app = app;
+        _log = log;
+        _owner = owner;
+        Current = App;
+        _characters = new CharacterSettings(Path.Combine(app.Folder, "characters"));
+    }
+
     /// <summary>Общие: подключение и шаблон для новых персонажей.</summary>
-    public BotSettings App { get; }
+    public BotSettings App => _app.Value;
 
     /// <summary>Настройки текущего персонажа; пока персонаж неизвестен — <see cref="App"/>.</summary>
     public BotSettings Current { get; private set; }
@@ -75,14 +83,8 @@ public sealed class SettingsService
     /// <summary>Общие настройки — в settings.json.</summary>
     public void SaveApp()
     {
-        try
-        {
-            _store.Save(App);
-        }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-        {
-            _log.Error("Не удалось сохранить настройки: " + e.Message);
-        }
+        if (_app.Save(_owner) is { } problem)
+            _log.Error("Не удалось сохранить настройки: " + problem);
     }
 
     /// <summary>Настройки персонажа — в его файл; пока персонаж неизвестен — в общие.</summary>

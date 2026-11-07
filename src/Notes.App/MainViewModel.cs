@@ -18,7 +18,7 @@ namespace Notes.App;
 /// </summary>
 public sealed class MainViewModel : ObservableObject, IDisposable
 {
-    private readonly string _appDirectory;
+    private readonly WindowServices _services;
     private readonly IDialogs _dialogs;
     private readonly OpenTabsFile _remembered;
     private CharacterTab _selected;
@@ -26,13 +26,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     public MainViewModel(string appDirectory, IDialogs dialogs)
     {
-        _appDirectory = appDirectory;
+        _services = new WindowServices(appDirectory);
         _dialogs = dialogs;
         _remembered = new OpenTabsFile(appDirectory);
         var (tabs, selected) = _remembered.Load(out var problem);
         foreach (var tab in tabs)
             New(tab);
         _selected = Tabs.Count > 0 ? Tabs[selected] : New(null);
+        if (_services.Settings.Problem is { } settingsProblem)
+            _selected.WindowLog.Warning(settingsProblem);
         if (problem is not null)
             _selected.WindowLog.Warning($"Список вкладок испорчен — открыта одна новая. {problem}");
         _loading = false;
@@ -73,7 +75,7 @@ public sealed class MainViewModel : ObservableObject, IDisposable
 
     private CharacterTab New(OpenTab? remembered)
     {
-        var tab = new CharacterTab(_appDirectory, _dialogs, remembered);
+        var tab = new CharacterTab(_services, _dialogs, remembered);
         tab.PropertyChanged += TabChanged;
         Tabs.Add(tab);
         TabAdded?.Invoke(tab);
@@ -124,11 +126,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         TabClosed?.Invoke(tab);
     }
 
-    /// <summary>Окно закрывается: все вкладки отключаются разом, ждём их вместе (а не по 7 с на каждую). Список вкладок остаётся.</summary>
+    /// <summary>
+    /// Окно закрывается: все вкладки отключаются разом, ждём их вместе (а не по 7 с на каждую), потом — общее окна. Список
+    /// вкладок остаётся.
+    /// </summary>
     public void Dispose()
     {
         _loading = true;
         var closing = Tabs.Select(tab => tab.CloseAsync()).ToArray();
         Task.WaitAll(closing, ClientConnection.StopWait + TimeSpan.FromSeconds(1));
+        _services.Dispose();
     }
 }

@@ -101,6 +101,14 @@ public sealed class ChatPanel : ObservableObject
         OnPropertyChanged(nameof(HasCommon));
     }
 
+    /// <summary>Уведомления поменяли в другой вкладке (настройки общие) — показать как есть.</summary>
+    public void Reload()
+    {
+        foreach (var name in new[] { nameof(Token), nameof(ChatId), nameof(Private), nameof(Group), nameof(Clan), nameof(Common) })
+            OnPropertyChanged(name);
+        CommandManager.InvalidateRequerySuggested();
+    }
+
     private void Edit<T>(T old, T value, Action<T> set, [System.Runtime.CompilerServices.CallerMemberName] string name = "")
     {
         if (EqualityComparer<T>.Default.Equals(old, value))
