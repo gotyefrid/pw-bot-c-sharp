@@ -33,6 +33,7 @@ internal static class ActCommands
           act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
           act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
           act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
+          act whisper НИК ТЕКСТ [wid=WID]  написать в личку, как «/Ник текст» в чате (WID получателя — если известен)
           act quest-check         «Доступные» как в окне: задания по уровню перса и проверка игры «можно взять» (0 — можно)
           act quest-take НОМЕР    взять задание у NPC, с которым начат разговор (после npc-hello)
           act bank              открыть банк, как кнопкой в сумке (смотреть в игре)
@@ -97,6 +98,40 @@ internal static class ActCommands
         return 0;
     }
 
+    // Личка: один вызов; дошло ли — видно только у получателя
+    private static int Whisper(GameCaller caller, string[] args)
+    {
+        // «--server id» и прочие ключи — не текст
+        var words = args.TakeWhile(a => a != "--server").Where(a => !a.StartsWith("--", StringComparison.Ordinal)).ToList();
+        var wid = 0u;
+        if (words.FirstOrDefault(w => w.StartsWith("wid=", StringComparison.OrdinalIgnoreCase)) is { } w)
+        {
+            words.Remove(w);
+            wid = Convert.ToUInt32(w.Substring(4), w.Substring(4).StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? 16 : 10);
+        }
+
+        if (words.Count < 2)
+        {
+            Console.WriteLine("❌ нужно: act whisper НИК ТЕКСТ [wid=WID]");
+            return 2;
+        }
+
+        var nick = words[0];
+        var text = string.Join(" ", words.Skip(1));
+        Console.WriteLine($"Кому: «{nick}» ({string.Join(" ", nick.Select(c => $"U+{(int)c:X4}"))}){(wid != 0 ? $", WID 0x{wid:X8}" : "")}");
+        Console.WriteLine($"Текст: «{text}»");
+        var result = caller.PrivateChat(nick, text, wid);
+        if (!result.Ok)
+        {
+            Console.WriteLine($"❌ вызов: {result.Details}");
+            return 3;
+        }
+
+        // Строку «Вы говорите с Ник: …» у себя пишет окно чата, а не эта функция — проверять у получателя
+        Console.WriteLine("✅ отправлено. У отправителя в чате строки не будет — смотреть у получателя: Probe chat («Ник шепчет: текст»)");
+        return 0;
+    }
+
     public static int Act(ServerProfile profile, string[] args)
     {
         if (args.Length == 0)
@@ -130,6 +165,8 @@ internal static class ActCommands
         var world = reader.Read();
         if (name == "quest-check")
             return QuestCheck(reader, world, calls.Caller);
+        if (name == "whisper")
+            return Whisper(calls.Caller, rest);
 
         var action = Build(name, rest, world, data, reader, out var problem);
         if (action is null)

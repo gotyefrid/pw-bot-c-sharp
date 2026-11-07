@@ -41,6 +41,18 @@ public sealed class GameCaller : IGameActions
     /// <summary>Аргумент StartWork «созданная работа» — подставляет заглушка.</summary>
     private const string WorkArg = "work";
 
+    /// <summary>Текст лички: адрес данных + <see cref="ChatTextAt"/> (ник — в начале данных).</summary>
+    private const string TextArg = "text";
+
+    /// <summary>Где в данных лички начинается текст: ник (UTF-16 с нулём) — до этого места.</summary>
+    private const int ChatTextAt = 0x40;
+
+    /// <summary>Самый длинный ник лички, символов (+ ноль — в <see cref="ChatTextAt"/> байт).</summary>
+    public const int MaxChatNick = ChatTextAt / 2 - 1;
+
+    /// <summary>Самый длинный текст лички, символов: длиннее игра обрезает.</summary>
+    public const int MaxChatText = 120;
+
     /// <summary>Аргумент SetDestination «тип точки» (по прямой / автопуть / полёт), см. <see cref="MoveTypes"/>.</summary>
     private const string TypeArg = "type";
 
@@ -56,6 +68,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.UseItem] = ["where", "slot", "tid", "count"],
         [GameFunctions.OpenRemotePanel] = ["panel"],
         [GameFunctions.NpcHello] = ["wid"],
+        // Ник и текст — по адресу данных; канал 0 — обычная личка; WID получателя (0 — только по нику); без ссылки на предмет
+        [GameFunctions.PrivateChat] = [DataArg, TextArg, "0", "wid", "0xFFFFFFFF", "0xFFFFFFFF"],
         // Пароль банка — строка по адресу данных
         [GameFunctions.NpcOpenStorage] = [DataArg],
         [GameFunctions.NpcReturnTask] = ["task", "choice"],
@@ -188,6 +202,30 @@ public sealed class GameCaller : IGameActions
 
     /// <summary>Начать разговор с NPC, как кликом по нему: сервер отвечает списком услуг, клиент открывает окно NPC.</summary>
     public CallResult NpcHello(uint wid) => Call(GameFunctions.NpcHello, null, ("wid", wid));
+
+    /// <summary>
+    /// Написать в личку <paramref name="nick"/>, как «/Ник текст» в окне чата. <paramref name="wid"/> — WID получателя, если
+    /// известен (0 — только по нику). У себя в чате игра строку «Вы говорите с Ник: …» при этом не пишет (это делает окно
+    /// чата) — дошло ли, видно только у получателя.
+    /// </summary>
+    public CallResult PrivateChat(string nick, string text, uint wid = 0)
+    {
+        if (nick.Length is 0 or > MaxChatNick)
+            return CallResult.Refused($"ник — от 1 до {MaxChatNick} символов");
+        if (text.Length is 0 or > MaxChatText)
+            return CallResult.Refused($"текст — от 1 до {MaxChatText} символов");
+
+        return Call(GameFunctions.PrivateChat, PrivateChatData(nick, text), ("wid", wid));
+    }
+
+    /// <summary>Данные лички: ник UTF-16 с нулём в начале, текст UTF-16 с нулём — с <see cref="ChatTextAt"/>.</summary>
+    internal static byte[] PrivateChatData(string nick, string text)
+    {
+        var data = new byte[ChatTextAt + (text.Length + 1) * 2];
+        System.Text.Encoding.Unicode.GetBytes(nick, 0, nick.Length, data, 0);
+        System.Text.Encoding.Unicode.GetBytes(text, 0, text.Length, data, ChatTextAt);
+        return data;
+    }
 
     /// <summary>
     /// Открыть банк у банкира, как пунктом «Услуги хранения» в его окне: стоя рядом с ним, разговор (<see cref="NpcHello"/>) не нужен.
@@ -614,7 +652,8 @@ public sealed class GameCaller : IGameActions
 
     // Имя без числа — значение как есть; «имя+число» — значение плюс число (Number); без имени — само число
     private static uint Value(Arg arg, IReadOnlyDictionary<string, uint> values, uint data)
-        => arg.Name is null ? arg.Number : (arg.Name == DataArg ? data : values[arg.Name]) + arg.Number;
+        => arg.Name is null ? arg.Number
+            : (arg.Name == DataArg ? data : arg.Name == TextArg ? data + ChatTextAt : values[arg.Name]) + arg.Number;
 
     /// <param name="values">Значения, которые бот даёт этой функции, по именам (все имена из <see cref="Defaults"/>).</param>
     private CallResult Call(string name, byte[]? data, params (string Name, uint Value)[] values)

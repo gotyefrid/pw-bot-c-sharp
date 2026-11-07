@@ -728,6 +728,46 @@ public class GameCallerTests
         Assert.Empty(_runner.Runs);
     }
 
+    // Comeback 1.4.6: личка — метод связи, ник в начале данных, текст с 0x40, канал 0, WID, без предмета
+    private ProfileData PrivateChatProfile()
+    {
+        var chat = new ProfileCatalog().Load("comeback146").Data.Functions[GameFunctions.PrivateChat];
+        _memory.WriteBytes(ModuleBase + chat.Rva, CodeFor(chat.Signature!));
+        return new ProfileData { Base = Profile.Base, Functions = new() { [GameFunctions.PrivateChat] = chat } };
+    }
+
+    [Fact]
+    public void PrivateChatPutsNickAndTextIntoData()
+    {
+        var profile = PrivateChatProfile();
+        PutHost();
+
+        var result = Caller(profile).PrivateChat("Странник", ")))", 0x0123_4567);
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        Assert.Equal(StubBuilder.Call(ModuleBase + profile.Functions[GameFunctions.PrivateChat].Rva, CallingConvention.Thiscall, Session,
+            [DataAddress, DataAddress + 0x40, 0, 0x0123_4567, 0xFFFFFFFF, 0xFFFFFFFF]), run.Stub);
+        var data = run.Data!;
+        Assert.Equal("Странник\0", System.Text.Encoding.Unicode.GetString(data, 0, 18));
+        Assert.All(data.Skip(18).Take(0x40 - 18), b => Assert.Equal(0, b));
+        Assert.Equal(")))\0", System.Text.Encoding.Unicode.GetString(data, 0x40, data.Length - 0x40));
+    }
+
+    [Theory]
+    [InlineData("", "текст")]
+    [InlineData("Ник", "")]
+    [InlineData("ОченьОченьДлинныйНикБольшеТридцатиОдного", "текст")]
+    public void PrivateChatRefusesEmptyOrTooLong(string nick, string text)
+    {
+        var profile = PrivateChatProfile();
+        PutHost();
+
+        Assert.False(Caller(profile).PrivateChat(nick, text).Ok);
+        Assert.False(Caller(profile).PrivateChat("Ник", new string('a', GameCaller.MaxChatText + 1)).Ok);
+        Assert.Empty(_runner.Runs);
+    }
+
     [Fact]
     public void RunnerTimeoutIsReported()
     {

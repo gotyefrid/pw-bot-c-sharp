@@ -828,6 +828,7 @@ public static class GameFunctions
     public const string UseItem = "useItem";
     public const string OpenRemotePanel = "openRemotePanel";
     public const string NpcHello = "npcHello";
+    public const string PrivateChat = "privateChat";
     public const string NpcOpenStorage = "npcOpenStorage";
     public const string NpcReturnTask = "npcReturnTask";
     public const string NpcAcceptTask = "npcAcceptTask";
