@@ -870,6 +870,29 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>Лог «Чат» вкладки — туда же пишут команды из Telegram.</summary>
     internal ILogger ChatLog => _chatLog;
 
+    // Когда пришёл последний снимок мира: нет свежего — персонаж не в мире (экран входа, разрыв), шептать нельзя
+    private DateTime _lastWorldAt;
+    private static readonly TimeSpan FreshWorld = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Шепнуть от этого персонажа (команда из Telegram) — в фоне: вызов в игру ждёт до 5 с. Бот может и стоять — нужно только
+    /// подключение и персонаж в мире. Задача — null, если отправлено, иначе причина.
+    /// </summary>
+    public async Task<string?> WhisperAsync(string nick, string text)
+    {
+        if (_connection is not { } connection)
+            return "вкладка не подключена";
+        if (_lastWorld is null || DateTime.UtcNow - _lastWorldAt > FreshWorld)
+            return "персонаж не в мире";
+
+        var result = await Task.Run(() => connection.Whisper(nick, text));
+        if (result.Ok)
+            _chatLog.Info($"Шёпот из Telegram — {nick}: {text}");
+        else
+            _chatLog.Warning($"Шёпот из Telegram {nick} не отправлен: {result.Details}");
+        return result.Ok ? null : result.Details;
+    }
+
     /// <summary>
     /// Закрыть вкладку: настройки и точки — на диск, вход из «Персонажей» — прервать, отключиться. Задача — когда подключение
     /// закрыто (бот работал — до 7 с: окно закрывает все вкладки разом и ждёт их вместе).
@@ -1171,6 +1194,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             return;
 
         _lastWorld = w;
+        _lastWorldAt = DateTime.UtcNow;
         // «Задания»: варианты списка «не брать» — из «Доступных», их читаем, пока выбран этот режим. Ушли из режима — не читаем,
         // кроме запущенного бота: он сам просит задания каждый тик, пока работает
         if (Settings.Mode == BotMode.LevelUp)

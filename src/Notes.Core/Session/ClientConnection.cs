@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Notes.Core.Actions;
 using Notes.Core.Brain;
+using Notes.Core.Calls;
 using Notes.Core.Clients;
 using Notes.Core.GameFiles;
 using Notes.Core.Logging;
@@ -255,6 +256,26 @@ public sealed class ClientConnection : IDisposable
             _watch = null;
             _stopping = Task.Run(bot.Dispose);
             return _stopping;
+        }
+    }
+
+    /// <summary>
+    /// Шёпот от этого персонажа (<see cref="GameCaller.PrivateChat"/>) — свои вызовы на время отправки, как у Probe: работает и
+    /// при остановленном боте, и рядом с работающим (вызовы идут через один обработчик окна игры по очереди). Ждёт вызов — до
+    /// 5 с: звать не из потока окна. Отправку не проверить — у отправителя игра строку не пишет, её пишет окно чата.
+    /// </summary>
+    public CallResult Whisper(string nick, string text)
+    {
+        if (_disposed)
+            return CallResult.Refused("отключено");
+        try
+        {
+            using var calls = GameCalls.Open(_game, _roots, _profile, CallTransport.Window, out var problem);
+            return calls is null ? CallResult.Refused(problem) : calls.Caller.PrivateChat(nick, text);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            return CallResult.Refused(e.Message);
         }
     }
 

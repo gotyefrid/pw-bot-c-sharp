@@ -79,17 +79,41 @@ public sealed class MainViewModel : ObservableObject, IDisposable
         _commands.Start();
     }
 
-    // Сообщение из Telegram (в потоке окна): ответ — в тот же чат, ответом на него
-    private void Answer(TelegramMessage message)
+    // Сообщение из Telegram (в потоке окна): выполнить, ответ — в тот же чат, ответом на него
+    private async void Answer(TelegramMessage message)
     {
-        var connected = Tabs.Where(t => t.IsConnected && t.Nick is not null)
-            .Select(t => new TelegramCharacter(t.Nick!, t.SelectedServer.Name, t.IsRunning)).ToList();
         var log = Selected.ChatLog;
         log.Info($"Из Telegram: {message.Text.Replace('\n', ' ')}");
-        if (TelegramCommands.Answer(message, connected) is not { } reply)
-            return;
+        string reply;
+        try
+        {
+            reply = TelegramCommands.Parse(message) switch
+            {
+                ListRequest => TelegramCommands.List(Tabs.Where(t => t.IsConnected && t.Nick is not null)
+                    .Select(t => new TelegramCharacter(t.Nick!, t.SelectedServer.Name, t.IsRunning)).ToList()),
+                WhisperRequest w => await Whisper(w),
+                ReplyRequest r => r.Html,
+                _ => TelegramCommands.Escape(TelegramCommands.Help),
+            };
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            log.Error($"Команда из Telegram не выполнена: {e.Message}");
+            reply = "❌ Сбой — подробности в логе бота";
+        }
+
         var s = _services.Settings.Value.ChatNotify;
         _services.Telegram.Post(s.Token, s.ChatId, reply, log, html: true, replyTo: message.MessageId);
+    }
+
+    // Шёпот — от вкладки с этим персонажем (ник без учёта регистра: в Telegram его могли набрать руками)
+    private async Task<string> Whisper(WhisperRequest w)
+    {
+        var tab = Tabs.FirstOrDefault(t => t.IsConnected && string.Equals(t.Nick, w.From, StringComparison.OrdinalIgnoreCase));
+        if (tab is null)
+            return TelegramCommands.NotConnected(w.From);
+        var sent = w with { From = tab.Nick! };
+        return TelegramCommands.Whispered(sent, await tab.WhisperAsync(sent.To, sent.Text));
     }
 
     private CharacterTab New(OpenTab? remembered)
