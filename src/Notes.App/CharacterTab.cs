@@ -257,7 +257,6 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanChoose));
             OnPropertyChanged(nameof(CanOpenCharacters));
             OnPropertyChanged(nameof(Summary));
-            OnPropertyChanged(nameof(CanPickIconColor));
             CommandManager.InvalidateRequerySuggested();
         }
     }
@@ -280,7 +279,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     private string? _nick;
 
-    /// <summary>Ник подключённого персонажа для значка на панели задач; null — не подключены или ник ещё не знаем.</summary>
+    /// <summary>Ник подключённого персонажа (надпись вкладки); null — не подключены или ник ещё не знаем.</summary>
     public string? Nick
     {
         get => _nick;
@@ -290,7 +289,6 @@ public sealed class CharacterTab : ObservableObject, IDisposable
                 return;
             if (value is not null)
                 _wanted = value;
-            OnPropertyChanged(nameof(IconColor));
             OnPropertyChanged(nameof(TabTitle));
             OnPropertyChanged(nameof(Remembered));
         }
@@ -304,63 +302,6 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     /// <summary>Что запомнить о вкладке до следующего запуска (tabs.json): сервер и персонаж.</summary>
     public OpenTab Remembered => new(_profile.Id, Nick ?? _wanted);
-
-    // ── Цвет значка на панели задач: свой у персонажа, без выбора — по нику ──
-
-    /// <summary>Пункт палитры: «авто» (по нику) или цвет.</summary>
-    public sealed record IconColorItem(string Name, string Swatch, bool IsAuto, ICommand Pick);
-
-    private IReadOnlyList<IconColorItem>? _iconColors;
-
-    public IReadOnlyList<IconColorItem> IconColors => _iconColors ??=
-    [
-        new("Авто — по нику", "#FFFFFF", true, new RelayCommand(() => PickIconColor(""))),
-        .. IconPalette.Colors.Select(c => new IconColorItem(c.Name, c.Hex, false, new RelayCommand(() => PickIconColor(c.Hex)))),
-    ];
-
-    /// <summary>Цвет значка сейчас, «#RRGGBB»: выбранный у персонажа или по нику.</summary>
-    public string IconColor => Settings.IconColor is { Length: > 0 } chosen ? chosen : IconPalette.Auto(Nick ?? "");
-
-    public string IconColorHint => Settings.IconColor.Length > 0
-        ? $"Цвет значка на панели задач: {IconPalette.NameOf(IconColor)}"
-        : $"Цвет значка на панели задач: по нику ({IconPalette.NameOf(IconColor)})";
-
-    /// <summary>Выбрать цвет можно, когда персонаж известен: цвет — его настройка.</summary>
-    public bool CanPickIconColor => IsConnected && _config.Character is not null;
-
-    private bool _iconColorsOpen;
-
-    public bool IconColorsOpen
-    {
-        get => _iconColorsOpen;
-        set => SetProperty(ref _iconColorsOpen, value);
-    }
-
-    public ICommand OpenIconColorsCommand => _openIconColors ??= new RelayCommand(() => IconColorsOpen = true, () => CanPickIconColor);
-    private ICommand? _openIconColors;
-
-    private void PickIconColor(string hex)
-    {
-        IconColorsOpen = false;
-        Settings.IconColor = hex;
-        IconColorChanged();
-    }
-
-    private void IconColorChanged()
-    {
-        OnPropertyChanged(nameof(IconColor));
-        OnPropertyChanged(nameof(IconColorHint));
-        OnPropertyChanged(nameof(CanPickIconColor));
-    }
-
-    private GameClient? _client;
-
-    /// <summary>Клиент, к которому подключены (его окну — значок с ником); null — не подключены.</summary>
-    public GameClient? Client
-    {
-        get => _client;
-        private set => SetProperty(ref _client, value);
-    }
 
     // ── Карточка «Подключение»: свёрнутая строка, подсказка следующего шага ──
 
@@ -1114,7 +1055,6 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
             Nick = client.Nick;
-            Client = client;
             ConnectionExpanded = false;
             _connectionLog.Info($"Подключено: {client.Display}, сервер {_profile.Name}");
             connection.Start();
@@ -1149,7 +1089,6 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         IsConnected = false;
         ConnectionText = "";
         Nick = null;
-        Client = null;
         ConnectionExpanded = true;
         ClearWorld();
         return closing;
@@ -1288,7 +1227,6 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
         _connection?.Bot?.UpdateSettings(Settings);
         OnPropertyChanged(nameof(Settings));
-        IconColorChanged();
         Pets.Rebind();
         Potions.Rebind();
         Repair.Rebind();

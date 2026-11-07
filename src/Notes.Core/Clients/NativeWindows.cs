@@ -7,7 +7,7 @@ using System.Text;
 namespace Notes.Core.Clients;
 
 /// <summary>
-/// Окна игры через WinAPI: найти клиентов и главное окно процесса, прочитать и сменить заголовок и значок. В память игры не лезет.
+/// Окна игры через WinAPI: найти клиентов и главное окно процесса, прочитать и сменить заголовок. В память игры не лезет.
 /// </summary>
 public static class NativeWindows
 {
@@ -82,55 +82,6 @@ public static class NativeWindows
     /// <summary>Меняет заголовок, только если он другой. true — заголовок теперь такой, как нужно.</summary>
     public static bool SetTitle(IntPtr window, string title)
         => window != IntPtr.Zero && (GetTitle(window) == title || SetWindowText(window, title));
-
-    /// <summary>
-    /// Родной значок окна — значок класса окна (его заводит игра при создании окна; <see cref="SetIcon"/> его не трогает, поэтому
-    /// после перезапуска бота он всё тот же, без наших букв). Нет — значок из exe (освободить <see cref="DestroyIcon"/>).
-    /// </summary>
-    /// <returns>Значок и нужно ли его освобождать; нет ни того, ни другого — <see cref="IntPtr.Zero"/>.</returns>
-    public static (IntPtr Icon, bool Owned) OriginalIcon(IntPtr window, string? exePath)
-    {
-        var icon = window == IntPtr.Zero ? IntPtr.Zero : (IntPtr)GetClassLong(window, GclHIcon);
-        if (icon != IntPtr.Zero || exePath is null)
-            return (icon, false);
-        var big = new IntPtr[1];
-        return ExtractIconEx(exePath, 0, big, null, 1) > 0 ? (big[0], true) : (IntPtr.Zero, false);
-    }
-
-    /// <summary>
-    /// Значок окна (большой и маленький — один: Windows уменьшит). <see cref="IntPtr.Zero"/> — снять свой, окно снова со значком
-    /// класса. Окно игры занято (загрузка) — не ждём дольше секунды.
-    /// </summary>
-    public static bool SetIcon(IntPtr window, IntPtr icon)
-        => window != IntPtr.Zero
-            && SendMessageTimeout(window, WmSetIcon, (IntPtr)IconBig, icon, SmtoAbortIfHung, 1000, out _) != IntPtr.Zero
-            && SendMessageTimeout(window, WmSetIcon, (IntPtr)IconSmall, icon, SmtoAbortIfHung, 1000, out _) != IntPtr.Zero;
-
-    /// <summary>Значок из картинки PNG (квадратной). Освободить <see cref="DestroyIcon"/>.</summary>
-    public static IntPtr IconFromPng(byte[] png, int size)
-        => CreateIconFromResourceEx(png, (uint)png.Length, true, 0x00030000, size, size, 0);
-
-    [DllImport("user32.dll")]
-    public static extern bool DestroyIcon(IntPtr icon);
-
-    private const int GclHIcon = -14;
-    private const uint WmSetIcon = 0x0080;
-    private const int IconSmall = 0;
-    private const int IconBig = 1;
-    private const uint SmtoAbortIfHung = 0x0002;
-
-    [DllImport("user32.dll")]
-    private static extern uint GetClassLong(IntPtr window, int index);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr SendMessageTimeout(IntPtr window, uint message, IntPtr wParam, IntPtr lParam, uint flags, uint timeout,
-        out IntPtr result);
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr CreateIconFromResourceEx(byte[] bits, uint size, bool icon, uint version, int width, int height, uint flags);
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-    private static extern uint ExtractIconEx(string file, int index, IntPtr[]? large, IntPtr[]? small, uint count);
 
     private const uint GwOwner = 4;
 

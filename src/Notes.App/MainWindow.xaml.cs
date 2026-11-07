@@ -3,24 +3,21 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
 using System.Windows;
-using System.Windows.Media;
 
 namespace Notes.App;
 
 /// <summary>
-/// Главное окно: полоса вкладок персонажей и вид выбранной. Вид (<see cref="CharacterView"/>) и значок на панели задач
-/// (<see cref="TaskbarBadge"/>) — свои у каждой вкладки и живут, пока она открыта.
+/// Главное окно: полоса вкладок персонажей и вид выбранной. Вид (<see cref="CharacterView"/>) свой у каждой вкладки и живёт,
+/// пока она открыта. Значок окна на панели задач — всегда один (app.ico).
 /// </summary>
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _host;
-    private readonly ImageSource? _appIcon;
-    private readonly Dictionary<CharacterTab, (CharacterView View, TaskbarBadge Badge)> _tabs = new();
+    private readonly Dictionary<CharacterTab, CharacterView> _views = new();
 
     public MainWindow()
     {
         InitializeComponent();
-        _appIcon = Icon;
         _host = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory, new WindowDialogs(this));
         DataContext = _host;
         foreach (var tab in _host.Tabs)
@@ -33,16 +30,9 @@ public partial class MainWindow : Window
         Loaded += (_, _) => _host.StartUp();
     }
 
-    private void Added(CharacterTab tab)
-        => _tabs[tab] = (new CharacterView(tab), new TaskbarBadge(this, tab, _appIcon, shown: false));
+    private void Added(CharacterTab tab) => _views[tab] = new CharacterView(tab);
 
-    private void Removed(CharacterTab tab)
-    {
-        if (!_tabs.TryGetValue(tab, out var parts))
-            return;
-        parts.Badge.Dispose();
-        _tabs.Remove(tab);
-    }
+    private void Removed(CharacterTab tab) => _views.Remove(tab);
 
     private void SelectionChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -52,10 +42,8 @@ public partial class MainWindow : Window
 
     private void ShowSelected()
     {
-        foreach (var pair in _tabs)
-            pair.Value.Badge.Shown = pair.Key == _host.Selected;
-        if (_tabs.TryGetValue(_host.Selected, out var shown))
-            TabHost.Content = shown.View;
+        if (_views.TryGetValue(_host.Selected, out var view))
+            TabHost.Content = view;
     }
 
     /// <summary>Лог выбранной вкладки — для страховки выхода (<see cref="ExitWatchdog"/>).</summary>
