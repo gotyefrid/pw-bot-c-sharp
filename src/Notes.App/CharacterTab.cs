@@ -157,7 +157,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         RefreshCommand = new RelayCommand(RefreshClients, () => !IsConnected);
         ConnectCommand = new RelayCommand(() => Connect(anyway: false), () => !IsConnected && SelectedClient is not null);
         ConnectAnywayCommand = new RelayCommand(() => Connect(anyway: true), () => CanConnectAnyway);
-        DisconnectCommand = new RelayCommand(Disconnect, () => IsConnected);
+        DisconnectCommand = new RelayCommand(() => Disconnect(), () => IsConnected);
         ToggleConnectionCommand = new RelayCommand(() => ConnectionExpanded = !ConnectionExpanded);
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
@@ -898,14 +898,21 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>Лог окна — для страховки выхода (<see cref="ExitWatchdog"/>), когда модель уже освобождена.</summary>
     internal ILogger WindowLog => _log;
 
-    public void Dispose()
+    /// <summary>
+    /// Закрыть вкладку: настройки и точки — на диск, вход из «Персонажей» — прервать, отключиться. Задача — когда подключение
+    /// закрыто (бот работал — до 7 с: окно закрывает все вкладки разом и ждёт их вместе).
+    /// </summary>
+    public Task CloseAsync()
     {
         FlushSettings();
         _launchCancel?.Cancel();
-        Disconnect();
+        var closing = Disconnect();
         _spots.Save();
         _telegram.Dispose();
+        return closing;
     }
+
+    public void Dispose() => CloseAsync().Wait(ClientConnection.StopWait + TimeSpan.FromSeconds(1));
 
     // Сообщение из чата — в Telegram (в фоне) и в лог
     private void Notify(string text)
@@ -1067,8 +1074,17 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             connection.WorldUpdated += killer.Observe;
             _notifier = new ChatNotifier(_profile.Data.Chat.Channels, () => _config.App.ChatNotify, Notify) { Active = IsRunning };
             connection.WorldUpdated += _notifier.Observe;
-            connection.WorldUpdated += ShowLatest;
-            connection.WorldFailed += message => UiThread.Run(() => ShowFailure(message));
+            // Окну — только от текущего подключения: прошлое ещё может гаснуть в фоне (см. Disconnect)
+            connection.WorldUpdated += world =>
+            {
+                if (_connection == connection)
+                    ShowLatest(world);
+            };
+            connection.WorldFailed += message => UiThread.Run(() =>
+            {
+                if (_connection == connection)
+                    ShowFailure(message);
+            });
             connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));
             // Из хода бота — остановку не здесь, а в потоке окна (бот ждёт как раз этот ход)
             connection.BotStopRequested += _ => UiThread.Run(Stop);
@@ -1092,14 +1108,15 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     }
 
     /// <summary>
-    /// Отключиться. Подключение сначала останавливает бота и ждёт его ход — до 7 с в потоке окна: окно может замереть, если
-    /// сменить клиент как раз во время вызова в игру (обычно ожидание — миллисекунды).
+    /// Отключиться. Подключение сначала останавливает бота и ждёт его ход (до 7 с): бот работал или ещё останавливается — ждём
+    /// в фоне, чтобы не замерло окно со всеми вкладками; вкладка сразу «не подключена», события гаснущего подключения она
+    /// пропускает. Бот стоит — подключение закрывается сразу. Задача — когда подключение закрыто.
     /// </summary>
-    private void Disconnect()
+    private Task Disconnect()
     {
         var wasRunning = IsRunning;
         IsRunning = false;
-        _connection?.Dispose();
+        var closing = Close(_connection);
         _connection = null;
         _notifier = null;
         _incidents.Flush();
@@ -1114,6 +1131,30 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         Client = null;
         ConnectionExpanded = true;
         ClearWorld();
+        return closing;
+    }
+
+    private Task Close(ClientConnection? connection)
+    {
+        if (connection is null)
+            return Task.CompletedTask;
+        if (connection.Bot is null && !connection.IsStopping)
+        {
+            connection.Dispose();
+            return Task.CompletedTask;
+        }
+
+        return Task.Run(() =>
+        {
+            try
+            {
+                connection.Dispose();
+            }
+            catch (Exception e) when (e is not OutOfMemoryException)
+            {
+                _connectionLog.Error($"Отключение: {e.Message}");
+            }
+        });
     }
 
     // Файл — не в потоке снимков: текст случая собирается из сотен снимков

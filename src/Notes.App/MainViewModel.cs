@@ -1,7 +1,10 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Notes.App.Mvvm;
+using Notes.Core.Session;
 
 namespace Notes.App;
 
@@ -84,13 +87,15 @@ public sealed class MainViewModel : ObservableObject, IDisposable
             Selected = Tabs[index == Tabs.Count - 1 ? index - 1 : index + 1];
 
         Tabs.Remove(tab);
-        tab.Dispose();
+        // Бот работал — его остановка дожидается в фоне, окно не ждёт
+        _ = tab.CloseAsync();
         TabClosed?.Invoke(tab);
     }
 
+    /// <summary>Окно закрывается: все вкладки отключаются разом, ждём их вместе (а не по 7 с на каждую).</summary>
     public void Dispose()
     {
-        foreach (var tab in Tabs)
-            tab.Dispose();
+        var closing = Tabs.Select(tab => tab.CloseAsync()).ToArray();
+        Task.WaitAll(closing, ClientConnection.StopWait + TimeSpan.FromSeconds(1));
     }
 }
