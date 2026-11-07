@@ -274,9 +274,15 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         private set
         {
             if (SetProperty(ref _nick, value))
+            {
                 OnPropertyChanged(nameof(IconColor));
+                OnPropertyChanged(nameof(TabTitle));
+            }
         }
     }
+
+    /// <summary>Надпись на вкладке окна: ник подключённого, иначе — «Новый персонаж».</summary>
+    public string TabTitle => Nick ?? "Новый персонаж";
 
     // ── Цвет значка на панели задач: свой у персонажа, без выбора — по нику ──
 

@@ -1,162 +1,74 @@
 using System;
-using System.Collections.Specialized;
-using System.Linq;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Threading;
-using System.Windows.Documents;
-using System.Windows.Media;
-using System.Windows.Controls;
-using Notes.Core.Logging;
 using System.Windows;
-using System.Windows.Threading;
+using System.Windows.Media;
 
 namespace Notes.App;
 
+/// <summary>
+/// Главное окно: полоса вкладок персонажей и вид выбранной. Вид (<see cref="CharacterView"/>) и значок на панели задач
+/// (<see cref="TaskbarBadge"/>) — свои у каждой вкладки и живут, пока она открыта.
+/// </summary>
 public partial class MainWindow : Window
 {
     private readonly MainViewModel _host;
-    // Вкладка персонажа, которую показывает окно (пока вкладка одна)
-    private readonly CharacterTab _model;
+    private readonly ImageSource? _appIcon;
+    private readonly Dictionary<CharacterTab, (CharacterView View, TaskbarBadge Badge)> _tabs = new();
 
     public MainWindow()
     {
         InitializeComponent();
+        _appIcon = Icon;
         _host = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory, new WindowDialogs(this));
-        _model = _host.Selected;
+        DataContext = _host;
+        foreach (var tab in _host.Tabs)
+            Added(tab);
+        _host.TabAdded += Added;
+        _host.TabClosed += Removed;
+        _host.PropertyChanged += SelectionChanged;
+        ShowSelected();
         // Первый список клиентов — когда окно уже показано; никуда не подключаемся, только «Подключить»
         Loaded += (_, _) => _host.StartUp();
-        DataContext = _model;
-        // Значок на панели задач: буквы ника и кружок «запущен / стоит»
-        _ = new TaskbarBadge(this, _model);
-
-        var clicker = _model.Clicker;
-        clicker.EditRequested += () => new StepWindow { Owner = this, DataContext = clicker }.ShowDialog();
-
-        // Правка сохранённой точки (центр фарма, место для смертей)
-        _model.Farm.FarmCenter.EditRequested += EditPoint;
-        _model.Farm.DeathPoint.EditRequested += EditPoint;
-
-        // Лог в RichTextBox: текст можно выделять и копировать
-        RebuildLog();
-        _model.Log.FilterChanged += RebuildLog;
-        _model.Log.Entries.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 
-    private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(0x6B, 0x73, 0x85));
-    private static readonly Brush Warn = new SolidColorBrush(Color.FromRgb(0xD9, 0x8B, 0x0B));
-    private static readonly Brush Bad = new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D));
+    private void Added(CharacterTab tab)
+        => _tabs[tab] = (new CharacterView(tab), new TaskbarBadge(this, tab, _appIcon, shown: false));
 
-    private void SyncLog(NotifyCollectionChangedEventArgs e)
+    private void Removed(CharacterTab tab)
     {
-        var blocks = LogBox.Document.Blocks;
-        if (e.Action == NotifyCollectionChangedAction.Add && e.NewItems is not null)
-        {
-            // Прокручиваем вниз, только если пользователь и так внизу (не мешаем выделять старое)
-            var atEnd = LogBox.VerticalOffset + LogBox.ViewportHeight >= LogBox.ExtentHeight - 4;
-            foreach (LogEntry entry in e.NewItems)
-            {
-                if (Shown(entry))
-                    blocks.Add(Line(entry));
-            }
-            if (atEnd)
-                LogBox.ScrollToEnd();
-        }
-        else if (e.Action == NotifyCollectionChangedAction.Remove && e.OldItems is not null)
-        {
-            // Строки в окне — не все записи (фильтр), а урон и остальное вытесняются каждый своим: ищем строку удалённой записи
-            foreach (LogEntry entry in e.OldItems)
-            {
-                if (blocks.FirstOrDefault(b => ReferenceEquals(b.Tag, entry)) is { } line)
-                    blocks.Remove(line);
-            }
-        }
-        else if (e.Action == NotifyCollectionChangedAction.Reset)
-        {
-            blocks.Clear();
-        }
-    }
-
-    private static Paragraph Line(LogEntry entry)
-    {
-        var line = new Paragraph { Margin = new Thickness(0, 0, 0, 1), Tag = entry };
-        line.Inlines.Add(new Run($"{entry.Time:HH:mm:ss} [{entry.Source}] ") { Foreground = Muted });
-        line.Inlines.Add(new Run(entry.Message)
-        {
-            Foreground = entry.Level switch
-            {
-                LogLevel.Warning => Warn,
-                LogLevel.Error => Bad,
-                LogLevel.Debug => Muted,
-                _ => Brushes.Black,
-            },
-        });
-        return line;
-    }
-
-    private bool Shown(LogEntry entry) => _model.Log.Shows(entry);
-
-    private void RebuildLog()
-    {
-        var blocks = LogBox.Document.Blocks;
-        blocks.Clear();
-        foreach (var entry in _model.Log.Entries.Where(Shown))
-            blocks.Add(Line(entry));
-        LogBox.ScrollToEnd();
-    }
-
-    private void EditPoint(Panels.PointDraft draft) => new PointWindow { Owner = this, DataContext = draft }.ShowDialog();
-
-    private void OpenLogFilters(object sender, RoutedEventArgs e) => new LogFilterWindow { Owner = this, DataContext = _model.Log }.ShowDialog();
-
-    // «Персонажи»: список и правка. «Открыть» закрывает окно — запуск и вход идут в главном окне
-    private void OpenCharacters(object sender, RoutedEventArgs e)
-    {
-        var window = new CharactersWindow { Owner = this };
-        var panel = _model.CreateCharacters(new WindowDialogs(window));
-        panel.EditRequested = draft => new CharacterWindow { Owner = window, DataContext = draft }.ShowDialog() == true;
-        panel.Opened += window.Close;
-        window.DataContext = panel;
-        window.ShowDialog();
-    }
-
-    // Двойной щелчок по строке (не по заголовку и не по пустому месту) — окно шага
-    private void EditClickerStep(object sender, System.Windows.Input.MouseButtonEventArgs e)
-    {
-        if (ItemsControl.ContainerFromElement((ItemsControl)sender, (DependencyObject)e.OriginalSource) is ListViewItem)
-            _model.Clicker.Edit();
-    }
-
-    // Delete в списке шагов — удалить без вопросов; строки пересобраны — фокус на новую выбранную, чтобы жать дальше
-    private void ClickerStepKey(object sender, System.Windows.Input.KeyEventArgs e)
-    {
-        if (e.Key != System.Windows.Input.Key.Delete || !_model.Clicker.RemoveCommand.CanExecute(null))
+        if (!_tabs.TryGetValue(tab, out var parts))
             return;
-
-        e.Handled = true;
-        _model.Clicker.RemoveCommand.Execute(null);
-        var list = (ListView)sender;
-        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-        {
-            if (list.ItemContainerGenerator.ContainerFromItem(list.SelectedItem) is ListViewItem item)
-                item.Focus();
-            else
-                list.Focus();
-        }));
+        parts.Badge.Dispose();
+        _tabs.Remove(tab);
     }
 
-    private void OpenLogFolder(object sender, RoutedEventArgs e)
+    private void SelectionChanged(object? sender, PropertyChangedEventArgs e)
     {
-        var folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
-        System.IO.Directory.CreateDirectory(folder);
-        System.Diagnostics.Process.Start("explorer.exe", folder);
+        if (e.PropertyName == nameof(MainViewModel.Selected))
+            ShowSelected();
     }
+
+    private void ShowSelected()
+    {
+        foreach (var pair in _tabs)
+            pair.Value.Badge.Shown = pair.Key == _host.Selected;
+        if (_tabs.TryGetValue(_host.Selected, out var shown))
+            TabHost.Content = shown.View;
+    }
+
+    /// <summary>Лог выбранной вкладки — для страховки выхода (<see cref="ExitWatchdog"/>).</summary>
+    private Notes.Core.Logging.ILogger WindowLog => _host.Selected.WindowLog;
 
     protected override void OnClosed(EventArgs e)
     {
+        var log = WindowLog;
         _host.Dispose();
         base.OnClosed(e);
 
-        // Всё нужное уже сделано (бот отключён, точки сохранены): выход завис — страховка (см. ExitWatchdog)
-        ExitWatchdog.Start(Dispatcher, Thread.CurrentThread, _model.WindowLog);
+        // Всё нужное уже сделано (боты отключены, точки сохранены): выход завис — страховка (см. ExitWatchdog)
+        ExitWatchdog.Start(Dispatcher, Thread.CurrentThread, log);
 
         // Выход — на месте, без очереди. При «Закрыть окно» из панели задач (ПКМ по значку) поставленное в очередь до главного
         // потока не доходит: по логу страховки 04.10 главный поток ждал сообщений в GetMessage, диспетчер даже не начал выход,

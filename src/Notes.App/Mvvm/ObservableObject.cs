@@ -38,3 +38,17 @@ public sealed class RelayCommand(Action execute, Func<bool>? canExecute = null) 
 
     public void Execute(object? parameter) => execute();
 }
+
+/// <summary>Команда для кнопки в списке: параметр — элемент списка (CommandParameter).</summary>
+public sealed class RelayCommand<T>(Action<T?> execute) : ICommand where T : class
+{
+    public event EventHandler? CanExecuteChanged
+    {
+        add => CommandManager.RequerySuggested += value;
+        remove => CommandManager.RequerySuggested -= value;
+    }
+
+    public bool CanExecute(object? parameter) => true;
+
+    public void Execute(object? parameter) => execute(parameter as T);
+}

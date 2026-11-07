@@ -19,8 +19,12 @@ namespace Notes.App;
 /// Окну игры, к которому подключены, — его родной значок (у каждого клиента свой) с кружком цвета бота справа внизу: видно,
 /// какое окно чьё. Отключились — родной значок обратно (наш значок живёт, пока жив бот: без этого после выхода окно осталось бы без значка).
 /// </para>
+/// <para>
+/// Вкладок несколько — у каждой свой значок: окну игры кружок ставит каждая подключённая, а значок окна бота рисует только
+/// выбранная (<see cref="Shown"/>).
+/// </para>
 /// </summary>
-public sealed class TaskbarBadge
+public sealed class TaskbarBadge : IDisposable
 {
     // Рисуем крупнее, чем на панели (24…32 пикселя): Windows уменьшит сама, буквы остаются чёткими
     private const int IconSize = 64;
@@ -39,13 +43,38 @@ public sealed class TaskbarBadge
     // Окно игры с нашим значком: какое, какого цвета кружок, сам значок (освободить, когда снимем)
     private (IntPtr Window, string Color, IntPtr Icon)? _game;
 
-    public TaskbarBadge(Window window, CharacterTab model)
+    private bool _shown;
+
+    public TaskbarBadge(Window window, CharacterTab model, ImageSource? appIcon, bool shown)
     {
         _window = window;
         _model = model;
-        _appIcon = window.Icon;
+        _appIcon = appIcon;
+        _shown = shown;
         model.PropertyChanged += Changed;
         Update();
+    }
+
+    /// <summary>Вкладка выбрана: значок окна бота — её.</summary>
+    public bool Shown
+    {
+        get => _shown;
+        set
+        {
+            if (_shown == value)
+                return;
+            _shown = value;
+            // Значок окна мог нарисовать другой — нарисовать свой заново
+            _drawn = default;
+            Update();
+        }
+    }
+
+    /// <summary>Вкладка закрыта: окну игры — родной значок, за вкладкой больше не следить.</summary>
+    public void Dispose()
+    {
+        _model.PropertyChanged -= Changed;
+        UpdateGame(null);
     }
 
     private void Changed(object? sender, PropertyChangedEventArgs e)
@@ -64,6 +93,8 @@ public sealed class TaskbarBadge
     {
         var nick = _model.IsConnected ? _model.Nick : null;
         UpdateGame(_model.Client is { } client && nick is not null ? (client, _model.IconColor) : null);
+        if (!_shown)
+            return;
 
         Color? dot = !_model.IsConnected ? null : _model.IsRunning ? Running : Stopped;
         var color = _model.IconColor;
