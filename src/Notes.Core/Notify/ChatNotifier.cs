@@ -13,7 +13,7 @@ namespace Notes.Core.Notify;
 /// </summary>
 /// <param name="channels">Номера каналов из профиля сервера.</param>
 /// <param name="settings">Текущие настройки уведомлений (читаются в каждом снимке: правка в окне сразу действует).</param>
-/// <param name="send">Куда отдать готовый текст (в фоне: снимки не ждут сети).</param>
+/// <param name="send">Куда отдать готовый текст — разметка HTML, <see cref="Format"/> (в фоне: снимки не ждут сети).</param>
 public sealed class ChatNotifier(ChatChannels channels, Func<ChatNotifySettings> settings, Action<string> send)
 {
     private volatile bool _active;
@@ -55,12 +55,39 @@ public sealed class ChatNotifier(ChatChannels channels, Func<ChatNotifySettings>
                 if (Kind(message, world, s) is { } kind)
                 {
                     var (from, text) = Split(message.Plain);
-                    send(from is null ? $"{world.Host.Name} — {kind}:\n{text}" : $"{world.Host.Name} — {kind} от {from}:\n{text}");
+                    send(Format(world.Host.Name, kind, from, text));
                 }
             }
         }
 
         _last = newest;
+    }
+
+    /// <summary>
+    /// Уведомление в разметке HTML Telegram: «<code>Перс</code> — лично от <code>Ник</code>:\nтекст». Ники — в &lt;code&gt;:
+    /// копируются нажатием. Без разметки (так Telegram отдаёт текст сообщения, на которое ответили) — «Перс — лично от Ник:\nтекст»:
+    /// по нему ответ находит, кто кому писал (<see cref="ParseNotice"/>).
+    /// </summary>
+    public static string Format(string host, string kind, string? from, string text)
+        => from is null
+            ? $"{TelegramCommands.Code(host)} — {kind}:\n{TelegramCommands.Escape(text)}"
+            : $"{TelegramCommands.Code(host)} — {kind} от {TelegramCommands.Code(from)}:\n{TelegramCommands.Escape(text)}";
+
+    /// <summary>
+    /// Из текста уведомления (каким его отдаёт Telegram — без разметки): кому писали (наш персонаж), в какой канал и кто.
+    /// null — это не уведомление о сообщении с отправителем.
+    /// </summary>
+    public static (string Host, string Kind, string From)? ParseNotice(string notice)
+    {
+        var line = notice.Split('\n')[0];
+        var dash = line.IndexOf(" — ", StringComparison.Ordinal);
+        var by = line.IndexOf(" от ", dash < 0 ? 0 : dash, StringComparison.Ordinal);
+        if (dash <= 0 || by < 0 || !line.EndsWith(":", StringComparison.Ordinal))
+            return null;
+        var host = line.Substring(0, dash);
+        var kind = line.Substring(dash + 3, by - dash - 3);
+        var from = line.Substring(by + 4, line.Length - by - 5);
+        return from.Length == 0 || kind.Length == 0 ? null : (host, kind, from);
     }
 
     /// <summary>

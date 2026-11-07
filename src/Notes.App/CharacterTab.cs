@@ -895,12 +895,12 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     public void Dispose() => CloseAsync().Wait(ClientConnection.StopWait + TimeSpan.FromSeconds(1));
 
-    // Сообщение из чата — в Telegram (в фоне) и в лог
-    private void Notify(string text)
+    // Сообщение из чата — в Telegram (в фоне, разметка HTML: ники копируются нажатием) и в лог
+    private void Notify(string html)
     {
         var s = _config.App.ChatNotify;
-        _chatLog.Info($"В Telegram: {text.Replace('\n', ' ')}");
-        _telegram.Post(s.Token, s.ChatId, text, _chatLog);
+        _chatLog.Info($"В Telegram: {TelegramCommands.Plain(html).Replace('\n', ' ')}");
+        _telegram.Post(s.Token, s.ChatId, html, _chatLog, html: true);
     }
 
     // ── Внутреннее ──────────────────────────────────────────────────────────

@@ -52,6 +52,10 @@ public static class TelegramCommands
     /// <summary>Текст, который копируется нажатием.</summary>
     public static string Code(string text) => $"<code>{Escape(text)}</code>";
 
+    /// <summary>Текст разметки без тегов — для лога окна.</summary>
+    public static string Plain(string html)
+        => System.Text.RegularExpressions.Regex.Replace(html, "<[^>]*>", "").Replace("&lt;", "<").Replace("&gt;", ">").Replace("&amp;", "&");
+
     /// <summary>Для разметки HTML Telegram: &lt;, &gt; и &amp; — сущностями.</summary>
     public static string Escape(string text) => text.Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 }

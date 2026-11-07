@@ -43,7 +43,7 @@ public class ChatNotifierTests
         Say(4, "^00FFFFТихоня шепчет: привет", Friend);
         Observe();
 
-        Assert.Equal(["Перс — лично от Тихоня:\nпривет"], _sent);
+        Assert.Equal(["<code>Перс</code> — лично от <code>Тихоня</code>:\nпривет"], _sent);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class ChatNotifierTests
         Say(1, "Странник: в мир", Friend);
         Observe();
 
-        Assert.Equal(["Перс — общий от Странник:\nв общий"], _sent);
+        Assert.Equal(["<code>Перс</code> — общий от <code>Странник</code>:\nв общий"], _sent);
     }
 
     [Fact]
@@ -128,7 +128,7 @@ public class ChatNotifierTests
         Say(4, "Странник шепчет: после старта", Friend);
         Observe();
 
-        Assert.Equal(["Перс — лично от Странник:\nпосле старта"], _sent);
+        Assert.Equal(["<code>Перс</code> — лично от <code>Странник</code>:\nпосле старта"], _sent);
     }
 
     [Fact]
@@ -150,4 +150,22 @@ public class ChatNotifierTests
     {
         Assert.Equal((from, text), ChatNotifier.Split(plain));
     }
+
+    [Fact]
+    public void TextIsEscapedForHtml()
+        => Assert.Equal("<code>Перс</code> — лично от <code>Тихоня</code>:\n&lt;3 &amp; ок", ChatNotifier.Format("Перс", "лично", "Тихоня", "<3 & ок"));
+
+    [Fact]
+    public void NoticeAsTelegramGivesItBackTellsWhoWroteWhom()
+    {
+        var plain = TelegramCommands.Plain(ChatNotifier.Format("Перс", "лично", "Тихоня", "привет: как дела"));
+
+        Assert.Equal(("Перс", "лично", "Тихоня"), ChatNotifier.ParseNotice(plain));
+    }
+
+    [Theory]
+    [InlineData("Перс — лично:\nсистемное")]
+    [InlineData("Подключены:\n🟢 Перс — PW, бот работает")]
+    [InlineData("Проверка: бот на связи")]
+    public void OtherTextsAreNotNotices(string text) => Assert.Null(ChatNotifier.ParseNotice(text));
 }
