@@ -907,12 +907,13 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         return closing;
     }
 
-    // Общие настройки сохранила другая вкладка — показать её правку (уведомления, переименование окон)
+    // Общие настройки сохранила другая вкладка — показать её правку (уведомления, переименование окон, фильтр лога)
     private void AppSettingsSaved(object? by)
     {
         if (by == this)
             return;
         Chat.Reload();
+        Log.Reload(_config.App.LogView);
         OnPropertyChanged(nameof(RenameWindows));
     }
 

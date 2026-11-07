@@ -71,6 +71,20 @@ public sealed class LogPanel : ObservableObject
         _loading = false;
     }
 
+    /// <summary>Фильтр поменяли в другой вкладке (он общий на окно): взять его; поменялось — <see cref="Reloaded"/>.</summary>
+    public void Reload(LogViewSettings settings)
+    {
+        var was = new LogViewSettings();
+        Save(was);
+        if (was.OnlyImportant == settings.OnlyImportant && was.Hidden.OrderBy(n => n).SequenceEqual(settings.Hidden.OrderBy(n => n)))
+            return;
+        Load(settings);
+        Reloaded?.Invoke();
+    }
+
+    /// <summary>Фильтр взят из другой вкладки (не <see cref="FilterChanged"/>: его сохранять не нужно) — перерисовать лог.</summary>
+    public event Action? Reloaded;
+
     public void Save(LogViewSettings settings)
     {
         settings.OnlyImportant = OnlyImportantLog;

@@ -38,6 +38,7 @@ public partial class CharacterView : UserControl
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
         model.Log.FilterChanged += RebuildLog;
+        model.Log.Reloaded += RebuildLog;
         model.Log.Entries.CollectionChanged += (_, e) => Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => SyncLog(e)));
     }
 

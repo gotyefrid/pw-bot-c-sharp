@@ -32,4 +32,39 @@
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
     </ItemGroup>
   </Target>
+
+  <!--
+    Флаг «большие адреса» (IMAGE_FILE_LARGE_ADDRESS_AWARE, 0x20 в Characteristics заголовка COFF): 32-битному процессу в 64-битной
+    Windows дают 4 ГБ адресов вместо 2. Вкладки — несколько персонажей в одном процессе: снимки, иконки, логи каждого.
+    Без editbin (его нет без Visual Studio): ставим бит сами, в exe в obj — до копирования в bin. Уже стоит — файл не трогаем.
+  -->
+  <UsingTask TaskName="SetLargeAddressAware" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <File ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var bytes = System.IO.File.ReadAllBytes(File);
+        var pe = System.BitConverter.ToInt32(bytes, 0x3C);
+        if (bytes[pe] != (byte)'P' || bytes[pe + 1] != (byte)'E')
+        {
+            Log.LogError("Не PE-файл: " + File);
+            return false;
+        }
+        // Сигнатура «PE\0\0» (4) + Machine, NumberOfSections, TimeDateStamp, PointerToSymbolTable, NumberOfSymbols,
+        // SizeOfOptionalHeader (2+2+4+4+4+2 = 18) — дальше Characteristics
+        var characteristics = pe + 4 + 18;
+        if ((bytes[characteristics] & 0x20) == 0)
+        {
+            bytes[characteristics] |= 0x20;
+            System.IO.File.WriteAllBytes(File, bytes);
+            Log.LogMessage(MessageImportance.Normal, "LargeAddressAware: " + File);
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <Target Name="LargeAddressAware" AfterTargets="CoreCompile" Condition="Exists('@(IntermediateAssembly)')">
+    <SetLargeAddressAware File="@(IntermediateAssembly->'%(FullPath)')" />
+  </Target>
 </Project>
