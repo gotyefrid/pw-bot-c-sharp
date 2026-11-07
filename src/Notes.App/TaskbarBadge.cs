@@ -33,13 +33,13 @@ public sealed class TaskbarBadge
     private static readonly Color Stopped = Color.FromRgb(0xE5, 0x48, 0x4D);
 
     private readonly Window _window;
-    private readonly MainViewModel _model;
+    private readonly CharacterTab _model;
     private readonly ImageSource? _appIcon;
     private (string? Nick, string Color, Color? Dot) _drawn;
     // Окно игры с нашим значком: какое, какого цвета кружок, сам значок (освободить, когда снимем)
     private (IntPtr Window, string Color, IntPtr Icon)? _game;
 
-    public TaskbarBadge(Window window, MainViewModel model)
+    public TaskbarBadge(Window window, CharacterTab model)
     {
         _window = window;
         _model = model;
@@ -50,8 +50,8 @@ public sealed class TaskbarBadge
 
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainViewModel.Nick) or nameof(MainViewModel.IsRunning) or nameof(MainViewModel.IsConnected)
-            or nameof(MainViewModel.Client) or nameof(MainViewModel.IconColor))
+        if (e.PropertyName is nameof(CharacterTab.Nick) or nameof(CharacterTab.IsRunning) or nameof(CharacterTab.IsConnected)
+            or nameof(CharacterTab.Client) or nameof(CharacterTab.IconColor))
         {
             if (_window.Dispatcher.CheckAccess())
                 Update();

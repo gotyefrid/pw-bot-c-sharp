@@ -13,14 +13,17 @@ namespace Notes.App;
 
 public partial class MainWindow : Window
 {
-    private readonly MainViewModel _model;
+    private readonly MainViewModel _host;
+    // Вкладка персонажа, которую показывает окно (пока вкладка одна)
+    private readonly CharacterTab _model;
 
     public MainWindow()
     {
         InitializeComponent();
-        _model = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory, new WindowDialogs(this));
+        _host = new MainViewModel(AppDomain.CurrentDomain.BaseDirectory, new WindowDialogs(this));
+        _model = _host.Selected;
         // Первый список клиентов — когда окно уже показано; никуда не подключаемся, только «Подключить»
-        Loaded += (_, _) => _model.StartUp();
+        Loaded += (_, _) => _host.StartUp();
         DataContext = _model;
         // Значок на панели задач: буквы ника и кружок «запущен / стоит»
         _ = new TaskbarBadge(this, _model);
@@ -149,7 +152,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
-        _model.Dispose();
+        _host.Dispose();
         base.OnClosed(e);
 
         // Всё нужное уже сделано (бот отключён, точки сохранены): выход завис — страховка (см. ExitWatchdog)
