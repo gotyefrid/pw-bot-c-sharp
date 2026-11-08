@@ -84,22 +84,25 @@ public static class NativeWindows
         => window != IntPtr.Zero && (GetTitle(window) == title || SetWindowText(window, title));
 
     /// <summary>
-    /// Окно — на передний план, свёрнутое — развернуть. Windows даёт это только активной программе: звать по действию
-    /// пользователя в окне бота (двойной щелчок по вкладке). false — не вышло.
+    /// Окно — в стопке окон сразу под <paramref name="above"/>, без фокуса: тот остаётся сверху и активным. Свёрнутое —
+    /// развернуть, тоже без фокуса. false — не вышло.
     /// </summary>
-    public static bool BringToFront(IntPtr window)
+    public static bool PlaceBelow(IntPtr window, IntPtr above)
     {
-        if (window == IntPtr.Zero)
+        if (window == IntPtr.Zero || above == IntPtr.Zero)
             return false;
         if (IsIconic(window))
-            ShowWindow(window, SwRestore);
-        return SetForegroundWindow(window);
+            ShowWindow(window, SwShowNoActivate);
+        return SetWindowPos(window, above, 0, 0, 0, 0, SwpNoSize | SwpNoMove | SwpNoActivate);
     }
 
     /// <summary>Окно видно (не скрыто в трей).</summary>
     public static bool IsVisible(IntPtr window) => window != IntPtr.Zero && IsWindowVisible(window);
 
-    private const int SwRestore = 9;
+    // Развернуть свёрнутое в прежний размер, не делая активным
+    private const int SwShowNoActivate = 4;
+
+    private const uint SwpNoSize = 0x0001, SwpNoMove = 0x0002, SwpNoActivate = 0x0010;
 
     [DllImport("user32.dll")]
     private static extern bool IsIconic(IntPtr window);
@@ -108,7 +111,7 @@ public static class NativeWindows
     private static extern bool ShowWindow(IntPtr window, int command);
 
     [DllImport("user32.dll")]
-    private static extern bool SetForegroundWindow(IntPtr window);
+    private static extern bool SetWindowPos(IntPtr window, IntPtr insertAfter, int x, int y, int width, int height, uint flags);
 
     private const uint GwOwner = 4;
 

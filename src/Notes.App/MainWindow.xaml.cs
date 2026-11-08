@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading;
@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace Notes.App;
@@ -38,7 +39,7 @@ public partial class MainWindow : Window
 
     private void Removed(CharacterTab tab) => _views.Remove(tab);
 
-    // Двойной щелчок по вкладке — окно игры её персонажа вперёд; по крестику — нет (он закрывает вкладку)
+    // Двойной щелчок по вкладке — окно игры её персонажа сразу под окно бота; по крестику — нет (он закрывает вкладку)
     private void TabDoubleClick(object sender, MouseButtonEventArgs e)
     {
         for (var at = e.OriginalSource as DependencyObject; at is not null && at != sender; at = at is Visual ? VisualTreeHelper.GetParent(at) : LogicalTreeHelper.GetParent(at))
@@ -49,7 +50,7 @@ public partial class MainWindow : Window
 
         if (sender is ListBoxItem { DataContext: CharacterTab tab })
         {
-            tab.ShowGameWindow();
+            tab.ShowGameWindow(new WindowInteropHelper(this).Handle);
             e.Handled = true;
         }
     }

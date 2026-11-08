@@ -868,10 +868,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     internal ILogger WindowLog => _log;
 
     /// <summary>
-    /// Двойной щелчок по вкладке: окно игры её персонажа — на передний план. Окно ищем сейчас, по PID подключения (после
-    /// переподключения клиент другой); не подключены — клиента, выбранного в списке.
+    /// Двойной щелчок по вкладке: окно игры её персонажа — сразу под окно бота (<paramref name="botWindow"/>), фокус
+    /// остаётся у бота. Окно ищем сейчас, по PID подключения (после переподключения клиент другой); не подключены —
+    /// клиента, выбранного в списке.
     /// </summary>
-    public void ShowGameWindow()
+    public void ShowGameWindow(IntPtr botWindow)
     {
         if ((_connection?.Pid ?? SelectedClient?.Pid) is not { } pid)
         {
@@ -884,8 +885,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             _connectionLog.Warning($"Окно игры PID {pid} не найдено");
         else if (!NativeWindows.IsVisible(window))
             _connectionLog.Info($"Окно игры PID {pid} скрыто в трей — откройте его значком в трее");
-        else if (!NativeWindows.BringToFront(window))
-            _connectionLog.Info($"Окно игры PID {pid}: Windows не дала вывести его вперёд");
+        else if (!NativeWindows.PlaceBelow(window, botWindow))
+            _connectionLog.Info($"Окно игры PID {pid}: Windows не дала поставить его под окно бота");
     }
 
     /// <summary>Лог «Чат» вкладки — туда же пишут команды из Telegram.</summary>
