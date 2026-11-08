@@ -570,6 +570,9 @@
                       Visibility="{Binding Chat.HasClan, Converter={StaticResource Visible}}" />
             <CheckBox Style="{StaticResource Switch}" Content="В общем чате" IsChecked="{Binding Chat.Common}"
                       Visibility="{Binding Chat.HasCommon, Converter={StaticResource Visible}}" />
+            <TextBlock Text="Сообщать о событиях" Style="{StaticResource Muted}" Margin="0,8,0,4" />
+            <CheckBox Style="{StaticResource Switch}" Content="Смерть персонажа" IsChecked="{Binding Chat.Death}"
+                      ToolTip="Персонаж погиб, пока работал бот. Смерти при сливе опыта не в счёт" />
           </StackPanel>
         </Border>
       </StackPanel>

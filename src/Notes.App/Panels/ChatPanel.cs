@@ -70,6 +70,12 @@ public sealed class ChatPanel : ObservableObject
         set => Edit(S.Common, value, v => S.Common = v);
     }
 
+    public bool Death
+    {
+        get => S.Death;
+        set => Edit(S.Death, value, v => S.Death = v);
+    }
+
     // Переключатель канала — только если его номер на этом сервере проверен в игре: о непроверенном бот не напишет
     private ChatChannels Channels => _profile().Data.Chat.Channels;
     public bool HasPrivate => Channels.Private is not null;
@@ -104,7 +110,7 @@ public sealed class ChatPanel : ObservableObject
     /// <summary>Уведомления поменяли в другой вкладке (настройки общие) — показать как есть.</summary>
     public void Reload()
     {
-        foreach (var name in new[] { nameof(Token), nameof(ChatId), nameof(Private), nameof(Group), nameof(Clan), nameof(Common) })
+        foreach (var name in new[] { nameof(Token), nameof(ChatId), nameof(Private), nameof(Group), nameof(Clan), nameof(Common), nameof(Death) })
             OnPropertyChanged(name);
         CommandManager.InvalidateRequerySuggested();
     }

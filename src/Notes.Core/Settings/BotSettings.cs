@@ -283,6 +283,9 @@ public sealed class ChatNotifySettings
     /// <summary>Сообщения в общем чате.</summary>
     public bool Common { get; set; }
 
+    /// <summary>Персонаж погиб, пока работал бот (не в сливе опыта).</summary>
+    public bool Death { get; set; } = true;
+
     /// <summary>Есть кому и через кого писать.</summary>
     [JsonIgnore]
     public bool CanSend => Token.Length > 0 && ChatId.Length > 0;

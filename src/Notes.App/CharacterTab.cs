@@ -771,7 +771,9 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         if (IsRunning || IsStopping || _connection is null)
             return;
 
-        var result = _connection.StartBot(Settings.Mode, Settings, routeStart ?? Route.StartIndex, transport, Stats.Book);
+        // Смерть на фарме — в Telegram: её замечает статистика мозга, поэтому уведомление стоит перед книгой статистики
+        var stats = new DeathNotifier(Stats.Book, () => _config.App.ChatNotify, () => Nick, () => DeathNotifier.Revives(Settings), Notify);
+        var result = _connection.StartBot(Settings.Mode, Settings, routeStart ?? Route.StartIndex, transport, stats);
         switch (result.Status)
         {
             case StartStatus.Started:
