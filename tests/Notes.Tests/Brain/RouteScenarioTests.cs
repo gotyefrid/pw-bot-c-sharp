@@ -483,7 +483,12 @@ public class RouteScenarioTests
         var ore = AddResource(0xC0000001, 30, "Железная руда");
         Tick();
         Tick();
-        Assert.Equal(["gather C0000001"], _actions.Calls);
+        // Сначала над рудой на своей высоте, потом копать
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)"], _actions.Calls);
+        _world.Position = new Position(30, 30, 0);
+        Tick();
+        Tick();
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)", "gather C0000001"], _actions.Calls);
 
         _world.Position = new Position(30, 0, 0);
         _world.Gather = new GatherProgress(true, 1000, 5000);
@@ -501,6 +506,92 @@ public class RouteScenarioTests
 
         Assert.Equal("fly (300,0; 0,0; h 30,0)", _actions.Calls.Last());
         Assert.Equal(1, _actions.Calls.Count(c => c.StartsWith("gather")));
+    }
+
+    // Обход в полёте: точка на 30 м над землёй, перс на ней
+    private void HoverAtPoint()
+    {
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+    }
+
+    [Fact]
+    public void InAirMobBesideResourceButBelowFlightIsPassedOverFromAbove()
+    {
+        // Тигр (агро 8 + 1) в 10 м от руды на земле: ни руда, ни путь «над рудой на 30 м и вниз» его зону не задевают — копаем
+        HoverAtPoint();
+        _settings.Route.DangerLevel = 25;
+        AddResource(0xC0000001, 30, "Железная руда");
+        AddAggressive(0x80000001, "Тигр", 20, level: 30);
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void InAirResourceBehindDangerousMobOnTheWayIsSkipped()
+    {
+        // Летучий опасный моб на высоте полёта между точкой и рудой — путь над рудой через его зону: руду не трогаем, берём камень
+        HoverAtPoint();
+        _settings.Route.DangerLevel = 25;
+        AddResource(0xC0000001, 30, "Железная руда");
+        AddResource(0xC0000002, -30, "Залежи камня");
+        AddAggressive(0x80000001, "Гарпия", 15, level: 30, height: 30);
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (-30,0; 0,0; h 30,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Не копаю Железная руда: по пути к нему опасный Гарпия (ур. 30, агро 8 м)");
+    }
+
+    [Fact]
+    public void InAirResourceGoneWhileFlyingOverIsDropped()
+    {
+        HoverAtPoint();
+        var ore = AddResource(0xC0000001, 30, "Железная руда");
+        Tick();
+        Tick();
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)"], _actions.Calls);
+
+        // Выкопал кто-то другой — копать нечего
+        _world.Position = new Position(15, 30, 0);
+        _world.Ground.Remove(ore);
+        Tick();
+        Tick();
+
+        Assert.Contains(_log, e => e.Message == "Железная руда пропал, пока летел над ним");
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("gather"));
+    }
+
+    [Fact]
+    public void InAirNotReachingOverResourceTwiceDigsWithoutHover()
+    {
+        // Упёрлись (стоим на месте) — второй раз над рудой; снова не вышло — копаем, путь выберет игра
+        HoverAtPoint();
+        AddResource(0xC0000001, 30, "Железная руда");
+
+        for (var i = 0; i < 60 && !_actions.Calls.Any(c => c.StartsWith("gather")); i++)
+            Tick();
+
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)", "fly (30,0; 0,0; h 30,0)", "gather C0000001"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Не долетел над Железная руда 2 раза"));
+    }
+
+    [Fact]
+    public void InAirResourceAtFlightHeightIsDugDirectly()
+    {
+        // Ресурс на скале почти на высоте полёта — спускаться не к чему, копаем сразу
+        HoverAtPoint();
+        _world.Ground.Add(new GroundItem(0, 0xC0000001, 3079, GroundItemKind.Resource, new Position(20, 29, 0), "Железная руда"));
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["gather C0000001"], _actions.Calls);
     }
 
     [Fact]
@@ -561,8 +652,14 @@ public class RouteScenarioTests
         Tick();
         Tick();
         Tick();
+        Assert.Equal(["fly (50,0; 0,0; h 40,0)", "fly (80,0; 0,0; h 40,0)"], _actions.Calls);
 
-        Assert.Equal(["fly (50,0; 0,0; h 40,0)", "gather C0000001"], _actions.Calls);
+        // Над камнем — копать
+        _world.Position = new Position(80, 40, 0);
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (50,0; 0,0; h 40,0)", "fly (80,0; 0,0; h 40,0)", "gather C0000001"], _actions.Calls);
     }
 
     [Fact]

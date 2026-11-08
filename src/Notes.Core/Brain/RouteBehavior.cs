@@ -55,6 +55,11 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
 
     public NpcInfo? Guard(BrainContext c, Position p) => DangerZones.Guard(c.World, p, c.Settings.Route);
 
+    // Обход в полёте — к ресурсу сверху: по земле и в воде путь выбирает игра, как раньше
+    public bool FromAbove(BrainContext c) => _inAir == true && c.World.Host.Flying == true;
+
+    public NpcInfo? GuardOnPath(BrainContext c, Position from, Position to) => DangerZones.GuardOnPath(c.World, from, to, c.Settings.Route);
+
     private RoutePoint? Current(BrainContext c)
     {
         var points = c.Settings.Route.Points;

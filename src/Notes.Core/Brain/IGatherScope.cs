@@ -26,6 +26,12 @@ public interface IGatherScope
 
     /// <summary>Опасный моб, в зоне которого ресурс (к такому не летим); null — такого нет или опасных не проверяем.</summary>
     NpcInfo? Guard(BrainContext c, Position p);
+
+    /// <summary>Подлетать к ресурсу сверху: сначала на своей высоте точно над ним, потом копать (игра опустит вертикально).</summary>
+    bool FromAbove(BrainContext c);
+
+    /// <summary>Опасный моб, через зону которого проходит путь от <paramref name="from"/> до <paramref name="to"/>; null — путь чист.</summary>
+    NpcInfo? GuardOnPath(BrainContext c, Position from, Position to);
 }
 
 /// <summary>Фарм мобов: ресурсы из списка лута в радиусе фарма; опасных мобов не проверяем.</summary>
@@ -43,4 +49,6 @@ public sealed class FarmAreaScope : IGatherScope
     public bool Listed(BrainContext c, string name) => LootFilter.ListsForGather(c.Settings.Loot, name);
     public string Where(BrainContext c) => "";
     public NpcInfo? Guard(BrainContext c, Position p) => null;
+    public bool FromAbove(BrainContext c) => false;
+    public NpcInfo? GuardOnPath(BrainContext c, Position from, Position to) => null;
 }

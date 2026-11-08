@@ -425,7 +425,7 @@
             <StackPanel>
               <TextBlock Text="ОПАСНЫЕ МОБЫ" Style="{StaticResource CardTitle}" />
               <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
-                         Text="К ресурсу в зоне агра опасного моба бот не летит: копает другие, на следующем круге проверит снова. Опасны только агрессивные — от уровня или из списка (боссы). Пассивные не опасны." />
+                         Text="В полёте бот летит к ресурсу на своей высоте и спускается к нему сверху. К ресурсу в зоне агра опасного моба (или если путь к нему через зону) бот не летит: копает другие, на следующем круге проверит снова. Опасны только агрессивные — от уровня или из списка (боссы). Пассивные не опасны." />
               <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="Агрессивные от уровня" VerticalAlignment="Center" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.DangerLevel, UpdateSourceTrigger=PropertyChanged}"

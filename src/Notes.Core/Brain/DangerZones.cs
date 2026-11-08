@@ -29,4 +29,22 @@ public static class DangerZones
             .Where(m => IsDangerous(m, route) && Inside(m, point, route.DangerMargin))
             .OrderBy(m => m.Position.HorizontalDistanceTo(point))
             .FirstOrDefault();
+
+    // Шаг проверки пути, м: зона — не меньше запаса 1 м, проскочить её между шагами нельзя
+    private const float PathStep = 1f;
+
+    /// <summary>Первый опасный моб, через зону которого проходит отрезок от <paramref name="from"/> до <paramref name="to"/>; null — путь чист.</summary>
+    public static NpcInfo? GuardOnPath(WorldState world, Position from, Position to, RouteSettings route)
+    {
+        var steps = Math.Max(1, (int)Math.Ceiling(from.DistanceTo(to) / PathStep));
+        for (var i = 0; i <= steps; i++)
+        {
+            var t = (float)i / steps;
+            var point = new Position(from.X + (to.X - from.X) * t, from.Height + (to.Height - from.Height) * t, from.Y + (to.Y - from.Y) * t);
+            if (Guard(world, point, route) is { } guard)
+                return guard;
+        }
+
+        return null;
+    }
 }
