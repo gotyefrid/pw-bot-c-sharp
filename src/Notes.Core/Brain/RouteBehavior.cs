@@ -40,6 +40,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     // Подъём на высоту точки перед полётом к ней; не поднялись (потолок, скала) — до следующей точки летим к ней напрямую
     private MoveAction? _climb;
     private bool _climbFailed;
+    // Какой маршрут обходим (номер из общего файла): сменили в окне на ходу — начинаем новый с первой точки
+    private string? _routeId;
 
     public string Name => "обход";
     public string? Status { get; private set; }
@@ -89,6 +91,15 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             _index = start >= 0 && start < points.Count ? start : 0;
             c.Log.Info($"Обход: {points.Count} точек, начинаю с {_index + 1}-й, {(_inAir.Value ? "в воздухе" : "по земле")}, "
                        + $"ресурсы в {route.Radius} м от точки");
+        }
+
+        if (_routeId is null)
+            _routeId = route.RouteId;
+        else if (_routeId != route.RouteId)
+        {
+            _routeId = route.RouteId;
+            (_index, _arrived, _returning, _leaving, _failures, _lastVisited, _climbFailed) = (0, false, false, false, 0, null, false);
+            c.Log.Info($"Маршрут сменился: {points.Count} точек, начинаю с 1-й");
         }
 
         if (_index >= points.Count)
@@ -272,6 +283,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         _leaving = false;
         _climb = null;
         _climbFailed = false;
+        _routeId = null;
         Status = null;
     }
 }

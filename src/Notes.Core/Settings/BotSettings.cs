@@ -186,6 +186,7 @@ public sealed class BotSettings
         Pet.AirPet = Pet.AirPet?.Trim() ?? "";
         Pet.WaterPet = Pet.WaterPet?.Trim() ?? "";
         Pet.Food = Pet.Food?.Trim() ?? "";
+        Route.RouteId = Route.RouteId?.Trim() ?? "";
         Route.Points = RoutePoint.Clean(Route.Points);
         Route.Radius = Clamp(Route.Radius, 5, 500);
         Route.DangerLevel = Clamp(Route.DangerLevel, 0, 150);
@@ -375,8 +376,17 @@ public sealed class TargetSettings : SettingsPart
 /// </summary>
 public sealed class RouteSettings : SettingsPart
 {
+    private string _routeId = "";
+    /// <summary>
+    /// Выбранный маршрут из общего файла маршрутов (<see cref="Resources.RouteStore"/>, видят все персонажи); "" — не выбран.
+    /// Его точки окно кладёт в <see cref="Points"/>.
+    /// </summary>
+    public string RouteId { get => _routeId; set => Set(ref _routeId, value); }
+
     private List<RoutePoint> _points = [];
-    /// <summary>Точки обхода по порядку. Записаны в полёте — бот летит на их высоте.</summary>
+    /// <summary>
+    /// Точки обхода по порядку — копия точек выбранного маршрута (по ним идёт бот). Записаны в полёте — бот летит на их высоте.
+    /// </summary>
     public List<RoutePoint> Points { get => _points; set => Set(ref _points, value); }
 
     private int _radius = 50;

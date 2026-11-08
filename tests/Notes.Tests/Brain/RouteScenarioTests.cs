@@ -604,6 +604,25 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void OtherRouteChosenOnTheGoStartsFromFirstPoint()
+    {
+        // Шли ко 2-й точке маршрута «a»; в окне выбрали маршрут «b» — к его 1-й точке
+        _routeStart = 1;
+        Route(0, 100, 200);
+        _settings.Route.RouteId = "a";
+        Tick();
+        Assert.Equal(["move (100,0; 0,0; h 0,0) умно"], _actions.Calls);
+
+        Route(50, 300);
+        _settings.Route.RouteId = "b";
+        Brain.UpdateSettings(_settings);
+        Tick();
+
+        Assert.Equal("move (50,0; 0,0; h 0,0) умно", _actions.Calls.Last());
+        Assert.Contains(_log, e => e.Message == "Маршрут сменился: 2 точек, начинаю с 1-й");
+    }
+
+    [Fact]
     public void InAirClimbIsSentOnceWhileRising()
     {
         // Подъём идёт — не шлём его заново каждый снимок
