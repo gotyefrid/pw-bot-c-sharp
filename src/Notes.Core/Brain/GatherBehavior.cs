@@ -28,6 +28,8 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     // Не вышло (не дошли, копание не началось, сбили N раз подряд) — ресурс бросаем на время
     private static readonly TimeSpan SkipFor = TimeSpan.FromMinutes(1);
     private const int KnockdownsToSkip = 3;
+    // Копание не началось (дошли и стоим) — пробуем снова; столько раз подряд — бросаем
+    private const int StartsToSkip = 3;
 
     // Над ресурсом — ближе этого по горизонтали; ресурс ниже перса меньше чем на столько — подлетать сверху незачем
     private const float AboveTolerance = 2f;
@@ -41,6 +43,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     private GatherAction? _logged;
     private GatherPhase _loggedPhase;
     private readonly Dictionary<uint, int> _knockdowns = [];
+    private readonly Dictionary<uint, int> _notStarted = [];
 
     // Подлёт сверху: к какому ресурсу летим сейчас и сколько раз не долетели над каждым
     private GroundItem? _above;
@@ -268,6 +271,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         {
             case ActionStatus.Confirmed:
                 _knockdowns.Remove(id);
+                _notStarted.Remove(id);
                 _aboveFailures.Remove(id);
                 c.GatheredAt = c.Now;
                 // Добыча пришла в том же снимке, где кончилась копка, — шага «жду добычу» не было, «выкопал» пишем здесь
@@ -282,6 +286,14 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
                 if (_knockdowns[id] >= KnockdownsToSkip)
                     Skip(c, gather, $"сбили {KnockdownsToSkip} раза подряд");
                 break;
+            case ActionStatus.Rejected when gather.NotStarted:
+                // Копание не началось — ещё раз (бывает, игра не приняла команду); не началось StartsToSkip раза подряд — бросаем
+                var tries = _notStarted[id] = _notStarted.TryGetValue(id, out var t) ? t + 1 : 1;
+                if (tries >= StartsToSkip)
+                    Skip(c, gather, $"{outcome.Details} ({StartsToSkip} раза подряд)");
+                else
+                    c.Log.Info($"{gather.Item.Name}: {outcome.Details} — пробую ещё раз ({tries + 1}/{StartsToSkip})");
+                break;
             default:
                 Skip(c, gather, outcome.Details);
                 break;
@@ -291,6 +303,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     private void Skip(BrainContext c, GatherAction gather, string why)
     {
         _knockdowns.Remove(gather.Item.Id);
+        _notStarted.Remove(gather.Item.Id);
         _skipped[gather.Item.Id] = c.Now + SkipFor;
         c.Log.Warning($"{gather.Item.Name}: {why} — не копаю {SkipFor.TotalMinutes:0} мин");
     }
@@ -299,6 +312,7 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     {
         _skipped.Clear();
         _knockdowns.Clear();
+        _notStarted.Clear();
         _above = null;
         _aboveFailures.Clear();
         Status = null;

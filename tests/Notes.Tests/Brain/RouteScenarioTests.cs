@@ -623,6 +623,23 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void DiggingThatDoesNotStartIsTriedThreeTimesThenSkipped()
+    {
+        // Дошли и стоим, полоски нет — игра не начала копать: ещё раз, и ещё; на третий — бросаем ресурс на минуту
+        Route(0, 300);
+        AddResource(0xC0000001, 10, "Черное железо");
+        _world.Gather = new GatherProgress(false, 0, 0);
+
+        for (var i = 0; i < 80; i++)
+            Tick();
+
+        Assert.Equal(3, _actions.Calls.Count(c => c == "gather C0000001"));
+        Assert.Contains(_log, e => e.Message == "Черное железо: стоим 4 с, а копание не началось — пробую ещё раз (2/3)");
+        Assert.Contains(_log, e => e.Message == "Черное железо: стоим 4 с, а копание не началось — пробую ещё раз (3/3)");
+        Assert.Contains(_log, e => e.Message == "Черное железо: стоим 4 с, а копание не началось (3 раза подряд) — не копаю 1 мин");
+    }
+
+    [Fact]
     public void InAirClimbIsSentOnceWhileRising()
     {
         // Подъём идёт — не шлём его заново каждый снимок

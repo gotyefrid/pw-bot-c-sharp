@@ -792,6 +792,9 @@ public sealed class GatherAction(GroundItem resource) : GameAction
     /// <summary>Копание началось и оборвалось раньше конца полоски (ударили, сдвинули).</summary>
     public bool KnockedDown { get; private set; }
 
+    /// <summary>Дошли до ресурса и стоим, а копание так и не началось.</summary>
+    public bool NotStarted { get; private set; }
+
     /// <summary>Сколько шли до начала копки; null — копка не началась.</summary>
     public TimeSpan? WalkTime => _walk;
 
@@ -850,9 +853,10 @@ public sealed class GatherAction(GroundItem resource) : GameAction
             return Verdict.Pending;
         }
 
-        return now.Time - _standingSince!.Value >= StandPatience
-            ? Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0} с, а копание не началось")
-            : Verdict.Pending;
+        if (now.Time - _standingSince!.Value < StandPatience)
+            return Verdict.Pending;
+        NotStarted = true;
+        return Verdict.Rejected($"стоим {StandPatience.TotalSeconds:0} с, а копание не началось");
     }
 
     private Verdict Digging(WorldState now, GatherProgress g)
