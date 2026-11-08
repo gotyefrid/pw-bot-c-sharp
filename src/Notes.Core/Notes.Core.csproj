@@ -11,6 +11,8 @@
   <ItemGroup>
     <!-- Профили серверов вшиваются в сборку: бот — один exe -->
     <EmbeddedResource Include="Profiles\*.jsonc" />
+    <!-- Свой справочник мест мобов, NPC и ресурсов (coord_data.txt Comeback 1.4.6, gzip) — на случай, когда в клиенте его нет -->
+    <EmbeddedResource Include="GameFiles\Data\coord_data.txt.gz" LogicalName="Notes.Core.GameFiles.coord_data.txt.gz" />
   </ItemGroup>
 
   <ItemGroup>

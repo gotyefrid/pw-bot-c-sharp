@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using Notes.Core.GameFiles;
 using Notes.Core.Profiles;
 using Notes.Core.World;
@@ -20,6 +21,12 @@ public class GuidePointsTests
     // Тест на файлах настоящего клиента: папка element — в переменной окружения. Нет переменной — тест пропускается
     private const string ComebackVariable = "NOTES_COMEBACK146_DIR";
     private static readonly string ComebackDirectory = Environment.GetEnvironmentVariable(ComebackVariable) ?? "";
+    private const string ClassicVariable = "NOTES_PWCLASSIC136_DIR";
+    private static readonly string ClassicDirectory = Environment.GetEnvironmentVariable(ClassicVariable) ?? "";
+
+    // Чёрное железо — ресурс, мотыль — моб: tid у серверов общие
+    private const int BlackIron = 3080;
+    private const int Moth = 1000;
 
     private static GuidePoints Points() => new(GuidePoints.Parse(CoordData));
 
@@ -53,13 +60,71 @@ public class GuidePointsTests
     {
         Assert.SkipUnless(Directory.Exists(ComebackDirectory), $"Не задана {ComebackVariable} — папка element клиента Comeback 1.4.6");
 
-        var points = GuidePoints.LoadFromGameDirectory(ComebackDirectory, new ProfileCatalog().Load("comeback146").Data.GameFiles, out var problem);
+        var points = GuidePoints.LoadFromGameDirectory(ComebackDirectory, new ProfileCatalog().Load("comeback146").Data.GameFiles, out var problem, out var fromClient);
 
         Assert.Null(problem);
+        Assert.True(fromClient > 1000);
         // Малая росянка и Малахитовый мотыль — по многу точек; Наставница и Старейшина Города Оборотней — по одной
         Assert.True(points.Of(3303).Count > 5);
         Assert.True(points.Of(1000).Count > 5);
         Assert.Single(points.Of(3518));
         Assert.Single(points.Of(2206));
+    }
+
+    [Fact]
+    public void WithinFindsAllKindsAroundSortedByDistance()
+    {
+        var near = Points().Within(new Position(-1530, 250, 960), 150);
+
+        Assert.Equal([2206, 1000], near.Select(e => e.Tid));
+        Assert.Equal(new Position(-1537.19f, 254.01f, 825.00f), near[1].Point);
+    }
+
+    [Fact]
+    public void ClientKindReplacesBuiltInWholeAndOthersStay()
+    {
+        var builtIn = GuidePoints.Parse(CoordData);
+        var client = GuidePoints.Parse("1000\tworld\t5\t6\t7\r\n");
+
+        var points = GuidePoints.Merge(builtIn, client);
+
+        Assert.Equal([new Position(5, 6, 7)], points.Of(1000));
+        Assert.Single(points.Of(2206));
+    }
+
+    [Fact]
+    public void NoClientFileGivesBuiltInOnly()
+    {
+        var points = GuidePoints.LoadFromGameDirectory(Path.GetTempPath(), new ProfileCatalog().Load("pwclassic136").Data.GameFiles,
+            out var problem, out var fromClient);
+
+        Assert.NotNull(problem);
+        Assert.Equal(0, fromClient);
+        Assert.Equal(GuidePoints.BuiltIn.Count, points.Count);
+    }
+
+    [Fact]
+    public void BuiltInKnowsResourcesMobsAndNpcs()
+    {
+        var points = GuidePoints.BuiltIn;
+
+        Assert.Equal(90, points.Of(BlackIron).Count);
+        Assert.Equal(22, points.Of(Moth).Count);
+        Assert.Single(points.Of(2206));
+    }
+
+    [Fact]
+    public void PwClassicTakesOwnPointsFromConfigs2()
+    {
+        Assert.SkipUnless(Directory.Exists(ClassicDirectory), $"Не задана {ClassicVariable} — папка element клиента PW Classic");
+
+        var points = GuidePoints.LoadFromGameDirectory(ClassicDirectory, new ProfileCatalog().Load("pwclassic136").Data.GameFiles,
+            out var problem, out var fromClient);
+
+        Assert.Null(problem);
+        Assert.True(fromClient > 1000);
+        // В configs2.pck PW Classic у ресурса по несколько точек на место (во вшитом — одна): берётся клиент
+        Assert.True(points.Of(BlackIron).Count > GuidePoints.BuiltIn.Of(BlackIron).Count);
+        Assert.True(points.Of(Moth).Count > GuidePoints.BuiltIn.Of(Moth).Count);
     }
 }

@@ -313,15 +313,15 @@ public sealed class ClientConnection : IDisposable
         }
     }
 
-    // Прокачка: опорные точки мобов и NPC из файлов клиента
+    // Прокачка: места мобов, NPC и ресурсов — вшитый справочник и поверх него файл клиента
     private QuestGuide LoadQuestGuide()
     {
         var directory = Path.GetDirectoryName(_game.MainModulePath)!;
-        var points = GuidePoints.LoadFromGameDirectory(directory, _profile.GameFiles, out var problem);
+        var points = GuidePoints.LoadFromGameDirectory(directory, _profile.GameFiles, out var problem, out var fromClient);
         if (problem is not null)
-            _log.Warning("Места мобов и NPC для заданий: " + problem);
+            _log.Warning($"Места мобов и NPC: {problem}, взяты из справочника бота ({points.Count})");
         else
-            _log.Debug($"Места мобов и NPC для заданий: {points.Count}");
+            _log.Debug($"Места мобов и NPC: {points.Count}, из клиента {fromClient}");
         return new QuestGuide(points, _profile.QuestScripts);
     }
 
