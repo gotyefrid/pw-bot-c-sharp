@@ -209,6 +209,21 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     }
 
     /// <summary>
+    /// Куда вернуться после смерти (<see cref="DeathReturnBehavior"/>): к последней посещённой точке (ни одной — к текущей), на её
+    /// высоте, если обходим в полёте; обход дальше — с неё, искать заново. Маршрут пуст — null (бот остановится).
+    /// </summary>
+    public Spot? AfterDeath(BrainContext c)
+    {
+        var points = c.Settings.Route.Points;
+        if (points.Count == 0)
+            return null;
+
+        BackToLastVisited(c);
+        var point = points[_index % points.Count];
+        return new Spot(point.Position, _inAir == true ? TripEnd.Air : TripEnd.Ground);
+    }
+
+    /// <summary>
     /// Снова к последней посещённой точке и искать у неё заново (после ухода от опасного моба: он, скорее всего, отошёл).
     /// Ни одной ещё не было — к текущей.
     /// </summary>

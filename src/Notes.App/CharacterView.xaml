@@ -432,6 +432,17 @@
                        ToolTip="Сколько метров вокруг точки бот ищет ресурсы. Участок ресурса ~110 м, видно его целиком с ~50 м" />
               <Grid />
             </DockPanel>
+            <CheckBox Style="{StaticResource Switch}" Content="Вставать после смерти" IsChecked="{Binding Settings.Target.ReviveAndReturn}" Margin="0,8,0,0">
+              <CheckBox.ToolTip>
+                <TextBlock MaxWidth="320" TextWrapping="Wrap"
+                           Text="Умер — «Ближний город» и полёт к точке маршрута, у которой погиб (нет полётника — бегом), дальше обход как обычно.&#10;&#10;Убили снова за 10 минут — сначала стоит в городе 5 минут, ещё раз — 10, потом 15 и так далее.&#10;&#10;Та же настройка, что на вкладке фарма. Выключено — умер, бот остановился." />
+              </CheckBox.ToolTip>
+            </CheckBox>
+            <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Settings.Target.ReviveAndReturn, Converter={StaticResource Visible}}">
+              <TextBlock Text="Высота полёта из города" VerticalAlignment="Center"
+                         ToolTip="Как в игре. Встав в городе, бот поднимается на месте строго вверх и летит к точке — выше домов, деревьев и гор. Та же, что «Высота полёта к центру» на вкладке фарма" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Target.TravelHeight, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
           </StackPanel>
         </Border>
         <Border Style="{StaticResource Card}">
