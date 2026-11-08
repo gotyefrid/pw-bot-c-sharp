@@ -34,6 +34,7 @@ public partial class CharacterView : UserControl
         // Правка сохранённой точки (центр фарма, место для смертей)
         model.Farm.FarmCenter.EditRequested += EditPoint;
         model.Farm.DeathPoint.EditRequested += EditPoint;
+        model.Route.AskName = (title, current) => NameWindow.Ask(Owner, title, current);
 
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();

@@ -55,6 +55,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     // Точки ресурсов — общие на все серверы, персонажей и копии бота (%AppData%\Notes\resources.json), копятся в любом режиме
     private readonly SpotService _spots;
+    // Маршруты обхода — общие у всех персонажей и копий бота
+    private readonly RouteStore _routes;
 
     // Правка настроек — сохранить файл и отдать боту копию через 0,5 с после последней (число в поле набирают по цифре)
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(0.5);
@@ -116,6 +118,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         var resourcesLog = logger.For(LogSources.Resources);
         var shared = SharedFolder.Prepare(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), resourcesLog);
         _spots = new SpotService(shared, resourcesLog);
+        _routes = new RouteStore(Path.Combine(shared, RouteStore.FileName));
         _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
@@ -150,7 +153,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             Repair.Rebind();
         });
         Route = new RoutePanel(() => Settings, () => _lastWorld,
-            () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited);
+            () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited,
+            _routes, () => _config.Character, dialogs);
         Clicker = new ClickerPanel(() => Settings,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null,
             new ClickerChoices(() => Farm.LootOptions(), () => Route.RouteOptions(), () => Farm.TargetOptions(),
@@ -946,6 +950,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         _launchCancel?.Cancel();
         var closing = Disconnect();
         _spots.Save();
+        Route.Dispose();
         _appSettings.Saved -= AppSettingsSaved;
         return closing;
     }

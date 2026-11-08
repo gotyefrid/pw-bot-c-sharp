@@ -368,6 +368,19 @@
             <TextBlock Text="МАРШРУТ ОБХОДА" Style="{StaticResource CardTitle}" />
             <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
                        Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке. «Старт» — с выбранной точки (не выбрана — с первой)." />
+            <DockPanel Margin="0,0,0,8">
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <ComboBox Width="200" ItemsSource="{Binding Route.Routes}" SelectedItem="{Binding Route.SelectedRoute}"
+                          ToolTip="Маршруты общие: их видят и могут выбрать все персонажи во всех копиях бота. В скобках — сколько точек" />
+                <Button Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE710;"
+                        Command="{Binding Route.AddRouteCommand}" ToolTip="Новый пустой маршрут — сразу выбирается" />
+                <Button Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE70F;"
+                        Command="{Binding Route.RenameRouteCommand}" ToolTip="Переименовать выбранный маршрут" />
+                <Button Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE74D;"
+                        Command="{Binding Route.RemoveRouteCommand}" ToolTip="Удалить выбранный маршрут — у всех персонажей (бот сначала спросит)" />
+              </StackPanel>
+              <TextBlock Text="Маршрут" VerticalAlignment="Center" />
+            </DockPanel>
             <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding Route.RouteRows}" SelectedItem="{Binding Route.SelectedRoutePoint}" BorderThickness="0" Background="Transparent">
               <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">

@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Windows.Input;
+using System.Windows.Threading;
 using Notes.App.Mvvm;
 using Notes.Core.Logging;
 using Notes.Core.Resources;
@@ -13,10 +15,15 @@ namespace Notes.App.Panels;
 
 /// <summary>
 /// Вкладка «Ресы» — маршрут обхода (режим «Собирать ресурсы»): точки по порядку, что копать у каждой, опасные мобы.
-/// Точки и списки — в настройках персонажа; о правке говорит модели окна (та сохраняет и отдаёт боту).
+/// Маршруты — общие у всех персонажей и копий бота (<see cref="RouteStore"/>): у персонажа только какой выбран, а его точки
+/// окно кладёт в настройки (по ним идёт бот). Правка точек — сразу в общий файл; файл поменяла другая копия — точки
+/// перечитываются. Опасные мобы и радиус — в настройках персонажа. О правке говорит модели окна (та сохраняет и отдаёт боту).
 /// </summary>
-public sealed class RoutePanel : ObservableObject
+public sealed class RoutePanel : ObservableObject, IDisposable
 {
+    // Файл поменяли — перечитать не сразу: запись другой копии — это несколько событий подряд
+    private static readonly TimeSpan ReloadDelay = TimeSpan.FromMilliseconds(300);
+
     private static readonly TimeSpan ShowEvery = TimeSpan.FromSeconds(1);
 
     private readonly Func<BotSettings> _settings;
@@ -25,6 +32,11 @@ public sealed class RoutePanel : ObservableObject
     private readonly SpotService _spots;
     private readonly ILogger _log;
     private readonly Action _edited;
+    private readonly RouteStore _store;
+    private readonly Func<string?> _owner;
+    private readonly IDialogs _dialogs;
+    private readonly FileSystemWatcher? _watcher;
+    private readonly DispatcherTimer _reload = new() { Interval = ReloadDelay };
     private RouteRow? _selectedRoutePoint;
     private DateTime _shown;
     private bool _syncing;
@@ -33,7 +45,10 @@ public sealed class RoutePanel : ObservableObject
     /// <param name="world">Последний снимок; null — мир не читается.</param>
     /// <param name="current">Номер точки, к которой бот идёт сейчас; null — бот не идёт по маршруту.</param>
     /// <param name="edited">Правка настроек из этой вкладки.</param>
-    public RoutePanel(Func<BotSettings> settings, Func<WorldState?> world, Func<int?> current, SpotService spots, ILogger log, Action edited)
+    /// <param name="store">Общий файл маршрутов.</param>
+    /// <param name="owner">Ник текущего персонажа (название маршрута из его старых точек); null — ещё неизвестен.</param>
+    public RoutePanel(Func<BotSettings> settings, Func<WorldState?> world, Func<int?> current, SpotService spots, ILogger log, Action edited,
+        RouteStore store, Func<string?> owner, IDialogs dialogs)
     {
         _settings = settings;
         _world = world;
@@ -41,6 +56,33 @@ public sealed class RoutePanel : ObservableObject
         _spots = spots;
         _log = log;
         _edited = edited;
+        _store = store;
+        _owner = owner;
+        _dialogs = dialogs;
+        AddRouteCommand = new RelayCommand(AddRoute);
+        RenameRouteCommand = new RelayCommand(RenameRoute, () => SelectedRoute is not null);
+        RemoveRouteCommand = new RelayCommand(RemoveRoute, () => SelectedRoute is not null);
+        _reload.Tick += (_, _) =>
+        {
+            _reload.Stop();
+            Reload();
+        };
+        if (Path.GetDirectoryName(store.Path) is { Length: > 0 } folder && Directory.Exists(folder))
+        {
+            _watcher = new FileSystemWatcher(folder, Path.GetFileName(store.Path))
+            {
+                NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.Size,
+            };
+            FileSystemEventHandler changed = (_, _) => UiThread.Run(() =>
+            {
+                _reload.Stop();
+                _reload.Start();
+            });
+            _watcher.Changed += changed;
+            _watcher.Created += changed;
+            _watcher.Renamed += (o, e) => changed(o, e);
+            _watcher.EnableRaisingEvents = true;
+        }
         RouteNames.CollectionChanged += (_, _) => RouteNamesEdited();
         DangerNames.CollectionChanged += (_, _) => DangerNamesEdited();
         AddRoutePointCommand = new RelayCommand(AddRoutePoint, () => _world() is not null);
@@ -51,6 +93,28 @@ public sealed class RoutePanel : ObservableObject
     }
 
     private BotSettings Settings => _settings();
+
+    /// <summary>Сохранённые маршруты (общие у всех персонажей) по названию.</summary>
+    public ObservableCollection<RouteChoice> Routes { get; } = new();
+
+    /// <summary>Название маршрута: окну спросить у игрока (заголовок, текущее название); null — передумал.</summary>
+    public Func<string, string, string?>? AskName { get; set; }
+
+    public ICommand AddRouteCommand { get; }
+    public ICommand RenameRouteCommand { get; }
+    public ICommand RemoveRouteCommand { get; }
+
+    // Пока список пересобирается — null, как у точек фарма (PointPicker): иначе окно потеряет выбор
+    public RouteChoice? SelectedRoute
+    {
+        get => _syncing ? null : Routes.FirstOrDefault(r => r.Id == Settings.Route.RouteId);
+        set
+        {
+            if (_syncing || value is null || value.Id == Settings.Route.RouteId)
+                return;
+            Choose(value.Id);
+        }
+    }
 
     /// <summary>Точки обхода по порядку: после последней бот идёт к первой.</summary>
     public ObservableCollection<RouteRow> RouteRows { get; } = new();
@@ -98,7 +162,7 @@ public sealed class RoutePanel : ObservableObject
             row.Point.ListMode = value;
             row.Refresh();
             OnPropertyChanged();
-            _edited();
+            PointsEdited();
         }
     }
 
@@ -111,8 +175,75 @@ public sealed class RoutePanel : ObservableObject
             _world() is { } w ? NearbyNames.Resources(w) : [],
             _spots.Spots.Select(s => s.Name).Distinct(StringComparer.OrdinalIgnoreCase).Select(n => new NameCount(n, 0, 0)));
 
-    /// <summary>Маршрут и опасные мобы в окне ← настройки персонажа (выбор сбрасывается, если точки больше нет).</summary>
+    /// <summary>
+    /// Маршрут и опасные мобы в окне ← настройки персонажа и общий файл маршрутов (выбор точки сбрасывается, если её больше нет).
+    /// Старые точки персонажа становятся общим маршрутом; выбранный поменяли или удалили в другой копии — берём, как в файле.
+    /// </summary>
     public void Load()
+    {
+        SyncWithStore();
+        LoadRoutes();
+        LoadRows();
+        Sync(DangerNames, Settings.Route.DangerMobs);
+    }
+
+    // Файл маршрутов поменялся (мы сами или другая копия): перерисовать, только если что-то другое
+    private void Reload()
+    {
+        var sync = SyncWithStore();
+        var routes = _store.All();
+        if (sync == RouteSync.Unchanged && routes.Select(r => (r.Id, r.Name, r.Points.Count)).SequenceEqual(Routes.Select(r => (r.Id, r.Name, r.Count))))
+            return;
+        LoadRoutes(routes);
+        if (sync != RouteSync.Unchanged)
+            LoadRows();
+    }
+
+    // Точки персонажа ← файл; поменялись — сохранить персонажа и отдать боту
+    private RouteSync SyncWithStore()
+    {
+        var route = Settings.Route;
+        var was = route.RouteId;
+        var sync = _store.Sync(route, _owner() is { } nick ? $"Маршрут {nick}" : "Маршрут");
+        if (_store.Problem is { } problem)
+            _log.Warning(problem);
+        switch (sync)
+        {
+            case RouteSync.Imported when was.Length == 0:
+                _log.Info($"Точки маршрута персонажа перенесены в общие маршруты: «{_store.Find(route.RouteId)?.Name}»");
+                break;
+            case RouteSync.Imported:
+                _log.Info($"Маршрута «{_store.Find(route.RouteId)?.Name}» не было в файле маршрутов — вернул его из точек персонажа");
+                break;
+            case RouteSync.Loaded:
+                _log.Info($"Маршрут «{_store.Find(route.RouteId)?.Name}» изменён в другой копии бота — точки обновлены");
+                break;
+            case RouteSync.Deleted:
+                _log.Info("Выбранный маршрут удалён — маршрут не выбран");
+                break;
+        }
+        if (sync != RouteSync.Unchanged)
+            _edited();
+        return sync;
+    }
+
+    private void LoadRoutes(IReadOnlyList<SavedRoute>? routes = null)
+    {
+        _syncing = true;
+        try
+        {
+            Routes.Clear();
+            foreach (var route in routes ?? _store.All())
+                Routes.Add(new RouteChoice(route.Id, route.Name, route.Points.Count));
+        }
+        finally
+        {
+            _syncing = false;
+        }
+        OnPropertyChanged(nameof(SelectedRoute));
+    }
+
+    private void LoadRows()
     {
         var selected = SelectedRoutePoint?.Point;
         RouteRows.Clear();
@@ -127,7 +258,73 @@ public sealed class RoutePanel : ObservableObject
 
         SelectedRoutePoint = RouteRows.FirstOrDefault(r => r.Point == selected);
         LoadPointNames();
-        Sync(DangerNames, Settings.Route.DangerMobs);
+    }
+
+    public void Dispose()
+    {
+        _reload.Stop();
+        _watcher?.Dispose();
+    }
+
+    // Выбрали маршрут: его точки — персонажу и боту
+    private void Choose(string id)
+    {
+        var route = Settings.Route;
+        var saved = _store.Find(id);
+        route.RouteId = saved?.Id ?? "";
+        route.Points = saved is null ? [] : RouteStore.Copy(saved.Points);
+        _log.Info(saved is null ? "Маршрут не выбран" : $"Маршрут «{saved.Name}»: {saved.Points.Count} точек");
+        SelectedRoutePoint = null;
+        LoadRoutes();
+        LoadRows();
+        _edited();
+    }
+
+    private void AddRoute()
+    {
+        var route = _store.Create();
+        _log.Info($"Новый маршрут «{route.Name}»");
+        Choose(route.Id);
+    }
+
+    private void RenameRoute()
+    {
+        if (SelectedRoute is not { } route || AskName?.Invoke("Название маршрута", route.Name) is not { } name)
+            return;
+        if (name.Trim() == route.Name)
+            return;
+        if (!_store.Rename(route.Id, name))
+        {
+            _dialogs.Tell(name.Trim().Length == 0 ? "Название не может быть пустым" : $"Маршрут «{name.Trim()}» уже есть — выберите другое название");
+            return;
+        }
+        _log.Info($"Маршрут «{route.Name}» переименован в «{name.Trim()}»");
+        LoadRoutes();
+    }
+
+    private void RemoveRoute()
+    {
+        if (SelectedRoute is not { } route
+            || !_dialogs.AskYesNo($"Удалить маршрут «{route.Name}» ({route.Count} точек)?\n\nОн общий — пропадёт у всех персонажей."))
+            return;
+        _store.Remove(route.Id);
+        _log.Info($"Маршрут «{route.Name}» удалён");
+        Choose("");
+    }
+
+    // Точки выбранного маршрута поменяли в окне — в общий файл (маршрут не выбран или его удалили в другой копии — новый)
+    private void PointsEdited()
+    {
+        var route = Settings.Route;
+        if (route.RouteId.Length == 0 || !_store.SavePoints(route.RouteId, route.Points))
+        {
+            var created = _store.Create();
+            route.RouteId = created.Id;
+            _store.SavePoints(created.Id, route.Points);
+            _log.Info($"Точки записаны в новый маршрут «{created.Name}»");
+        }
+        LoadRoutes();
+        _edited();
     }
 
     /// <summary>Расстояния до точек и какая сейчас текущая — раз в секунду (или сразу).</summary>
@@ -156,9 +353,9 @@ public sealed class RoutePanel : ObservableObject
         var point = RoutePoint.At($"Точка {n}", w.Host.Position);
         points.Add(point);
         _log.Info($"Маршрут: точка {points.Count} {point.Position}{(w.Host.Flying == true ? " (в воздухе)" : "")}");
-        Load();
+        PointsEdited();
+        LoadRows();
         SelectedRoutePoint = RouteRows.LastOrDefault();
-        _edited();
     }
 
     private void RemoveRoutePoint()
@@ -168,9 +365,9 @@ public sealed class RoutePanel : ObservableObject
 
         Settings.Route.Points.Remove(row.Point);
         _log.Info($"Маршрут: точка {RouteRows.IndexOf(row) + 1} удалена, осталось {Settings.Route.Points.Count}");
-        Load();
+        PointsEdited();
+        LoadRows();
         SelectedRoutePoint = null;
-        _edited();
     }
 
     private void MoveRoutePoint(int step)
@@ -185,10 +382,10 @@ public sealed class RoutePanel : ObservableObject
             return;
 
         (points[at], points[to]) = (points[to], points[at]);
-        Load();
+        PointsEdited();
+        LoadRows();
         SelectedRoutePoint = RouteRows[to];
         OnPropertyChanged(nameof(SelectedRouteTitle));
-        _edited();
     }
 
     /// <summary>Список «что копать» в окне ← выбранная точка.</summary>
@@ -217,7 +414,7 @@ public sealed class RoutePanel : ObservableObject
 
         row.Point.Resources = MobNameFilter.Clean(RouteNames);
         row.Refresh();
-        _edited();
+        PointsEdited();
     }
 
     private void DangerNamesEdited()
@@ -228,4 +425,10 @@ public sealed class RoutePanel : ObservableObject
         Settings.Route.DangerMobs = MobNameFilter.Clean(DangerNames);
         _edited();
     }
+}
+
+/// <summary>Маршрут в выпадающем списке: «Название (N точек)».</summary>
+public sealed record RouteChoice(string Id, string Name, int Count)
+{
+    public override string ToString() => $"{Name} ({Count})";
 }
