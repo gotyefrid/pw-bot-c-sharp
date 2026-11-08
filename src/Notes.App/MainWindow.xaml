@@ -5,11 +5,16 @@
         WindowStartupLocation="CenterScreen" Icon="app.ico"
         Style="{StaticResource AppWindow}">
   <Window.Resources>
-    <!-- Вкладка персонажа в полосе: кружок «нет связи / стоит / работает», ник, крестик; двойной щелчок — окно игры вперёд -->
+    <!-- Вкладка персонажа в полосе: кружок «нет связи / стоит / работает», ник, крестик; двойной щелчок — окно игры вперёд,
+         ПКМ — меню вкладки -->
+    <ContextMenu x:Key="CharacterTabMenu" x:Shared="False">
+      <MenuItem Header="Запустить клиент с персонажем" Command="{Binding LaunchOwnCommand}" />
+    </ContextMenu>
     <Style x:Key="CharacterTabItem" TargetType="ListBoxItem">
       <Setter Property="Margin" Value="0,0,4,4" />
       <Setter Property="Cursor" Value="Hand" />
-      <Setter Property="ToolTip" Value="Двойной щелчок — окно игры этого персонажа на передний план" />
+      <Setter Property="ToolTip" Value="Двойной щелчок — окно игры этого персонажа на передний план; правый щелчок — меню" />
+      <Setter Property="ContextMenu" Value="{StaticResource CharacterTabMenu}" />
       <EventSetter Event="MouseDoubleClick" Handler="TabDoubleClick" />
       <Setter Property="Template">
         <Setter.Value>

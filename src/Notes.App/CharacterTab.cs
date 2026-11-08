@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -172,6 +172,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         StartCommand = new RelayCommand(Start, () => IsConnected && !IsRunning && !IsStopping);
         StopCommand = new RelayCommand(Stop, () => IsRunning);
         CancelLaunchCommand = new RelayCommand(CancelLaunch, () => IsLaunching);
+        LaunchOwnCommand = new RelayCommand(LaunchOwn, () => CanOpenCharacters && _wanted is not null);
 
         _log.Info("Запущено");
     }
@@ -434,6 +435,25 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         }
 
         Launch(account, profile, resume: null);
+    }
+
+    /// <summary>
+    /// ПКМ по вкладке → «Запустить клиент с персонажем»: персонаж вкладки ищется в «Персонажах» (тот же сервер и ник) и
+    /// открывается, как кнопкой «Открыть» там: уже в игре — подключаемся, нет — запуск клиента с входом.
+    /// </summary>
+    private void LaunchOwn()
+    {
+        if (_wanted is not { } nick || !CanOpenCharacters)
+            return;
+
+        var account = _book.Load(out _).FirstOrDefault(a => a.Is(_profile.Id, nick));
+        if (account is null || account.Login.Trim().Length == 0)
+        {
+            ShowHint(null, $"{nick} не записан в «Персонажах» с логином — добавьте его туда, чтобы запускать клиент.");
+            return;
+        }
+
+        OpenCharacter(account);
     }
 
     /// <summary>
@@ -714,6 +734,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     /// <summary>Остановить вход из «Персонажей» (клиент, который бот запустил, остаётся открытым).</summary>
     public ICommand CancelLaunchCommand { get; }
+    public ICommand LaunchOwnCommand { get; }
 
     private bool _isRunning;
 
