@@ -12,7 +12,8 @@ namespace Notes.Core.Brain;
 /// текущей точки (по дороге ничего не копаем), потом <see cref="GatherBehavior"/> (стоит раньше; что и где копать, говорит
 /// обход — <see cref="IGatherScope"/>) копает
 /// то, что задано у этой точки, в радиусе от неё; напавших бьёт бой. Копать больше нечего — к следующей точке. Двигаемся так, как стоял перс при «Старт»: в воздухе — летим
-/// на высоте точки (упал на землю — взлетаем), на земле — бежим с автопутём.
+/// на высоте точки (упал на землю — взлетаем; ниже точки больше чем на 3 м — сначала вертикально вверх на её высоту, потом
+/// к ней), на земле — бежим с автопутём.
 /// </summary>
 /// <param name="start">С какой точки начинать (с 0) — выбранная в окне при «Старт»; не настройка, в файл не пишется.</param>
 public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior, IRouteProgress, IGatherScope
@@ -22,6 +23,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     private const float MoveTolerance = 3f;
     // Столько раз подряд не дошли до точки (упёрлись) — пропускаем её
     private const int FailuresToSkip = 2;
+    // В полёте ниже точки больше чем на столько — сначала подъём на её высоту
+    private const float ClimbFirst = 3f;
 
     private int _index;
     // Долетели до текущей точки — теперь копаем у неё (сбрасывается при переходе к следующей)
@@ -34,6 +37,9 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     private bool _returning;
     // У точки всё выкопано — возвращаемся на неё, чтобы к следующей лететь от точки, а не от последнего ресурса
     private bool _leaving;
+    // Подъём на высоту точки перед полётом к ней; не поднялись (потолок, скала) — до следующей точки летим к ней напрямую
+    private MoveAction? _climb;
+    private bool _climbFailed;
 
     public string Name => "обход";
     public string? Status { get; private set; }
@@ -157,6 +163,24 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             return c.Submit(new FlyAction(up: true));
         }
 
+        // Ниже точки (после копки, ухода от моба) — сначала вертикально вверх на её высоту, потом к ней: не наискосок над мобами
+        if (_inAir == true && !_climbFailed && w.Host.Position.Height < point.Position.Height - ClimbFirst && distance > ArriveDistance)
+        {
+            Status = $"поднимаюсь на высоту точки {_index + 1}/{points.Count}, {point.Position.Height - w.Host.Position.Height:0} м";
+            if (pending is not null && ReferenceEquals(pending, _climb))
+                return true;
+
+            var climb = new MoveAction(new Position(w.Host.Position.X, point.Position.Height, w.Host.Position.Y), MoveTolerance, fly: true)
+                { Priority = ActionPriority.Background };
+            var climbing = pending is null ? c.Send(climb) : c.Replace(climb);
+            if (climbing == SubmitStatus.Sent)
+            {
+                _climb = climb;
+                c.Log.Info($"Поднимаюсь на высоту точки {_index + 1} (+{point.Position.Height - w.Host.Position.Height:0} м), потом к ней");
+            }
+            return climbing is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+        }
+
         // В воде — плывём в точку с её высотой: обычный ход держит глубину
         var move = _inAir == true
             ? new MoveAction(point.Position, MoveTolerance, fly: true) { Priority = ActionPriority.Background }
@@ -186,6 +210,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         _failures = 0;
         _returning = true;
         _leaving = false;
+        _climbFailed = false;
     }
 
     // Нужный обычный ресурс у точки, который не ляжет в сумку
@@ -201,6 +226,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         _arrived = false;
         _leaving = false;
         _failures = 0;
+        _climbFailed = false;
         c.Log.Info($"Точка {was + 1} — {why}; дальше {_index + 1}/{points.Count}");
     }
 
@@ -208,6 +234,17 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     {
         if (outcome.Action is not MoveAction move)
             return;
+        if (ReferenceEquals(move, _climb))
+        {
+            _climb = null;
+            // Подъём не дошёл — это не «не дойти до точки»: летим к ней напрямую
+            if (outcome.Status == ActionStatus.Rejected)
+            {
+                _climbFailed = true;
+                c.Log.Warning($"Не поднялся на высоту точки ({outcome.Details}) — лечу к ней напрямую");
+            }
+            return;
+        }
         if (outcome.Status == ActionStatus.Confirmed)
         {
             _failures = 0;
@@ -233,6 +270,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         _lastVisited = null;
         _returning = false;
         _leaving = false;
+        _climb = null;
+        _climbFailed = false;
         Status = null;
     }
 }

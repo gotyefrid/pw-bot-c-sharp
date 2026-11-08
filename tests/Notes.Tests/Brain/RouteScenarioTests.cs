@@ -101,6 +101,8 @@ public class RouteScenarioTests
     {
         _settings.Route.Points = [RoutePoint.At("Над рудой", new Position(50, 30, 0)), RoutePoint.At("Дальше", new Position(100, 30, 0))];
         _world.Flying = true;
+        // Уже на высоте точек — сразу к ней, без подъёма
+        _world.Position = new Position(0, 30, 0);
 
         Tick();
         Assert.Equal(["fly (50,0; 0,0; h 30,0)"], _actions.Calls);
@@ -497,8 +499,15 @@ public class RouteScenarioTests
         _world.Ground.Remove(ore);
         Tick();
         Tick();
-        Assert.Equal("fly (0,0; 0,0; h 30,0)", _actions.Calls.Last());
+        // Ниже точки на 30 м — сначала вертикально вверх на месте, потом на её высоте к ней (не наискосок)
+        Assert.Equal("fly (30,0; 0,0; h 30,0)", _actions.Calls.Last());
         Assert.Contains(_log, e => e.Message == "Точка 1 — здесь всё; возвращаюсь на неё, от неё — к следующей");
+        Assert.Contains(_log, e => e.Message == "Поднимаюсь на высоту точки 1 (+30 м), потом к ней");
+
+        _world.Position = new Position(30, 30, 0);
+        Tick();
+        Tick();
+        Assert.Equal("fly (0,0; 0,0; h 30,0)", _actions.Calls.Last());
 
         _world.Position = new Position(0, 30, 0);
         Tick();
@@ -595,6 +604,51 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void InAirClimbIsSentOnceWhileRising()
+    {
+        // Подъём идёт — не шлём его заново каждый снимок
+        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0))];
+        _world.Flying = true;
+        _world.Position = new Position(0, 0, 0);
+
+        Tick();
+        _world.Position = new Position(0, 10, 0);
+        Tick();
+        _world.Position = new Position(0, 20, 0);
+        Tick();
+
+        Assert.Equal(["fly (0,0; 0,0; h 40,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void InAirAtPointHeightFliesStraightToPoint()
+    {
+        // Уже на высоте точки (чуть ниже — меньше 3 м) — сразу к ней
+        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0))];
+        _world.Flying = true;
+        _world.Position = new Position(0, 38, 0);
+
+        Tick();
+
+        Assert.Equal(["fly (100,0; 0,0; h 40,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void InAirClimbNotReachedFliesToPointDirectly()
+    {
+        // Не поднялись (потолок, скала над головой) — стоим 2,5 с: дальше к точке напрямую, точку не пропускаем
+        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0)), RoutePoint.At("2", new Position(300, 40, 0))];
+        _world.Flying = true;
+        _world.Position = new Position(0, 0, 0);
+
+        for (var i = 0; i < 20; i++)
+            Tick();
+
+        Assert.Equal(["fly (0,0; 0,0; h 40,0)", "fly (100,0; 0,0; h 40,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Не поднялся на высоту точки"));
+    }
+
+    [Fact]
     public void DangerMarginIsAtLeastOneMetre()
     {
         var settings = new BotSettings();
@@ -641,6 +695,7 @@ public class RouteScenarioTests
         // Долетели (с высотой) — копаем камень у точки, к следующей не уходим
         _settings.Route.Points = [RoutePoint.At("1", new Position(50, 40, 0)), RoutePoint.At("2", new Position(200, 40, 0))];
         _world.Flying = true;
+        _world.Position = new Position(0, 40, 0);
         Tick();
         _world.Position = new Position(50, 20, 0);
         AddResource(0xC0000001, 80, "Залежи камня");
