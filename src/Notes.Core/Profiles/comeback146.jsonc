@@ -602,8 +602,10 @@
     "cooldownLeft": "0x10",
     "cooldownFull": "0x14",
     "flags": "0x18",
-    // Дальность скилла — см. comeback136.jsonc; здесь не проверено
-    "range": { "element": "", "stub": "", "kind": "", "rangeKind": "", "scaled": "", "function": "" }
+    // Дальность скилла — как в 1.3.6 (что это и как найти — см. comeback136.jsonc): GetPrayRange здесь — ElementSkill.dll RVA
+    // 0x114320, те же смещения (+0x1C, +0x81, +0x59, функция в таблице +0x1C). Проверено 09.11 на ClaudeCot: номер скилла у
+    // ElementSkill +0x24 совпал у всех пяти, функция «Жалящего роя» и «Исцеления питомца» — «ур × 0,9 + 16,5», как в 1.3.6
+    "range": { "element": "0x4", "stub": "0x4", "kind": "0x1C", "rangeKind": "0x81", "scaled": "0x59", "function": "0x1C" }
   },
 
   // ID скиллов друида — те же, что в 1.3.6 (167 «Городской портал»)
