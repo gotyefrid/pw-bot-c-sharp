@@ -316,6 +316,72 @@ public class ActionRunnerTests
         Assert.Equal(["fly-toggle"], _actions.Calls);
     }
 
+    // Было: «сесть» — сделано, как только слез с полётника, а перс ещё падал с высоты, и следующие шаги (пет, цель) не срабатывали
+    [Fact]
+    public void LandingConfirmedOnlyWhenFallEnds()
+    {
+        _world.Flying = true;
+        _world.Position = new Position(0, 100, 0);
+        Assert.True(_runner.Submit(Bot, new FlyAction(up: false), _world.Snapshot()).Sent);
+        _world.Flying = false;
+
+        // Падает дольше прежних 5 с
+        for (var h = 98f; h > 60; h -= 2)
+        {
+            _world.Position = new Position(0, h, 0);
+            Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        }
+
+        // Встал: высота стоит на двух снимках подряд (сравнений с прошлым — два) — сделано
+        Assert.Empty(_runner.Update(_world.Wait(0.25).Snapshot()));
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.25).Snapshot())).Status);
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LandingInWaterConfirmedAtOnce()
+    {
+        _world.Flying = true;
+        Assert.True(_runner.Submit(Bot, new FlyAction(up: false), _world.Snapshot()).Sent);
+        _world.Flying = false;
+        _world.InWater = true;
+
+        Assert.Equal(ActionStatus.Confirmed, Single(_runner.Update(_world.Wait(0.25).Snapshot())).Status);
+    }
+
+    [Fact]
+    public void LandingNotAcceptedIsRejectedSoTheTripPressesAgain()
+    {
+        _world.Flying = true;
+        Assert.True(_runner.Submit(Bot, new FlyAction(up: false), _world.Snapshot()).Sent);
+
+        Assert.Empty(_runner.Update(_world.Wait(9).Snapshot()));
+        var outcome = Single(_runner.Update(_world.Wait(1.5).Snapshot()));
+
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+        Assert.Contains("не слез", outcome.Details);
+    }
+
+    [Fact]
+    public void EndlessFallCountsAsLanded()
+    {
+        // Высота меняется всё время (качает, скользит) — не ждать вечно и не жать «Полёт» снова: взлетел бы
+        _world.Flying = true;
+        _world.Position = new Position(0, 100, 0);
+        Assert.True(_runner.Submit(Bot, new FlyAction(up: false), _world.Snapshot()).Sent);
+        _world.Flying = false;
+
+        ActionOutcome? outcome = null;
+        for (var i = 0; i < 300 && outcome is null; i++)
+        {
+            _world.Position = new Position(0, 100 - i % 2, 0);
+            outcome = _runner.Update(_world.Wait(0.25).Snapshot()).SingleOrDefault();
+        }
+
+        Assert.Equal(ActionStatus.Confirmed, outcome!.Status);
+        Assert.Contains("падение не кончилось", outcome.Details);
+    }
+
     [Theory]
     [InlineData(true, true)]    // уже в воздухе — «взлететь» нажало бы «сесть»
     [InlineData(false, false)]  // уже на земле

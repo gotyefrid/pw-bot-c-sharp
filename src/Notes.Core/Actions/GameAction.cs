@@ -973,14 +973,33 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
 /// </summary>
 public sealed class FlyAction(bool up) : GameAction
 {
+    /// <summary>
+    /// Слез с полётника — «не летит», но ещё падает до земли (с высоты в десятки метров — дольше 5 с): высота между снимками
+    /// меняется меньше этого (как в памяти: 0,05 — 5 мм) — стоит. Флага «на земле» в снимке нет.
+    /// </summary>
+    public const float StillFall = 0.05f;
+
+    /// <summary>Столько снимков подряд высота стоит — посадка закончена.</summary>
+    public const int StillSnapshots = 2;
+
+    /// <summary>«Не летит» после нажатия — за 0,3…1,1 с (1.4.6); не слез за столько — игра не приняла, путь жмёт снова.</summary>
+    public static readonly TimeSpan DismountMax = TimeSpan.FromSeconds(10);
+
+    /// <summary>Падение не кончилось за столько — считаем, что сел (не ждать вечно и не жать «Полёт» снова — взлетит).</summary>
+    public static readonly TimeSpan FallMax = TimeSpan.FromSeconds(60);
+
+    private float? _lastHeight;
+    private int _still;
+    private DateTime? _dismountedAt;
+
     public bool Up { get; } = up;
     public override string Name => Up ? "взлететь" : "сесть";
     public override ActionSlot Slot => ActionSlot.Flight;
     public override bool SameInGame(GameAction pending) => pending is FlyAction fly && fly.Up == Up;
     public override ActionResource Resource => ActionResource.Body;
 
-    // Взлёт ~1 с; «не летит» после посадки — тоже за 0,3…1,1 с (1.4.6), с запасом: не сели — путь жмёт снова, а не ждёт полминуты
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(Up ? 5 : 10);
+    // Взлёт ~1 с. «Сесть» — пока не встал на землю: слезть и долететь вниз (сроки — в Check, этот — с запасом)
+    public override TimeSpan Timeout => Up ? TimeSpan.FromSeconds(5) : DismountMax + FallMax + TimeSpan.FromSeconds(5);
 
     public override string? Precondition(WorldState now)
         => now.Host.Flying switch
@@ -993,8 +1012,27 @@ public sealed class FlyAction(bool up) : GameAction
 
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.ToggleFly();
 
+    /// <summary>
+    /// «Взлететь» — в воздухе. «Сесть» — сделано, когда стоит на земле: слез с полётника и высота перестала меняться (в воде — сразу:
+    /// там качает). Призыв пета, выбор цели и прочее в падении не срабатывают — ждущие этот шаг идут дальше только с земли.
+    /// </summary>
     public override Verdict Check(WorldState start, WorldState now)
-        => now.Host.Flying == Up ? Verdict.Confirmed() : Verdict.Pending;
+    {
+        if (Up)
+            return now.Host.Flying == true ? Verdict.Confirmed() : Verdict.Pending;
+        if (now.Host.Flying != false)
+            return now.Time - start.Time >= DismountMax ? Verdict.Rejected("не слез с полётника") : Verdict.Pending;
+        if (now.Host.InWater == true)
+            return Verdict.Confirmed("в воде");
+
+        _dismountedAt ??= now.Time;
+        var height = now.Host.Position.Height;
+        _still = _lastHeight is { } was && Math.Abs(was - height) <= StillFall ? _still + 1 : 0;
+        _lastHeight = height;
+        if (_still >= StillSnapshots)
+            return Verdict.Confirmed();
+        return now.Time - _dismountedAt >= FallMax ? Verdict.Confirmed($"падение не кончилось за {FallMax.TotalSeconds:0} с") : Verdict.Pending;
+    }
 }
 
 /// <summary>Призвать пета. Подтверждение — пет из этой клетки призван.</summary>
