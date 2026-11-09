@@ -1376,6 +1376,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     public bool ShowMobsTab => Settings.Mode == BotMode.FarmMobs;
     public bool ShowClickerTab => Settings.Mode == BotMode.Clicker;
     public bool ShowQuestsTab => Settings.Mode == BotMode.LevelUp;
+    // Кликер — только свои шаги: бой, лут, банки и пет из «Общего» он не использует
+    public bool ShowCommonTab => Settings.Mode != BotMode.Clicker;
 
     private void ModeChanged()
     {
@@ -1384,15 +1386,17 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowClickerTab));
         OnPropertyChanged(nameof(ShowMobsTab));
         OnPropertyChanged(nameof(ShowQuestsTab));
+        OnPropertyChanged(nameof(ShowCommonTab));
         // Вкладка исчезла — на «Бот»
         if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab) || (Tab == TabMobs && !ShowMobsTab)
-            || (Tab == TabQuests && !ShowQuestsTab))
+            || (Tab == TabQuests && !ShowQuestsTab) || (Tab == TabCommon && !ShowCommonTab))
             Tab = 0;
     }
 
     public const int TabMobs = 1;
     public const int TabResources = 3;
     public const int TabClicker = 4;
+    public const int TabCommon = 5;
     public const int TabQuests = 6;
 
     /// <summary>Чьи настройки сейчас на вкладках «Мобы» и «Общее».</summary>

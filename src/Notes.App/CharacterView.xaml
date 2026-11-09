@@ -191,7 +191,8 @@
                        Visibility="{Binding ShowMobsTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Задания" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=6}"
                        Visibility="{Binding ShowQuestsTab, Converter={StaticResource Visible}}" />
-          <RadioButton Style="{StaticResource Segment}" Content="Общее" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=5}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Общее" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=5}"
+                       Visibility="{Binding ShowCommonTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Чат" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=7}" />
           <RadioButton Style="{StaticResource Segment}" Content="Лог" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=2}" />
         </StackPanel>
