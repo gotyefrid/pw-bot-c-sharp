@@ -30,6 +30,12 @@ public interface IGatherScope
     /// <summary>Подлетать к ресурсу сверху: сначала на своей высоте точно над ним, потом копать (игра опустит вертикально).</summary>
     bool FromAbove(BrainContext c);
 
+    /// <summary>
+    /// На какой высоте лететь над ресурсом при подлёте сверху: ниже неё (выкопали предыдущий) — сначала вертикально вверх на неё.
+    /// null — на своей высоте.
+    /// </summary>
+    float? FlightHeight(BrainContext c);
+
     /// <summary>Опасный моб, через зону которого проходит путь от <paramref name="from"/> до <paramref name="to"/>; null — путь чист.</summary>
     NpcInfo? GuardOnPath(BrainContext c, Position from, Position to);
 }
@@ -50,5 +56,6 @@ public sealed class FarmAreaScope : IGatherScope
     public string Where(BrainContext c) => "";
     public NpcInfo? Guard(BrainContext c, Position p) => null;
     public bool FromAbove(BrainContext c) => false;
+    public float? FlightHeight(BrainContext c) => null;
     public NpcInfo? GuardOnPath(BrainContext c, Position from, Position to) => null;
 }

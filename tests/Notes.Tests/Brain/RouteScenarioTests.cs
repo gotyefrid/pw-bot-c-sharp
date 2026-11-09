@@ -674,6 +674,61 @@ public class RouteScenarioTests
         Assert.Equal(1, _actions.Calls.Count(c => c.StartsWith("gather")));
     }
 
+    // Над рудой (в 30 м от точки) на высоте точки, вниз, выкопали — руда пропала; перс у земли
+    private void DigOreFromAbove()
+    {
+        var ore = AddResource(0xC0000001, 30, "Железная руда");
+        Tick();
+        Tick();
+        _world.Position = new Position(30, 30, 0);
+        Tick();
+        Tick();
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)", "gather C0000001"], _actions.Calls);
+        _world.Position = new Position(30, 0, 0);
+        _world.Gather = new GatherProgress(true, 1000, 5000);
+        Tick();
+        _world.Gather = new GatherProgress(false, 5000, 5000);
+        _world.Ground.Remove(ore);
+        _actions.Calls.Clear();
+    }
+
+    [Fact]
+    public void AfterDiggingNextResourceAtPointIsReachedFromPointHeight()
+    {
+        // Выкопали руду у земли, у точки есть ещё камень: сначала вертикально вверх на высоту точки, оттуда над камнем, потом копать
+        HoverAtPoint();
+        AddResource(0xC0000002, -40, "Залежи камня");
+        DigOreFromAbove();
+
+        Tick();
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Поднимаюсь на высоту точки (+30 м), потом над Залежи камня"));
+
+        _world.Position = new Position(30, 30, 0);
+        Tick();
+        Tick();
+        Assert.Equal(["fly (30,0; 0,0; h 30,0)", "fly (-40,0; 0,0; h 30,0)"], _actions.Calls);
+
+        _world.Position = new Position(-40, 30, 0);
+        Tick();
+        Tick();
+        Assert.Equal("gather C0000002", _actions.Calls.Last());
+    }
+
+    [Fact]
+    public void NextResourceRightBesideIsDugWithoutClimb()
+    {
+        // Следующий ресурс в 4 м от выкопанного — вверх незачем, копаем сразу
+        HoverAtPoint();
+        AddResource(0xC0000002, 34, "Залежи камня");
+        DigOreFromAbove();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["gather C0000002"], _actions.Calls);
+    }
+
     // Обход в полёте: точка на 30 м над землёй, перс на ней
     private void HoverAtPoint()
     {

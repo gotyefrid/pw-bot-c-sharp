@@ -66,6 +66,9 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     // Обход в полёте — к ресурсу сверху: по земле и в воде путь выбирает игра, как раньше
     public bool FromAbove(BrainContext c) => _inAir == true && c.World.Host.Flying == true;
 
+    // Между ресурсами у точки — на высоте самой точки: она записана в полёте над мобами и рельефом
+    public float? FlightHeight(BrainContext c) => FromAbove(c) ? Current(c)?.Position.Height : null;
+
     public NpcInfo? GuardOnPath(BrainContext c, Position from, Position to) => DangerZones.GuardOnPath(c.World, from, to, c.Settings.Route);
 
     private RoutePoint? Current(BrainContext c)

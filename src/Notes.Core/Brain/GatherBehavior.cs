@@ -19,6 +19,8 @@ namespace Notes.Core.Brain;
 /// Обход в полёте (<see cref="IGatherScope.FromAbove"/>): к ресурсу ниже перса сначала летим сами на своей высоте точно над ним,
 /// потом «копать» — игра ведёт к ресурсу по прямой, то есть вертикально вниз, мимо мобов вокруг. Путь (к точке над ресурсом и вниз)
 /// тоже проверяем на зоны опасных мобов. Не долетели над ресурсом дважды (упёрлись) — копаем как раньше, путь выберет игра.
+/// Выкопали ресурс, у точки есть ещё — сначала вертикально вверх на высоту точки (<see cref="IGatherScope.FlightHeight"/>), оттуда
+/// над следующим и вниз; ресурс в <see cref="NoClimbWithin"/> м — копаем сразу, без подъёма.
 /// </para>
 /// </summary>
 public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope? scope = null) : IBehavior
@@ -34,6 +36,9 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
     // Над ресурсом — ближе этого по горизонтали; ресурс ниже перса меньше чем на столько — подлетать сверху незачем
     private const float AboveTolerance = 2f;
     private const float MinDrop = 3f;
+    // Ниже высоты полёта больше чем на столько — сначала вверх; ресурс ближе этого по карте — подниматься незачем, копаем сразу
+    private const float ClimbFirst = 3f;
+    private const float NoClimbWithin = 5f;
     // Столько раз не долетели над ресурсом — копаем без подлёта
     private const int AboveFailuresToGiveUp = 2;
 
@@ -115,13 +120,17 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
 
         if (Over(c, resource) is { } over)
         {
-            Status = $"лечу над {resource.Name}, {resource.Offset.Horizontal:0} м";
+            var host = w.Host.Position;
+            var climb = host.HorizontalDistanceTo(over) <= AboveTolerance;
+            Status = climb ? $"поднимаюсь на высоту точки, потом над {resource.Name}" : $"лечу над {resource.Name}, {resource.Offset.Horizontal:0} м";
             var move = new MoveAction(over, AboveTolerance, fly: true) { Priority = ActionPriority.Background };
             var flown = c.Send(move);
             if (flown == SubmitStatus.Sent)
             {
                 _above = resource;
-                c.Log.Info($"Лечу над {resource.Name}{_scope.Where(c)}, {resource.Offset}");
+                c.Log.Info(climb
+                    ? $"Поднимаюсь на высоту точки (+{over.Height - host.Height:0} м), потом над {resource.Name}{_scope.Where(c)}, {resource.Offset}"
+                    : $"Лечу над {resource.Name}{_scope.Where(c)}, {resource.Offset}");
             }
             return flown is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
         }
@@ -183,16 +192,29 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         }
     }
 
-    // Куда лететь сначала — на своей высоте над ресурсом; null — подлёт сверху не нужен (не обход в полёте, ресурс не ниже,
-    // уже над ним, не долетали дважды) — сразу копать
+    // Куда лететь сначала: ниже высоты полёта — вертикально вверх на неё; иначе — на этой высоте над ресурсом; null — подлёт сверху
+    // не нужен (не обход в полёте, ресурс не ниже, уже над ним, не долетали дважды) — сразу копать
     private Position? Over(BrainContext c, GroundItem item)
     {
         var host = c.World.Host.Position;
-        if (!_scope.FromAbove(c) || item.Position.Height > host.Height - MinDrop
-            || host.HorizontalDistanceTo(item.Position) <= AboveTolerance
+        var horizontal = host.HorizontalDistanceTo(item.Position);
+        if (!_scope.FromAbove(c) || horizontal <= AboveTolerance
             || (_aboveFailures.TryGetValue(item.Id, out var failures) && failures >= AboveFailuresToGiveUp))
             return null;
-        return new Position(item.Position.X, host.Height, item.Position.Y);
+
+        var height = Height(c, horizontal);
+        if (item.Position.Height > height - MinDrop)
+            return null;
+        return host.Height < height - ClimbFirst
+            ? new Position(host.X, height, host.Y)
+            : new Position(item.Position.X, Math.Max(host.Height, height), item.Position.Y);
+    }
+
+    // Высота подлёта: не ниже высоты полёта точки; ресурс рядом — своя
+    private float Height(BrainContext c, float horizontal)
+    {
+        var host = c.World.Host.Position.Height;
+        return horizontal > NoClimbWithin && _scope.FlightHeight(c) is { } flight ? Math.Max(host, flight) : host;
     }
 
     // Не в зоне опасного моба, и путь к нему (сверху — над ним и вниз) не через зону; иначе — говорим (раз в 5 мин на ресурс) и не летим
@@ -209,11 +231,17 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         if (!_scope.FromAbove(c))
             return true;
 
-        // Сверху путь — на своей высоте к точке над ресурсом и вертикально вниз; без подлёта (уже над ним, не долетали) — прямо к нему
+        // Сверху путь — (вертикально вверх на высоту полёта,) к точке над ресурсом и вертикально вниз; без подлёта (уже над ним,
+        // не долетали) — прямо к нему
         var host = c.World.Host.Position;
-        var onPath = Over(c, item) is { } top
-            ? _scope.GuardOnPath(c, host, top) ?? _scope.GuardOnPath(c, top, item.Position)
-            : _scope.GuardOnPath(c, host, item.Position);
+        NpcInfo? onPath;
+        if (Over(c, item) is { } first)
+        {
+            var top = new Position(item.Position.X, first.Height, item.Position.Y);
+            onPath = _scope.GuardOnPath(c, host, first) ?? _scope.GuardOnPath(c, first, top) ?? _scope.GuardOnPath(c, top, item.Position);
+        }
+        else
+            onPath = _scope.GuardOnPath(c, host, item.Position);
         if (onPath is null)
             return true;
 
