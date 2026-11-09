@@ -7,5 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Notes.Core\Notes.Core.csproj" />
+    <!-- Картинка карты проходимости (movemap) -->
+    <Reference Include="System.Drawing" />
   </ItemGroup>
 </Project>

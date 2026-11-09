@@ -94,6 +94,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => CodeCommands.Run(profile, game, rest));
                 case "ui":
                     return WithClient(rest, (profile, game) => UiCommands.Run(profile, game, rest));
+                case "movemap":
+                    return WithClient(rest, (profile, game) => MoveMapCommand.Run(profile, game, rest));
             }
         }
         catch (Exception e)
@@ -137,6 +139,7 @@ internal static class Program
         Console.WriteLine("  ui        [all]  окна клиента: этап входа, пинг, поле логина, персонажи на выборе, сообщение; тексты открытых окон (all — и закрытых)");
         Console.WriteLine("  ui scan   [bytes] [Win_…] [0xАДРЕС [find ТЕКСТ|strings|raw файл]]  поиск смещений окон на новом клиенте");
         Console.WriteLine("  ui call   text account|password [ТЕКСТ] | login | role N | play | agree | ok  кнопки экрана входа функциями игры (ok — «Да» окна-сообщения)");
+        Console.WriteLine(MoveMapCommand.Usage);
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
         Console.WriteLine();
         Console.WriteLine("ЗАПУСК КЛИЕНТА (открывает игру — запускает владелец):");
