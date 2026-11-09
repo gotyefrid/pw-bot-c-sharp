@@ -49,6 +49,7 @@ public class UiStringsTests
     // interfaces, PW Classic — только внутри interfaces.pck
     [Theory]
     [InlineData("comeback146", "NOTES_COMEBACK146_DIR")]
+    [InlineData("comeback136", "NOTES_COMEBACK136_DIR")]
     public void RealClientHasWhisperSentLine(string server, string variable)
     {
         var directory = Environment.GetEnvironmentVariable(variable) ?? "";

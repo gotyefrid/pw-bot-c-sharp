@@ -582,7 +582,9 @@
   // Окно лавки (CDlgShop, имя «Win_Shop») — поле "shopDialog" того же CECGameUIMan. Как найти на другом клиенте: в функции,
   // что создаёт все окна мира, — строка "Win_Shop" и RTTI CDlgShop (.?AVCDlgShop@@), результат dynamic_cast кладётся в
   // [this+0x7E0] (как в 1.4.6)
-  "ui": { "managers": "0x10", "inGame": "0x8", "active": "0xC", "npcDialog": "0x734", "shopDialog": "0x7E0", "whisperSentText": "" },
+  // Строка «Вы говорите с &%s&: %s» — номер 233 в interfaces\ingame.stf, как в 1.4.6 (что это и как найти — там); тот же текст
+  // и в interfaces.pck
+  "ui": { "managers": "0x10", "inGame": "0x8", "active": "0xC", "npcDialog": "0x734", "shopDialog": "0x7E0", "whisperSentText": "233" },
 
   // Экран входа и сообщения — окна клиента изнутри (как и что это — см. pwclassic136.jsonc). Проверено 06.11 на живом клиенте
   // (Probe ui scan): менеджер CECLoginUIMan, массив окон в +0xC4 (у PW Classic +0x414), окна Win_Agreement, Win_Login,
@@ -744,6 +746,20 @@
     // начинается с «mov dword [ebp-4], 0x23» (C7 45 FC 23 00 00 00) — одно место в exe; её зовёт обработчик клика по NPC.
     "npcHello": { "rva": "0x1CB840", "convention": "thiscall", "this": "session", "args": [ "wid" ],
                   "signature": "55 8B EC 83 EC 08 56 8D 45 FC C7 45 FC 23 00 00 00" },
+
+    // Написать в личку — CECGameSession::SendPrivateChatData, как в 1.4.6 (аргументы, что делает и как найти — там): метод
+    // объекта связи, ret 0x18, 6 аргументов. Сигнатура 1.4.6 с другим полем в одном месте («lea ecx, [edi+0x1B50]»), одно
+    // место в exe; её зовёт окно чата, после неё — «push 0xE9» и addChatMessage. В игре ещё не проверено
+    "privateChat": { "rva": "0x415250", "convention": "thiscall", "this": "session",
+                     "args": [ "data", "text", "0", "wid", "0xFFFFFFFF", "0xFFFFFFFF" ],
+                     "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 83 EC 64 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 89 4D F0 8B 5D 0C 85 DB 0F 84 ?? ?? ?? ?? 66 83 3B 00 0F 84 ?? ?? ?? ?? A1 ?? ?? ?? ?? 8B 75 14 89 75 0C 8B 40 1C 8B 78 28 8D 45 0C 50 8D 8F 50 1B 00 00 E8 ?? ?? ?? ?? C7 00 60 EA 00 00" },
+
+    // Дописать строку в чат у себя — CECGameUIMan::AddChatMessage, как в 1.4.6 (аргументы и как найти — там): метод окон мира
+    // (см. "ui"), ret 0x20, 8 аргументов; окно чата зовёт её после privateChat с «push 4». Начало то же, кроме размера стека и
+    // порядка чтения аргументов; одно место в exe. В игре ещё не проверено
+    "addChatMessage": { "rva": "0x2C8780", "convention": "thiscall", "this": "gameUi",
+                        "args": [ "data", "channel", "wid", "0", "0", "0", "0", "0" ],
+                        "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 81 EC D8 09 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 F0 53 56 57 50 8D 45 F4 64 A3 00 00 00 00 8B F9 89 BD AC F6 FF FF 8B 4D 08 8A 45 0C 8A 55 1C" },
 
     // (0xFC530) Встать в ближайшем городе после смерти — c2s 0x04, кнопка «Ближний город» окна смерти (что делает и как найти —
     // в 1.4.6). Сигнатура из 1.4.6 подошла как есть, одно место в exe; тело функции то же, ret 4. В игре ещё не нажато
