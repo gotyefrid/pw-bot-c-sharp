@@ -38,6 +38,7 @@ public sealed class ObstacleWalk
     private PathPoint _lastPlace;
     private DateTime _movedAt;
     private bool _resent;
+    private ActionPriority _priority = ActionPriority.Normal;
     private int _replans;
 
     /// <summary>Идём ли сейчас в обход (для показа).</summary>
@@ -47,8 +48,10 @@ public sealed class ObstacleWalk
     /// Ход обхода к <paramref name="target"/>: true — идём в обход (ход занят); false — обход не нужен или закончен (прямая
     /// до цели свободна) — делать как раньше.
     /// </summary>
-    public bool Step(BrainContext c, Position target, string what)
+    /// <param name="priority">Важность шагов: у копания фоновая — бой, если нападут, должен их перебить.</param>
+    public bool Step(BrainContext c, Position target, string what, ActionPriority priority = ActionPriority.Normal)
     {
+        _priority = priority;
         var w = c.World;
         var me = w.Host.Position;
         var here = new PathPoint(me.X, me.Y);
@@ -165,7 +168,7 @@ public sealed class ObstacleWalk
 
     private bool Send(BrainContext c, Position me, PathPoint point, bool mine)
     {
-        var move = new MoveAction(new Position(point.X, me.Height, point.Y), Reached);
+        var move = new MoveAction(new Position(point.X, me.Height, point.Y), Reached) { Priority = _priority };
         var status = mine ? c.Replace(move) : c.Send(move);
         if (status is SubmitStatus.Sent or SubmitStatus.AlreadyPending)
         {

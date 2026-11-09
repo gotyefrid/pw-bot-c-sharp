@@ -126,6 +126,14 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
             return flown is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
         }
 
+        // Ресурс за камнем, домом или деревом — сначала обходим: копание «как мышкой» бежит по прямой и упирается. Шаги фоновые,
+        // как сам бег к ресурсу: нападут — бой их перебьёт
+        if (_walk.Step(c, resource.Position, resource.Name, ActionPriority.Background))
+        {
+            Status = $"обхожу препятствие к {resource.Name}, {resource.Offset.Direct:0} м";
+            return true;
+        }
+
         Status = $"иду к {resource.Name}, {resource.Offset.Direct:0} м";
         var gather = new GatherAction(resource);
         var sent = c.Send(gather);
@@ -308,8 +316,11 @@ public sealed class GatherBehavior(IReadOnlyCollection<uint> tools, IGatherScope
         c.Log.Warning($"{gather.Item.Name}: {why} — не копаю {SkipFor.TotalMinutes:0} мин");
     }
 
+    private readonly ObstacleWalk _walk = new();
+
     public void Reset()
     {
+        _walk.Reset();
         _skipped.Clear();
         _knockdowns.Clear();
         _notStarted.Clear();
