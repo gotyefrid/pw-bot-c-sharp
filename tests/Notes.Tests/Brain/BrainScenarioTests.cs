@@ -1117,6 +1117,32 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void RunningMacroIsNotPressedAgain()
+    {
+        // Макрос ещё идёт — не перезапускаем; кончился — жмём снова
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackMacro = 2;
+        _world.Macros.Add(new MacroInfo(2, 7));
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 2, hp: 100).Wid;
+        int Pressed() => _actions.Calls.Count(c => c == "macro 2");
+
+        _world.MacroRunning = false;
+        Tick();
+        Assert.Equal(1, Pressed());
+
+        _world.MacroRunning = true;
+        Tick(1.5);
+        Tick(1.5);
+        Tick(1.5);
+        Assert.Equal(1, Pressed());
+
+        _world.MacroRunning = false;
+        Tick(0.1);
+        Assert.Equal(2, Pressed());
+    }
+
+    [Fact]
     public void MissingMacroIsNotPressed()
     {
         // Макрос удалили в игре: пустой не жмём (в нём мусор), в лог — выбрать другой

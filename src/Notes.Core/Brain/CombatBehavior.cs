@@ -298,6 +298,10 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
             return false;
         }
 
+        // Макрос ещё идёт — не жмём: повторный запуск начал бы его сначала. Флаг не прочитан (null) — жмём по таймеру, как раньше
+        if (c.World.MacroRunning == true)
+            return false;
+
         if (c.Now - _lastMacro < MacroPeriod || c.Send(new MacroAction(macro)) != SubmitStatus.Sent)
             return false;
 
