@@ -3,6 +3,7 @@
 
   Клиент ветки Comeback: из 15 функций comeback136 9 нашлись ровно в одном месте. Поэтому образец — comeback136.jsonc
   (там подробно, что каждое поле значит). Старый клиент elementclient.exe бот не поддерживает.
+  Адреса функций — клиента client.exe от 07.11.2026 (обновился с сервера); смещения полей после обновления не сверялись.
 
   Как переносили (08.10.2026):
     1) функции — по сигнатурам comeback136 (Probe sigcheck --server comeback136);
@@ -217,7 +218,7 @@
     "gatherTotal": "0xB20",
     // Менеджер петов: 0x1948 → 0x14F0 (4). Probe port: призыв/отзыв видны (клетка и WID пета)
     "petManager": "0x14F0",
-    // Менеджер работ: 0x1930 → 0x14D8 (24); его же берёт hostPickupObject (0x3E5150: mov ecx, [edi+0x14D8])
+    // Менеджер работ: 0x1930 → 0x14D8 (24); его же берёт hostPickupObject (в нём «mov ecx, [edi+0x14D8]»)
     "workMan": "0x14D8",
     // Сумка: 0x1090 → 0x1078 (33). Probe port: 26 предметов, банки и корм на местах, кирка 3073
     "inventory": "0x1078",
@@ -735,27 +736,27 @@
     // сервера. Пакет 6 байт: [команда:2][откуда][куда][число:2]. Как найти на другом клиенте: c2s-функция, пишущая команду 0x0D
     // (mov eax, 0xD … mov word [esi], ax); одно место в exe.
     // В сигнатуре «mov ecx, ??» — адрес глобального объекта (выделение пакета): он свой у каждой сборки клиента, поэтому не
-    // сверяется. Адрес — клиента от 07.11
+    // сверяется
     "bagMove": { "rva": "0x510AA0", "convention": "stdcall", "args": [ "from", "to", "count" ],
                  "signature": "55 8B EC 53 56 8B 35 ?? ?? ?? ?? 8B 4E 1C 8B C1 8B 51 2C 85 D2 74 ?? 8B 92 ?? ?? ?? ?? 85 D2 74 ?? 8B 5D 08 85 DB 78 ?? 3B 5A 10 7D ?? 8B 42 0C 8B 14 98 8B C1 85 D2 74 ?? C6 42 33 01 8B 46 1C 8B 40 2C 8B 5D 0C 85 C0 74 ?? 8B 80 ?? ?? ?? ?? 85 C0 74 ?? 85 DB 78 ?? 3B 58 10 7D ?? 8B 40 0C 8B 04 98 85 C0 74 ?? C6 40 33 01 6A 06 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 0D ?? ?? ?? ?? B8 0D 00 00 00 66 89 06 8B 45 08 88 46 02 66 8B 45 10 56 68 AF 00 00 00 88 5E 03 66 89 46 04 8B 49 20 68 A9 00 00 00 E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 5E 5B 5D C2 0C 00" },
 
     // Начать разговор с NPC — c2s 0x23, как клик по нему: сервер отвечает списком услуг, клиент открывает окно Win_NPC. Метод
     // объекта связи (this = [[база]+0x20], ret 4), аргумент — WID NPC; пакет 6 байт. Как найти на другом клиенте: функция
     // начинается с «mov dword [ebp-4], 0x23» (C7 45 FC 23 00 00 00) — одно место в exe; её зовёт обработчик клика по NPC.
-    "npcHello": { "rva": "0x230A10", "convention": "thiscall", "this": "session", "args": [ "wid" ],
+    "npcHello": { "rva": "0x230B80", "convention": "thiscall", "this": "session", "args": [ "wid" ],
                   "signature": "55 8B EC 83 EC 08 56 8D 45 FC C7 45 FC 23 00 00 00" },
 
     // Написать в личку — CECGameSession::SendPrivateChatData, как в Comeback 1.4.6 (что делает и как найти — там), но ret 0x1C:
     // 7 аргументов — ник, текст, канал, WID получателя и 12 байт, которые функция не читает (ссылки на предмет в личке тут
     // нет; окно чата кладёт их «sub esp, 0xC» без записи). Сигнатура 1.4.6 с другими размером стека и полями, одно место в
-    // exe; её зовёт окно чата, после неё — «push 0xE9» и addChatMessage. Адрес — клиента от 07.11. В игре ещё не проверено
+    // exe; её зовёт окно чата, после неё — «push 0xE9» и addChatMessage. В игре ещё не проверено
     "privateChat": { "rva": "0x50A690", "convention": "thiscall", "this": "session",
                      "args": [ "data", "text", "0", "wid", "0", "0", "0" ],
                      "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 83 EC 48 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 89 4D F0 8B 5D 0C 85 DB 0F 84 ?? ?? ?? ?? 66 83 3B 00 0F 84 ?? ?? ?? ?? A1 ?? ?? ?? ?? 8B 75 14 89 75 0C 8B 40 1C 8B 78 2C 8D 45 0C 50 8D 8F 30 17 00 00 E8 ?? ?? ?? ?? C7 00 60 EA 00 00" },
 
     // Дописать строку в чат у себя — CECGameUIMan::AddChatMessage, как в Comeback 1.4.6 (аргументы и как найти — там): метод
     // окон мира (см. "ui"), ret 0x20, 8 аргументов; окно чата зовёт её после privateChat с «push 4». Начало то же, кроме порядка
-    // чтения аргументов; одно место в exe. Адрес — клиента от 07.11. В игре ещё не проверено
+    // чтения аргументов; одно место в exe. В игре ещё не проверено
     "addChatMessage": { "rva": "0x382600", "convention": "thiscall", "this": "gameUi",
                         "args": [ "data", "channel", "wid", "0", "0", "0", "0", "0" ],
                         "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 81 EC DC 09 00 00 A1 ?? ?? ?? ?? 33 C5 89 45 F0 53 56 57 50 8D 45 F4 64 A3 00 00 00 00 89 8D CC F6 FF FF 8B 45 10 8A 5D 0C 8A 7D 1C 8B 75" },
@@ -765,7 +766,7 @@
     // у npcHello, но «mov dword [ebp-4], 4» и ограничитель частоты (связь +0x104); таких функций две — нужна та, что пишет в пакет
     // команду 4 и аргумент (B8 04 00 00 00 … 89 4E 02); вторая (команда 5 без аргумента) — «Св. воскрешения». Проверено 03.11
     // (Probe act revive-town): перс 1 ур. мёртв (HP 0) — через 2,9 с жив в городе, ~820 м в стороне; встаёт с 20 % HP (10/50), не с полным
-    "reviveInTown": { "rva": "0xFF900", "convention": "thiscall", "this": "session", "args": [ "0" ],
+    "reviveInTown": { "rva": "0xFF930", "convention": "thiscall", "this": "session", "args": [ "0" ],
                       "signature": "55 8B EC 83 EC 08 56 8D 45 FC C7 45 FC 04 00 00 00 50 81 C1 04 01 00 00 E8 ?? ?? ?? ?? 8B 08 8B 01 3B 41 04 72 ?? C7 01 00 00 00 00 B9 ?? ?? ?? ?? 6A 06 E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 4D 08 B8 04 00 00 00 89 4E 02" },
 
     // Перенос между сумкой и банком — c2s 0x3A, как в comeback136: обмен ячейки банка и ячейки сумки местами, стопка целиком; в
@@ -774,7 +775,7 @@
     // [ячейка сумки]. Как найти на другом клиенте: c2s-функции 0x38…0x3C идут в exe подряд (mov eax, 0x3A … mov word [esi], ax);
     // нужная — с пакетом в 5 байт. Банк открывается только у банкира (npcHello + npcOpenStorage), кнопки в сумке здесь нет
     // В сигнатуре «mov ecx, ??» — адрес глобального объекта (выделение пакета): он свой у каждой сборки клиента, поэтому не
-    // сверяется. Адрес — клиента от 07.11
+    // сверяется
     "bankExchange": { "rva": "0x511110", "convention": "stdcall", "args": [ "tab", "bankSlot", "slot" ],
                       "signature": "55 8B EC 53 56 8B 35 ?? ?? ?? ?? 8B 4E 1C 8B C1 8B 51 2C 85 D2 74 ?? 8B 92 ?? ?? ?? ?? 85 D2 74 ?? 8B 5D 10 85 DB 78 ?? 3B 5A 10 7D ?? 8B 42 0C 8B 14 98 8B C1 85 D2 74 ?? C6 42 33 01 8B 46 1C 8B 48 2C 8B 5D 0C 85 C9 74 ?? FF 75 08 E8 ?? ?? ?? ?? 85 C0 74 ?? 85 DB 78 ?? 3B 58 10 7D ?? 8B 40 0C 8B 04 98 85 C0 74 ?? C6 40 33 01 6A 05 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 0D ?? ?? ?? ?? B8 3A 00 00 00 66 89 06 8B 45 08 56 88 46 02 8B 45 10 68 AE 00 00 00 88 46 04 88 5E 03 8B 49 20 68 A9 00 00 00 E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 5E 5B 5D C2 0C 00" },
 
@@ -784,7 +785,7 @@
     // (+0x33 у предмета). Пакет 7 байт: [команда:2][вкладка][ячейка сумки][ячейка банка][число:2]. Соседка 0x3B — то же
     // обратно, из банка в сумку (в пакете сначала ячейка банка). Как найти на другом клиенте: c2s-функция сразу за
     // bankExchange, команда 0x3C.
-    "bankPutCount": { "rva": "0x510480", "convention": "stdcall", "args": [ "tab", "bankSlot", "slot", "count" ],
+    "bankPutCount": { "rva": "0x5112A0", "convention": "stdcall", "args": [ "tab", "bankSlot", "slot", "count" ],
                       "signature": "55 8B EC 53 56 8B 35 ?? ?? ?? ?? 8B 4E 1C 8B C1 8B 51 2C 85 D2 74 ?? 8B 92 ?? ?? ?? ?? 85 D2 74 ?? 8B 5D 10 85 DB 78 ?? 3B 5A 10 7D ?? 8B 42 0C 8B 14 98 8B C1 85 D2 74 ?? C6 42 33 01 8B 46 1C 8B 48 2C 8B 5D 0C 85 C9 74 ?? FF 75 08 E8 ?? ?? ?? ?? 85 C0 74 ?? 85 DB 78 ?? 3B 58 10 7D ?? 8B 40 0C 8B 04 98 85 C0 74 ?? C6 40 33 01 6A 07 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 0D ?? ?? ?? ?? B8 3C 00 00 00 66 89 06 8B 45 08 88 46 02 8B 45 10 88 46 03 66 8B 45 14 56 68 B0 00 00 00 88 5E 04 66 89 46 05 8B 49 20 68 A9 00 00 00 E8 ?? ?? ?? ?? 8B CE E8 ?? ?? ?? ?? 5E 5B 5D C2 10 00" },
 
     // Отправить пакет серверу — метод объекта связи (this = [[база]+0x20], ret 0xC), три аргумента: число-ключ, длина пакета
@@ -792,10 +793,10 @@
     // push длина+0xA9; push 0xA9; mov ecx,[[база]+0x20]; call». Нужна для продажи (см. packets). Как найти на другом клиенте:
     // в методе «продать корзину» сразу за сборкой команды 0x25 с услугой 2 — вызов с ecx = [[база]+0x20]
     // Положить сообщение игре в очередь — что это и как найти, см. comeback146.jsonc; код другой сборки, сигнатура своя
-    "postMessage": { "rva": "0x43BA60", "convention": "thiscall", "this": "messages", "thisOffset": "0x8", "args": [ "data" ],
+    "postMessage": { "rva": "0x43C7C0", "convention": "thiscall", "this": "messages", "thisOffset": "0x8", "args": [ "data" ],
                      "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 83 EC 14 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F9 8B 77 0C 85 F6 0F 85 ?? ?? ?? ?? 6A 10 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 89 75 E8 C7 45 FC 00 00 00 00 85 F6 0F 84 ?? ?? ?? ?? 8B 5F 14 33 C9 8B C3 89 5D F0 BA 28 00 00 00 C7 06 ?? ?? ?? ?? F7 E2 89 5E 0C" },
 
-    "sendPacket": { "rva": "0x509480", "convention": "thiscall", "this": "session", "args": [ "0xA9", "size+0xA9", "data" ],
+    "sendPacket": { "rva": "0x50A2A0", "convention": "thiscall", "this": "session", "args": [ "0xA9", "size+0xA9", "data" ],
                     "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 83 EC 30 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 89 4D E0 B9 07 00 00 00 E8 ?? ?? ?? ?? 8B 45 0C 3B 45 08 76 09 8B 4D 0C 2B 4D 08 89 4D 0C 83 7D 08 00" },
 
     // Закрыть окно разговора с NPC — команда «IDCANCEL» окна Win_NPC (CDlgNPC), её же зовут кнопка «Назад» и Esc. this — окно
@@ -803,7 +804,7 @@
     // ничего не шлёт. Как найти на другом клиенте: таблица команд окна NPC — рядом строки "back" и "IDCANCEL" (у "IDCANCEL" —
     // эта функция); начинается с «mov edi,ecx; mov eax,[edi]; push 1; push 0; push 0; call [eax+0x20]» (спрятать окно).
     // Проверено в игре: Probe act npc-hello у кузнеца, через 5 с act npc-back — окно разговора закрылось
-    "npcDialogClose": { "rva": "0x1ED410", "convention": "thiscall", "this": "npcDialog", "args": [ "0" ],
+    "npcDialogClose": { "rva": "0x1ED580", "convention": "thiscall", "this": "npcDialog", "args": [ "0" ],
                         "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 51 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F9 8B 07 6A 01 6A 00 6A 00 FF 50 20 6A 00 68 ?? ?? ?? ?? 68 ?? ?? ?? ??" },
 
     // Закрыть лавку — команда «IDCANCEL» окна Win_Shop (CDlgShop), её же зовут крестик и Esc. this — окно лавки (см. "ui"),
@@ -812,14 +813,14 @@
     // именем: «mov [ebp-0x1C], функция» и следом push "IDCANCEL" (сразу за "repairall"). Начинается с «push esi; mov esi,ecx;
     // push 1; push 0; push 0; mov eax,[esi]; call [eax+0x20]» (спрятать окно). Кнопки «Лавка» в сумке тут нет — лавка только у
     // торговца, ремонт из сумки недоступен. Проверено в игре: лавку открыли у кузнеца, Probe act shop-close — окно закрылось
-    "shopDialogClose": { "rva": "0x24EAA0", "convention": "thiscall", "this": "shopDialog", "args": [ "0" ],
+    "shopDialogClose": { "rva": "0x24EC60", "convention": "thiscall", "this": "shopDialog", "args": [ "0" ],
                          "signature": "56 8B F1 6A 01 6A 00 6A 00 8B 06 FF 50 20 6A 00 68 ?? ?? ?? ?? 68 ?? ?? ?? ?? 6A 00 FF 76 34 C7 86 70 03 00 00 00 00 00 00 E8" },
 
     // Починить предмет — c2s 0x25 «услуга NPC» с услугой 3 «ремонт», окно ремонта NPC открыто. tid -1 (и 0, 0) — починить всё.
     // Как в 1.3.6: cdecl, в стеке tid, в cl — где предмет, в dl — ячейка (подробно — в comeback136.jsonc). Проверено в игре:
     // после разговора с кузнецом (окно лавки не открывали) починилось всё надетое.
     // Как найти на другом клиенте: c2s-функция с «mov dword [esi+2], 3» и «mov dword [esi+6], 6» рядом с «mov eax, 0x25»
-    "repairItem": { "rva": "0x4B1550", "convention": "cdecl", "args": [ "tid" ],
+    "repairItem": { "rva": "0x4B2350", "convention": "cdecl", "args": [ "tid" ],
                     "registers": { "ecx": "where", "edx": "slot" },
                     "signature": "55 8B EC 53 56 8A F9 8A DA 6A 10 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 0D ?? ?? ?? ?? B8 25 00 00 00 56 66 89 06 8B 45 08 68 B9 00 00 00 C7 46 02 03 00 00 00 C7 46 06 06 00 00 00" },
 
@@ -829,7 +830,7 @@
     // Пакет: [0x25:2][услуга 0x0F:4][длина данных = 4 + длина пароля:4][длина пароля:4][пароль]. Как найти на другом клиенте:
     // одно место в exe, где пишется «mov dword [reg+2], 0x0F» рядом с «mov eax, 0x25»; её зовут окно NPC (с пустой строкой) и
     // окно ввода пароля Win_InputString. Соседняя услуга 0x0E — смена пароля банка.
-    "npcOpenStorage": { "rva": "0x1ECCB0", "convention": "stdcall", "args": [ "data" ],
+    "npcOpenStorage": { "rva": "0x1ECE20", "convention": "stdcall", "args": [ "data" ],
                         "signature": "55 8B EC 53 56 57 8B 7D 08 33 F6 85 FF 74 ?? 80 3F 00 74 ?? 8B F7 8D 4E 01 0F 1F 80 00 00 00 00 8A 06 46 84 C0 75 F9 2B F1 8D 46 0E B9 ?? ?? ?? ?? 50 E8 ?? ?? ?? ?? 8B D8 85 DB 74 ?? C7 43 02 0F 00 00 00 B8 25 00 00 00" },
 
     // Сдать задание — c2s 0x25 «услуга NPC» с услугой 6 «сдать задание», как пункт «сдать» в окне NPC: разговор с NPC уже начат
@@ -837,7 +838,7 @@
     // [0x25:2][услуга 6:4][длина данных 8:4][задание:4][награда:4]. Рядом услуга 7 — взять задание. Как найти на другом клиенте:
     // место в exe, где пишется «mov dword [reg+2], 6» и «mov dword [reg+6], 8» рядом с «mov eax, 0x25».
     // Проверено 01.11 в игре: «Распределитель званий» 6933 сдано, пропало из списка вместе с родителем.
-    "npcReturnTask": { "rva": "0xDDED0", "convention": "stdcall", "args": [ "task", "choice" ],
+    "npcReturnTask": { "rva": "0xDDF00", "convention": "stdcall", "args": [ "task", "choice" ],
                        "signature": "55 8B EC 56 6A 12 B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 0D ?? ?? ?? ?? B8 25 00 00 00 66 89 06 8B 45 08 56 89 46 0A 8B 45 0C 68 BB 00 00 00 C7 46 02 06 00 00 00 C7 46 06 08 00 00 00" },
 
     // Взять задание — c2s 0x25 «услуга NPC» с услугой 7 «взять задание», как пункт задания в окне NPC: разговор с NPC уже начат
@@ -845,72 +846,72 @@
     // в "quests"); склад и обновление (0) клиент не шлёт. Пакет 14 байт: [0x25:2][услуга 7:4][длина данных 4:4][задание:4]. Как
     // найти на другом клиенте: единственное место в exe, где пишется «mov dword [reg+2], 7» рядом с «mov eax, 0x25».
     // В игре на этом клиенте ещё не проверено
-    "npcAcceptTask": { "rva": "0x1ECC50", "convention": "stdcall", "args": [ "task", "storage", "refresh" ],
+    "npcAcceptTask": { "rva": "0x1ECDC0", "convention": "stdcall", "args": [ "task", "storage", "refresh" ],
                        "signature": "55 8B EC 56 6A 0E B9 ?? ?? ?? ?? E8 ?? ?? ?? ?? 8B F0 85 F6 74 ?? 8B 0D ?? ?? ?? ?? B8 25 00 00 00 56 66 89 06 8B 45 08 68 B7 00 00 00 C7 46 02 07 00 00 00 C7 46 06 04 00 00 00 89 46 0A" },
 
     // (0x330000) c2s 0x03 — по коду отправки «mov eax, 3 … mov word [esi], ax»; одно место в exe
-    "normalAttack": { "rva": "0x3FC8C0", "convention": "stdcall",
+    "normalAttack": { "rva": "0x3FD900", "convention": "stdcall",
                       "signature": "55 8B EC 51 56 68 ?? ?? ?? ?? FF 15 ?? ?? ?? ?? 83 3D ?? ??" },
     // (0x31A720) — сопоставление кода; тот же код, флаги перса +0x74C (там +0x80C), работы +0x14D8
-    "hostPickupObject": { "rva": "0x3E5150", "convention": "thiscall", "this": "host",
+    "hostPickupObject": { "rva": "0x3E61C0", "convention": "thiscall", "this": "host",
                           "signature": "55 8B EC 51 53 56 57 8B F9 8B 87 4C" },
     // (0x3CD940) c2s 0x28, cl = где, dl = ячейка — второе место с 0x28 (первое, 0x1B0010, шлёт без аргументов)
-    "useItem": { "rva": "0x4B0F30", "convention": "cdecl", "args": [ "tid", "count" ],
+    "useItem": { "rva": "0x4B1D30", "convention": "cdecl", "args": [ "tid", "count" ],
                  "registers": { "ecx": "where", "edx": "slot" },
                  "signature": "55 8B EC 53 56 8A F9 8A DA 6A 0A B9" },
     // (0x31E670) c2s 0x64 — функция прямо перед recallPet, начало как там (перс +0x17E4)
-    "summonPet": { "rva": "0x3E9120", "convention": "thiscall", "this": "host",
+    "summonPet": { "rva": "0x3EA190", "convention": "thiscall", "this": "host",
                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 51 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F1 8B 8E E4 17" },
     // (0x31E820) c2s 0x65 — сопоставление кода
-    "recallPet": { "rva": "0x3E92E0", "convention": "thiscall", "this": "host",
+    "recallPet": { "rva": "0x3EA350", "convention": "thiscall", "this": "host",
                    "signature": "56 8B F1 8B 8E E4 17 00 00 85 C9 74" },
     // (0x2EF6F0) кнопка «Полёт» — сигнатура comeback136 с +0x17E4 вместо +0x1C04, одно место
-    "hostFly": { "rva": "0x3B6B30", "convention": "thiscall", "this": "host", "args": [ "force" ],
+    "hostFly": { "rva": "0x3B71C0", "convention": "thiscall", "this": "host", "args": [ "force" ],
                  "signature": "56 8B F1 57 8B 8E E4 17 00 00 85 C9" },
     // (0x31FB40)
-    "selectTarget": { "rva": "0x3EA9B0", "convention": "thiscall", "this": "host", "args": [ "wid" ],
+    "selectTarget": { "rva": "0x3EBA00", "convention": "thiscall", "this": "host", "args": [ "wid" ],
                       "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
-    "unselect": { "rva": "0x3EA9B0", "convention": "thiscall", "this": "host", "args": [ "0" ],
+    "unselect": { "rva": "0x3EBA00", "convention": "thiscall", "this": "host", "args": [ "0" ],
                   "signature": "55 8B EC 83 EC 08 53 56 57 6A 12 8B" },
     // (0x311630)
-    "hostApplySkill": { "rva": "0x3DBB90", "convention": "thiscall", "this": "host",
+    "hostApplySkill": { "rva": "0x3DCBB0", "convention": "thiscall", "this": "host",
                         "signature": "55 8B EC 83 EC 0C 53 56 57 68 ?? ?? ?? ?? 8B F9" },
     // Запустить макрос (номер с 0, 0, -1) — как кнопка макроса на панели. Как найти: таблица методов класса CECSCSkillGrp
     // (имя есть в exe), метод 2 — «нажать»: зовёт эту функцию у персонажа. Она удаляет идущий макрос [перс + 0x14F8] и
     // запускает заново
-    "hostApplyComboSkill": { "rva": "0x3E8170", "convention": "thiscall", "this": "host",
+    "hostApplyComboSkill": { "rva": "0x3E91E0", "convention": "thiscall", "this": "host",
                              "signature": "55 8B EC 51 56 8B F1 8B 8E F8 14 00 00 85 C9 74" },
     // Остановить идущий макрос: удаляет его [перс + 0x14F8], макроса нет — ничего. Без аргументов, серверу ничего не шлёт,
     // каст не прерывает. Игра зовёт её сама, когда скилл нажат не макросом (hostApplySkill со вторым аргументом 0). Как найти:
     // функция сразу после hostApplyComboSkill — первые её строки (удалить идущий макрос) и сразу ret
-    "hostClearComboSkill": { "rva": "0x3E8260", "convention": "thiscall", "this": "host",
+    "hostClearComboSkill": { "rva": "0x3E92D0", "convention": "thiscall", "this": "host",
                              "signature": "56 8B F1 8B 8E F8 14 00 00 85 C9 74 10 8B 01 6A 01 FF 10 C7 86 F8 14 00 00 00 00 00 00 5E C3" },
     // (0x30A9E0) c2s 0x29. Метод не самой связи, а объекта внутри неё: this = связь + 0xF4 (с самой связью клиент падает).
     // Как найти сдвиг: там, где клиент сам зовёт эту функцию (3 места), перед call стоит «mov ecx, [[база]+0x20]» и «add ecx, 0xF4».
     // Проверка: обе функции начинаются с ограничителя частоты связи — здесь «add ecx, 0x10», у cancelAction «add ecx, 0x104»;
     // разница 0x104 − 0x10 и есть сдвиг. Где разницы нет (одинаковое «add ecx»), сдвиг не нужен
-    "castSkill": { "rva": "0x317170", "convention": "thiscall", "this": "session", "thisOffset": "0xF4",
+    "castSkill": { "rva": "0x317420", "convention": "thiscall", "this": "session", "thisOffset": "0xF4",
                    "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 29" },
     // (0x1200E0) c2s 0x2A — отменить действие, как Esc; закрывает и окно банка (проверено в игре)
-    "cancelAction": { "rva": "0x14D540", "convention": "thiscall", "this": "session",
+    "cancelAction": { "rva": "0x14D570", "convention": "thiscall", "this": "session",
                       "signature": "55 8B EC 51 56 8D 45 FC C7 45 FC 2A 00 00 00" },
     // (0x1CDFD0) c2s 0x67
-    "petCtrl": { "rva": "0x234BC0", "convention": "thiscall", "this": "session",
+    "petCtrl": { "rva": "0x234D30", "convention": "thiscall", "this": "session",
                  "signature": "55 8B EC 51 53 56 57 8D 45 FC C7 45" },
     // (0x325F70)
-    "workCreate": { "rva": "0x3F0DF0", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 13" },
+    "workCreate": { "rva": "0x3F1E40", "convention": "thiscall", "signature": "55 8B EC 8B 45 08 56 8B F1 83 F8 13" },
     // (0x32C070)
-    "workMoveSetDestination": { "rva": "0x3F7970", "convention": "thiscall", "args": [ "type", "data" ],
+    "workMoveSetDestination": { "rva": "0x3F8960", "convention": "thiscall", "args": [ "type", "data" ],
                                 "signature": "55 8B EC 83 EC 10 56 8B F1 8B 4D 0C 57 8B 7D 08" },
     // (0x326850)
     // Работа «подойти» — цель задают два метода работы, как в Comeback 1.4.6 (там подробно: причины, как найти). NewTarget здесь
     // выделяет память своим распределителем (mov ecx, … перед call) — своя сигнатура; SetTarget — как в Comeback. Оба зовутся подряд
     // из CECHostPlayer::PickupObject (hostPickupObject), с причиной 2 — по выбранной цели (push 2; push [перс+0x114]). Проверено в игре (банкир).
-    "workTraceTarget": { "rva": "0x3FDCD0", "convention": "thiscall",
+    "workTraceTarget": { "rva": "0x3FED20", "convention": "thiscall",
                          "signature": "55 8B EC 56 8B 75 08 57 8B F9 85 F6 74 ?? 78 ?? 6A 1C B9 ?? ?? ?? ?? E8" },
-    "workTraceSetTarget": { "rva": "0x3FDB60", "convention": "thiscall",
+    "workTraceSetTarget": { "rva": "0x3FEBB0", "convention": "thiscall",
                             "signature": "55 8B EC 8A 45 0C 83 EC 18 56 8B F1 57 8B 7D 08 6A 00 88 46 3A" },
-    "workStart": { "rva": "0x3F1980", "convention": "thiscall", "args": [ "1", "work", "0" ],
+    "workStart": { "rva": "0x3F29D0", "convention": "thiscall", "args": [ "1", "work", "0" ],
                    "signature": "55 8B EC 53 56 57 8B 7D 0C 8B F1 85 FF 74 10 8B" },
 
     // Экран входа — кнопки окон функциями игры, а не клавишами (this — окно или поле, его даёт бот: loginScreen).
@@ -920,23 +921,23 @@
     // Вписать текст в поле ввода (AUIEditBox::SetText, слот +0x44 таблицы методов поля): так окно логина само заполняет логин
     // из списка аккаунтов и чистит пароль (обработчик Lst_Account: [окно+0x268]->SetText(логин), [окно+0x26C]->SetText(L"")).
     // Аргумент — строка UTF-16
-    "uiSetText": { "rva": "0x72ABB0", "convention": "thiscall",
+    "uiSetText": { "rva": "0x72BBF0", "convention": "thiscall",
                    "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B F9 8B 75 08 56 C7" },
     // «Вход» (Btn_Game, команда «confirm» окна Win_Login): проверки и сам вход — логин и пароль из полей
-    "loginConfirm": { "rva": "0x1C5540", "convention": "thiscall",
+    "loginConfirm": { "rva": "0x1C55B0", "convention": "thiscall",
                       "signature": "55 8B EC 83 E4 F8 83 EC 0C 53 56 57 8B F9 89 7C" },
     // Щелчок по персонажу на выборе (команда «char*» окна Win_Select): номер — atoi(команда + 4) плюс начало страницы
-    "selectRole": { "rva": "0x245760", "convention": "thiscall",
+    "selectRole": { "rva": "0x2458D0", "convention": "thiscall",
                     "signature": "55 8B EC 8B 45 08 56 83 C0 04 8B F1 50 E8 ?? ?? ?? ?? 8B 96" },
     // «Играть» (команды «confirm», «IDOK», «Btn_Game» окна Win_Select ведут в 0x244ED0 — «call это; ret 4»): вход отмеченным
     // персонажем. Без аргументов
-    "selectPlay": { "rva": "0x244EE0", "convention": "thiscall",
+    "selectPlay": { "rva": "0x245050", "convention": "thiscall",
                     "signature": "55 8B EC 6A FF 68 ?? ?? ?? ?? 64 A1 00 00 00 00 50 81 EC EC 00 00 00 53 56 57 A1 ?? ?? ?? ?? 33 C5 50 8D 45 F4 64 A3 00 00 00 00 8B D9 89 5D E4" },
     // Команда окна (AUIDialog::OnCommand — слот +0x34 таблицы методов окна-сообщения MsgBox_…, у него своих команд нет): бот
     // закрывает им сообщение, как кнопкой «Да (Y)» (её команда — «IDOK»). У окна-сообщения ([окно+0x78] == 1) сравнивает команду
     // с «IDCANCEL», «IDYES», «IDNO» (иначе ответ 1 — OK) и отдаёт ответ менеджеру окон: [окно+0x34]->vtable[+0x18](ответ, окно).
     // Как найти: ссылки на строку «IDYES» в коде AUI — одна в этой функции, другая там, где окно-сообщение создаётся
-    "dialogCommand": { "rva": "0x6EC7B0", "convention": "thiscall",
+    "dialogCommand": { "rva": "0x6ED790", "convention": "thiscall",
                        "signature": "55 8B EC 53 57 8B 7D 08 8B D9 8B D7 8D 4A 01 90 8A 02 42 84 C0 75 F9 2B D1 75 08 5F B0 01 5B 5D C2 04 00 83 7B 78 01" }
     // agreementAccept («Принять» окна Win_Agreement) — на этом клиенте соглашения нет
   },
