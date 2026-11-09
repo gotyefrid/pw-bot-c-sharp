@@ -15,8 +15,8 @@ public class WaitConfirmedTests
     [Fact]
     public void TableShowsThatStepWaits()
     {
-        Assert.Equal("поднять ближайший предмет", new PickUpItemAction().Describe());
-        Assert.Equal("поднять ближайший предмет, жду подтверждения", new PickUpItemAction { WaitConfirmed = true }.Describe());
+        Assert.Equal("поднять ближайший предмет (до 10 м)", new PickUpItemAction().Describe());
+        Assert.Equal("поднять ближайший предмет (до 10 м), жду подтверждения", new PickUpItemAction { WaitConfirmed = true }.Describe());
     }
 
     [Fact]

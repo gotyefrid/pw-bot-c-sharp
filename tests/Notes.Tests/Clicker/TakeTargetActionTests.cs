@@ -7,8 +7,8 @@ using Xunit;
 namespace Notes.Tests.Clicker;
 
 /// <summary>
-/// Действие «Взять цель»: ближайший из выбранных (пусто — кто угодно: моб, NPC, чужой пет; свой пет — нет) на любом
-/// расстоянии — как далеко, задаёт условие. Уже в цели — ничего не шлёт. Без галочки «ждать» — отправило и дальше, с ней —
+/// Действие «Взять цель»: ближайший из выбранных (пусто — кто угодно: моб, NPC, чужой пет; свой пет — нет) не дальше
+/// своего радиуса (по умолчанию 10 м). Уже в цели — ничего не шлёт. Без галочки «ждать» — отправило и дальше, с ней —
 /// ждёт, пока в цели окажется тот, кого брали.
 /// </summary>
 public class TakeTargetActionTests
@@ -68,11 +68,35 @@ public class TakeTargetActionTests
     }
 
     [Fact]
-    public void AnyDistance()
+    public void FartherThanRadiusIsNotTaken()
+    {
+        Npc(1, "Сидящий волк", 30);
+
+        Assert.Equal("", FirstTurn(new TakeTargetAction { Radius = 20 }));
+        Assert.Contains(_script.Log, e => e.Message.Contains("взять в цель некого"));
+    }
+
+    [Fact]
+    public void WithinRadiusIsTaken()
     {
         Npc(1, "Сидящий волк", 150);
 
-        Assert.Equal("select 1", FirstTurn(new TakeTargetAction()));
+        Assert.Equal("select 1", FirstTurn(new TakeTargetAction { Radius = 150 }));
+    }
+
+    [Fact]
+    public void RadiusIsTenByDefaultAndInOldFiles()
+    {
+        Assert.Equal(10, new TakeTargetAction().Radius);
+        Assert.Equal(10, ClickerScript.WithoutField(new TakeTargetAction { Radius = 50 }, "radius").Radius);
+    }
+
+    [Fact]
+    public void FileKeepsRadiusWithinLimits()
+    {
+        Assert.Equal(50, ClickerScript.RoundTrip(new TakeTargetAction { Radius = 50 }).Radius);
+        Assert.Equal(1, ClickerScript.RoundTrip(new TakeTargetAction { Radius = 0 }).Radius);
+        Assert.Equal(GroundItemChoice.MaxRadius, ClickerScript.RoundTrip(new TakeTargetAction { Radius = 9999 }).Radius);
     }
 
     [Fact]
@@ -149,8 +173,9 @@ public class TakeTargetActionTests
     [Fact]
     public void Described()
     {
-        Assert.Equal("взять ближайшую цель", new TakeTargetAction().Describe());
-        Assert.Equal("взять в цель: Сидящий волк, Торговец", new TakeTargetAction { Targets = ["Сидящий волк", "Торговец"] }.Describe());
+        Assert.Equal("взять ближайшую цель (до 10 м)", new TakeTargetAction().Describe());
+        Assert.Equal("взять в цель: Сидящий волк, Торговец (до 25 м)",
+            new TakeTargetAction { Targets = ["Сидящий волк", "Торговец"], Radius = 25 }.Describe());
     }
 
     [Fact]

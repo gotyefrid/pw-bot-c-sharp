@@ -7,8 +7,8 @@ using Xunit;
 namespace Notes.Tests.Clicker;
 
 /// <summary>
-/// Действие «Копать»: ближайшее из выбранного (пусто — что угодно копаемое, и «нересурсы») на любом расстоянии — как далеко,
-/// задаёт условие; без проверки кирки, уровня, квеста. Без галочки «ждать» — отправило и дальше, с ней — ждёт итога.
+/// Действие «Копать»: ближайшее из выбранного (пусто — что угодно копаемое, и «нересурсы») не дальше своего радиуса
+/// (по умолчанию 10 м); без проверки кирки, уровня, квеста. Без галочки «ждать» — отправило и дальше, с ней — ждёт итога.
 /// </summary>
 public class GatherResourceActionTests
 {
@@ -40,11 +40,35 @@ public class GatherResourceActionTests
     }
 
     [Fact]
-    public void AnyDistance()
+    public void FartherThanRadiusIsNotDug()
+    {
+        Resource(1, "Медная руда", 30);
+
+        Assert.Equal("", FirstTurn(new GatherResourceAction { Radius = 20 }));
+        Assert.Contains(_script.Log, e => e.Message.Contains("копать нечего"));
+    }
+
+    [Fact]
+    public void WithinRadiusIsDug()
     {
         Resource(1, "Медная руда", 150);
 
-        Assert.Equal("gather 1", FirstTurn(new GatherResourceAction()));
+        Assert.Equal("gather 1", FirstTurn(new GatherResourceAction { Radius = 150 }));
+    }
+
+    [Fact]
+    public void RadiusIsTenByDefaultAndInOldFiles()
+    {
+        Assert.Equal(10, new GatherResourceAction().Radius);
+        Assert.Equal(10, ClickerScript.WithoutField(new GatherResourceAction { Radius = 50 }, "radius").Radius);
+    }
+
+    [Fact]
+    public void FileKeepsRadiusWithinLimits()
+    {
+        Assert.Equal(50, ClickerScript.RoundTrip(new GatherResourceAction { Radius = 50 }).Radius);
+        Assert.Equal(1, ClickerScript.RoundTrip(new GatherResourceAction { Radius = 0 }).Radius);
+        Assert.Equal(GroundItemChoice.MaxRadius, ClickerScript.RoundTrip(new GatherResourceAction { Radius = 9999 }).Radius);
     }
 
     [Fact]
@@ -94,8 +118,8 @@ public class GatherResourceActionTests
     [Fact]
     public void Described()
     {
-        Assert.Equal("копать ближайший ресурс", new GatherResourceAction().Describe());
-        Assert.Equal("копать: Лён, Медная руда", new GatherResourceAction { Resources = ["Лён", "Медная руда"] }.Describe());
+        Assert.Equal("копать ближайший ресурс (до 10 м)", new GatherResourceAction().Describe());
+        Assert.Equal("копать: Лён, Медная руда (до 25 м)", new GatherResourceAction { Resources = ["Лён", "Медная руда"], Radius = 25 }.Describe());
     }
 
     [Fact]

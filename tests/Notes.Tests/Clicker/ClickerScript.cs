@@ -9,6 +9,7 @@ using Notes.Core.Profiles;
 using Notes.Core.Settings;
 using Notes.Core.World;
 using Notes.Tests.Fakes;
+using Newtonsoft.Json.Linq;
 
 namespace Notes.Tests.Clicker;
 
@@ -79,6 +80,19 @@ internal sealed class ClickerScript
     public static T RoundTrip<T>(T part) where T : class
     {
         var back = SettingsJson.Parse(Json(part)).Clicker.Steps.Single();
+        return (T)(object)(part is ClickerAction ? back.Action : back.Conditions.Single());
+    }
+
+    /// <summary>
+    /// Действие или условие — через файл, где нет поля <paramref name="field"/> (сценарий старой версии): каким его прочтёт бот.
+    /// </summary>
+    public static T WithoutField<T>(T part, string field) where T : class
+    {
+        var json = JObject.Parse(Json(part));
+        foreach (var property in json.Descendants().OfType<JProperty>().Where(p => p.Name == field).ToList())
+            property.Remove();
+
+        var back = SettingsJson.Parse(json.ToString()).Clicker.Steps.Single();
         return (T)(object)(part is ClickerAction ? back.Action : back.Conditions.Single());
     }
 

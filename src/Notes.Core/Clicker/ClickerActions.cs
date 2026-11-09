@@ -124,11 +124,33 @@ public abstract class ConfirmableAction : ClickerAction
 }
 
 /// <summary>
-/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) — «как мышкой» (<see cref="PickupAction"/>):
-/// подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Поднимать нечего — сделано, без предупреждения.
-/// Радиуса нет: как далеко — задаёт условие «Рядом лежит предмет».
+/// Действие с тем, что рядом (поднять, копать, взять в цель): берёт только не дальше <see cref="Radius"/> от персонажа. Свой
+/// радиус у действия, а не только у условия: условие может смотреть другой список, стоять в «ИЛИ» или не стоять вовсе — без
+/// радиуса персонаж убежал бы к дальнему.
 /// </summary>
-public sealed class PickUpItemAction : ConfirmableAction
+public abstract class NearbyAction : ConfirmableAction
+{
+    public const int DefaultRadius = 10;
+
+    private int _radius = DefaultRadius;
+
+    /// <summary>Не дальше этого от персонажа, м. В файле нет (сценарий старой версии) — <see cref="DefaultRadius"/>.</summary>
+    public int Radius { get => _radius; set => Set(ref _radius, value); }
+
+    /// <summary>Само действие для окна — без радиуса: «(до N м)» добавит <see cref="What"/>.</summary>
+    protected abstract string WhatNearby();
+
+    protected sealed override string What() => $"{WhatNearby()} (до {Radius} м)";
+
+    public override void Normalize() => Radius = GroundItemChoice.CleanRadius(Radius);
+}
+
+/// <summary>
+/// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) не дальше <see cref="NearbyAction.Radius"/> —
+/// «как мышкой» (<see cref="PickupAction"/>): подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Поднимать
+/// нечего — сделано, без предупреждения.
+/// </summary>
+public sealed class PickUpItemAction : NearbyAction
 {
     private ObservableCollection<string> _items = [];
 
@@ -149,27 +171,28 @@ public sealed class PickUpItemAction : ConfirmableAction
 
     private void ItemsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Items));
 
-    protected override string What() => Items.Count == 0 ? "поднять ближайший предмет" : $"поднять: {string.Join(", ", Items)}";
+    protected override string WhatNearby() => Items.Count == 0 ? "поднять ближайший предмет" : $"поднять: {string.Join(", ", Items)}";
 
     public override IClickerRun Start(BrainContext c)
-        => GroundItemChoice.NearestItem(c.World, Items) is { } item
+        => GroundItemChoice.NearestItem(c.World, Items, Radius) is { } item
             ? Send(new PickupAction(item))
             : ClickerRuns.Skipped("рядом нечего поднять");
 
     public override void Normalize()
     {
+        base.Normalize();
         if (!Items.SequenceEqual(MobNameFilter.Clean(Items)))
             Items = new ObservableCollection<string>(MobNameFilter.Clean(Items));
     }
 }
 
 /// <summary>
-/// Копать ближайшее из <see cref="Resources"/> (пусто — что угодно копаемое) — «как мышкой» (<see cref="GatherAction"/>): подбежит
-/// и накопает игра сама. Ресурсы и «нересурсы» (квестовые, ящики) — без проверки кирки, уровня и квеста: что выбрано, то и
-/// копает, нельзя — откажет игра. Подтверждение — в сумке прибавилось или ресурс пропал с земли. Копать нечего — сделано, без
-/// предупреждения. Радиуса нет: как далеко — задаёт условие «Рядом можно копать».
+/// Копать ближайшее из <see cref="Resources"/> (пусто — что угодно копаемое) не дальше <see cref="NearbyAction.Radius"/> — «как
+/// мышкой» (<see cref="GatherAction"/>): подбежит и накопает игра сама. Ресурсы и «нересурсы» (квестовые, ящики) — без проверки
+/// кирки, уровня и квеста: что выбрано, то и копает, нельзя — откажет игра. Подтверждение — в сумке прибавилось или ресурс пропал
+/// с земли. Копать нечего — сделано, без предупреждения.
 /// </summary>
-public sealed class GatherResourceAction : ConfirmableAction
+public sealed class GatherResourceAction : NearbyAction
 {
     private ObservableCollection<string> _resources = [];
 
@@ -190,27 +213,28 @@ public sealed class GatherResourceAction : ConfirmableAction
 
     private void ResourcesChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Resources));
 
-    protected override string What() => Resources.Count == 0 ? "копать ближайший ресурс" : $"копать: {string.Join(", ", Resources)}";
+    protected override string WhatNearby() => Resources.Count == 0 ? "копать ближайший ресурс" : $"копать: {string.Join(", ", Resources)}";
 
     public override IClickerRun Start(BrainContext c)
-        => GroundItemChoice.NearestResource(c.World, Resources) is { } resource
+        => GroundItemChoice.NearestResource(c.World, Resources, Radius) is { } resource
             ? Send(new GatherAction(resource))
             : ClickerRuns.Skipped("копать нечего");
 
     public override void Normalize()
     {
+        base.Normalize();
         if (!Resources.SequenceEqual(MobNameFilter.Clean(Resources)))
             Resources = new ObservableCollection<string>(MobNameFilter.Clean(Resources));
     }
 }
 
 /// <summary>
-/// Взять в цель ближайшего из <see cref="Targets"/> (пусто — кого угодно: моба, NPC, чужого пета) — как кликом
-/// (<see cref="SelectTargetAction"/>). Ближайший уже в цели — в игру ничего не шлёт; взять некого — сделано, без предупреждения.
-/// В цели другой, а подходящий ближе — переключит: чтобы не сбивать взятую цель, шагу ставят условие «цели нет».
-/// Подтверждение — в цели тот, кого брали. Радиуса нет: как далеко — задаёт условие «Рядом можно взять цель».
+/// Взять в цель ближайшего из <see cref="Targets"/> (пусто — кого угодно: моба, NPC, чужого пета) не дальше
+/// <see cref="NearbyAction.Radius"/> — как кликом (<see cref="SelectTargetAction"/>). Ближайший уже в цели — в игру ничего не
+/// шлёт; взять некого — сделано, без предупреждения. В цели другой, а подходящий ближе — переключит: чтобы не сбивать взятую
+/// цель, шагу ставят условие «цели нет». Подтверждение — в цели тот, кого брали.
 /// </summary>
-public sealed class TakeTargetAction : ConfirmableAction
+public sealed class TakeTargetAction : NearbyAction
 {
     private ObservableCollection<string> _targets = [];
 
@@ -231,11 +255,11 @@ public sealed class TakeTargetAction : ConfirmableAction
 
     private void TargetsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Changed(nameof(Targets));
 
-    protected override string What() => Targets.Count == 0 ? "взять ближайшую цель" : $"взять в цель: {string.Join(", ", Targets)}";
+    protected override string WhatNearby() => Targets.Count == 0 ? "взять ближайшую цель" : $"взять в цель: {string.Join(", ", Targets)}";
 
     public override IClickerRun Start(BrainContext c)
     {
-        if (TargetChoice.Nearest(c.World, Targets) is not { } target)
+        if (TargetChoice.Nearest(c.World, Targets, Radius) is not { } target)
             return ClickerRuns.Skipped("взять в цель некого");
 
         return c.World.Host.TargetWid == target.Wid
@@ -245,6 +269,7 @@ public sealed class TakeTargetAction : ConfirmableAction
 
     public override void Normalize()
     {
+        base.Normalize();
         if (!Targets.SequenceEqual(MobNameFilter.Clean(Targets)))
             Targets = new ObservableCollection<string>(MobNameFilter.Clean(Targets));
     }
