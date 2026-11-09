@@ -1117,7 +1117,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     {
         try
         {
-            var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger, _logsDirectory);
+            var connection = _connection = ClientConnection.Open(client.Pid, _profile.Data, _logger);
             _spots.Server = _profile.Id;
             // Блокноту ресурсов, логу урона и «кто убил» — каждый снимок, прямо в потоке снимков; окну — только последний
             connection.WorldUpdated += _spots.Observe;
