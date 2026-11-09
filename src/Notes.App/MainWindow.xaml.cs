@@ -37,6 +37,33 @@ public partial class MainWindow : Window
 
     private void Added(CharacterTab tab) => _views[tab] = new CharacterView(tab);
 
+    private void SupportClick(object sender, RoutedEventArgs e) => SupportPopup.IsOpen = !SupportPopup.IsOpen;
+
+    // Адрес кошелька — в буфер обмена; на кнопке на пару секунд «Скопировано»
+    private void CopyWalletClick(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string address } button)
+            return;
+        try
+        {
+            Clipboard.SetText(address);
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            // Буфер занят другой программой — адрес всё равно можно выделить в поле и скопировать
+            return;
+        }
+
+        button.Content = "Скопировано";
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+            button.Content = "Копировать";
+        };
+        timer.Start();
+    }
+
     private void Removed(CharacterTab tab) => _views.Remove(tab);
 
     // Двойной щелчок по вкладке — окно игры её персонажа сразу под окно бота; по крестику — нет (он закрывает вкладку)
