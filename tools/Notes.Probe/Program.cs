@@ -96,6 +96,8 @@ internal static class Program
                     return WithClient(rest, (profile, game) => UiCommands.Run(profile, game, rest));
                 case "movemap":
                     return WithClient(rest, (profile, game) => MoveMapCommand.Run(profile, game, rest));
+                case "walk":
+                    return WalkCommand.Run(LoadProfile(rest), rest);
             }
         }
         catch (Exception e)
@@ -140,6 +142,7 @@ internal static class Program
         Console.WriteLine("  ui scan   [bytes] [Win_…] [0xАДРЕС [find ТЕКСТ|strings|raw файл]]  поиск смещений окон на новом клиенте");
         Console.WriteLine("  ui call   text account|password [ТЕКСТ] | login | role N | play | agree | ok  кнопки экрана входа функциями игры (ok — «Да» окна-сообщения)");
         Console.WriteLine(MoveMapCommand.Usage);
+        Console.WriteLine(WalkCommand.Usage);
         Console.WriteLine("  selftest  проверить, что снимок разумный (HP ≤ MaxHP, типы мобов…), и замерить скорость");
         Console.WriteLine();
         Console.WriteLine("ЗАПУСК КЛИЕНТА (открывает игру — запускает владелец):");
