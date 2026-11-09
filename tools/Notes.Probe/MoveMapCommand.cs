@@ -19,7 +19,7 @@ internal static class MoveMapCommand
 {
     public const string Usage =
         "  movemap   [карта] [радиус м] [файл.png]  карта проходимости вокруг перса картинкой (светлое — можно ходить, тёмное — нельзя,\n"
-        + "            коричневое — в файлах клиента карты нет); карта по умолчанию world, радиус 100 м";
+        + "            коричневое — в файлах клиента карты нет, чёрное — камни и постройки); карта по умолчанию world, радиус 100 м";
 
     // Точек картинки на метр
     private const int Scale = 4;
@@ -27,6 +27,7 @@ internal static class MoveMapCommand
     private static readonly Color Open = Color.FromArgb(232, 232, 232);
     private static readonly Color Closed = Color.FromArgb(48, 48, 64);
     private static readonly Color Unknown = Color.FromArgb(96, 80, 48);
+    private static readonly Color Rock = Color.FromArgb(20, 20, 28);
 
     public static int Run(ServerProfile profile, GameProcess game, string[] args)
     {
@@ -61,6 +62,21 @@ internal static class MoveMapCommand
             _ => "здесь у клиента карты нет",
         });
 
+        // Камни и постройки: модели квадратов, которые задевает картинка; «мешает» — тело на высоте от 2 м ниже ног до 2,5 м
+        // выше (рельеф ещё не читаем, а подножия камней утоплены в землю)
+        var tiles = new[] { (-1, -1), (-1, 1), (1, -1), (1, 1), (0, 0) }
+            .Select(c => SceneObstacles.TileNumber(me.X + c.Item1 * radius, me.Y + c.Item2 * radius, map.Rows, map.Columns))
+            .OfType<int>()
+            .Distinct()
+            .ToList();
+        var all = SceneObstacles.LoadFromGameDirectory(directory, mapName, tiles, profile.Data.GameFiles.Pck, out var obstaclesProblem);
+        if (obstaclesProblem is not null)
+            Console.WriteLine("⚠️ модели: " + obstaclesProblem);
+        var obstacles = new SceneObstacles(all.Brushes.Where(b => b.MaxX > me.X - radius && b.MinX < me.X + radius
+                                                                  && b.MaxY > me.Y - radius && b.MinY < me.Y + radius
+                                                                  && b.MaxHeight > me.Height - 2 && b.MinHeight < me.Height + 2.5f).ToList());
+        Console.WriteLine($"Тел столкновений (камни, постройки) в квадратах {string.Join(", ", tiles)}: {all.Brushes.Count}, на картинке: {obstacles.Brushes.Count}");
+
         var size = radius * 2 * Scale;
         using (var image = new Bitmap(size, size, PixelFormat.Format24bppRgb))
         {
@@ -71,7 +87,9 @@ internal static class MoveMapCommand
                 {
                     var x = me.X - radius + (px + 0.5f) / Scale;
                     var y = me.Y + radius - (py + 0.5f) / Scale;
-                    image.SetPixel(px, py, map.Walkable(x, y) switch { true => Open, false => Closed, _ => Unknown });
+                    var color = obstacles.Blocks(x, y, me.Height - 2, me.Height + 2.5f) ? Rock
+                        : map.Walkable(x, y) switch { true => Open, false => Closed, _ => Unknown };
+                    image.SetPixel(px, py, color);
                 }
             }
 
