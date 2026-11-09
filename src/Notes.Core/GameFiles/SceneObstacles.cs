@@ -34,6 +34,11 @@ public sealed class ConvexBrush
 
     public IReadOnlyList<Plane> Planes => _planes;
 
+    /// <summary>То же тело, сдвинутое на (dx, dh, dy): формы деревьев в .tbh — относительно ствола.</summary>
+    public ConvexBrush Moved(float dx, float dh, float dy)
+        => new(MinX + dx, MinHeight + dh, MinY + dy, MaxX + dx, MaxHeight + dh, MaxY + dy,
+            _planes.Select(p => p with { D = p.D + p.NX * dx + p.NH * dh + p.NY * dy }).ToList());
+
     /// <summary>Плоскость: нормаль (по X, по высоте, по Y) и d — точка внутри, если NX·x + NH·h + NY·y ≤ D.</summary>
     public readonly record struct Plane(float NX, float NH, float NY, float D);
 
@@ -97,6 +102,11 @@ public sealed class SceneObstacles
     public static SceneObstacles Empty { get; } = new([]);
 
     public IReadOnlyList<ConvexBrush> Brushes { get; }
+
+    /// <summary>Для деревьев (<see cref="SceneTrees"/>): сколько деревьев найдено и у скольких видов нет формы (кусты).</summary>
+    public int TreeCount { get; init; }
+
+    public int TreeKindsWithoutShape { get; init; }
 
     /// <summary>
     /// Есть ли тело на вертикали над (x, y) между высотами <paramref name="from"/> и <paramref name="to"/> — персонаж
@@ -192,22 +202,28 @@ public sealed class SceneObstacles
 
         var brushes = new List<ConvexBrush>(count);
         for (var i = 0; i < count; i++)
-        {
-            var box = Floats(reader, 12);
-            reader.ReadInt32();
-            var planes = new ConvexBrush.Plane[Checked(reader.ReadInt32(), "плоскостей")];
-            for (var p = 0; p < planes.Length; p++)
-            {
-                var f = Floats(reader, 4);
-                reader.ReadByte();
-                // В файле — (x, высота, y)
-                planes[p] = new ConvexBrush.Plane(f[0], f[1], f[2], f[3]);
-            }
+            brushes.Add(ReadBrush(reader));
+        return brushes;
+    }
 
-            brushes.Add(new ConvexBrush(box[6], box[7], box[8], box[9], box[10], box[11], planes));
+    /// <summary>
+    /// Один кирпич (CConvexHullData, загрузка 0xB8C0F0): 12 float (центр, полуразмер, min, max — по x, высоте, y), int, int
+    /// плоскостей, плоскость — нормаль 3 float, d, байт.
+    /// </summary>
+    internal static ConvexBrush ReadBrush(BinaryReader reader)
+    {
+        var box = Floats(reader, 12);
+        reader.ReadInt32();
+        var planes = new ConvexBrush.Plane[Checked(reader.ReadInt32(), "плоскостей")];
+        for (var p = 0; p < planes.Length; p++)
+        {
+            var f = Floats(reader, 4);
+            reader.ReadByte();
+            // В файле — (x, высота, y)
+            planes[p] = new ConvexBrush.Plane(f[0], f[1], f[2], f[3]);
         }
 
-        return brushes;
+        return new ConvexBrush(box[6], box[7], box[8], box[9], box[10], box[11], planes);
     }
 
     private static void SkipMesh(BinaryReader reader)
@@ -233,7 +249,7 @@ public sealed class SceneObstacles
         Skip(reader, 69);
     }
 
-    private static int Checked(int value, string what)
+    internal static int Checked(int value, string what)
         => value is >= 0 and <= 10_000_000 ? value : throw new InvalidDataException($"{what}: {value}");
 
     private static void Skip(BinaryReader reader, int bytes)

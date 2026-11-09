@@ -21,7 +21,7 @@ internal static class MoveMapCommand
 {
     public const string Usage =
         "  movemap   [карта] [радиус м] [файл.png]  карта проходимости вокруг перса картинкой (светлое — можно ходить, тёмное — нельзя,\n"
-        + "            коричневое — в файлах клиента карты нет, чёрное — камни и постройки); карта по умолчанию world, радиус 100 м";
+        + "            коричневое — в файлах клиента карты нет, чёрное — камни и постройки, тёмно-зелёное — деревья); карта по умолчанию world, радиус 100 м";
 
     // Точек картинки на метр
     private const int Scale = 4;
@@ -30,6 +30,7 @@ internal static class MoveMapCommand
     private static readonly Color Closed = Color.FromArgb(48, 48, 64);
     private static readonly Color Unknown = Color.FromArgb(96, 80, 48);
     private static readonly Color Rock = Color.FromArgb(20, 20, 28);
+    private static readonly Color Tree = Color.FromArgb(20, 110, 40);
 
     public static int Run(ServerProfile profile, GameProcess game, string[] args)
     {
@@ -81,7 +82,14 @@ internal static class MoveMapCommand
         var all = SceneObstacles.LoadFromGameDirectory(directory, mapName, tiles, profile.Data.GameFiles.Pck, out var obstaclesProblem);
         if (obstaclesProblem is not null)
             Console.WriteLine("⚠️ модели: " + obstaclesProblem);
-        var obstacles = new SceneObstacles(all.Brushes.Where(b => b.MaxX > minX && b.MinX < maxX && b.MaxY > minY && b.MinY < maxY
+        // Деревья: с запасом 10 м — крона и корни дерева у края прямоугольника тоже мешают
+        var trees = SceneTrees.LoadFromGameDirectory(directory, mapName, minX - 10, minY - 10, maxX + 10, maxY + 10,
+            profile.Data.GameFiles.Pck, out var treesProblem);
+        if (treesProblem is not null)
+            Console.WriteLine("⚠️ деревья: " + treesProblem);
+        Console.WriteLine($"Деревьев рядом: {trees.TreeCount}, тел у них: {trees.Brushes.Count}"
+                          + (trees.TreeKindsWithoutShape > 0 ? $", видов без формы (кусты): {trees.TreeKindsWithoutShape}" : ""));
+        var obstacles = new SceneObstacles(all.Brushes.Concat(trees.Brushes).Where(b => b.MaxX > minX && b.MinX < maxX && b.MaxY > minY && b.MinY < maxY
                                                                   && b.MaxHeight > me.Height - WalkArea.Below
                                                                   && b.MinHeight < me.Height + WalkArea.Above).ToList());
         Console.WriteLine($"Тел столкновений (камни, постройки) в квадратах {string.Join(", ", tiles)}: {all.Brushes.Count}, рядом: {obstacles.Brushes.Count}");
@@ -92,11 +100,15 @@ internal static class MoveMapCommand
         }
 
         return new Scene(map, obstacles, new WalkArea(map, obstacles, me.Height),
-            new WalkArea(map, obstacles, me.Height, WalkArea.ComfortRadius));
+            new WalkArea(map, obstacles, me.Height, WalkArea.ComfortRadius)) { Trees = trees };
     }
 
     /// <summary><see cref="Area"/> — впритирку, <see cref="Comfort"/> — с запасом от препятствий.</summary>
-    public sealed record Scene(MoveMap Map, SceneObstacles Obstacles, WalkArea Area, WalkArea Comfort);
+    public sealed record Scene(MoveMap Map, SceneObstacles Obstacles, WalkArea Area, WalkArea Comfort)
+    {
+        /// <summary>Только деревья — на картинке своим цветом.</summary>
+        public SceneObstacles Trees { get; init; } = SceneObstacles.Empty;
+    }
 
     /// <summary>Картинка с центром <paramref name="center"/>: карта, тела, мобы, пет, цель и путь (синяя ломаная).</summary>
     public static void Draw(Scene scene, WorldState world, PathPoint center, int radius, IReadOnlyList<PathPoint> path, string file,
@@ -120,7 +132,8 @@ internal static class MoveMapCommand
                 {
                     var x = center.X - radius + (px + 0.5f) / Scale;
                     var y = center.Y + radius - (py + 0.5f) / Scale;
-                    var color = scene.Obstacles.Blocks(x, y, me.Height - WalkArea.Below, me.Height + WalkArea.Above) ? Rock
+                    var color = scene.Trees.Blocks(x, y, me.Height - WalkArea.Below, me.Height + WalkArea.Above) ? Tree
+                        : scene.Obstacles.Blocks(x, y, me.Height - WalkArea.Below, me.Height + WalkArea.Above) ? Rock
                         : scene.Map.Walkable(x, y) switch { true => Open, false => Closed, _ => Unknown };
                     image.SetPixel(px, py, color);
                 }
