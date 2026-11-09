@@ -601,7 +601,9 @@
     "level": "0xC",
     "cooldownLeft": "0x10",
     "cooldownFull": "0x14",
-    "flags": "0x18"
+    "flags": "0x18",
+    // Дальность скилла — см. comeback136.jsonc; здесь не проверено
+    "range": { "element": "", "stub": "", "kind": "", "rangeKind": "", "scaled": "", "function": "" }
   },
 
   // ID скиллов друида — те же, что в 1.3.6 (167 «Городской портал»)

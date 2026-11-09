@@ -696,6 +696,34 @@ public sealed class SkillOffsets
     public uint CooldownFull { get; init; }
     /// <summary>Младший бит — «на перезарядке».</summary>
     public uint Flags { get; init; }
+
+    /// <summary>Где искать дальность скилла (<see cref="World.SkillRangeReader"/>); <see cref="SkillRangeOffsets.Element"/> 0 — не найдено.</summary>
+    public SkillRangeOffsets Range { get; init; } = new();
+}
+
+/// <summary>
+/// Дальность скилла (<see cref="World.SkillRangeReader"/>): объект скилла клиента → объект ElementSkill (elementskill.dll) → его
+/// описание (stub) → тип, вид дальности и функция дальности в таблице описания.
+/// </summary>
+public sealed class SkillRangeOffsets
+{
+    /// <summary>Объект скилла → ElementSkill.</summary>
+    public uint Element { get; init; }
+
+    /// <summary>ElementSkill → описание скилла (stub).</summary>
+    public uint Stub { get; init; }
+
+    /// <summary>Описание: тип скилла, байт (1 атака, 3 проклятие, 8, остальные).</summary>
+    public uint Kind { get; init; }
+
+    /// <summary>Описание: вид дальности, байт (2 и 5 — на себя).</summary>
+    public uint RangeKind { get; init; }
+
+    /// <summary>Описание: флаг пересчёта дальности атаки, байт (не 0 — не знаем, как считать).</summary>
+    public uint Scaled { get; init; }
+
+    /// <summary>Таблица описания: смещение функции дальности.</summary>
+    public uint Function { get; init; }
 }
 
 /// <summary>

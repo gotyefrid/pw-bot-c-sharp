@@ -120,8 +120,8 @@ public sealed class PetBehavior : IBehavior
         if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true })
         {
             // Пета загораживает камень, дом или дерево — сначала обходим: лечение «как кнопкой» ведёт перса по прямой в препятствие
-            // В радиусе лечения (выученном по кастам, с запасом 1 м) — лечим сквозь препятствия, не обходим
-            var range = c.SkillRanges.Of(c.Skills.HealPet) is { } r ? r - 1 : 0;
+            // В радиусе лечения (дальность скилла, как в подсказке, с запасом 1 м) — лечим сквозь препятствия, не обходим
+            var range = c.World.Skill(c.Skills.HealPet)?.Range is { } r ? r - 1 : 0;
             if (c.World.Npcs.FirstOrDefault(n => n.Wid == pet.ActiveWid) is { } petNpc && _walk.Step(c, petNpc.Position, "пета", within: range))
             {
                 Status = "обхожу препятствие к пету";

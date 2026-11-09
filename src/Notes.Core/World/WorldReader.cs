@@ -39,6 +39,7 @@ public sealed class WorldReader
     private readonly GameRoots _roots;
     private readonly ProfileData _p;
     private readonly Func<int, string?> _skillName;
+    private readonly SkillRangeReader _ranges;
     private readonly int _hostSize;
     private readonly int _npcSize;
     private readonly int _itemSize;
@@ -72,6 +73,7 @@ public sealed class WorldReader
         _roots = roots;
         _p = profile;
         _skillName = skillName ?? (_ => null);
+        _ranges = new SkillRangeReader(memory, profile.Skill.Range);
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
@@ -935,7 +937,11 @@ public sealed class WorldReader
                 continue;
 
             var id = b.Int32(s.Id);
-            result.Add(new SkillInfo(id, b.Int32(s.Level), b.Int32(s.CooldownLeft), b.Int32(s.CooldownFull), b.UInt32(s.Flags), _skillName(id)));
+            var level = b.Int32(s.Level);
+            result.Add(new SkillInfo(id, level, b.Int32(s.CooldownLeft), b.Int32(s.CooldownFull), b.UInt32(s.Flags), _skillName(id))
+            {
+                Range = _ranges.Read(pointers.UInt32((uint)i * 4), level),
+            });
         }
 
         return result;

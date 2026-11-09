@@ -68,8 +68,6 @@ public sealed class BotBrain : IBotRunner
             _context.StartPosition ??= world.Host.Position;
 
             _context.Executor.Update(world);
-            if (_context.SkillRanges.Observe(world, _context.Skills.HealPet) is { } learned)
-                _context.Log.Info(learned);
             Deliver();
             _context.InMiddle = _behaviors.OfType<IMultiStepBehavior>().Select(b => b.InMiddle).FirstOrDefault(s => s is not null);
 

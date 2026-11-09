@@ -728,6 +728,7 @@ internal static class WorldCommands
         s.AppendLine($"Скиллы {w.Skills.Count}");
         foreach (var k in w.Skills)
             s.AppendLine($"       {k.Id,5} ур. {k.Level,2}  {k.Name ?? "(нет названия)",-28} {(k.IsReady ? "готов" : $"перезарядка {k.CooldownLeftMs / 1000.0:0.0}/{k.CooldownFullMs / 1000.0:0.0} с")}"
+                         + (k.Range is { } range ? $"  дальность {range:0.0} м" : "")
                          + (icons is null ? "" : icons.Get(k.Id) is null ? "  без иконки" : $"  {icons.FileOf(k.Id)}"));
         s.AppendLine($"Макросы {(w.Macros.Count == 0 ? "нет" : string.Join(", ", w.Macros.Select(m => $"{m.Number} (иконка {m.Icon})")))}");
 

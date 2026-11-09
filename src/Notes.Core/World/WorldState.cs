@@ -582,6 +582,9 @@ public sealed record AttackHit(uint TargetWid, int Damage, uint Flags);
 public sealed record SkillInfo(int Id, int Level, int CooldownLeftMs, int CooldownFullMs, uint Flags, string? Name)
 {
     public bool IsReady => CooldownLeftMs == 0;
+
+    /// <summary>Дальность, как в подсказке скилла, м; null — скилл на себя, не знаем или на этом сервере не найдено.</summary>
+    public float? Range { get; init; }
 }
 
 /// <summary>

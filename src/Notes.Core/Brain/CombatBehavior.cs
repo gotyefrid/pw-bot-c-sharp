@@ -276,8 +276,8 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
 
         // Моба загораживает камень, дом или дерево — сначала обходим, пока прямая до него не откроется (скилл «как кнопкой»
         // иначе ведёт перса по прямой в препятствие)
-        // Скилл бьёт сквозь препятствия, если моб в радиусе (выученном по кастам, с запасом 1 м) — тогда не обходим
-        var range = combat.UseSkill && combat.AttackMacro == 0 ? c.SkillRanges.Of(combat.AttackSkillId) : null;
+        // Скилл бьёт сквозь препятствия, если моб в радиусе (дальность скилла, как в подсказке, с запасом 1 м) — тогда не обходим
+        var range = combat.UseSkill && combat.AttackMacro == 0 ? w.Skill(combat.AttackSkillId)?.Range : null;
         if (_walk.Step(c, mob.Position, mob.Name, within: range is { } r ? r - RangeMargin : 0))
         {
             Status = $"обхожу препятствие к {mob.Name}";
