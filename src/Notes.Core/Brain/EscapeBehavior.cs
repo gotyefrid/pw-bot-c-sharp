@@ -9,7 +9,7 @@ using Notes.Core.World;
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Обход ресурсов: напал опасный моб (<see cref="DangerZones"/>) — не драться, а уйти вверх: отозвать пета, взлететь (если на
+/// Обход ресурсов: напал опасный моб (<see cref="DangerZones.Flee"/>; с «Не драться» — любой) — не драться, а уйти вверх: отозвать пета, взлететь (если на
 /// земле) и подниматься шагами по <see cref="ClimbStep"/> над своим местом, пока моб бьёт; перестал бить — висим. Отагр видим
 /// сразу: моб «возвращается» (<see cref="NpcInfo.Returning"/>) или сбросил цель — тогда обход возвращается на последнюю
 /// посещённую точку (моб, скорее всего, отошёл — ресурс мог освободиться). Цель у моба может застрять на нас (клиент не получил
@@ -60,7 +60,9 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
         {
             (_from, _since, _lastHit, _startHeight, _recallTried, _gaveUp, _climb, _fly) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null, null);
             c.Fight.Abort();
-            c.Log.Warning($"Напал опасный {threat.Name} (ур. {threat.Level}) — улетаю вверх");
+            c.Log.Warning(DangerZones.IsDangerous(threat, c.Settings.Route)
+                ? $"Напал опасный {threat.Name} (ур. {threat.Level}) — улетаю вверх"
+                : $"Напал {threat.Name} (ур. {threat.Level}), «Не драться» — улетаю вверх");
         }
 
         if (_gaveUp)
@@ -138,7 +140,7 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
         foreach (var back in w.Mobs.Where(m => _shaken.Contains(m.Wid) && (Hits(m) || m.TargetWid != w.Host.Wid && m.TargetWid != petWid)).ToList())
             _shaken.Remove(back.Wid);
         return w.Mobs
-            .Where(m => w.AttacksUs(m) && !_shaken.Contains(m.Wid) && DangerZones.IsDangerous(m, c.Settings.Route))
+            .Where(m => w.AttacksUs(m) && !_shaken.Contains(m.Wid) && DangerZones.Flee(m, c.Settings.Route))
             .OrderBy(m => m.Offset.Horizontal)
             .FirstOrDefault();
     }

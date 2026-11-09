@@ -421,6 +421,70 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void AvoidFightsMakesBotFlyFromWeakPassiveAttacker()
+    {
+        // «Не драться»: напал пассивный слабый волк — не бьём, а улетаем вверх, как от опасного
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _settings.Route.AvoidFights = true;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        _world.AddMob(0x80000001, "Волк", 3, targetWid: FakeWorld.HostWid);
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["fly (0,0; 0,0; h 10,0)"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Напал Волк (ур. 0), «Не драться» — улетаю вверх");
+    }
+
+    [Fact]
+    public void AvoidFightsIgnoresAttackerAlreadyInTarget()
+    {
+        // «Не драться»: напавший уже у нас в цели — всё равно не бьём
+        Route(0, 300);
+        _settings.Route.AvoidFights = true;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var wolf = _world.AddMob(0x80000001, "Волк", 3, targetWid: FakeWorld.HostWid);
+        _world.TargetWid = wolf.Wid;
+        _actions.Calls.Clear();
+
+        for (var i = 0; i < 8; i++)
+            Tick();
+
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack") || a.StartsWith("skill"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Напал Волк"));
+    }
+
+    [Fact]
+    public void AvoidFightsTurnedOnMidFightDropsTheFight()
+    {
+        // Дрались со слабым волком, включили «Не драться» — бой бросаем, от волка уходим
+        Route(0, 300);
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var wolf = _world.AddMob(0x80000001, "Волк", 3, targetWid: FakeWorld.HostWid);
+        Tick();
+        _world.TargetWid = wolf.Wid;
+        Tick();
+        Assert.Contains(_log, e => e.Message.StartsWith("Бой: Волк"));
+        _settings.Route.AvoidFights = true;
+        Brain.UpdateSettings(_settings);
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack") || a.StartsWith("skill"));
+        Assert.Contains("fly (0,0; 0,0; h 10,0)", _actions.Calls);
+    }
+
+    [Fact]
     public void WithoutFlightBotLeavesDangerousAttackerForNextPoint()
     {
         // Полёта нет (поле не найдено для сервера) — уйти вверх нельзя; с опасным всё равно не дерёмся — к следующей точке

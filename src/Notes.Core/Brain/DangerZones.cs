@@ -16,6 +16,13 @@ public static class DangerZones
         => mob is { Kind: NpcKind.Mob, IsDead: false, Aggressive: true, AggroRadius: > 0 }
            && ((route.DangerLevel > 0 && mob.Level >= route.DangerLevel) || MobNameFilter.Contains(route.DangerMobs, mob.Name));
 
+    /// <summary>
+    /// От этого моба, если напал, уходим и с ним не дерёмся: опасный — или любой живой моб, когда включено «Не драться»
+    /// (<see cref="RouteSettings.AvoidFights"/>). Зоны у ресурсов это не меняет — там только опасные.
+    /// </summary>
+    public static bool Flee(NpcInfo mob, RouteSettings route)
+        => route.AvoidFights ? mob is { Kind: NpcKind.Mob, IsDead: false } : IsDangerous(mob, route);
+
     /// <summary>Точка внутри зоны моба (с запасом <paramref name="margin"/>, м).</summary>
     public static bool Inside(NpcInfo mob, Position point, int margin)
     {

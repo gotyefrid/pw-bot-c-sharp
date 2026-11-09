@@ -451,6 +451,12 @@
               <TextBlock Text="ОПАСНЫЕ МОБЫ" Style="{StaticResource CardTitle}" />
               <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
                          Text="В полёте бот летит к ресурсу на своей высоте и спускается к нему сверху. К ресурсу в зоне агра опасного моба (или если путь к нему через зону) бот не летит: копает другие, на следующем круге проверит снова. Опасны только агрессивные — от уровня или из списка (боссы). Пассивные не опасны." />
+              <CheckBox Style="{StaticResource Switch}" Content="Не драться — уходить от всех" IsChecked="{Binding Settings.Route.AvoidFights}" Margin="0,0,0,8">
+                <CheckBox.ToolTip>
+                  <TextBlock MaxWidth="320" TextWrapping="Wrap"
+                             Text="Включено — бот не дерётся ни с кем: от любого напавшего (агрессивного или нет, любого уровня, даже если он в цели) улетает вверх, а когда моб отстанет — возвращается на точку и копает дальше. Улететь нельзя — уходит к следующей точке.&#10;&#10;Выключено — слабых напавших бьёт, уходит только от опасных." />
+                </CheckBox.ToolTip>
+              </CheckBox>
               <DockPanel Margin="0,0,0,4">
                 <TextBlock Text="Агрессивные от уровня" VerticalAlignment="Center" />
                 <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.DangerLevel, UpdateSourceTrigger=PropertyChanged}"

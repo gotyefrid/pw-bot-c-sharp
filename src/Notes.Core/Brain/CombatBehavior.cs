@@ -25,8 +25,8 @@ namespace Notes.Core.Brain;
 /// </summary>
 /// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета, —
 /// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма).</param>
-/// <param name="leaveDangerous">Опасных мобов обхода (<see cref="DangerZones"/>) не бить никогда, даже напавших: от них уходит
-/// <see cref="EscapeBehavior"/>. Цель у моба после отагра может застрять на нас — без этого бой принимал его за напавшего.</param>
+/// <param name="leaveDangerous">Опасных мобов обхода (<see cref="DangerZones.Flee"/>; с «Не драться» — всех) не бить никогда, даже
+/// напавших: от них уходит <see cref="EscapeBehavior"/>. Цель у моба после отагра может застрять на нас — без этого бой принимал его за напавшего.</param>
 public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous = false) : IBehavior, IWatchingBehavior
 {
     // Обычная атака: перс бьёт сам, пока не собьют; повтор раз в секунду — сбили (подход, каст) — снова бьёт почти сразу
@@ -170,6 +170,14 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             return BackToSearch(c);
         }
 
+        // Включили «Не драться» посреди боя — бросаем: от него уйдёт уход
+        if (Leaves(c, mob))
+        {
+            c.Log.Info($"{name}: не дерусь — бросаю бой");
+            fight.Abort();
+            return false;
+        }
+
         // Цель у перса сбрасывается чуть раньше, чем у моба ставится флаг смерти — даём ему время
         if (w.Host.TargetWid != mob.Wid)
         {
@@ -248,7 +256,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     private Threat ThreatOf(BrainContext c, NpcInfo mob)
         => Leaves(c, mob) ? Threat.None : TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c));
 
-    private bool Leaves(BrainContext c, NpcInfo mob) => leaveDangerous && DangerZones.IsDangerous(mob, c.Settings.Route);
+    private bool Leaves(BrainContext c, NpcInfo mob) => leaveDangerous && DangerZones.Flee(mob, c.Settings.Route);
 
     private readonly ObstacleWalk _walk = new();
 
@@ -427,7 +435,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         if (!defendOnly && !c.Settings.Target.KillMobs)
             return "«Бить мобов» выключено — не отвечаю";
         if (Leaves(c, mob))
-            return "опасный — не дерусь";
+            return c.Settings.Route.AvoidFights ? "«Не драться» — не отвечаю" : "опасный — не дерусь";
 
         var threat = ThreatOf(c, mob);
         if (threat == Threat.None)

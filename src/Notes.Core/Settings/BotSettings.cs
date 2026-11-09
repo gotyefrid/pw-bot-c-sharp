@@ -404,6 +404,13 @@ public sealed class RouteSettings : SettingsPart
     /// <summary>Агрессивные мобы с этими названиями опасны при любом уровне (боссы).</summary>
     public List<string> DangerMobs { get => _dangerMobs; set => Set(ref _dangerMobs, value); }
 
+    private bool _avoidFights;
+    /// <summary>
+    /// Не драться совсем: от любого напавшего (агрессивного или нет, любого уровня) уходить вверх, как от опасного, потом
+    /// возвращаться на точку. Выключено — слабых напавших бьём, уходим только от опасных. См. <see cref="Brain.DangerZones.Flee"/>.
+    /// </summary>
+    public bool AvoidFights { get => _avoidFights; set => Set(ref _avoidFights, value); }
+
     private int _dangerMargin = 1;
     /// <summary>Запас к радиусу агра опасного моба, м (не меньше 1).</summary>
     public int DangerMargin { get => _dangerMargin; set => Set(ref _dangerMargin, value); }
