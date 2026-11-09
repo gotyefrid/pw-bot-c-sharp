@@ -33,6 +33,9 @@ public static class PckArchive
     private const int EntrySize = 0x114;
     private const int PathSize = 260;
 
+    /// <summary>Кодировка путей в архиве и в файлах сцены клиента (китайская GBK, кодовая страница 936).</summary>
+    public static Encoding Gbk { get; } = Encoding.GetEncoding(936);
+
     public sealed record Entry(string Path, uint Offset, int Size, int PackedSize);
 
     public static IReadOnlyList<Entry> List(string pckFile, PckFormat format)
@@ -120,8 +123,8 @@ public static class PckArchive
             var entry = size == EntrySize ? raw : Inflate(raw);
 
             var pathEnd = Array.IndexOf(entry, (byte)0, 0, PathSize);
-            // Пути в архиве — GBK, но интересные нам (configs\skillstr.txt) в ASCII
-            var path = Encoding.ASCII.GetString(entry, 0, pathEnd < 0 ? PathSize : pathEnd);
+            // Пути в архиве — GBK: у деревьев (trees\…\*.spt) в них иероглифы
+            var path = Gbk.GetString(entry, 0, pathEnd < 0 ? PathSize : pathEnd);
             entries.Add(new Entry(path, BitConverter.ToUInt32(entry, PathSize), BitConverter.ToInt32(entry, PathSize + 4), BitConverter.ToInt32(entry, PathSize + 8)));
         }
 
