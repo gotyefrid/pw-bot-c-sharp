@@ -52,7 +52,8 @@ public static class ClickerKinds
         .Add<UseSkillAction>("UseSkill", "Использовать скилл")
         .Add<StopMacroAction>("StopMacro", "Остановить макрос")
         .Add<AssistAction>("Assist", "Пати: Ассист")
-        .Add<FollowMemberAction>("Follow", "Пати: Следовать");
+        .Add<FollowMemberAction>("Follow", "Пати: Следовать")
+        .Add<PartyTargetAction>("PartyTarget", "Пати: в цель");
 
     public static ClickerKindList<ClickerCondition> Conditions { get; } = new ClickerKindList<ClickerCondition>()
         .Add<AlwaysCondition>("Always", "Всегда")
@@ -68,6 +69,7 @@ public static class ClickerKinds
         .Add<ResourceNearbyCondition>("ResourceNearby", "Рядом можно копать")
         .Add<TargetNearbyCondition>("TargetNearby", "Рядом можно взять цель")
         .Add<PartyMemberFarCondition>("PartyMemberFar", "Пати: член пати дальше, м")
+        .Add<PartyHpCondition>("PartyHp", "Пати: HP, %")
         .Add<AllCondition>("All", "Все условия (И)")
         .Add<AnyCondition>("Any", "Любое из условий (ИЛИ)");
 }

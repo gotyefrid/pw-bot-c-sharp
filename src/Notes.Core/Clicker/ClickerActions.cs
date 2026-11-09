@@ -495,6 +495,80 @@ public sealed class FollowMemberAction : PartyMemberAction
     }
 }
 
+/// <summary>
+/// Взять в цель члена пати (<see cref="Member"/>, по нику; пусто — самого раненого: меньше всех HP в %) — для лечения скиллом
+/// следующим шагом. Сам персонаж — тоже член пати. Своё условие внутри (<see cref="ByHp"/>): брать, только если HP в %
+/// меньше, больше или равно порогу; выключено — выбранного всегда, «любого» — самого раненого. Мёртвых не берёт — лечить их
+/// нельзя. Подходящий уже в цели — в игру ничего не шлёт; брать некого — сделано, без предупреждения. Персонаж не в пати или
+/// выбранного в ней нет — «не вышло». Подтверждение — он в цели.
+/// </summary>
+public sealed class PartyTargetAction : ConfirmableAction
+{
+    private string _member = "";
+    private bool _byHp = true;
+    private PercentCompare _compare;
+    private int _percent = 50;
+
+    /// <summary>Ник члена пати; пусто — самый раненый.</summary>
+    public string Member
+    {
+        get => _member;
+        set
+        {
+            Set(ref _member, value ?? "");
+            Changed(nameof(MemberShown));
+        }
+    }
+
+    /// <summary>Для окна: что показать в поле, когда член пати не выбран.</summary>
+    [JsonIgnore]
+    public string MemberShown => Member.Length == 0 ? "Самый раненый (и сам персонаж)" : Member;
+
+    /// <summary>Брать, только если HP подходит под <see cref="Compare"/> и <see cref="Percent"/>.</summary>
+    public bool ByHp { get => _byHp; set => Set(ref _byHp, value); }
+
+    public PercentCompare Compare { get => _compare; set => Set(ref _compare, value); }
+
+    public int Percent { get => _percent; set => Set(ref _percent, value); }
+
+    protected override string What()
+    {
+        var hp = $"HP {PartyHp.Sign(Compare)} {Percent} %";
+        if (Member.Length == 0)
+            return ByHp ? $"в цель самого раненого в пати с {hp}" : "в цель самого раненого в пати";
+        return ByHp ? $"в цель {Member}, если {hp}" : $"в цель {Member}";
+    }
+
+    public override IClickerRun Start(BrainContext c)
+    {
+        var world = c.World;
+        if (!world.Party.InParty)
+            return ClickerRuns.Failed("персонаж не в пати");
+
+        var mates = PartyHp.Of(world, Member).ToList();
+        if (Member.Length > 0 && mates.Count == 0)
+            return ClickerRuns.Failed($"«{Member}» нет в пати");
+
+        var pick = mates
+            .Where(m => m.Percent > 0 && (!ByHp || PartyHp.Fits(m.Percent, Compare, Percent)))
+            .OrderBy(m => m.Percent)
+            .Select(m => m.Mate)
+            .FirstOrDefault();
+        if (pick is null)
+            return ClickerRuns.Skipped(ByHp ? $"в пати некого брать в цель: нет живых с HP {PartyHp.Sign(Compare)} {Percent} %" : "в пати некого брать в цель");
+
+        return world.Host.TargetWid == pick.Wid
+            ? ClickerRuns.Skipped($"«{pick.Name}» уже в цели")
+            : Send(new SelectPlayerAction(pick.Wid, pick.Name));
+    }
+
+    public override void Normalize()
+    {
+        Member = Member.Trim();
+        Percent = Math.Min(100, Math.Max(0, Percent));
+    }
+}
+
 /// <summary>Кто ведёт персонажа за членом пати.</summary>
 public enum FollowWay
 {

@@ -455,6 +455,89 @@ public sealed class PartyMemberFarCondition : ClickerCondition
 }
 
 /// <summary>
+/// HP членов пати в % — для условия «Пати: HP» и действия «Пати: в цель». Сам персонаж — тоже член пати (его HP — из персонажа:
+/// свежее). Максимум HP неизвестен — такого нет в списке.
+/// </summary>
+public static class PartyHp
+{
+    /// <summary>Члены пати с HP в %: <paramref name="member"/> — только он (по нику), пусто — все, и сам персонаж.</summary>
+    public static IEnumerable<(PartyMember Mate, int Percent)> Of(WorldState world, string member)
+    {
+        foreach (var mate in world.Party.Members)
+        {
+            var self = mate.Wid == world.Host.Wid;
+            var name = self && mate.Name.Length == 0 ? world.Host.Name : mate.Name;
+            if (member.Length > 0 && !string.Equals(name, member, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var (hp, max) = self ? (world.Host.Hp, world.Host.MaxHp) : (mate.Hp, mate.MaxHp);
+            if (max > 0)
+                yield return (mate with { Name = name }, Math.Max(0, hp) * 100 / max);
+        }
+    }
+
+    public static bool Fits(int now, PercentCompare compare, int percent) => compare switch
+    {
+        PercentCompare.Above => now > percent,
+        PercentCompare.Equal => now == percent,
+        _ => now < percent,
+    };
+
+    public static string Sign(PercentCompare compare) => compare switch
+    {
+        PercentCompare.Above => "больше",
+        PercentCompare.Equal => "равно",
+        _ => "меньше",
+    };
+}
+
+/// <summary>
+/// HP члена пати <see cref="Member"/> (по нику; пусто — любого, и самого персонажа) в % меньше, больше или равно порогу.
+/// С «любым» выполнено, когда подходит хоть один; в лог — самый раненый из подходящих. Персонаж не в пати или выбранного в ней
+/// нет — не выполнено.
+/// </summary>
+public sealed class PartyHpCondition : ClickerCondition
+{
+    private string _member = "";
+    private PercentCompare _compare;
+    private int _percent = 50;
+
+    /// <summary>Ник члена пати; пусто — любой.</summary>
+    public string Member
+    {
+        get => _member;
+        set
+        {
+            Set(ref _member, value ?? "");
+            Changed(nameof(MemberShown));
+        }
+    }
+
+    /// <summary>Для окна: что показать в поле, когда член пати не выбран.</summary>
+    [JsonIgnore]
+    public string MemberShown => Member.Length == 0 ? "Любой (и сам персонаж)" : Member;
+
+    public PercentCompare Compare { get => _compare; set => Set(ref _compare, value); }
+
+    public int Percent { get => _percent; set => Set(ref _percent, value); }
+
+    protected override string What()
+        => $"HP {(Member.Length == 0 ? "любого в пати" : Member)} {PartyHp.Sign(Compare)} {Percent} %";
+
+    protected override string? Holds(BrainContext c)
+    {
+        var fit = PartyHp.Of(c.World, Member).Where(m => PartyHp.Fits(m.Percent, Compare, Percent)).OrderBy(m => m.Percent).ToList();
+        return fit.Count == 0 ? null : $"HP «{fit[0].Mate.Name}» {fit[0].Percent} % — {PartyHp.Sign(Compare)} {Percent} %";
+    }
+
+    public override void Normalize()
+    {
+        Member = Member.Trim();
+        Percent = Math.Min(100, Math.Max(0, Percent));
+    }
+}
+
+/// <summary>
 /// Группа условий — внутри свой список (<see cref="Conditions"/>), в нём могут быть и группы. Правка внутри — правка группы
 /// (окно и сохранение узнают о ней).
 /// </summary>

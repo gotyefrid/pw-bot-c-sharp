@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using Notes.Core.Actions;
 using Notes.Core.Calls;
+using Notes.Core.Clicker;
 using Notes.Core.Clients;
 using Notes.Core.Logging;
 using Notes.Core.Memory;
@@ -26,6 +27,7 @@ internal static class ActCommands
           act untarget          снять цель
           act assist НИК        «Ассист»: взять в цель то же, что у члена пати рядом (часть ника)
           act follow НИК        «Следовать» за игроком рядом (часть ника) — ведёт сам клиент
+          act select-player НИК взять в цель члена пати или самого персонажа (часть ника)
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
@@ -445,6 +447,13 @@ internal static class ActCommands
                 if (mate is null)
                     return null;
                 return name == "assist" ? new TeamAssistAction(mate.Wid, mate.Name) : new FollowAction(mate.Wid, mate.Name);
+
+            case "select-player":
+                // Член пати или сам персонаж в цель (кликер: «Пати: в цель») — по нику из пати
+                var whom = Word(args);
+                problem = whom is null ? "нужно: act select-player НИК (член пати или сам персонаж)" : $"в пати нет «{whom}»";
+                var picked = whom is null ? default : PartyHp.Of(w, "").FirstOrDefault(m => m.Mate.Name.IndexOf(whom, StringComparison.OrdinalIgnoreCase) >= 0);
+                return picked.Mate is null ? null : new SelectPlayerAction(picked.Mate.Wid, picked.Mate.Name);
 
             case "attack":
                 return new NormalAttackAction();

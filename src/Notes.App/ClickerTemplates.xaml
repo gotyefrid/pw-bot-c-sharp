@@ -89,6 +89,29 @@
       <Grid />
     </DockPanel>
   </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PartyTargetAction}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Кого" VerticalAlignment="Center" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
+                          OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
+                          ToolTip="Кого из пати взять в цель — например, чтобы следующим шагом полечить. Пусто — самого раненого (меньше всех HP в процентах), и сам персонаж тоже в счёт. Мёртвых не берёт. Выбранного нет в пати — шаг не выйдет" />
+        <Grid />
+      </DockPanel>
+      <DockPanel Margin="0,0,0,6">
+        <CheckBox Content="Только если HP, %" IsChecked="{Binding ByHp}" VerticalAlignment="Center"
+                  ToolTip="Брать в цель, только когда HP подходит. Выключено — выбранного всегда, а если никто не выбран — самого раненого, даже когда все здоровы" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
+                 IsEnabled="{Binding ByHp}" ToolTip="Порог в процентах — целых: «равно 100» — полное" />
+        <ComboBox DockPanel.Dock="Right" Width="90" Margin="0,0,6,0" SelectedValuePath="Tag" SelectedValue="{Binding Compare}" IsEnabled="{Binding ByHp}">
+          <ComboBoxItem Content="меньше" Tag="{x:Static clicker:PercentCompare.Below}" />
+          <ComboBoxItem Content="больше" Tag="{x:Static clicker:PercentCompare.Above}" />
+          <ComboBoxItem Content="равно" Tag="{x:Static clicker:PercentCompare.Equal}" />
+        </ComboBox>
+        <Grid />
+      </DockPanel>
+    </StackPanel>
+  </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:FollowMemberAction}">
     <StackPanel>
       <DockPanel Margin="0,0,0,6">
@@ -247,6 +270,28 @@
         <TextBlock Text="Дальше от персонажа, м" VerticalAlignment="Center" />
         <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
                  ToolTip="Выполнено, когда член пати дальше этого от персонажа (напрямую, с высотой). Где он, игра не знает (очень далеко) — тоже выполнено. «Ближе» — это же условие с «НЕ»" />
+        <Grid />
+      </DockPanel>
+    </StackPanel>
+  </DataTemplate>
+  <DataTemplate DataType="{x:Type clicker:PartyHpCondition}">
+    <StackPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="Член пати" VerticalAlignment="Center" />
+        <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
+                          OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
+                          ToolTip="Чьё HP смотреть. Пусто — любого в пати, и самого персонажа: выполнено, когда подходит хоть один. Выбранного нет в пати — не выполнено" />
+        <Grid />
+      </DockPanel>
+      <DockPanel Margin="0,0,0,6">
+        <TextBlock Text="HP, %" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="Порог в процентах — целых: «равно 100» — полное" />
+        <ComboBox DockPanel.Dock="Right" Width="90" Margin="0,0,6,0" SelectedValuePath="Tag" SelectedValue="{Binding Compare}">
+          <ComboBoxItem Content="меньше" Tag="{x:Static clicker:PercentCompare.Below}" />
+          <ComboBoxItem Content="больше" Tag="{x:Static clicker:PercentCompare.Above}" />
+          <ComboBoxItem Content="равно" Tag="{x:Static clicker:PercentCompare.Equal}" />
+        </ComboBox>
         <Grid />
       </DockPanel>
     </StackPanel>

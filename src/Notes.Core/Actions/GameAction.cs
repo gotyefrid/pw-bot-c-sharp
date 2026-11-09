@@ -170,6 +170,21 @@ public sealed class SelectTargetAction(NpcInfo npc) : GameAction
 }
 
 /// <summary>
+/// Взять в цель члена пати или самого персонажа по WID — тот же вызов, что для моба (<see cref="SelectTargetAction"/>).
+/// Подтверждение — он в цели.
+/// </summary>
+public sealed class SelectPlayerAction(uint wid, string name) : GameAction
+{
+    public override string Name => $"выбрать цель {name} 0x{wid:X8}";
+    public override ActionSlot Slot => ActionSlot.Target;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.SelectTarget(wid);
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => now.Host.TargetWid == wid ? Verdict.Confirmed() : Verdict.Pending;
+}
+
+/// <summary>
 /// «Ассист» члена пати: взять в цель то, что в цели у него. Цель ставит ответ сервера; подтверждение — цель сменилась (у него
 /// может быть та же цель, что у нас, или никакой — тогда ждём до конца срока).
 /// </summary>
