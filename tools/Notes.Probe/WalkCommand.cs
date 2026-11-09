@@ -25,8 +25,10 @@ internal static class WalkCommand
         + "            --go — вести перса по отрезкам («по прямой»), застрял — пересчитать (вызывает функции клиента — запускает владелец);\n"
         + "            --no-movemap — без карты проходимости клиента, только камни и постройки";
 
-    // Дошёл до точки отрезка, м
-    private const float Reached = 0.8f;
+    // Дошёл до точки пути, м. Раньше (ближе Early) — к следующей, только если до неё уже видно с запасом: иначе перс
+    // срезает поворот и цепляет угол (так было 09.11 на 1.3.6 у угла дома)
+    private const float Reached = 0.3f;
+    private const float Early = 0.8f;
 
     // Застрял: за это время сдвинулся меньше чем на StuckMove
     private static readonly TimeSpan StuckTime = TimeSpan.FromSeconds(1.5);
@@ -84,7 +86,7 @@ internal static class WalkCommand
         var after = Path.ChangeExtension(file, null) + "-после.png";
         for (var replan = 0; ; replan++)
         {
-            var result = Follow(reader, calls, path, trail);
+            var result = Follow(reader, calls, path, trail, new PathFinder(scene.Comfort));
             if (result is null)
             {
                 var end = reader.Read().Host.Position;
@@ -128,11 +130,12 @@ internal static class WalkCommand
     }
 
     // Пройти точки пути по порядку; null — дошёл, иначе — где и почему застрял
-    private static string? Follow(WorldReader reader, GameCalls calls, PathResult path, List<PathPoint> trail)
+    private static string? Follow(WorldReader reader, GameCalls calls, PathResult path, List<PathPoint> trail, PathFinder comfort)
     {
         for (var i = 1; i < path.Points.Count; i++)
         {
             var target = path.Points[i];
+            PathPoint? next = i + 1 < path.Points.Count ? path.Points[i + 1] : null;
             var start = reader.Read().Host.Position;
             var sent = calls.Caller.MoveTo(new Position(target.X, start.Height, target.Y), smart: false);
             if (!sent.Ok)
@@ -148,7 +151,8 @@ internal static class WalkCommand
                 var p = reader.Read().Host.Position;
                 var here = new PathPoint(p.X, p.Y);
                 trail.Add(here);
-                if (here.DistanceTo(target) <= Reached)
+                var left = here.DistanceTo(target);
+                if (left <= Reached || left <= Early && (next is null || comfort.LineFree(here, next.Value)))
                     break;
                 if (here.DistanceTo(last) >= StuckMove)
                 {
