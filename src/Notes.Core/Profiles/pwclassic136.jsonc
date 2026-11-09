@@ -536,8 +536,12 @@
     "cooldownLeft": "0x10",
     "cooldownFull": "0x14",
     "flags": "0x18",
-    // Дальность скилла — см. comeback136.jsonc; здесь не проверено
-    "range": { "element": "", "stub": "", "kind": "", "rangeKind": "", "scaled": "", "function": "" }
+    // Дальность скилла — как в Comeback (что это и как найти — см. comeback136.jsonc), библиотека здесь ElementSkill2.dll.
+    // Экспорт GetPrayRange — базовый «fldz»; сам расчёт — RVA 0x6F9D0 (искать по «movss [esi+8], xmm0; movss xmm0, [ebp+0xC];
+    // movss [esi+0xC], xmm0; mov al, [ecx+0x1C]; cmp al, 1»). Отличие от Comeback: вид дальности +0x80 (не +0x81), флаг
+    // пересчёта +0x58 (не +0x59). Проверено 09.11 на Купчихане: у портала и оживления пета +0x80 = 5 (на себя), функция «Жалящего
+    // роя» — «ур × A + B», уровень +0x28
+    "range": { "element": "0x4", "stub": "0x4", "kind": "0x1C", "rangeKind": "0x80", "scaled": "0x58", "function": "0x1C" }
   },
 
   // Макросы персонажа: в настройках игры с +0x129, 8 штук по 0x11 байт — байт иконки (0 — макроса нет) и 8 скиллов по 2 байта
