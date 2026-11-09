@@ -23,30 +23,31 @@ public interface IWalkArea
 public sealed class WalkArea : IWalkArea
 {
     public const float Radius = 0.5f;
+    public const float ComfortRadius = 0.8f;
     public const float Below = 2f;
     public const float Above = 2.5f;
 
     // Тела по корзинам 8×8 м: проверка точки смотрит только свою корзину
     private const float BucketSize = 8f;
 
-    private static readonly (float X, float Y)[] Rim = Enumerable.Range(0, 8)
-        .Select(i => ((float)Math.Cos(i * Math.PI / 4) * Radius, (float)Math.Sin(i * Math.PI / 4) * Radius))
-        .ToArray();
-
     private readonly MoveMap? _map;
     private readonly float _from;
     private readonly float _to;
     private readonly Dictionary<(int, int), List<ConvexBrush>> _buckets = [];
+    private readonly (float X, float Y)[] _rim;
 
-    public WalkArea(MoveMap? map, SceneObstacles obstacles, float feet)
+    public WalkArea(MoveMap? map, SceneObstacles obstacles, float feet, float radius = Radius)
     {
         _map = map;
+        _rim = Enumerable.Range(0, 8)
+            .Select(i => ((float)Math.Cos(i * Math.PI / 4) * radius, (float)Math.Sin(i * Math.PI / 4) * radius))
+            .ToArray();
         _from = feet - Below;
         _to = feet + Above;
         foreach (var brush in obstacles.Brushes.Where(b => b.MaxHeight > _from && b.MinHeight < _to))
         {
-            for (var bx = Bucket(brush.MinX - Radius); bx <= Bucket(brush.MaxX + Radius); bx++)
-                for (var by = Bucket(brush.MinY - Radius); by <= Bucket(brush.MaxY + Radius); by++)
+            for (var bx = Bucket(brush.MinX - radius); bx <= Bucket(brush.MaxX + radius); bx++)
+                for (var by = Bucket(brush.MinY - radius); by <= Bucket(brush.MaxY + radius); by++)
                 {
                     if (!_buckets.TryGetValue((bx, by), out var list))
                         _buckets[(bx, by)] = list = [];
@@ -59,7 +60,7 @@ public sealed class WalkArea : IWalkArea
     {
         if (!PointFree(x, y))
             return false;
-        foreach (var (dx, dy) in Rim)
+        foreach (var (dx, dy) in _rim)
             if (!PointFree(x + dx, y + dy))
                 return false;
         return true;

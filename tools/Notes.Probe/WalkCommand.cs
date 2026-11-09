@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
@@ -60,9 +62,8 @@ internal static class WalkCommand
         if (MoveMapCommand.Load(profile, game, GuidePoints.MainWorld, me, [from, goal], PathFinder.Margin, !noMoveMap) is not { } scene)
             return 2;
 
-        var finder = new PathFinder(scene.Area);
         var timer = Stopwatch.StartNew();
-        var path = finder.Find(from, goal);
+        var path = PathFinder.FindWithMargin(scene.Comfort, scene.Area, from, goal);
         Print(path, timer.Elapsed);
         var center = new PathPoint((from.X + goal.X) / 2, (from.Y + goal.Y) / 2);
         var radius = (int)Math.Ceiling(Math.Max(Math.Abs(from.X - goal.X), Math.Abs(from.Y - goal.Y)) / 2 + 15);
@@ -77,13 +78,18 @@ internal static class WalkCommand
             return 4;
         }
 
+        // След перса и все пути (первый и пересчёты) — на картинку «после»
+        var trail = new List<PathPoint> { from };
+        var planned = new List<PathPoint>(path.Points);
+        var after = Path.ChangeExtension(file, null) + "-после.png";
         for (var replan = 0; ; replan++)
         {
-            var result = Follow(reader, calls, path);
+            var result = Follow(reader, calls, path, trail);
             if (result is null)
             {
                 var end = reader.Read().Host.Position;
                 Console.WriteLine($"✅ дошёл: {new PathPoint(end.X, end.Y)}, до цели {new PathPoint(end.X, end.Y).DistanceTo(goal):0.0} м");
+                MoveMapCommand.Draw(scene, reader.Read(), center, radius, planned, after, trail);
                 return 0;
             }
 
@@ -91,15 +97,17 @@ internal static class WalkCommand
             if (replan >= MaxReplans)
             {
                 Console.WriteLine($"❌ не дошёл: застревал {MaxReplans + 1} раза");
+                MoveMapCommand.Draw(scene, reader.Read(), center, radius, planned, after, trail);
                 return 5;
             }
 
             var now = reader.Read().Host.Position;
-            path = finder.Find(new PathPoint(now.X, now.Y), goal);
+            path = PathFinder.FindWithMargin(scene.Comfort, scene.Area, new PathPoint(now.X, now.Y), goal);
             Console.Write("Пересчёт: ");
             Print(path, TimeSpan.Zero);
             if (!path.Found)
                 return 3;
+            planned.AddRange(path.Points);
         }
     }
 
@@ -113,13 +121,14 @@ internal static class WalkCommand
 
         Console.WriteLine($"Путь: {path.Points.Count - 1} отрезков, {path.Length:0.0} м"
                           + (path.Explored > 0 ? $", обход — клеток просмотрено {path.Explored}" : ", по прямой")
+                          + (path.Tight ? $", впритирку {WalkArea.Radius} м: с запасом {WalkArea.ComfortRadius} м не пролезть" : $", запас от стен {WalkArea.ComfortRadius} м")
                           + (took > TimeSpan.Zero ? $", {took.TotalMilliseconds:0} мс" : ""));
         foreach (var p in path.Points)
             Console.WriteLine($"   {p}  карта {(p.X + 4000) / 10:0.0} {(p.Y + 5500) / 10:0.0}");
     }
 
     // Пройти точки пути по порядку; null — дошёл, иначе — где и почему застрял
-    private static string? Follow(WorldReader reader, GameCalls calls, PathResult path)
+    private static string? Follow(WorldReader reader, GameCalls calls, PathResult path, List<PathPoint> trail)
     {
         for (var i = 1; i < path.Points.Count; i++)
         {
@@ -132,11 +141,13 @@ internal static class WalkCommand
 
             var last = new PathPoint(start.X, start.Y);
             var lastMoved = DateTime.UtcNow;
+            var resent = false;
             while (true)
             {
                 Thread.Sleep(150);
                 var p = reader.Read().Host.Position;
                 var here = new PathPoint(p.X, p.Y);
+                trail.Add(here);
                 if (here.DistanceTo(target) <= Reached)
                     break;
                 if (here.DistanceTo(last) >= StuckMove)
@@ -146,6 +157,19 @@ internal static class WalkCommand
                 }
                 else if (DateTime.UtcNow - lastMoved > StuckTime)
                 {
+                    // Стоит: игра могла пропустить команду, пока доделывала прошлую ходьбу (на 1.3.6 так бывает сразу после
+                    // точки пути, перс при этом ещё чуть доезжает) — повторить один раз; стоит и после — застрял
+                    if (!resent)
+                    {
+                        resent = true;
+                        Console.WriteLine($"   стоит — команда ещё раз");
+                        var again = calls.Caller.MoveTo(new Position(target.X, p.Height, target.Y), smart: false);
+                        if (!again.Ok)
+                            return $"команда «бежать» не прошла: {again.Details}";
+                        lastMoved = DateTime.UtcNow;
+                        continue;
+                    }
+
                     return $"застрял в {here} по пути к точке {i} {target} (до неё {here.DistanceTo(target):0.0} м)";
                 }
             }

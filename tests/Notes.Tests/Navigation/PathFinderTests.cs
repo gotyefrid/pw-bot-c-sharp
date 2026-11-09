@@ -58,6 +58,29 @@ public class PathFinderTests
     }
 
     [Fact]
+    public void KeepsMarginFromCornersAndFallsBackToTightGap()
+    {
+        // Угол дома: квадрат 0…10 по обе оси; «с запасом» — тот же дом, раздутый на 0,3 м
+        bool House(float x, float y, float grow) => x > -grow && x < 10 + grow && y > -grow && y < 10 + grow;
+        var tight = new Area((x, y) => House(x, y, 0));
+        var wide = new Area((x, y) => House(x, y, 0.3f));
+
+        var path = PathFinder.FindWithMargin(wide, tight, new(-2, 5), new(5, 12));
+
+        Assert.True(path.Found, path.Problem);
+        Assert.False(path.Tight);
+        Assert.All(path.Points, p => Assert.True(wide.IsFree(p.X, p.Y)));
+
+        // Щель шириной 0,4 м: с запасом закрыта, впритирку — проходима
+        bool Wall(float x, float y, float grow) => Math.Abs(x - 10) < 0.5f && !(y > 5 - 0.2f + grow && y < 5 + 0.2f - grow);
+        var narrow = PathFinder.FindWithMargin(new Area((x, y) => Wall(x, y, 0.3f) || Math.Abs(y - 5) > 30),
+            new Area((x, y) => Wall(x, y, 0) || Math.Abs(y - 5) > 30), new(0, 5), new(20, 5));
+
+        Assert.True(narrow.Found, narrow.Problem);
+        Assert.True(narrow.Tight);
+    }
+
+    [Fact]
     public void ExplainsWhenTargetIsCutOff()
     {
         // Цель внутри кольца стен

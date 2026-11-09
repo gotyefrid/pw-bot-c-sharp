@@ -91,13 +91,16 @@ internal static class MoveMapCommand
             map = new MoveMap(map.Name, map.Rows, map.Columns, []);
         }
 
-        return new Scene(map, obstacles, new WalkArea(map, obstacles, me.Height));
+        return new Scene(map, obstacles, new WalkArea(map, obstacles, me.Height),
+            new WalkArea(map, obstacles, me.Height, WalkArea.ComfortRadius));
     }
 
-    public sealed record Scene(MoveMap Map, SceneObstacles Obstacles, WalkArea Area);
+    /// <summary><see cref="Area"/> — впритирку, <see cref="Comfort"/> — с запасом от препятствий.</summary>
+    public sealed record Scene(MoveMap Map, SceneObstacles Obstacles, WalkArea Area, WalkArea Comfort);
 
     /// <summary>Картинка с центром <paramref name="center"/>: карта, тела, мобы, пет, цель и путь (синяя ломаная).</summary>
-    public static void Draw(Scene scene, WorldState world, PathPoint center, int radius, IReadOnlyList<PathPoint> path, string file)
+    public static void Draw(Scene scene, WorldState world, PathPoint center, int radius, IReadOnlyList<PathPoint> path, string file,
+        IReadOnlyList<PathPoint>? trail = null)
     {
         var me = world.Host.Position;
         Console.WriteLine($"Перс {world.Host.Name} в ({me.X:0.0}; {me.Y:0.0}): " + scene.Map.Walkable(me.X, me.Y) switch
@@ -162,12 +165,19 @@ internal static class MoveMapCommand
                 Dot(path[path.Count - 1].X, path[path.Count - 1].Y, Color.FromArgb(0, 200, 120), 7);
             }
 
+            if (trail is { Count: > 1 })
+            {
+                using var line = new Pen(Color.FromArgb(230, 30, 30), 2);
+                g.DrawLines(line, trail.Select(p => At(p.X, p.Y)).ToArray());
+            }
+
             Dot(me.X, me.Y, Color.FromArgb(230, 30, 30), 6);
             image.Save(file, ImageFormat.Png);
         }
 
         Console.WriteLine($"Картинка {size}×{size} ({Scale} точки на метр, север вверху): {Path.GetFullPath(file)}");
         Console.WriteLine("Красная точка — перс, синяя — пет, оранжевые — мобы, фиолетовые — NPC, зелёные — предметы; красное кольцо — цель"
-                          + (path.Count > 1 ? "; синяя ломаная — путь, зелёная точка — куда" : ""));
+                          + (path.Count > 1 ? "; синяя ломаная — путь, зелёная точка — куда" : "")
+                          + (trail is { Count: > 1 } ? "; красная линия — где перс шёл на самом деле" : ""));
     }
 }

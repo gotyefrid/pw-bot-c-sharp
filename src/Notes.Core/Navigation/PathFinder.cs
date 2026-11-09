@@ -16,6 +16,9 @@ public sealed record PathResult(IReadOnlyList<PathPoint> Points, string? Problem
 {
     public bool Found => Problem is null;
 
+    /// <summary>С запасом от препятствий пути не нашлось — этот впритирку.</summary>
+    public bool Tight { get; init; }
+
     /// <summary>Длина по отрезкам, м.</summary>
     public float Length
     {
@@ -37,6 +40,19 @@ public sealed record PathResult(IReadOnlyList<PathPoint> Points, string? Problem
 /// </summary>
 public sealed class PathFinder(IWalkArea area)
 {
+    /// <summary>
+    /// Сначала с запасом от препятствий (<paramref name="comfortable"/>), не нашёлся — впритирку (<paramref name="tight"/>):
+    /// узкая калитка или щель между камнями не должна оставить без пути.
+    /// </summary>
+    public static PathResult FindWithMargin(IWalkArea comfortable, IWalkArea tight, PathPoint from, PathPoint to)
+    {
+        var wide = new PathFinder(comfortable).Find(from, to);
+        if (wide.Found)
+            return wide;
+        var narrow = new PathFinder(tight).Find(from, to);
+        return narrow with { Tight = narrow.Found, Explored = wide.Explored + narrow.Explored };
+    }
+
     public const float Step = 0.5f;
 
     /// <summary>Поиск ограничен прямоугольником вокруг начала и цели с таким запасом, м.</summary>
