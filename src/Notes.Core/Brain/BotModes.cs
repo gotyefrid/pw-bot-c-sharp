@@ -53,12 +53,16 @@ public static class BotModes
     /// <param name="random">Паузы и разброс; тесты задают свой, чтобы ход повторялся.</param>
     /// <param name="quests">Прокачка: где мобы и NPC; нет — без точек (идти можно только к тем, кого видно).</param>
     /// <param name="stats">Куда писать статистику (персонажа); нет — не ведём.</param>
+    /// <param name="obstacles">Препятствия вокруг перса для обхода; нет — ходим как раньше.</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
         IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null, QuestGuide? quests = null,
-        IStatsSink? stats = null)
+        IStatsSink? stats = null, Navigation.ObstacleMap? obstacles = null)
     {
         // Копия настроек: окно может менять свои дальше (новые мозг получит через UpdateSettings)
-        var context = new BrainContext(runner, skills, log, random ?? new Random()) { Settings = settings.Clone(), Stats = stats };
+        var context = new BrainContext(runner, skills, log, random ?? new Random())
+        {
+            Settings = settings.Clone(), Stats = stats, Obstacles = obstacles,
+        };
         var tools = gatherTools ?? [];
         return mode switch
         {

@@ -57,6 +57,9 @@ public sealed class BrainContext
     public ILogger Log { get; }
     public Random Random { get; }
 
+    /// <summary>Камни, дома и деревья вокруг перса для обхода (<see cref="ObstacleWalk"/>); null — не знаем, ходим как раньше.</summary>
+    public Navigation.ObstacleMap? Obstacles { get; init; }
+
     /// <summary>Куда мозг отдаёт события статистики (<see cref="StatsWatcher"/>); null — не ведём. Поведениям не нужна.</summary>
     internal IStatsSink? Stats { get; init; }
 

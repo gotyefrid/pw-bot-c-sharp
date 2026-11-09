@@ -195,7 +195,7 @@ public sealed class ClientConnection : IDisposable
 
             var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(_game.Pid), _requests), _logger.For(LogSources.Actions));
             var brain = BotModes.Create(mode, runner, _profile.Skills, settings, _logger.For(LogSources.Brain), _profile.GatherTools, routeStart,
-                quests: mode == BotMode.LevelUp ? LoadQuestGuide() : null, stats: stats);
+                quests: mode == BotMode.LevelUp ? LoadQuestGuide() : null, stats: stats, obstacles: Obstacles());
             var memoryLog = _logger.For(LogSources.Memory);
             var inspector = new ProcessInspector(_game);
             var guard = new GameMemoryGuard(inspector.QueryFreeMemory, memoryLog);
@@ -328,6 +328,17 @@ public sealed class ClientConnection : IDisposable
     }
 
     // Прокачка: места мобов, NPC и ресурсов — вшитый справочник и поверх него файл клиента
+    // Препятствия для обхода — одни на подключение: квадраты карты читаются в фоне и остаются в памяти между запусками бота.
+    // Пока только основной мир: на какой карте перс (подземелье), из памяти ещё не читаем
+    private Navigation.ObstacleMap? _obstacles;
+
+    private Navigation.ObstacleMap Obstacles()
+    {
+        var log = _logger.For(LogSources.Brain);
+        return _obstacles ??= new Navigation.ObstacleMap(Path.GetDirectoryName(_game.MainModulePath)!, GuidePoints.MainWorld,
+            _profile.GameFiles.Pck, message => log.Info(message));
+    }
+
     private QuestGuide LoadQuestGuide()
     {
         var directory = Path.GetDirectoryName(_game.MainModulePath)!;

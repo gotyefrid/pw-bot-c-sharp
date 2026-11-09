@@ -250,6 +250,8 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
 
     private bool Leaves(BrainContext c, NpcInfo mob) => leaveDangerous && DangerZones.IsDangerous(mob, c.Settings.Route);
 
+    private readonly ObstacleWalk _walk = new();
+
     private bool Attack(BrainContext c, NpcInfo mob)
     {
         var w = c.World;
@@ -267,6 +269,14 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             var stale = c.Mine.OfType<PetAttackAction>().Any(p => p.TargetWid != mob.Wid);
             if (stale ? c.Replace(order) is SubmitStatus.Sent : c.Submit(order))
                 return true;
+        }
+
+        // Моба загораживает камень, дом или дерево — сначала обходим, пока прямая до него не откроется (скилл «как кнопкой»
+        // иначе ведёт перса по прямой в препятствие)
+        if (_walk.Step(c, mob.Position, mob.Name))
+        {
+            Status = $"обхожу препятствие к {mob.Name}";
+            return true;
         }
 
         // Строго по очереди: сначала подходим, потом бьём. Бег, скилл и удар занимают тело — пока одно ждёт или персонаж кастует,
@@ -449,6 +459,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
 
     public void Reset()
     {
+        _walk.Reset();
         _gaveUp.Clear();
         _attacks.Reset();
         Status = null;

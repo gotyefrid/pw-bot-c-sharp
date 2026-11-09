@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
@@ -118,6 +119,13 @@ public sealed class PetBehavior : IBehavior
 
         if (inCage.HpPercent < settings.HealPercent && c.World.Skill(c.Skills.HealPet) is { IsReady: true })
         {
+            // Пета загораживает камень, дом или дерево — сначала обходим: лечение «как кнопкой» ведёт перса по прямой в препятствие
+            if (c.World.Npcs.FirstOrDefault(n => n.Wid == pet.ActiveWid) is { } petNpc && _walk.Step(c, petNpc.Position, "пета"))
+            {
+                Status = "обхожу препятствие к пету";
+                return true;
+            }
+
             // Срочное: бег/атаку исполнитель забудет, чужой каст или копание прервёт. Занято (свой каст, прерывать нечем) —
             // вылечим, как освободится; пока не мешаем остальным
             var heal = c.Send(new SkillAction(c.Skills.HealPet, pet.ActiveWid, approach: true, "лечение пета", HealTimeout)
@@ -171,8 +179,11 @@ public sealed class PetBehavior : IBehavior
             c.Log.Info(_feeding.Report(feed.Item.Tid, outcome.Status == ActionStatus.Confirmed, c.Now));
     }
 
+    private readonly ObstacleWalk _walk = new();
+
     public void Reset()
     {
+        _walk.Reset();
         Status = null;
         _calmSince = null;
     }

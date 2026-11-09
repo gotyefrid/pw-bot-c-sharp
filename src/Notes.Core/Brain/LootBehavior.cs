@@ -120,6 +120,13 @@ public sealed class LootBehavior : IBehavior
             return Done(c);
         }
 
+        // Предмет за камнем, домом или деревом — сначала обходим: подбор «как мышкой» бежит по прямой и упирается
+        if (_walk.Step(c, item.Position, item.Name))
+        {
+            Status = $"лут: обхожу препятствие к {item.Name}";
+            return true;
+        }
+
         _attempts++;
         _picking = SpotOf(open, item, loot.Radius)!;
         _picking.Picks++;
@@ -176,8 +183,11 @@ public sealed class LootBehavior : IBehavior
         return false;
     }
 
+    private readonly ObstacleWalk _walk = new();
+
     public void Reset()
     {
+        _walk.Reset();
         _skipped.Clear();
         _picking = null;
         _itemFailures = 0;
