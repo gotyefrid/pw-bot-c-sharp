@@ -18,6 +18,10 @@ namespace Notes.Core.GameFiles;
 /// Клиенты отличаются ключами и размером хвоста — они в профиле сервера (<see cref="PckFormat"/>). Ещё бывает заголовок
 /// в начале файла: 0x4DCA23EF, конец архива, 0x56A089B7 — тогда архив кончается там, а дальше в файле то, что клиент дописал сам.
 /// </para>
+/// <para>
+/// Архив больше 2 ГБ разбит на два файла: .pck и продолжение .pkx рядом. Смещения и конец из заголовка — в склеенном архиве
+/// (сначала .pck, затем .pkx), хвост с оглавлением — в конце .pkx.
+/// </para>
 /// Игра держит архив открытым, поэтому открываем с FileShare.ReadWrite.
 /// </summary>
 public static class PckArchive
@@ -59,10 +63,17 @@ public static class PckArchive
         return files;
     }
 
-    private static FileStream Open(string pckFile)
-        => new(pckFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+    private static Stream Open(string pckFile)
+    {
+        var first = OpenFile(pckFile);
+        var continuation = Path.ChangeExtension(pckFile, ".pkx");
+        return File.Exists(continuation) ? new JoinedStream(first, OpenFile(continuation)) : first;
+    }
 
-    private static List<Entry> ReadEntries(FileStream stream, PckFormat format)
+    private static FileStream OpenFile(string path)
+        => new(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+
+    private static List<Entry> ReadEntries(Stream stream, PckFormat format)
     {
         var end = ArchiveEnd(stream);
         if (end < Math.Max(8, format.TailSize))
@@ -81,7 +92,7 @@ public static class PckArchive
     }
 
     // Заголовок «0x4DCA23EF, конец, 0x56A089B7» — архив кончается раньше конца файла
-    private static long ArchiveEnd(FileStream stream)
+    private static long ArchiveEnd(Stream stream)
     {
         if (stream.Length < 12)
             return stream.Length;
@@ -94,7 +105,7 @@ public static class PckArchive
             : stream.Length;
     }
 
-    private static List<Entry> ReadTable(FileStream stream, PckFormat format, uint tableOffset, uint count)
+    private static List<Entry> ReadTable(Stream stream, PckFormat format, uint tableOffset, uint count)
     {
         stream.Position = tableOffset;
         var entries = new List<Entry>((int)Math.Min(count, 100_000));
@@ -140,5 +151,58 @@ public static class PckArchive
         using var output = new MemoryStream();
         deflate.CopyTo(output);
         return output.ToArray();
+    }
+
+    /// <summary>Два файла как один поток только для чтения: сначала <c>first</c>, за ним <c>second</c>.</summary>
+    private sealed class JoinedStream(Stream first, Stream second) : Stream
+    {
+        private long _position;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => true;
+        public override bool CanWrite => false;
+        public override long Length => first.Length + second.Length;
+
+        public override long Position
+        {
+            get => _position;
+            set => _position = value;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            var (part, at) = _position < first.Length ? (first, _position) : (second, _position - first.Length);
+            if (part == first)
+                count = (int)Math.Min(count, first.Length - at);
+            part.Position = at;
+            var n = part.Read(buffer, offset, count);
+            _position += n;
+            return n;
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => _position = origin switch
+        {
+            SeekOrigin.Begin => offset,
+            SeekOrigin.Current => _position + offset,
+            _ => Length + offset,
+        };
+
+        public override void Flush()
+        {
+        }
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                first.Dispose();
+                second.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
     }
 }
