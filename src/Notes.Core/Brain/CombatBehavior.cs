@@ -358,7 +358,9 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         }
 
         var point = PointNear(w.Host.Position, mob.Position, Math.Max(0.5f, distance - ApproachMargin));
-        var smart = c.Settings.Combat.ApproachPath == ApproachPath.Smart;
+        // Препятствия вокруг знаем — сюда доходим, только когда прямую до моба ничего не загораживает (обход выше): автопуть
+        // клиента не нужен, он на ровном месте водит крюком
+        var smart = c.Settings.Combat.ApproachPath == ApproachPath.Smart && c.Obstacles?.Around(w.Host.Position) is null;
         Status = $"бой: {c.Fight.MobName} — подхожу, {mob.Offset}";
         if (running is null)
         {
