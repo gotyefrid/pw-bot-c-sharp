@@ -51,6 +51,20 @@ public class PartyTargetActionTests
     }
 
     [Fact]
+    public void AnyWithoutSelfSkipsSelf()
+    {
+        // Перс ранен и первый в пати, но себя не брать — следующий подходящий
+        Party(friendHp: 900, tankHp: 300);
+        _script.World.Hp = 100;
+
+        Assert.Equal([$"select {TankWid:X}, key F1"], WithKey(new PartyTargetAction { IncludeSelf = false }));
+    }
+
+    [Fact]
+    public void OldFileIncludesSelf()
+        => Assert.True(ClickerScript.WithoutField(new PartyTargetAction { IncludeSelf = false }, "includeSelf").IncludeSelf);
+
+    [Fact]
     public void AnyNobodyFitsTakesNobodyWithoutWarning()
     {
         Party(friendHp: 900);
@@ -136,8 +150,9 @@ public class PartyTargetActionTests
     [Fact]
     public void FileKeepsFields()
     {
-        var back = ClickerScript.RoundTrip(new PartyTargetAction { Member = " Друг ", Compare = PercentCompare.Equal, Percent = -5 });
+        var back = ClickerScript.RoundTrip(new PartyTargetAction { Member = " Друг ", Compare = PercentCompare.Equal, Percent = -5, IncludeSelf = false });
 
+        Assert.False(back.IncludeSelf);
         Assert.Equal("Друг", back.Member);
         Assert.Equal(PercentCompare.Equal, back.Compare);
         Assert.Equal(0, back.Percent);
@@ -168,6 +183,7 @@ public class PartyTargetActionTests
     public void Described()
     {
         Assert.Equal("в цель первого в пати с HP меньше 50 %", new PartyTargetAction().Describe());
+        Assert.Equal("в цель первого в пати (кроме себя) с HP меньше 50 %", new PartyTargetAction { IncludeSelf = false }.Describe());
         Assert.Equal("в цель Друг", new PartyTargetAction { Member = "Друг", Percent = 30 }.Describe());
     }
 }

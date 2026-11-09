@@ -110,6 +110,9 @@
         </ComboBox>
         <Grid />
       </DockPanel>
+      <CheckBox Content="Включая себя" IsChecked="{Binding IncludeSelf}" Margin="0,0,0,6"
+                Visibility="{Binding ByHp, Converter={StaticResource ClickerVisible}}"
+                ToolTip="Сам персонаж тоже в счёт — на своём месте в пати. Выключено — только остальные члены пати" />
     </StackPanel>
   </DataTemplate>
   <DataTemplate DataType="{x:Type clicker:FollowMemberAction}">

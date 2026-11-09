@@ -498,7 +498,7 @@ public sealed class FollowMemberAction : PartyMemberAction
 /// <summary>
 /// Взять в цель члена пати — для лечения скиллом следующим шагом. <see cref="Member"/> — по нику, его всегда (условие по HP
 /// для него — отдельным условием шага); пусто — «любого первого по условию»: первого по порядку пати (как в окне пати, сам
-/// персонаж — на своём месте), у кого HP в % меньше, больше или равно порогу. Мёртвых не берёт — лечить их нельзя. Подходящий
+/// персонаж — на своём месте, если <see cref="IncludeSelf"/>), у кого HP в % меньше, больше или равно порогу. Мёртвых не берёт — лечить их нельзя. Подходящий
 /// уже в цели — в игру ничего не шлёт; никто не подходит — никого не берёт, сделано, без предупреждения. Персонаж не в пати
 /// или выбранного в ней нет — «не вышло». Подтверждение — он в цели.
 /// </summary>
@@ -510,6 +510,7 @@ public sealed class PartyTargetAction : ConfirmableAction
     private string _member = "";
     private PercentCompare _compare;
     private int _percent = 50;
+    private bool _includeSelf = true;
 
     /// <summary>Ник члена пати; пусто — любого первого, у кого HP подходит (<see cref="Compare"/>, <see cref="Percent"/>).</summary>
     public string Member
@@ -535,8 +536,12 @@ public sealed class PartyTargetAction : ConfirmableAction
 
     public int Percent { get => _percent; set => Set(ref _percent, value); }
 
+    /// <summary>«Любого»: сам персонаж тоже в счёт (на своём месте в пати). У выбранного по нику не действует.</summary>
+    public bool IncludeSelf { get => _includeSelf; set => Set(ref _includeSelf, value); }
+
     protected override string What()
-        => ByHp ? $"в цель первого в пати с HP {PartyHp.Sign(Compare)} {Percent} %" : $"в цель {Member}";
+        => !ByHp ? $"в цель {Member}"
+            : $"в цель первого в пати{(IncludeSelf ? "" : " (кроме себя)")} с HP {PartyHp.Sign(Compare)} {Percent} %";
 
     public override IClickerRun Start(BrainContext c)
     {
@@ -549,6 +554,7 @@ public sealed class PartyTargetAction : ConfirmableAction
             return ClickerRuns.Failed($"«{Member}» нет в пати");
 
         var pick = mates
+            .Where(m => !ByHp || IncludeSelf || m.Mate.Wid != world.Host.Wid)
             .Where(m => m.Percent > 0 && (!ByHp || PartyHp.Fits(m.Percent, Compare, Percent)))
             .Select(m => m.Mate)
             .FirstOrDefault();
