@@ -13,7 +13,7 @@
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <Product>Notes</Product>
     <!-- Версия бота: в свойствах exe и в заголовке окна. Новый релиз — поменять здесь -->
-    <Version>1.6.0</Version>
+    <Version>1.7.0</Version>
   </PropertyGroup>
 
   <!-- Релиз без отладочных данных: в готовом exe (и во вшитой в него Notes.Core.dll) не остаётся пути к папке сборки -->
