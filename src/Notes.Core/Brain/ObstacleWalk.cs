@@ -49,9 +49,18 @@ public sealed class ObstacleWalk
     /// до цели свободна) — делать как раньше.
     /// </summary>
     /// <param name="priority">Важность шагов: у копания фоновая — бой, если нападут, должен их перебить.</param>
-    public bool Step(BrainContext c, Position target, string what, ActionPriority priority = ActionPriority.Normal)
+    /// <param name="within">Цель не дальше этого (радиус скилла с запасом) — обходить незачем: скилл бьёт сквозь стены и камни.
+    /// 0 — радиуса нет (подбор, копание, удар мечом): обход, пока прямая не откроется.</param>
+    public bool Step(BrainContext c, Position target, string what, ActionPriority priority = ActionPriority.Normal, float within = 0)
     {
         _priority = priority;
+        if (within > 0 && c.World.Host.Position.DistanceTo(target) <= within)
+        {
+            if (_path is not null)
+                c.Log.Debug($"Обход до {what}: в радиусе скилла ({within:0.0} м) — дальше как обычно");
+            return Stop(c);
+        }
+
         var w = c.World;
         var me = w.Host.Position;
         var here = new PathPoint(me.X, me.Y);

@@ -57,6 +57,9 @@ public sealed class BrainContext
     public ILogger Log { get; }
     public Random Random { get; }
 
+    /// <summary>Дальность скиллов, выученная по их кастам (для обхода: в радиусе скилла обходить незачем).</summary>
+    public SkillRangeBook SkillRanges { get; } = new();
+
     /// <summary>Камни, дома и деревья вокруг перса для обхода (<see cref="ObstacleWalk"/>); null — не знаем, ходим как раньше.</summary>
     public Navigation.ObstacleMap? Obstacles { get; init; }
 
