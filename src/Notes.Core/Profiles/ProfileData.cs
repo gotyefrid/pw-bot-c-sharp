@@ -85,6 +85,11 @@ public sealed class UiOffsets
     public uint Active { get; init; }
     public uint NpcDialog { get; init; }
     public uint ShopDialog { get; init; }
+    /// <summary>
+    /// Номер строки в interfaces\ingame.stf клиента — «Вы говорите с &amp;%s&amp;: %s»: так окно чата пишет у себя отправленную
+    /// личку. 0 — не найдено: бот после лички из Telegram строку у себя не пишет.
+    /// </summary>
+    public uint WhisperSentText { get; init; }
 }
 
 /// <summary>
@@ -813,6 +818,8 @@ public enum FunctionThis
     NpcDialog,
     /// <summary>Окно лавки (CDlgShop): см. <see cref="UiOffsets"/>.</summary>
     ShopDialog,
+    /// <summary>Окна мира (CECGameUIMan): [менеджеры + inGame], см. <see cref="UiOffsets"/>.</summary>
+    GameUi,
     /// <summary>Объект заданий персонажа: [перс + host.quests].</summary>
     Quests,
     /// <summary>Очередь сообщений игры: [game + base.gameMessages].</summary>
@@ -829,6 +836,7 @@ public static class GameFunctions
     public const string OpenRemotePanel = "openRemotePanel";
     public const string NpcHello = "npcHello";
     public const string PrivateChat = "privateChat";
+    public const string AddChatMessage = "addChatMessage";
     public const string NpcOpenStorage = "npcOpenStorage";
     public const string NpcReturnTask = "npcReturnTask";
     public const string NpcAcceptTask = "npcAcceptTask";

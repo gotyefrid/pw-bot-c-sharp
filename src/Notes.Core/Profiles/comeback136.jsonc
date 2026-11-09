@@ -582,7 +582,7 @@
   // Окно лавки (CDlgShop, имя «Win_Shop») — поле "shopDialog" того же CECGameUIMan. Как найти на другом клиенте: в функции,
   // что создаёт все окна мира, — строка "Win_Shop" и RTTI CDlgShop (.?AVCDlgShop@@), результат dynamic_cast кладётся в
   // [this+0x7E0] (как в 1.4.6)
-  "ui": { "managers": "0x10", "inGame": "0x8", "active": "0xC", "npcDialog": "0x734", "shopDialog": "0x7E0" },
+  "ui": { "managers": "0x10", "inGame": "0x8", "active": "0xC", "npcDialog": "0x734", "shopDialog": "0x7E0", "whisperSentText": "" },
 
   // Экран входа и сообщения — окна клиента изнутри (как и что это — см. pwclassic136.jsonc). Проверено 06.11 на живом клиенте
   // (Probe ui scan): менеджер CECLoginUIMan, массив окон в +0xC4 (у PW Classic +0x414), окна Win_Agreement, Win_Login,

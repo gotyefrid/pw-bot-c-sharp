@@ -584,7 +584,7 @@
   // Проверено чтением живого клиента: по пути лежит окно с именем «Win_NPC»
   // Окно лавки (CDlgShop, имя «Win_Shop») — поле "shopDialog" того же CECGameUIMan. Как найти на другом клиенте: в функции,
   // что создаёт все окна мира, — RTTI CDlgShop (.?AVCDlgShop@@): «push» его, dynamic_cast, результат кладётся в [this+0x74C]
-  "ui": { "managers": "0x14", "inGame": "0x8", "active": "0xC", "npcDialog": "0x69C", "shopDialog": "0x74C" },
+  "ui": { "managers": "0x14", "inGame": "0x8", "active": "0xC", "npcDialog": "0x69C", "shopDialog": "0x74C", "whisperSentText": "" },
 
   // Экран входа и сообщения — окна клиента изнутри (библиотека AUI). Текущий менеджер окон — [менеджеры + ui.inGame]: на экране
   // входа там CECLoginUIMan (ui.active = 0), в мире CECGameUIMan, пока грузится — 0. Проверено 06.11 на живом клиенте (Probe ui):

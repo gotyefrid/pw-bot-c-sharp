@@ -754,6 +754,46 @@ public class GameCallerTests
         Assert.Equal(")))\0", System.Text.Encoding.Unicode.GetString(data, 0x40, data.Length - 0x40));
     }
 
+    // Comeback 1.4.6: строка в чат у себя — метод окон мира ([[game + ui.managers] + ui.inGame], если там мир), как у окна чата
+    private ProfileData ChatLineProfile(uint active = 1)
+    {
+        var comeback = new ProfileCatalog().Load("comeback146").Data;
+        var add = comeback.Functions[GameFunctions.AddChatMessage];
+        _memory.WriteBytes(ModuleBase + add.Rva, CodeFor(add.Signature!));
+        const uint basePtr = 0x1000_0000, game = 0x1001_0000, managers = 0x1002_0000;
+        _memory.WriteUInt32(BasePointer, basePtr);
+        _memory.WriteUInt32(basePtr + Profile.Base.Game, game);
+        _memory.WriteUInt32(game + comeback.Ui.Managers, managers);
+        _memory.WriteUInt32(managers + comeback.Ui.Active, active);
+        _memory.WriteUInt32(managers + comeback.Ui.InGame, GameUi);
+        return new ProfileData { Base = Profile.Base, Ui = comeback.Ui, Functions = new() { [GameFunctions.AddChatMessage] = add } };
+    }
+
+    private const uint GameUi = 0x3400_0000;
+
+    [Fact]
+    public void AddChatMessageGoesToGameUiWithLineInData()
+    {
+        var profile = ChatLineProfile();
+
+        var result = Caller(profile).AddChatMessage("Вы говорите с &Друг&: )))", GameCaller.ChatChannelWhisper);
+
+        Assert.True(result.Ok, result.Details);
+        var run = Assert.Single(_runner.Runs);
+        Assert.Equal(StubBuilder.Call(ModuleBase + profile.Functions[GameFunctions.AddChatMessage].Rva, CallingConvention.Thiscall, GameUi,
+            [DataAddress, 4, 0xFFFFFFFF, 0, 0, 0, 0, 0]), run.Stub);
+        Assert.Equal("Вы говорите с &Друг&: )))\0", System.Text.Encoding.Unicode.GetString(run.Data!));
+    }
+
+    [Fact]
+    public void AddChatMessageRefusedOutsideWorldOrEmpty()
+    {
+        // Экран входа: окон мира нет — не вызывать
+        Assert.False(Caller(ChatLineProfile(active: 0)).AddChatMessage("строка", GameCaller.ChatChannelWhisper).Ok);
+        Assert.False(Caller(ChatLineProfile()).AddChatMessage("", GameCaller.ChatChannelWhisper).Ok);
+        Assert.Empty(_runner.Runs);
+    }
+
     [Theory]
     [InlineData("", "текст")]
     [InlineData("Ник", "")]

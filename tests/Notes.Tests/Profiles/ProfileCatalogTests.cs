@@ -64,7 +64,7 @@ public class ProfileCatalogTests
         // входа — без них бот жмёт клавиши; личка — пока только командой Probe)
         static bool Everywhere(string function) => function is not (GameFunctions.QuestCheck or GameFunctions.UiSetText
             or GameFunctions.LoginConfirm or GameFunctions.SelectRole or GameFunctions.SelectPlay or GameFunctions.AgreementAccept
-            or GameFunctions.DialogCommand or GameFunctions.PrivateChat);
+            or GameFunctions.DialogCommand or GameFunctions.PrivateChat or GameFunctions.AddChatMessage);
 
         Assert.Equal(
             _catalog.Load("comeback136").Data.Functions.Keys

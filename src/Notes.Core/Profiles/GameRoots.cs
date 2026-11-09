@@ -119,6 +119,9 @@ public sealed class GameRoots
     /// <summary>Окно лавки; false — не в мире, не читается или <see cref="UiOffsets.ShopDialog"/> нет в профиле.</summary>
     public bool TryShopDialog(out uint dialog) => TryDialog(_profile.Ui.ShopDialog, out dialog);
 
+    /// <summary>Окна мира (CECGameUIMan); false — не в мире, не читается или <see cref="UiOffsets"/> нет в профиле.</summary>
+    public bool TryGameUi(out uint gameUi) => TryUiManager(out gameUi, out var inWorld) && inWorld && gameUi != 0;
+
     // Окно мира по его полю в CECGameUIMan
     private bool TryDialog(uint field, out uint dialog)
     {

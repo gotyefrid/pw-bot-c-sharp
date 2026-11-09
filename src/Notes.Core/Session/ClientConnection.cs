@@ -58,6 +58,8 @@ public sealed class ClientConnection : IDisposable
     private volatile SkillNames _skillNames = SkillNames.Empty;
     private volatile SkillIcons _skillIcons = SkillIcons.Empty;
     private volatile IconAtlas _macroIcons = IconAtlas.Empty;
+    // Строки окон игры (шаблон «Вы говорите с …») — читаются при первом шёпоте
+    private volatile UiStrings? _uiStrings;
     private RunningBot? _bot;
     private LinkWatch? _watch;
     private LoginScreen? _screen;
@@ -262,7 +264,9 @@ public sealed class ClientConnection : IDisposable
     /// <summary>
     /// Шёпот от этого персонажа (<see cref="GameCaller.PrivateChat"/>) — свои вызовы на время отправки, как у Probe: работает и
     /// при остановленном боте, и рядом с работающим (вызовы идут через один обработчик окна игры по очереди). Ждёт вызов — до
-    /// 5 с: звать не из потока окна. Отправку не проверить — у отправителя игра строку не пишет, её пишет окно чата.
+    /// 5 с: звать не из потока окна. Отправку не проверить. Строку «Вы говорите с Ник: текст» игра у отправителя сама не пишет
+    /// (это делает окно чата) — бот дописывает её в чат так же, как окно чата (<see cref="GameCaller.AddChatMessage"/>); не
+    /// вышло — шёпот всё равно ушёл, в лог — предупреждение.
     /// </summary>
     public CallResult Whisper(string nick, string text)
     {
@@ -271,12 +275,45 @@ public sealed class ClientConnection : IDisposable
         try
         {
             using var calls = GameCalls.Open(_game, _roots, _profile, CallTransport.Window, out var problem);
-            return calls is null ? CallResult.Refused(problem) : calls.Caller.PrivateChat(nick, text);
+            if (calls is null)
+                return CallResult.Refused(problem);
+
+            var sent = calls.Caller.PrivateChat(nick, text);
+            if (sent.Ok)
+            {
+                // Шёпот уже ушёл: что бы ни случилось со строкой о нём — это не отказ
+                try
+                {
+                    ShowWhisperSent(calls.Caller, nick, text);
+                }
+                catch (Exception e) when (e is not OutOfMemoryException)
+                {
+                    _log.Warning($"Шёпот ушёл, но строку о нём в чат не дописать: {e.Message}");
+                }
+            }
+
+            return sent;
         }
         catch (Exception e) when (e is not OutOfMemoryException)
         {
             return CallResult.Refused(e.Message);
         }
+    }
+
+    // «Вы говорите с Ник: текст» в чат отправителя — по шаблону из файла клиента
+    private void ShowWhisperSent(GameCaller caller, string nick, string text)
+    {
+        if (_profile.Ui.WhisperSentText == 0 || !_profile.Functions.ContainsKey(GameFunctions.AddChatMessage))
+            return;
+
+        string? problem = null;
+        _uiStrings ??= UiStrings.LoadFromGameDirectory(Path.GetDirectoryName(_game.MainModulePath)!, out problem);
+        var template = _uiStrings?.Get(_profile.Ui.WhisperSentText);
+        var line = template is null ? null : GameCaller.FormatChatLine(template, nick, text);
+        var shown = line is not null ? caller.AddChatMessage(line, GameCaller.ChatChannelWhisper)
+            : CallResult.Refused(problem ?? $"в {UiStrings.InGameFile} нет строки {_profile.Ui.WhisperSentText} «… %s … %s»");
+        if (!shown.Ok)
+            _log.Warning($"Шёпот ушёл, но строку о нём в чат не дописать: {shown.Details}");
     }
 
     /// <summary>Сторож связи — только пока бот работает и профиль знает окна клиента (иначе разрыв не увидеть).</summary>

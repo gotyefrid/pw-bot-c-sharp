@@ -70,6 +70,8 @@ public sealed class GameCaller : IGameActions
         [GameFunctions.NpcHello] = ["wid"],
         // Ник и текст — по адресу данных; канал 0 — обычная личка; WID получателя (0 — только по нику); без ссылки на предмет
         [GameFunctions.PrivateChat] = [DataArg, TextArg, "0", "wid", "0xFFFFFFFF", "0xFFFFFFFF"],
+        // Строка (UTF-16 по адресу данных), канал, WID того, с кем разговор (-1 — неизвестен), остальное — как у окна чата
+        [GameFunctions.AddChatMessage] = [DataArg, "channel", "wid", "0", "0", "0", "0", "0"],
         // Пароль банка — строка по адресу данных
         [GameFunctions.NpcOpenStorage] = [DataArg],
         [GameFunctions.NpcReturnTask] = ["task", "choice"],
@@ -216,6 +218,62 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"текст — от 1 до {MaxChatText} символов");
 
         return Call(GameFunctions.PrivateChat, PrivateChatData(nick, text), ("wid", wid));
+    }
+
+    /// <summary>Канал лички в чате игры: так игра пишет и «… шепчет: …», и «Вы говорите с …».</summary>
+    public const uint ChatChannelWhisper = 4;
+
+    /// <summary>Самая длинная строка в чат, символов: столько держит окно чата игры.</summary>
+    public const int MaxChatLine = 511;
+
+    /// <summary>
+    /// Дописать строку в чат у себя, как это делает окно чата после отправки: только на экране, серверу ничего не уходит.
+    /// <paramref name="wid"/> — WID того, с кем разговор (-1 — неизвестен). Разметка игры: &amp;Ник&amp; — ник, по которому можно
+    /// кликнуть; знаки ^ и &amp; в тексте — через <see cref="EscapeChat"/>.
+    /// </summary>
+    public CallResult AddChatMessage(string line, uint channel, uint wid = 0xFFFFFFFF)
+    {
+        if (line.Length is 0 or > MaxChatLine)
+            return CallResult.Refused($"строка — от 1 до {MaxChatLine} символов");
+
+        return Call(GameFunctions.AddChatMessage, System.Text.Encoding.Unicode.GetBytes(line + "\0"), ("channel", channel), ("wid", wid));
+    }
+
+    /// <summary>
+    /// Текст для строки чата, как его готовит окно чата: ^ и &amp; — служебные (цвет, кликабельный ник), перед ними ставится ^.
+    /// </summary>
+    public static string EscapeChat(string text) => text.Replace("^", "^^").Replace("&", "^&");
+
+    /// <summary>
+    /// Строка чата по шаблону игры (из ingame.stf): каждое %s по порядку — значение через <see cref="EscapeChat"/>, «%%» — «%».
+    /// Значений меньше, чем %s, — null: шаблон не тот.
+    /// </summary>
+    public static string? FormatChatLine(string template, params string[] values)
+    {
+        var line = new System.Text.StringBuilder();
+        var next = 0;
+        for (var i = 0; i < template.Length; i++)
+        {
+            if (template[i] != '%' || i + 1 == template.Length)
+            {
+                line.Append(template[i]);
+                continue;
+            }
+
+            switch (template[++i])
+            {
+                case 's' when next < values.Length:
+                    line.Append(EscapeChat(values[next++]));
+                    break;
+                case '%':
+                    line.Append('%');
+                    break;
+                default:
+                    return null;
+            }
+        }
+
+        return next == values.Length ? line.ToString() : null;
     }
 
     /// <summary>Данные лички: ник UTF-16 с нулём в начале, текст UTF-16 с нулём — с <see cref="ChatTextAt"/>.</summary>
@@ -672,6 +730,8 @@ public sealed class GameCaller : IGameActions
             return CallResult.Refused($"{name}: окно NPC не найдено (ui в профиле)");
         if (prepared.Definition.This == FunctionThis.ShopDialog && !_roots.TryShopDialog(out thisPointer))
             return CallResult.Refused($"{name}: окно лавки не найдено (ui в профиле)");
+        if (prepared.Definition.This == FunctionThis.GameUi && !_roots.TryGameUi(out thisPointer))
+            return CallResult.Refused($"{name}: окна мира не найдены (ui в профиле)");
         if (prepared.Definition.This == FunctionThis.Quests && !TryQuests(out thisPointer))
             return CallResult.Refused($"{name}: объект заданий персонажа не найден (host.quests)");
         if (prepared.Definition.This == FunctionThis.Messages && !_roots.TryMessages(out thisPointer))
