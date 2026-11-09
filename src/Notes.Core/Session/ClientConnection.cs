@@ -307,7 +307,8 @@ public sealed class ClientConnection : IDisposable
             return;
 
         string? problem = null;
-        _uiStrings ??= UiStrings.LoadFromGameDirectory(Path.GetDirectoryName(_game.MainModulePath)!, out problem);
+        _uiStrings ??= UiStrings.LoadFromGameDirectory(Path.GetDirectoryName(_game.MainModulePath)!, _profile.GameFiles.Pck,
+            out problem);
         var template = _uiStrings?.Get(_profile.Ui.WhisperSentText);
         var line = template is null ? null : GameCaller.FormatChatLine(template, nick, text);
         var shown = line is not null ? caller.AddChatMessage(line, GameCaller.ChatChannelWhisper)

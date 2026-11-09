@@ -10,10 +10,6 @@ namespace Notes.Tests.GameFiles;
 /// <summary>Строки окон игры из interfaces\ingame.stf и строка «Вы говорите с …» по шаблону оттуда.</summary>
 public class UiStringsTests
 {
-    // Тест на файлах настоящего клиента: папка element — в переменной окружения. Нет переменной — тест пропускается
-    private const string ComebackVariable = "NOTES_COMEBACK146_DIR";
-    private static readonly string ComebackDirectory = Environment.GetEnvironmentVariable(ComebackVariable) ?? "";
-
     [Fact]
     public void ReadsNumberedLines()
     {
@@ -44,19 +40,24 @@ public class UiStringsTests
     [Fact]
     public void MissingFileIsReported()
     {
-        Assert.Null(UiStrings.LoadFromGameDirectory(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), out var problem));
+        Assert.Null(UiStrings.LoadFromGameDirectory(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")), new PckFormat(),
+            out var problem));
         Assert.Contains("ingame.stf", problem);
     }
 
-    [Fact]
-    public void RealClientHasWhisperSentLine()
+    // На файлах настоящих клиентов (папка element — в переменной окружения, нет — пропуск). Comeback — отдельный файл в папке
+    // interfaces, PW Classic — только внутри interfaces.pck
+    [Theory]
+    [InlineData("comeback146", "NOTES_COMEBACK146_DIR")]
+    public void RealClientHasWhisperSentLine(string server, string variable)
     {
-        Assert.SkipUnless(Directory.Exists(ComebackDirectory), $"Не задана {ComebackVariable} — папка element клиента Comeback 1.4.6");
+        var directory = Environment.GetEnvironmentVariable(variable) ?? "";
+        Assert.SkipUnless(Directory.Exists(directory), $"Не задана {variable} — папка element клиента {server}");
 
-        var strings = UiStrings.LoadFromGameDirectory(ComebackDirectory, out var problem);
-        var id = new ProfileCatalog().Load("comeback146").Data.Ui.WhisperSentText;
+        var profile = new ProfileCatalog().Load(server).Data;
+        var strings = UiStrings.LoadFromGameDirectory(directory, profile.GameFiles.Pck, out var problem);
 
         Assert.Null(problem);
-        Assert.Equal("Вы говорите с &%s&: %s", strings!.Get(id));
+        Assert.Equal("Вы говорите с &%s&: %s", strings!.Get(profile.Ui.WhisperSentText));
     }
 }
