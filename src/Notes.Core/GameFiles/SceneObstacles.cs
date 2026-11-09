@@ -77,7 +77,7 @@ public sealed class ConvexBrush
 /// «MOXB»; int 0x80000001 и байт (иначе этих 5 байт нет); модель: версия 0x10000002, 4 вектора по 3 float (масштаб, оси,
 /// место), int мешей; меш 0x10000005: имя 64 байта, текстура 256, int вершин, int треугольников, вершины по 24 байта,
 /// индексы по 6, нормали по 12, два цвета по 4 байта на вершину, 0x30 байт, строка «MATERIAL: …» до 0 или перевода строки,
-/// 69 байт материала. Затем int N, N списков (int число и столько int), N кирпичей: 12 float (центр, полуразмер, min, max —
+/// 69 байт материала (у меша 0x10000004 — Comeback 1.3.6 — материала нет, остальное то же; у 0x10000006 после числа треугольников байт, не 0 — ещё два цвета по 4 байта на вершину). Затем int N, N списков (int число и столько int), N кирпичей: 12 float (центр, полуразмер, min, max —
 /// по x, высоте, y), int, int плоскостей, плоскость — нормаль 3 float, d, байт.
 /// </para>
 /// </summary>
@@ -86,6 +86,10 @@ public sealed class SceneObstacles
     private const string Archive = "litmodels.pck";
     private const int ModelVersion = 0x10000002;
     private const int MeshVersion = 0x10000005;
+    // Comeback 1.3.6: как 0x10000005, но без материала в конце
+    private const int MeshVersionOld = 0x10000004;
+    // После числа треугольников байт: не 0 — у вершин ещё два цвета по 4 байта
+    private const int MeshVersionLit = 0x10000006;
     private const int MeshVertexSize = 24;
 
     public SceneObstacles(IReadOnlyList<ConvexBrush> brushes) => Brushes = brushes;
@@ -209,13 +213,17 @@ public sealed class SceneObstacles
     private static void SkipMesh(BinaryReader reader)
     {
         var version = reader.ReadInt32();
-        if (version != MeshVersion)
-            throw new InvalidDataException($"версия меша 0x{version:X} (знаем 0x{MeshVersion:X})");
+        if (version is not (MeshVersionOld or MeshVersion or MeshVersionLit))
+            throw new InvalidDataException($"версия меша 0x{version:X} (знаем 0x{MeshVersionOld:X}…0x{MeshVersionLit:X})");
 
         Skip(reader, 64 + 256);
         var vertices = Checked(reader.ReadInt32(), "вершин");
         var triangles = Checked(reader.ReadInt32(), "треугольников");
-        Skip(reader, vertices * MeshVertexSize + triangles * 6 + vertices * 12 + vertices * 8 + 0x30);
+        var extraColors = version == MeshVersionLit && reader.ReadByte() != 0;
+        Skip(reader, vertices * MeshVertexSize + triangles * 6 + vertices * 12 + vertices * (extraColors ? 16 : 8) + 0x30);
+        if (version == MeshVersionOld)
+            return;
+
         // Строка «MATERIAL: имя» до нуля или перевода строки, за ней сам материал
         int b;
         while ((b = reader.ReadByte()) != 0 && b != '\n')
