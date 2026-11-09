@@ -239,6 +239,18 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         _climbFailed = false;
     }
 
+    /// <summary>
+    /// Бросить точку, у которой напал опасный моб, и уйти к следующей (улететь вверх нельзя — драться не будем). Уже летим к
+    /// следующей — так и летим.
+    /// </summary>
+    public void Skip(BrainContext c, string why)
+    {
+        if (!_arrived && !_returning)
+            return;
+        _returning = false;
+        Next(c, why);
+    }
+
     // Нужный обычный ресурс у точки, который не ляжет в сумку
     private bool Blocked(BrainContext c, GroundItem item)
         => item is { Kind: GroundItemKind.Resource, Special: false } && InArea(c, item.Position) && Wanted(c, item.Name)

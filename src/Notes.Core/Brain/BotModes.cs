@@ -118,12 +118,12 @@ public static class BotModes
 
     /// <summary>
     /// Обход ресурсов: после смерти → выжить → (прервать каст без цели) → уйти вверх от опасного моба → пет → убрать в банк (после лута) → копать у текущей точки → защита
-    /// (бьём только напавших) → лут → к следующей точке. «После смерти» — включено «встать и вернуться»: встать в городе и долететь
+    /// (бьём только напавших, опасных — никогда) → лут → к следующей точке. «После смерти» — включено «встать и вернуться»: встать в городе и долететь
     /// до точки, у которой погибли (дальше обход как обычно); выключено — стоп; пока встаёт и летит, ход у него.
     /// </summary>
     private static BotBrain GatherResources(BrainContext context, IReadOnlyCollection<uint> tools, int routeStart)
     {
-        var combat = new CombatBehavior(defendOnly: true);
+        var combat = new CombatBehavior(defendOnly: true, leaveDangerous: true);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
             [new DeathReturnBehavior(route.AfterDeath), new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(),

@@ -25,7 +25,9 @@ namespace Notes.Core.Brain;
 /// </summary>
 /// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета, —
 /// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма).</param>
-public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchingBehavior
+/// <param name="leaveDangerous">Опасных мобов обхода (<see cref="DangerZones"/>) не бить никогда, даже напавших: от них уходит
+/// <see cref="EscapeBehavior"/>. Цель у моба после отагра может застрять на нас — без этого бой принимал его за напавшего.</param>
+public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous = false) : IBehavior, IWatchingBehavior
 {
     // Обычная атака: перс бьёт сам, пока не собьют; повтор раз в секунду — сбили (подход, каст) — снова бьёт почти сразу
     private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(1);
@@ -213,7 +215,7 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
     // Лут выключен — его и не будет, ждать нечего
     private bool AttackedWhileLooting(BrainContext c)
     {
-        if (c.Settings.Loot.Enabled && HitsUsFirst(c) && TargetSelector.Aggressor(c.World) is { } aggressor)
+        if (c.Settings.Loot.Enabled && HitsUsFirst(c) && MostDangerous(c, out _) is { } aggressor)
         {
             c.Log.Info($"{aggressor.Name} напал во время лута — сначала бой");
             return BackToSearch(c);
@@ -230,10 +232,23 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
         => c.Settings.Target.PetTakesAggro && c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
 
     private NpcInfo? MostDangerous(BrainContext c, out Threat threat)
-        => TargetSelector.MostDangerous(c.World, HitsUsFirst(c), PetTakesAggro(c), out threat);
+    {
+        threat = Threat.None;
+        NpcInfo? best = null;
+        foreach (var mob in c.World.Mobs)
+        {
+            var t = ThreatOf(c, mob);
+            if (t != Threat.None && (best is null || t > threat || t == threat && mob.Offset.Direct < best.Offset.Direct))
+                (best, threat) = (mob, t);
+        }
+
+        return best;
+    }
 
     private Threat ThreatOf(BrainContext c, NpcInfo mob)
-        => TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c));
+        => Leaves(c, mob) ? Threat.None : TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c));
+
+    private bool Leaves(BrainContext c, NpcInfo mob) => leaveDangerous && DangerZones.IsDangerous(mob, c.Settings.Route);
 
     private bool Attack(BrainContext c, NpcInfo mob)
     {
@@ -394,6 +409,8 @@ public sealed class CombatBehavior(bool defendOnly = false) : IBehavior, IWatchi
             return $"ход занят: {acted?.Name}{(acted?.Status is { } status ? " — " + status : "")}";
         if (!defendOnly && !c.Settings.Target.KillMobs)
             return "«Бить мобов» выключено — не отвечаю";
+        if (Leaves(c, mob))
+            return "опасный — не дерусь";
 
         var threat = ThreatOf(c, mob);
         if (threat == Threat.None)

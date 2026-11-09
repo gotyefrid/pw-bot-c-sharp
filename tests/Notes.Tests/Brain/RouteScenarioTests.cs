@@ -347,6 +347,48 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void AtPointWithoutFlyerBotLeavesDangerousAttackerForNextPoint()
+    {
+        // Стоим на точке 1, напал опасный, полётника нет — не дерёмся, бросаем точку и идём к следующей
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.HasFlyer = false;
+        Tick(); // на точке 1
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["move (300,0; 0,0; h 0,0) умно"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Точка 1 — напал Тигр; дальше 2/2");
+    }
+
+    [Fact]
+    public void ShakenDangerousMobWithStuckTargetIsNotFought()
+    {
+        // Отстал (30 с не бьёт), а цель у него всё ещё на нас: бой не принимает его за напавшего — не берём в цель и не бьём
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
+        Tick();
+        _world.Replace(tiger, m => m with { State = NpcState.Standing });
+        _world.Position = new Position(0, 10, 0);
+        for (var i = 0; i < 8; i++)
+            Tick(5);
+        for (var i = 0; i < 20; i++)
+            Tick();
+
+        Assert.Contains(_log, e => e.Message.StartsWith("Тигр отстал (не бьёт 30 с)"));
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack") || a.StartsWith("skill"));
+    }
+
+    [Fact]
     public void DangerousMobWithStuckTargetDoesNotScareBot()
     {
         // Опасный с застрявшей после старого отагра целью: NpcTracker её снимает (цель 0) — не напал, уходить незачем, копаем
@@ -379,9 +421,9 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void WithoutFlightBotFightsDangerousAttacker()
+    public void WithoutFlightBotLeavesDangerousAttackerForNextPoint()
     {
-        // Полёта нет (поле не найдено для сервера) — уйти вверх нельзя, дерёмся
+        // Полёта нет (поле не найдено для сервера) — уйти вверх нельзя; с опасным всё равно не дерёмся — к следующей точке
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = null;
@@ -393,15 +435,16 @@ public class RouteScenarioTests
 
         Tick();
 
-        Assert.Equal(["select 80000001"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл от Тигр"));
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack"));
+        Assert.StartsWith("иду к точке 2/2", Brain.Part<RouteBehavior>()!.Status);
+        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл вверх от Тигр") && e.Message.EndsWith("не дерусь, ухожу к следующей точке"));
     }
 
     [Fact]
-    public void WithoutFlightMountBotFightsWhenTakeoffNeverHappens()
+    public void WithoutFlightMountBotLeavesWhenTakeoffNeverHappens()
     {
-        // Полётника нет: клиент на «Полёт» молча ничего не делает — взлёт не подтвердился за 5 с, значит, дерёмся,
-        // а не жмём «Полёт» снова минуту, пока моб бьёт
+        // Полётника нет: клиент на «Полёт» молча ничего не делает — взлёт не подтвердился за 5 с, значит, уходим к следующей
+        // точке, а не жмём «Полёт» снова минуту, пока моб бьёт; не дерёмся
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         Tick();
@@ -413,14 +456,15 @@ public class RouteScenarioTests
         for (var i = 0; i < 24; i++) // 6 с: взлёт ждёт подтверждения 5 с
             Tick();
 
-        Assert.Equal(["fly-toggle", "select 80000001"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл от Тигр") && e.Message.EndsWith("дерусь"));
+        Assert.Equal("fly-toggle", _actions.Calls.First());
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл вверх от Тигр"));
     }
 
     [Fact]
-    public void KnownNoFlyerBotFightsWithoutPressingFly()
+    public void KnownNoFlyerBotLeavesWithoutPressingFly()
     {
-        // Знаем, что полётника нет: «Полёт» не жмём совсем — сразу дерёмся, не ждём 5 с под ударами
+        // Знаем, что полётника нет: «Полёт» не жмём совсем — сразу к следующей точке, не ждём 5 с под ударами
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.HasFlyer = false;
@@ -433,7 +477,8 @@ public class RouteScenarioTests
         Tick();
         Tick();
 
-        Assert.Equal(["select 80000001"], _actions.Calls);
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack"));
+        Assert.StartsWith("иду к точке 2/2", Brain.Part<RouteBehavior>()!.Status);
         Assert.Contains(_log, e => e.Message.Contains("полётника нет"));
     }
 
@@ -456,9 +501,9 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void TakeoffNotSentBotFightsAtOnce()
+    public void TakeoffNotSentBotLeavesAtOnce()
     {
-        // Взлёт не отправился вовсе (клиент отказал) — дерёмся сразу, не ждём
+        // Взлёт не отправился вовсе (клиент отказал) — сразу к следующей точке, не ждём
         Route(0, 300);
         _settings.Route.DangerLevel = 25;
         _actions.Refuse.Add("fly-toggle");
@@ -471,8 +516,9 @@ public class RouteScenarioTests
         Tick();
         Tick();
 
-        Assert.Equal(["fly-toggle", "select 80000001"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл от Тигр"));
+        Assert.Equal("fly-toggle", _actions.Calls.First());
+        Assert.DoesNotContain(_actions.Calls, a => a.StartsWith("select") || a.StartsWith("attack"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Не ушёл вверх от Тигр"));
     }
 
     [Fact]

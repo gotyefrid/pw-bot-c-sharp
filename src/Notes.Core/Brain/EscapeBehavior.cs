@@ -14,8 +14,8 @@ namespace Notes.Core.Brain;
 /// сразу: моб «возвращается» (<see cref="NpcInfo.Returning"/>) или сбросил цель — тогда обход возвращается на последнюю
 /// посещённую точку (моб, скорее всего, отошёл — ресурс мог освободиться). Цель у моба может застрять на нас (клиент не получил
 /// отагр) — не бьёт <see cref="StaleAfter"/> — считаем отставшим и не трогаем его, пока снова не ударит.
-/// Не вышло (полётника нет, полёта нет, моб всё бьёт через <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — дерёмся, как с любым
-/// напавшим, пока этот моб не отстанет. Стоит сразу после выживания: банки пьём и при подъёме.
+/// Не вышло (полётника нет, полёта нет, моб всё бьёт через <see cref="GiveUpAfter"/>, поднялись на <see cref="MaxClimb"/>) — всё равно не
+/// дерёмся (бой опасных не трогает), а бросаем точку и уходим к следующей. Стоит сразу после выживания: банки пьём и при подъёме.
 /// </summary>
 public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
 {
@@ -31,7 +31,8 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
     private DateTime _lastHit;
     private float _startHeight;
     private bool _recallTried;
-    private bool _fighting;
+    // Уйти вверх не вышло — бросили точку, этого моба больше не обходим вверх, пока не отстанет
+    private bool _gaveUp;
     private MoveAction? _climb;
     // Свой взлёт: по его итогу (не по чужому взлёту маршрута) решаем, уходить или драться
     private FlyAction? _fly;
@@ -55,14 +56,14 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
             return false;
         }
 
-        if (_from is null || _from.Wid != threat.Wid && !_fighting)
+        if (_from is null || _from.Wid != threat.Wid && !_gaveUp)
         {
-            (_from, _since, _lastHit, _startHeight, _recallTried, _fighting, _climb, _fly) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null, null);
+            (_from, _since, _lastHit, _startHeight, _recallTried, _gaveUp, _climb, _fly) = (threat, c.Now, c.Now, w.Host.Position.Height, false, false, null, null);
             c.Fight.Abort();
             c.Log.Warning($"Напал опасный {threat.Name} (ур. {threat.Level}) — улетаю вверх");
         }
 
-        if (_fighting)
+        if (_gaveUp)
             return false;
 
         if (Hits(threat))
@@ -145,9 +146,15 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
     // Отстал — недолетевший подъём забываем (держал бы тело) и снова к последней посещённой точке
     private void Shaken(BrainContext c, NpcInfo mob, string how)
     {
-        c.Log.Info(_fighting
-            ? $"{mob.Name} отстал ({how}) — возвращаюсь на точку"
-            : $"{mob.Name} отстал ({how}) на высоте +{c.World.Host.Position.Height - _startHeight:0} м — возвращаюсь на точку");
+        // Точку у него уже бросили — назад к ней не возвращаемся, обход идёт дальше
+        if (_gaveUp)
+        {
+            c.Log.Info($"{mob.Name} отстал ({how})");
+            Forget();
+            return;
+        }
+
+        c.Log.Info($"{mob.Name} отстал ({how}) на высоте +{c.World.Host.Position.Height - _startHeight:0} м — возвращаюсь на точку");
         if (_climb is not null)
             c.Forget(_climb);
         route.BackToLastVisited(c);
@@ -156,14 +163,18 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
 
     private bool GiveUp(BrainContext c, string why)
     {
-        _fighting = true;
-        c.Log.Warning($"Не ушёл от {_from!.Name} ({why}) — дерусь");
+        _gaveUp = true;
+        c.Log.Warning($"Не ушёл вверх от {_from!.Name} ({why}) — не дерусь, ухожу к следующей точке");
+        if (_climb is not null)
+            c.Forget(_climb);
+        c.Fight.Abort();
+        route.Skip(c, $"напал {_from.Name}");
         return false;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
-        if (_from is null || _fighting)
+        if (_from is null || _gaveUp)
             return;
         // Только свои действия: взлёт маршрута — не наш. Взлёт не вышел — значит, бой. Без полётника клиент на кнопку
         // «Полёт» молча ничего не делает: вызов проходит, а взлёта нет — итог «нет подтверждения» за 5 с, не «не отправлено»
@@ -177,7 +188,7 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
     private void Forget()
     {
         _from = null;
-        _fighting = false;
+        _gaveUp = false;
         _climb = null;
         _fly = null;
     }
