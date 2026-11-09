@@ -50,6 +50,7 @@ public class UiStringsTests
     [Theory]
     [InlineData("comeback146", "NOTES_COMEBACK146_DIR")]
     [InlineData("comeback136", "NOTES_COMEBACK136_DIR")]
+    [InlineData("pwclassic136", "NOTES_PWCLASSIC136_DIR")]
     public void RealClientHasWhisperSentLine(string server, string variable)
     {
         var directory = Environment.GetEnvironmentVariable(variable) ?? "";
