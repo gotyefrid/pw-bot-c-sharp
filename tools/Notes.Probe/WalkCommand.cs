@@ -88,6 +88,13 @@ internal static class WalkCommand
         var from = new PathPoint(me.X, me.Y);
         Console.WriteLine($"Перс: карта {(me.X + 4000) / 10:0.0} {(me.Y + 5500) / 10:0.0}, мир {from}; цель: мир {goal}, {from.DistanceTo(goal):0.0} м");
 
+        // Дальний путь не строим — и препятствия на всю эту площадь не грузим (минуты на десятки квадратов)
+        if (from.DistanceTo(goal) > PathFinder.MaxDistance)
+        {
+            Console.WriteLine($"❌ цель в {from.DistanceTo(goal):0} м — дальше {PathFinder.MaxDistance:0} м: свой путь не строим");
+            return 3;
+        }
+
         if (MoveMapCommand.Load(profile, game, GuidePoints.MainWorld, me, [from, goal], PathFinder.Margin, !noMoveMap) is not { } scene)
             return 2;
 
