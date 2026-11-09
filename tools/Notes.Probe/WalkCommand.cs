@@ -23,7 +23,9 @@ internal static class WalkCommand
     public const string Usage =
         "  walk X Y [файл.png] [--go] [--no-movemap]  путь в обход препятствий до точки карты игры (как на карте: 493 869): считает и рисует;\n"
         + "            --go — вести перса по отрезкам («по прямой»), застрял — пересчитать (вызывает функции клиента — запускает владелец);\n"
-        + "            --no-movemap — без карты проходимости клиента, только камни и постройки";
+        + "            --no-movemap — без карты проходимости клиента, только камни и постройки;\n"
+        + "  walk target [дальность м] [--skill N] [--go]  то же к текущей цели перса: встать не дальше дальности (15 м), откуда\n"
+        + "            до цели ничего не загораживает; --skill — затем кастовать скилл N по цели";
 
     // Дошёл до точки пути, м. Раньше (ближе Early) — к следующей, только если до неё уже видно с запасом: иначе перс
     // срезает поворот и цепляет угол (так было 09.11 на 1.3.6 у угла дома)
@@ -41,13 +43,23 @@ internal static class WalkCommand
         var noMoveMap = args.Contains("--no-movemap");
         var words = args.Where((a, i) => !a.StartsWith("--") && (i == 0 || args[i - 1] != "--server")).ToList();
         var file = words.FirstOrDefault(a => a.EndsWith(".png", StringComparison.OrdinalIgnoreCase)) ?? "walk.png";
-        var numbers = words.Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
+        var toTarget = words.FirstOrDefault() == "target";
+        var skillAt = Array.IndexOf(args, "--skill");
+        var skill = skillAt >= 0 && skillAt + 1 < args.Length && int.TryParse(args[skillAt + 1], out var sk) ? sk : (int?)null;
+        var numbers = words.Skip(toTarget ? 1 : 0)
+            .Where(a => skill is null || a != skill.Value.ToString(CultureInfo.InvariantCulture))
+            .Select(a => float.TryParse(a, NumberStyles.Float, CultureInfo.InvariantCulture, out var f) ? f : (float?)null)
             .Where(f => f is not null).Select(f => f!.Value).ToList();
-        if (numbers.Count < 2 || numbers[0] > 2000 || numbers[1] > 2000)
+        if (!toTarget && (numbers.Count < 2 || numbers[0] > 2000 || numbers[1] > 2000))
         {
             Console.WriteLine(Usage);
             return 1;
         }
+
+        // К цели: дальность — первое число до 100 (больше — PID клиента)
+        var range = toTarget ? numbers.FirstOrDefault(n => n is > 0 and <= 100) : 0;
+        if (toTarget && range <= 0)
+            range = DefaultRange;
 
         using var game = Program.OpenClient(args, go ? GameProcessRights.Execute : GameProcessRights.Read);
         var data = profile.Data;
@@ -56,8 +68,23 @@ internal static class WalkCommand
         var world = reader.Read();
         var me = world.Host.Position;
 
+        NpcInfo? target = null;
+        if (toTarget)
+        {
+            target = world.Npcs.FirstOrDefault(n => n.Wid == world.Host.TargetWid);
+            if (target is null)
+            {
+                Console.WriteLine("❌ у перса нет цели (или она не в списке мобов)");
+                return 2;
+            }
+
+            Console.WriteLine($"Цель: {target.Name}, {target.Offset}; подойти не дальше {range:0} м");
+        }
+
         // Карта игры: X = (x + 4000) / 10, Y = (y + 5500) / 10
-        var goal = new PathPoint(numbers[0] * 10 - 4000, numbers[1] * 10 - 5500);
+        var goal = target is not null
+            ? new PathPoint(target.Position.X, target.Position.Y)
+            : new PathPoint(numbers[0] * 10 - 4000, numbers[1] * 10 - 5500);
         var from = new PathPoint(me.X, me.Y);
         Console.WriteLine($"Перс: карта {(me.X + 4000) / 10:0.0} {(me.Y + 5500) / 10:0.0}, мир {from}; цель: мир {goal}, {from.DistanceTo(goal):0.0} м");
 
@@ -82,15 +109,20 @@ internal static class WalkCommand
 
         // След перса и все пути (первый и пересчёты) — на картинку «после»
         var trail = new List<PathPoint> { from };
+        // К цели — хватит, когда до неё не дальше дальности и прямую ничего не загораживает (по тем же препятствиям)
+        var sight = new PathFinder(scene.Area);
+        Func<PathPoint, bool> close = here => target is not null && here.DistanceTo(goal) <= range && sight.LineFree(here, goal);
         var planned = new List<PathPoint>(path.Points);
         var after = Path.ChangeExtension(file, null) + "-после.png";
         for (var replan = 0; ; replan++)
         {
-            var result = Follow(reader, calls, path, trail, new PathFinder(scene.Comfort));
+            var result = Follow(reader, calls, path, trail, new PathFinder(scene.Comfort), close);
             if (result is null)
             {
                 var end = reader.Read().Host.Position;
                 Console.WriteLine($"✅ дошёл: {new PathPoint(end.X, end.Y)}, до цели {new PathPoint(end.X, end.Y).DistanceTo(goal):0.0} м");
+                if (target is not null)
+                    StopAndCast(reader, calls, target, skill);
                 MoveMapCommand.Draw(scene, reader.Read(), center, radius, planned, after, trail);
                 return 0;
             }
@@ -113,6 +145,35 @@ internal static class WalkCommand
         }
     }
 
+    // Подойти к цели — до этой дальности, м (дальность друида 18 м, бот в заданиях бьёт с 15)
+    private const float DefaultRange = 15f;
+
+    // Встать (команда «бежать» на своё место) и, если задан, кастовать скилл по цели; каст пошёл — перс кастует
+    private static void StopAndCast(WorldReader reader, GameCalls calls, NpcInfo target, int? skill)
+    {
+        var here = reader.Read().Host.Position;
+        calls.Caller.MoveTo(here, smart: false);
+        if (skill is null)
+            return;
+
+        Thread.Sleep(200);
+        var sent = calls.Caller.CastSkill(skill.Value, target.Wid);
+        Console.WriteLine(sent.Ok ? $"Скилл {skill} по цели {target.Name} отправлен" : $"❌ скилл не отправлен: {sent.Details}");
+        for (var i = 0; i < 10 && sent.Ok; i++)
+        {
+            Thread.Sleep(150);
+            var w = reader.Read();
+            if (w.Host.IsCasting)
+            {
+                Console.WriteLine($"✅ каст пошёл, до цели {w.Npcs.FirstOrDefault(n => n.Wid == target.Wid)?.Offset.ToString() ?? "?"}");
+                return;
+            }
+        }
+
+        if (sent.Ok)
+            Console.WriteLine("⚠️ за 1,5 с перс так и не начал кастовать — смотрите в игре (далеко? не видно?)");
+    }
+
     private static void Print(PathResult path, TimeSpan took)
     {
         if (!path.Found)
@@ -130,7 +191,8 @@ internal static class WalkCommand
     }
 
     // Пройти точки пути по порядку; null — дошёл, иначе — где и почему застрял
-    private static string? Follow(WorldReader reader, GameCalls calls, PathResult path, List<PathPoint> trail, PathFinder comfort)
+    private static string? Follow(WorldReader reader, GameCalls calls, PathResult path, List<PathPoint> trail, PathFinder comfort,
+        Func<PathPoint, bool> close)
     {
         for (var i = 1; i < path.Points.Count; i++)
         {
@@ -151,6 +213,8 @@ internal static class WalkCommand
                 var p = reader.Read().Host.Position;
                 var here = new PathPoint(p.X, p.Y);
                 trail.Add(here);
+                if (close(here))
+                    return null;
                 var left = here.DistanceTo(target);
                 if (left <= Reached || left <= Early && (next is null || comfort.LineFree(here, next.Value)))
                     break;
