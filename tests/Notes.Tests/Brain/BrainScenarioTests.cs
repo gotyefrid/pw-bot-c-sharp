@@ -685,7 +685,6 @@ public class BrainScenarioTests
         _settings.Target.KillMobs = true;
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
-        _settings.Combat.ApproachPath = ApproachPath.Smart;
         _world.Flying = true;
         _world.Position = new Position(0, 30, 0);
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
@@ -719,7 +718,6 @@ public class BrainScenarioTests
         _settings.Target.KillMobs = true;
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
-        _settings.Combat.ApproachPath = ApproachPath.Smart;
         _world.InWater = true;
         _world.Position = new Position(0, 8, 0);
         _world.TargetWid = _world.AddMob(0x80000001, "Горная черепаха", 6).Wid;
@@ -794,20 +792,18 @@ public class BrainScenarioTests
         Assert.StartsWith("move", LastCall);
     }
 
-    [Theory]
-    [InlineData(ApproachPath.Smart, true)]
-    [InlineData(ApproachPath.Direct, false)]
-    public void ComeCloserBySelectedPath(ApproachPath path, bool smart)
+    [Fact]
+    public void ComeCloserGoesStraight()
     {
+        // Подход к мобу — по прямой, без автопути клиента: препятствия обходит свой путь
         _settings.Target.KillMobs = true;
         _settings.Combat.ComeCloser = true;
-        _settings.Combat.ApproachPath = path;
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
 
         Tick();
 
         Assert.StartsWith("move", LastCall);
-        Assert.Equal(smart, LastCall.EndsWith(" умно"));
+        Assert.DoesNotContain(" умно", LastCall);
     }
 
     [Fact]
@@ -2258,7 +2254,6 @@ public class BrainScenarioTests
         FarmAt(50, radius: 48);
         _settings.Combat.ComeCloser = true;
         _settings.Combat.ComeCloserDistance = 8;
-        _settings.Combat.ApproachPath = ApproachPath.Direct;
         _settings.Target.ReturnPath = ApproachPath.Direct;
         IdleUntilReturn();
         Assert.Equal("move (50,0; 0,0; h 0,0)", LastCall);
@@ -2292,9 +2287,8 @@ public class BrainScenarioTests
     [Fact]
     public void ReturnPathIsSeparateFromApproach()
     {
-        // К мобу — умно, в центр — прямо
+        // В центр — как выбрано для возврата (прямо), подход к мобу его не меняет
         FarmAt(50);
-        _settings.Combat.ApproachPath = ApproachPath.Smart;
         _settings.Target.ReturnPath = ApproachPath.Direct;
 
         IdleUntilReturn();
@@ -2314,7 +2308,7 @@ public class BrainScenarioTests
         var mob = _world.AddMob(0x80000001, "Скарабей", 20);
         _world.TargetWid = mob.Wid;
         Tick();
-        Assert.Equal("move (19,0; 0,0; h 0,0) умно", LastCall); // точка в 1 м от моба (3 − 2)
+        Assert.Equal("move (19,0; 0,0; h 0,0)", LastCall); // точка в 1 м от моба (3 − 2)
 
         _world.Position = new Position(17.5f, 0, 0);
         Tick();

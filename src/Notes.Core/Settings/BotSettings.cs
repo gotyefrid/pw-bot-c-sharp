@@ -538,11 +538,11 @@ public sealed class CombatSettings : SettingsPart
     private float _comeCloserDistance = 8;
     public float ComeCloserDistance { get => _comeCloserDistance; set => Set(ref _comeCloserDistance, value); }
 
-    private ApproachPath _approachPath = ApproachPath.Smart;
-    /// <summary>Как подходить: с автопутём (в обход препятствий, если сервер умеет) или напрямик.</summary>
-    public ApproachPath ApproachPath { get => _approachPath; set => Set(ref _approachPath, value); }
+    // Как подходить к мобу, больше не выбирается: по прямой, а камни, дома и деревья обходит свой путь (ObstacleWalk).
+    // Старый ключ «ApproachPath» в файлах настроек просто пропускается
 }
 
+/// <summary>Как бежать в центр фарма (<see cref="TargetSettings.ReturnPath"/>).</summary>
 public enum ApproachPath
 {
     /// <summary>Автопуть, как клик по карте: в обход препятствий. Нет у сервера — по прямой.</summary>
