@@ -159,7 +159,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null,
             new ClickerChoices(() => Farm.LootOptions(), () => Route.RouteOptions(), () => Farm.TargetOptions(),
                 () => PickLists.Foods(_lastWorld?.Inventory ?? []), () => PickLists.Skills(_lastWorld?.Skills ?? []),
-                () => PickLists.PartyMembers(_lastWorld)), SettingsEdited, dialogs);
+                () => PickLists.PartyMembers(_lastWorld), () => PickLists.PartyTargets(_lastWorld)), SettingsEdited, dialogs);
         Quests = new QuestsPanel(() => Settings, () => _lastWorld, SettingsEdited);
         Chat = new ChatPanel(() => _config.App.ChatNotify, () => _profile, SaveSettings, _chatLog);
         Farm.Load();

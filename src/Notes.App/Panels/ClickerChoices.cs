@@ -14,10 +14,12 @@ namespace Notes.App.Panels;
 /// <param name="Foods">Корм пета из сумки и «любой» — как в настройках пета.</param>
 /// <param name="Skills">Изученные скиллы персонажа.</param>
 /// <param name="PartyMembers">Члены пати, кроме самого персонажа.</param>
+/// <param name="PartyTargets">«Пати: взять в цель»: «любого первого по условию» и члены пати.</param>
 public sealed record ClickerChoices(
     Func<IReadOnlyList<PickOption>> Loot,
     Func<IReadOnlyList<PickOption>> Resources,
     Func<IReadOnlyList<PickOption>> Targets,
     Func<IReadOnlyList<PickOption>> Foods,
     Func<IReadOnlyList<PickOption>> Skills,
-    Func<IReadOnlyList<PickOption>> PartyMembers);
+    Func<IReadOnlyList<PickOption>> PartyMembers,
+    Func<IReadOnlyList<PickOption>> PartyTargets);

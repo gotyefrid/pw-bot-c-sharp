@@ -449,7 +449,7 @@ internal static class ActCommands
                 return name == "assist" ? new TeamAssistAction(mate.Wid, mate.Name) : new FollowAction(mate.Wid, mate.Name);
 
             case "select-player":
-                // Член пати или сам персонаж в цель (кликер: «Пати: в цель») — по нику из пати
+                // Член пати или сам персонаж в цель (кликер: «Пати: взять в цель») — по нику из пати
                 var whom = Word(args);
                 problem = whom is null ? "нужно: act select-player НИК (член пати или сам персонаж)" : $"в пати нет «{whom}»";
                 var picked = whom is null ? default : PartyHp.Of(w, "").FirstOrDefault(m => m.Mate.Name.IndexOf(whom, StringComparison.OrdinalIgnoreCase) >= 0);

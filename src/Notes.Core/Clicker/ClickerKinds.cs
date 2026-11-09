@@ -53,7 +53,7 @@ public static class ClickerKinds
         .Add<StopMacroAction>("StopMacro", "Остановить макрос")
         .Add<AssistAction>("Assist", "Пати: Ассист")
         .Add<FollowMemberAction>("Follow", "Пати: Следовать")
-        .Add<PartyTargetAction>("PartyTarget", "Пати: в цель");
+        .Add<PartyTargetAction>("PartyTarget", "Пати: взять в цель");
 
     public static ClickerKindList<ClickerCondition> Conditions { get; } = new ClickerKindList<ClickerCondition>()
         .Add<AlwaysCondition>("Always", "Всегда")

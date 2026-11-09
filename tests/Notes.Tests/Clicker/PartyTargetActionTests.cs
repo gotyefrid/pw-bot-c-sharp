@@ -1,5 +1,8 @@
+using System.Linq;
+using Newtonsoft.Json.Linq;
 using Notes.Core.Clicker;
 using Notes.Core.Logging;
+using Notes.Core.Settings;
 using Notes.Core.World;
 using Notes.Tests.Fakes;
 using Xunit;
@@ -7,9 +10,9 @@ using Xunit;
 namespace Notes.Tests.Clicker;
 
 /// <summary>
-/// Действие «Пати: в цель»: выбранного по нику или самого раненого (и сам персонаж в счёт), со своим условием по HP или без.
-/// Мёртвых не берёт; подходящий уже в цели — ничего не шлёт; некого — дальше без предупреждения; не в пати или выбранного
-/// нет — «не вышло».
+/// Действие «Пати: взять в цель»: выбранного по нику — всегда; «любого первого по условию» — первого по порядку пати (и сам
+/// персонаж на своём месте), у кого HP подходит. Мёртвых не берёт; подходящий уже в цели — ничего не шлёт; никто не подходит —
+/// никого, дальше без предупреждения; не в пати или выбранного нет — «не вышло».
 /// </summary>
 public class PartyTargetActionTests
 {
@@ -20,7 +23,7 @@ public class PartyTargetActionTests
 
     private string[] WithKey(PartyTargetAction action) => [.. _script.Step(action).Key("F1").Run(_script.Start(), 1)];
 
-    // Перс: 400/500 = 80 %
+    // По порядку пати: Перс (400/500 = 80 %), Друг, Танк
     private void Party(int friendHp, int tankHp = 1000)
         => _script.World.Party = new PartyInfo(FakeWorld.HostWid,
         [
@@ -30,24 +33,25 @@ public class PartyTargetActionTests
         ]);
 
     [Fact]
-    public void MostWoundedBelowThreshold()
+    public void AnyTakesFirstFittingInPartyOrder()
     {
+        // Танк ранен сильнее, но Друг в пати раньше — берётся он
         Party(friendHp: 400, tankHp: 300);
 
-        Assert.Equal([$"select {TankWid:X}, key F1"], WithKey(new PartyTargetAction()));
+        Assert.Equal([$"select {FriendWid:X}, key F1"], WithKey(new PartyTargetAction()));
     }
 
     [Fact]
-    public void SelfCanBeMostWounded()
+    public void AnyCountsSelfOnItsPlace()
     {
-        Party(friendHp: 900);
+        Party(friendHp: 300);
         _script.World.Hp = 100;
 
         Assert.Equal([$"select {FakeWorld.HostWid:X}, key F1"], WithKey(new PartyTargetAction()));
     }
 
     [Fact]
-    public void NobodyFitsIsSkippedWithoutWarning()
+    public void AnyNobodyFitsTakesNobodyWithoutWarning()
     {
         Party(friendHp: 900);
 
@@ -57,45 +61,21 @@ public class PartyTargetActionTests
     }
 
     [Fact]
-    public void WithoutHpCheckMostWoundedAlways()
+    public void AnyComparesAbove()
     {
-        // Все выше порога, а без условия всё равно берёт самого раненого: перс 80 % — ниже Друга (90 %) и Танка (95 %)
-        Party(friendHp: 900, tankHp: 950);
+        Party(friendHp: 500, tankHp: 700);
 
-        Assert.Equal([$"select {FakeWorld.HostWid:X}, key F1"], WithKey(new PartyTargetAction { ByHp = false }));
+        Assert.Equal([$"select {FakeWorld.HostWid:X}, key F1"],
+            WithKey(new PartyTargetAction { Compare = PercentCompare.Above, Percent = 60 }));
     }
 
     [Fact]
-    public void ChosenMemberByHp()
+    public void ChosenMemberAlwaysWhateverHp()
     {
-        Party(friendHp: 300, tankHp: 100);
+        // Порог в действии для выбранного не действует — условие по его HP задаётся условием шага
+        Party(friendHp: 1000, tankHp: 100);
 
         Assert.Equal([$"select {FriendWid:X}, key F1"], WithKey(new PartyTargetAction { Member = "друг" }));
-    }
-
-    [Fact]
-    public void ChosenMemberAboveThresholdIsSkipped()
-    {
-        Party(friendHp: 900);
-
-        Assert.Equal(["key F1"], WithKey(new PartyTargetAction { Member = "Друг" }));
-    }
-
-    [Fact]
-    public void ChosenMemberWithoutHpCheckAlways()
-    {
-        Party(friendHp: 1000);
-
-        Assert.Equal([$"select {FriendWid:X}, key F1"], WithKey(new PartyTargetAction { Member = "Друг", ByHp = false }));
-    }
-
-    [Fact]
-    public void ComparesAbove()
-    {
-        Party(friendHp: 900, tankHp: 700);
-
-        Assert.Equal([$"select {TankWid:X}, key F1"],
-            WithKey(new PartyTargetAction { Compare = PercentCompare.Above, Percent = 60 }));
     }
 
     [Fact]
@@ -104,6 +84,15 @@ public class PartyTargetActionTests
         Party(friendHp: 0, tankHp: 300);
 
         Assert.Equal([$"select {TankWid:X}, key F1"], WithKey(new PartyTargetAction()));
+    }
+
+    [Fact]
+    public void ChosenDeadIsNotTaken()
+    {
+        Party(friendHp: 0);
+
+        Assert.Equal(["key F1"], WithKey(new PartyTargetAction { Member = "Друг" }));
+        Assert.Contains(_script.Log, e => e.Message.Contains("«Друг» мёртв"));
     }
 
     [Fact]
@@ -147,20 +136,38 @@ public class PartyTargetActionTests
     [Fact]
     public void FileKeepsFields()
     {
-        var back = ClickerScript.RoundTrip(new PartyTargetAction { Member = " Друг ", ByHp = false, Compare = PercentCompare.Equal, Percent = -5 });
+        var back = ClickerScript.RoundTrip(new PartyTargetAction { Member = " Друг ", Compare = PercentCompare.Equal, Percent = -5 });
 
         Assert.Equal("Друг", back.Member);
-        Assert.False(back.ByHp);
         Assert.Equal(PercentCompare.Equal, back.Compare);
         Assert.Equal(0, back.Percent);
     }
 
     [Fact]
+    public void OldFileWithByHpStillReads()
+    {
+        // Сценарии до «первого по условию» — с полем byHp: оно больше ничего не значит, файл читается
+        var json = JObject.Parse(ClickerScript.Json(new PartyTargetAction { Member = "Друг", Percent = 30 }));
+        json.Descendants().OfType<JObject>().First(o => o["member"] is not null)["byHp"] = false;
+
+        var back = (PartyTargetAction)SettingsJson.Parse(json.ToString()).Clicker.Steps.Single().Action;
+
+        Assert.Equal("Друг", back.Member);
+        Assert.Equal(30, back.Percent);
+    }
+
+    [Fact]
+    public void HpRowOnlyForAny()
+    {
+        Assert.True(new PartyTargetAction().ByHp);
+        Assert.False(new PartyTargetAction { Member = "Друг" }.ByHp);
+        Assert.Equal(PartyTargetAction.AnyText, new PartyTargetAction().MemberShown);
+    }
+
+    [Fact]
     public void Described()
     {
-        Assert.Equal("в цель самого раненого в пати с HP меньше 50 %", new PartyTargetAction().Describe());
-        Assert.Equal("в цель самого раненого в пати", new PartyTargetAction { ByHp = false }.Describe());
-        Assert.Equal("в цель Друг, если HP меньше 30 %", new PartyTargetAction { Member = "Друг", Percent = 30 }.Describe());
-        Assert.Equal("в цель Друг", new PartyTargetAction { Member = "Друг", ByHp = false }.Describe());
+        Assert.Equal("в цель первого в пати с HP меньше 50 %", new PartyTargetAction().Describe());
+        Assert.Equal("в цель Друг", new PartyTargetAction { Member = "Друг", Percent = 30 }.Describe());
     }
 }

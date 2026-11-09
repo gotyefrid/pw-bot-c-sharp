@@ -4,6 +4,7 @@
                     xmlns:clicker="clr-namespace:Notes.Core.Clicker;assembly=Notes.Core">
   <!-- Кликер: поля каждого вида действия и условия — по классу. Новый вид — ещё один шаблон здесь. Окна, где они нужны
        (шаг, условие), подключают этот словарь; у их DataContext есть Choices — варианты для выбора (ClickerChoices) -->
+  <BooleanToVisibilityConverter x:Key="ClickerVisible" />
   <DataTemplate DataType="{x:Type clicker:PressKeyAction}">
     <DockPanel Margin="0,0,0,6">
       <TextBlock Text="Клавиша" VerticalAlignment="Center" />
@@ -94,16 +95,15 @@
       <DockPanel Margin="0,0,0,6">
         <TextBlock Text="Кого" VerticalAlignment="Center" />
         <app:ChoicePicker DockPanel.Dock="Right" Width="250" Value="{Binding Member}" Placeholder="{Binding MemberShown}"
-                          OptionsSource="{Binding DataContext.Choices.PartyMembers, RelativeSource={RelativeSource AncestorType=Window}}"
-                          ToolTip="Кого из пати взять в цель — например, чтобы следующим шагом полечить. Пусто — самого раненого (меньше всех HP в процентах), и сам персонаж тоже в счёт. Мёртвых не берёт. Выбранного нет в пати — шаг не выйдет" />
+                          OptionsSource="{Binding DataContext.Choices.PartyTargets, RelativeSource={RelativeSource AncestorType=Window}}"
+                          ToolTip="Кого из пати взять в цель — например, чтобы следующим шагом полечить. «Любого первого по условию» — первого по порядку пати (и сам персонаж в счёт), у кого HP подходит; никто не подходит — никого. Выбранного — всегда: условие по его HP задайте условием шага. Мёртвых не берёт. Выбранного нет в пати — шаг не выйдет" />
         <Grid />
       </DockPanel>
-      <DockPanel Margin="0,0,0,6">
-        <CheckBox Content="Только если HP, %" IsChecked="{Binding ByHp}" VerticalAlignment="Center"
-                  ToolTip="Брать в цель, только когда HP подходит. Выключено — выбранного всегда, а если никто не выбран — самого раненого, даже когда все здоровы" />
+      <DockPanel Margin="0,0,0,6" Visibility="{Binding ByHp, Converter={StaticResource ClickerVisible}}">
+        <TextBlock Text="HP, %" VerticalAlignment="Center" />
         <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Percent, UpdateSourceTrigger=PropertyChanged}"
-                 IsEnabled="{Binding ByHp}" ToolTip="Порог в процентах — целых: «равно 100» — полное" />
-        <ComboBox DockPanel.Dock="Right" Width="90" Margin="0,0,6,0" SelectedValuePath="Tag" SelectedValue="{Binding Compare}" IsEnabled="{Binding ByHp}">
+                 ToolTip="Порог в процентах — целых: «равно 100» — полное" />
+        <ComboBox DockPanel.Dock="Right" Width="90" Margin="0,0,6,0" SelectedValuePath="Tag" SelectedValue="{Binding Compare}">
           <ComboBoxItem Content="меньше" Tag="{x:Static clicker:PercentCompare.Below}" />
           <ComboBoxItem Content="больше" Tag="{x:Static clicker:PercentCompare.Above}" />
           <ComboBoxItem Content="равно" Tag="{x:Static clicker:PercentCompare.Equal}" />

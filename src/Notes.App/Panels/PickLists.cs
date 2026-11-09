@@ -58,6 +58,10 @@ public static class PickLists
                 .Select(m => new PickOption(m.Name, $"{m.Name} — {PlayerClasses.Name(m.Class) ?? "класс ?"}, ур. {m.Level}"))
                 .ToList();
 
+    /// <summary>Кого брать в цель шагом «Пати: взять в цель»: сначала «любого первого по условию» (пусто), потом члены пати.</summary>
+    public static List<PickOption> PartyTargets(WorldState? world)
+        => [new PickOption("", PartyTargetAction.AnyText), .. PartyMembers(world)];
+
     public static IReadOnlyList<PickOption> Kinds<T>(ClickerKindList<T> kinds) where T : class
         => kinds.All.Select(k => new PickOption(k.Id, k.Title)).ToList();
 }

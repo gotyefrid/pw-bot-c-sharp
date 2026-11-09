@@ -496,20 +496,22 @@ public sealed class FollowMemberAction : PartyMemberAction
 }
 
 /// <summary>
-/// Взять в цель члена пати (<see cref="Member"/>, по нику; пусто — самого раненого: меньше всех HP в %) — для лечения скиллом
-/// следующим шагом. Сам персонаж — тоже член пати. Своё условие внутри (<see cref="ByHp"/>): брать, только если HP в %
-/// меньше, больше или равно порогу; выключено — выбранного всегда, «любого» — самого раненого. Мёртвых не берёт — лечить их
-/// нельзя. Подходящий уже в цели — в игру ничего не шлёт; брать некого — сделано, без предупреждения. Персонаж не в пати или
-/// выбранного в ней нет — «не вышло». Подтверждение — он в цели.
+/// Взять в цель члена пати — для лечения скиллом следующим шагом. <see cref="Member"/> — по нику, его всегда (условие по HP
+/// для него — отдельным условием шага); пусто — «любого первого по условию»: первого по порядку пати (как в окне пати, сам
+/// персонаж — на своём месте), у кого HP в % меньше, больше или равно порогу. Мёртвых не берёт — лечить их нельзя. Подходящий
+/// уже в цели — в игру ничего не шлёт; никто не подходит — никого не берёт, сделано, без предупреждения. Персонаж не в пати
+/// или выбранного в ней нет — «не вышло». Подтверждение — он в цели.
 /// </summary>
 public sealed class PartyTargetAction : ConfirmableAction
 {
+    /// <summary>Как в окне называется «любой» — пустой <see cref="Member"/>.</summary>
+    public const string AnyText = "Любого первого по условию";
+
     private string _member = "";
-    private bool _byHp = true;
     private PercentCompare _compare;
     private int _percent = 50;
 
-    /// <summary>Ник члена пати; пусто — самый раненый.</summary>
+    /// <summary>Ник члена пати; пусто — любого первого, у кого HP подходит (<see cref="Compare"/>, <see cref="Percent"/>).</summary>
     public string Member
     {
         get => _member;
@@ -517,27 +519,24 @@ public sealed class PartyTargetAction : ConfirmableAction
         {
             Set(ref _member, value ?? "");
             Changed(nameof(MemberShown));
+            Changed(nameof(ByHp));
         }
     }
 
     /// <summary>Для окна: что показать в поле, когда член пати не выбран.</summary>
     [JsonIgnore]
-    public string MemberShown => Member.Length == 0 ? "Самый раненый (и сам персонаж)" : Member;
+    public string MemberShown => Member.Length == 0 ? AnyText : Member;
 
-    /// <summary>Брать, только если HP подходит под <see cref="Compare"/> и <see cref="Percent"/>.</summary>
-    public bool ByHp { get => _byHp; set => Set(ref _byHp, value); }
+    /// <summary>Для окна: условие по HP — только у «любого».</summary>
+    [JsonIgnore]
+    public bool ByHp => Member.Length == 0;
 
     public PercentCompare Compare { get => _compare; set => Set(ref _compare, value); }
 
     public int Percent { get => _percent; set => Set(ref _percent, value); }
 
     protected override string What()
-    {
-        var hp = $"HP {PartyHp.Sign(Compare)} {Percent} %";
-        if (Member.Length == 0)
-            return ByHp ? $"в цель самого раненого в пати с {hp}" : "в цель самого раненого в пати";
-        return ByHp ? $"в цель {Member}, если {hp}" : $"в цель {Member}";
-    }
+        => ByHp ? $"в цель первого в пати с HP {PartyHp.Sign(Compare)} {Percent} %" : $"в цель {Member}";
 
     public override IClickerRun Start(BrainContext c)
     {
@@ -551,11 +550,10 @@ public sealed class PartyTargetAction : ConfirmableAction
 
         var pick = mates
             .Where(m => m.Percent > 0 && (!ByHp || PartyHp.Fits(m.Percent, Compare, Percent)))
-            .OrderBy(m => m.Percent)
             .Select(m => m.Mate)
             .FirstOrDefault();
         if (pick is null)
-            return ClickerRuns.Skipped(ByHp ? $"в пати некого брать в цель: нет живых с HP {PartyHp.Sign(Compare)} {Percent} %" : "в пати некого брать в цель");
+            return ClickerRuns.Skipped(ByHp ? $"в пати некого брать в цель: нет живых с HP {PartyHp.Sign(Compare)} {Percent} %" : $"«{Member}» мёртв");
 
         return world.Host.TargetWid == pick.Wid
             ? ClickerRuns.Skipped($"«{pick.Name}» уже в цели")
