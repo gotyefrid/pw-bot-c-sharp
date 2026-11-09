@@ -25,6 +25,9 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
     private static readonly TimeSpan StaleAfter = TimeSpan.FromSeconds(30);
     // Ударил недавно — значит, всё ещё бьёт (между ударами моб «стоит» или «идёт»)
     private static readonly TimeSpan HitMemory = TimeSpan.FromSeconds(3);
+    // Состояние «бьёт / кастует» у моба залипает, пока его цель — мы (клиент не узнал об отагре): дальше этого (по прямой, с
+    // высотой) по состоянию не верим — иначе поднимались до потолка, хотя ударов давно нет. Настоящий удар с уроном — верим всегда
+    private const float StateHitReach = 30f;
 
     private NpcInfo? _from;
     private DateTime _since;
@@ -68,7 +71,7 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
         if (_gaveUp)
             return false;
 
-        if (Hits(threat))
+        if (Hits(w, threat))
             _lastHit = c.Now;
         var climbed = w.Host.Position.Height - _startHeight;
         if (w.Host.Flying is null)
@@ -130,14 +133,21 @@ public sealed class EscapeBehavior(RouteBehavior route) : IBehavior
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 
-    private static bool Hits(NpcInfo mob) => mob.State is NpcState.Attacking or NpcState.Casting;
+    // Бьёт: его удар с уроном по персу или пету в списке ударов игры — или он «бьёт / кастует» и близко
+    private static bool Hits(WorldState w, NpcInfo mob)
+    {
+        var pet = w.Pet?.ActiveWid ?? 0;
+        return w.Attacks.Any(a => a.AttackerWid == mob.Wid
+                                  && a.Hits.Any(h => h.Damage > 0 && (h.TargetWid == w.Host.Wid || pet != 0 && h.TargetWid == pet)))
+               || mob.State is NpcState.Attacking or NpcState.Casting && mob.Offset.Direct <= StateHitReach;
+    }
 
     // Опасный моб бьёт перса или пета: не возвращается (тот уже не наш), не «отставший» с застрявшей целью — пока снова не ударит
     private NpcInfo? Threat(BrainContext c)
     {
         var w = c.World;
         var petWid = w.Pet?.ActiveWid ?? 0;
-        foreach (var back in w.Mobs.Where(m => _shaken.Contains(m.Wid) && (Hits(m) || m.TargetWid != w.Host.Wid && m.TargetWid != petWid)).ToList())
+        foreach (var back in w.Mobs.Where(m => _shaken.Contains(m.Wid) && (Hits(w, m) || m.TargetWid != w.Host.Wid && m.TargetWid != petWid)).ToList())
             _shaken.Remove(back.Wid);
         return w.Mobs
             .Where(m => w.AttacksUs(m) && !_shaken.Contains(m.Wid) && DangerZones.Flee(m, c.Settings.Route))

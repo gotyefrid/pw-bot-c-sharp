@@ -327,6 +327,53 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void FarMobStuckInAttackStateDoesNotMakeBotClimbHigher()
+    {
+        // Поднялись на 35 м, моб внизу всё «бьёт» (состояние залипло, цель — мы), но ударов нет — выше не лезем, висим
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
+        Tick();
+        _world.Position = new Position(0, 35, 0);
+        Tick(4);
+        _actions.Calls.Clear();
+
+        Tick();
+        Tick(5);
+
+        Assert.Empty(_actions.Calls);
+        Assert.StartsWith("вишу на +35 м", Brain.Part<EscapeBehavior>()!.Status);
+    }
+
+    [Fact]
+    public void RealHitFromFarMobMakesBotClimbHigher()
+    {
+        // Моб далеко внизу, но по нам пришёл удар с уроном (дальний каст) — поднимаемся ещё
+        Route(0, 300);
+        _settings.Route.DangerLevel = 25;
+        _world.Flying = true;
+        Tick();
+        Tick();
+        var tiger = AddAggressive(0x80000001, "Тигр", 3, level: 30);
+        _world.Replace(tiger, m => m with { TargetWid = FakeWorld.HostWid, State = NpcState.Attacking });
+        Tick();
+        _world.Position = new Position(0, 35, 0);
+        Tick(4);
+        Tick();
+        Tick(5); // висим
+        _actions.Calls.Clear();
+        _world.Attacks.Add(new AttackEvent(1, 0, tiger.Wid, 0, [new AttackHit(FakeWorld.HostWid, 200, 0)]));
+
+        Tick();
+
+        Assert.Equal(["fly (0,0; 0,0; h 45,0)"], _actions.Calls);
+    }
+
+    [Fact]
     public void StuckTargetWithoutHitsCountsAsShakenOff()
     {
         // Ударил, мы ушли вверх; цель застряла на нас (клиент не узнал об отагре), моб 30 с не бьёт — отстал
