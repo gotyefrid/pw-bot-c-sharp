@@ -45,8 +45,7 @@ public class RouteScenarioTests
         {
             if (_brain is not null)
                 return _brain;
-            // Клавиши — тот же подставной объект: всплытие Пробелом проверяется в тестах воды
-            _brain = BotModes.Create(BotMode.GatherResources, new ActionRunner(new GameControl(_actions, _actions), NullLogger.Instance), Skills, _settings,
+            _brain = BotModes.Create(BotMode.GatherResources, new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
                 new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), [Pickaxe], _routeStart, new Random(1));
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
@@ -1141,7 +1140,6 @@ public class RouteScenarioTests
         Assert.Contains(_log, e => e.Message == "В воде — всплываю, потом взлечу");
         Assert.Contains(_actions.Calls, c => c.StartsWith("fly ("));
         Assert.DoesNotContain("fly-toggle", _actions.Calls);
-        Assert.DoesNotContain("key Space", _actions.Calls);
 
         // Поднялись на шаг — плывём ещё
         _world.Position = new Position(0, 5, 0);
@@ -1152,7 +1150,6 @@ public class RouteScenarioTests
         for (var i = 0; i < 12; i++)
             Tick();
         Assert.Contains("fly-toggle", _actions.Calls);
-        Assert.DoesNotContain("key Space", _actions.Calls);
     }
 
     [Fact]
@@ -1181,18 +1178,19 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void SpaceIsOnlyFallbackWhenFlightFromWaterFails()
+    public void StopsWhenCannotTakeOffFromWater()
     {
-        // Всплыли движением, но с поверхности взлететь не вышло — только тогда пробуем Пробел
+        // Всплыли движением, но с поверхности взлететь так и не вышло — бот останавливается, клавиш не жмёт
         _settings.Route.Points = [RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
         _world.HasFlyer = true;
         _world.InWater = true;
 
-        for (var i = 0; i < 100 && !_actions.Calls.Contains("key Space"); i++)
+        for (var i = 0; i < 200 && _stopped is null; i++)
             Tick();
 
-        Assert.Contains("fly-toggle", _actions.Calls);
-        Assert.Contains("key Space", _actions.Calls);
+        Assert.StartsWith("не взлетел из воды", _stopped);
+        Assert.Equal(3, _actions.Calls.Count(c => c == "fly-toggle"));
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("key"));
     }
 
     [Theory]

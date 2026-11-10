@@ -10,9 +10,6 @@ namespace Notes.Core.Actions;
 /// </summary>
 public readonly record struct KeyStroke(int Key, bool Ctrl = false, bool Alt = false, bool Shift = false)
 {
-    /// <summary>Пробел: в воде — гребок вверх (запасной способ всплыть, когда движение в точку не поднимает).</summary>
-    public static readonly KeyStroke Space = new(0x20);
-
     private static readonly Dictionary<int, string> Names = BuildNames();
     private static readonly Dictionary<string, int> Codes = Names.ToDictionary(n => n.Value, n => n.Key, StringComparer.OrdinalIgnoreCase);
 
