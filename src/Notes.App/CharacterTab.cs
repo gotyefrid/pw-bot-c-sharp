@@ -765,7 +765,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     public void Start() => Start(CallTransport.Window);
 
-    /// <param name="routeStart">Обход: с какой точки (переподключение — где был); null — выбранная в списке (не выбрана — первая).</param>
+    /// <param name="routeStart">Обход: с какой точки (переподключение — где был); null — выбранная в списке (не выбрана — ближайшая к персонажу).</param>
     private void Start(CallTransport transport, int? routeStart = null)
     {
         if (IsRunning || IsStopping || _connection is null)
