@@ -1156,6 +1156,31 @@ public class RouteScenarioTests
     }
 
     [Fact]
+    public void SecondTimeInWaterBotSwimsUpAgain()
+    {
+        // Всплыли и взлетели, потом снова оказались в воде: опять сначала всплыть движением, а не «Полёт» под водой
+        _settings.Route.Points = [RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
+        _world.HasFlyer = true;
+        _world.InWater = true;
+        for (var i = 0; i < 40 && !_actions.Calls.Contains("fly-toggle"); i++)
+            Tick();
+        Assert.Contains("fly-toggle", _actions.Calls);
+
+        _world.InWater = false;
+        _world.Flying = true;
+        Tick();
+
+        _world.Flying = false;
+        _world.InWater = true;
+        _actions.Calls.Clear();
+        Tick();
+
+        Assert.Equal(2, _log.Count(e => e.Message == "В воде — всплываю, потом взлечу"));
+        Assert.StartsWith("fly (", _actions.Calls[0]);
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+    }
+
+    [Fact]
     public void SpaceIsOnlyFallbackWhenFlightFromWaterFails()
     {
         // Всплыли движением, но с поверхности взлететь не вышло — только тогда пробуем Пробел

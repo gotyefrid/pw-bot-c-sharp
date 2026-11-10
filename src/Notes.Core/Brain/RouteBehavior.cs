@@ -251,6 +251,10 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             c.Log.Warning("Полётника нет — обхожу дальше по земле");
         }
 
+        // Не в воде (вышли, взлетели) — прошлое всплытие забыть: следующий заход в воду снова с движения вверх, не с Пробела
+        if (w.Host.InWater != true || w.Host.Flying == true)
+            _water.Reset();
+
         // В воде: сначала всплыть движением, на поверхности — «Полёт»; Пробел — только если иначе не выходит
         if (_inAir == true && w.Host.Flying != true && w.Host.InWater == true)
         {
