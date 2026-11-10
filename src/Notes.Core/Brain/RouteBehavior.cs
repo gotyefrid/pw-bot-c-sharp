@@ -13,10 +13,10 @@ namespace Notes.Core.Brain;
 /// Обход маршрута в режиме «Собирать ресурсы»: точки по порядку, после последней — снова первая. Сначала добираемся до
 /// текущей точки (по дороге ничего не копаем), потом <see cref="GatherBehavior"/> (стоит раньше; что и где копать, говорит
 /// обход — <see cref="IGatherScope"/>) копает то, что задано у этой точки, в радиусе от неё; напавших бьёт бой. Копать больше
-/// нечего — к следующей точке. Двигаемся так, как стоял перс при «Старт»: в воздухе — летим на высоте точки (упал на
-/// землю — взлетаем; ниже точки больше чем на 3 м — сначала вертикально вверх на её высоту, потом к ней), на земле — бежим
-/// с автопутём. У точки стоит «в воздухе» — взлетаем сами, даже если стартовали на земле; в воде перед взлётом сначала
-/// всплываем (<see cref="WaterExit"/>).
+/// нечего — к следующей точке. Как добираться, решает сама точка. «В воздухе» — летим на её высоте и копаем с полётника (на
+/// земле взлетаем, в воде сначала всплываем — <see cref="WaterExit"/>; ниже точки больше чем на 3 м — сначала вертикально
+/// вверх на её высоту, потом к ней). На земле — уже летим: долетаем до неё, слезаем с полётника и копаем пешком; идём
+/// пешком: так и идём (с автопутём), не взлетаем.
 /// </summary>
 /// <param name="start">С какой точки начинать (с 0) — выбранная в окне или ближайшая к персонажу; не настройка, в файл не пишется.</param>
 public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0) : IBehavior, IRouteProgress, IGatherScope
@@ -28,8 +28,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     private const int FailuresToSkip = 2;
     // В полёте ниже точки больше чем на столько — сначала подъём на её высоту
     private const float ClimbFirst = 3f;
-    // Не взлетели (не отправилось) — пробуем снова не чаще этого
-    private static readonly TimeSpan TakeoffRetry = TimeSpan.FromSeconds(2);
+    // Не взлетели или не слезли (не отправилось) — пробуем снова не чаще этого
+    private static readonly TimeSpan FlyRetry = TimeSpan.FromSeconds(2);
 
     private int _index;
     // Долетели до текущей точки — теперь копаем у неё (сбрасывается при переходе к следующей)
@@ -49,7 +49,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     private string? _routeId;
     // Вода: всплыть перед взлётом
     private readonly WaterExit _water = new();
-    private DateTime _takeoffAt = DateTime.MinValue;
+    private DateTime _flyAt = DateTime.MinValue;
 
     public string Name => "обход";
     public string? Status { get; private set; }
@@ -111,7 +111,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             _routeId = route.RouteId;
             (_index, _arrived, _returning, _leaving, _failures, _lastVisited, _climbFailed) = (0, false, false, false, 0, null, false);
             _water.Reset();
-            _takeoffAt = DateTime.MinValue;
+            _flyAt = DateTime.MinValue;
             c.Log.Info($"Маршрут сменился: {points.Count} точек, начинаю с 1-й");
         }
 
@@ -164,6 +164,22 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             }
             else
             {
+                // Точка на земле, а летим (к ней летели на её высоте): слезть с полётника — копать пешком
+                if (!point.Flying && w.Host.Flying == true)
+                {
+                    Status = $"слезаю с полётника у точки {_index + 1}/{points.Count}";
+                    if (c.Now >= _flyAt && c.Send(new FlyAction(up: false) { Priority = ActionPriority.Normal }) == SubmitStatus.Failed)
+                        _flyAt = c.Now + FlyRetry;
+                    return true;
+                }
+
+                // Слезли, но ещё падаем до земли — копать рано
+                if (c.Mine.OfType<FlyAction>().Any())
+                {
+                    Status = $"сажусь у точки {_index + 1}/{points.Count}";
+                    return true;
+                }
+
                 // Долетели совсем (полёт к точке закончился, с высотой): со следующего шага копаем у этой точки
                 _arrived = true;
                 _lastVisited = _index;
@@ -243,12 +259,11 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             }
         }
 
-        // Полётник сняли (или упал на землю без него) — дальше по земле: «Полёт» без полётника ничего не делает.
-        // Для точки в воздухе это не спасение — там выше уже остановились
-        if (!point.Flying && _inAir == true && w.Host.Flying == false && w.HasFlyer == false)
+        // Точка на земле, а перс не в воздухе (слез у прошлой точки, упал, полётник сняли) — к ней пешком, не взлетаем
+        if (!point.Flying && _inAir == true && w.Host.Flying == false)
         {
             _inAir = false;
-            c.Log.Warning("Полётника нет — обхожу дальше по земле");
+            c.Log.Info($"Точка {_index + 1} на земле — дальше пешком");
         }
 
         // Не в воде (вышли, взлетели) — прошлое всплытие забыть: следующий заход в воду снова с движения вверх
@@ -269,15 +284,15 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
             }
         }
 
-        // В полёте, но на земле (упал, сел) — взлетаем снова
+        // Точка в воздухе, а перс на земле (слез у прошлой точки, упал) — взлетаем
         if (_inAir == true && w.Host.Flying == false)
         {
             Status = "взлетаю";
-            if (c.Now < _takeoffAt)
+            if (c.Now < _flyAt)
                 return true;
             var sent = c.Send(new FlyAction(up: true) { Priority = ActionPriority.Normal });
             if (sent == SubmitStatus.Failed)
-                _takeoffAt = c.Now + TakeoffRetry;
+                _flyAt = c.Now + FlyRetry;
             return true;
         }
 
@@ -286,7 +301,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
 
     /// <summary>
     /// Куда вернуться после смерти (<see cref="DeathReturnBehavior"/>): к последней посещённой точке (ни одной — к текущей), на её
-    /// высоте, если обходим в полёте; обход дальше — с неё, искать заново. Маршрут пуст — null (бот остановится).
+    /// высоте, если она «в воздухе» (на земле — сесть у неё); обход дальше — с неё, искать заново. Маршрут пуст — null (бот остановится).
     /// </summary>
     public Spot? AfterDeath(BrainContext c)
     {
@@ -296,7 +311,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
 
         BackToLastVisited(c);
         var point = points[_index % points.Count];
-        return new Spot(point.Position, _inAir == true ? TripEnd.Air : TripEnd.Ground);
+        return new Spot(point.Position, point.Flying ? TripEnd.Air : TripEnd.Ground);
     }
 
     /// <summary>
@@ -347,8 +362,8 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
         _water.OnOutcome(c, outcome);
-        if (outcome.Action is FlyAction { Up: true } && outcome.Status is ActionStatus.Failed or ActionStatus.Rejected or ActionStatus.Timeout)
-            _takeoffAt = c.Now + TakeoffRetry;
+        if (outcome.Action is FlyAction && outcome.Status is ActionStatus.Failed or ActionStatus.Rejected or ActionStatus.Timeout)
+            _flyAt = c.Now + FlyRetry;
 
         if (outcome.Action is not MoveAction move)
             return;
@@ -392,7 +407,7 @@ public sealed class RouteBehavior(IReadOnlyCollection<uint> tools, int start = 0
         _climbFailed = false;
         _routeId = null;
         _water.Reset();
-        _takeoffAt = DateTime.MinValue;
+        _flyAt = DateTime.MinValue;
         Status = null;
     }
 }

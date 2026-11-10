@@ -57,6 +57,10 @@ public class RouteScenarioTests
     private void Route(params float[] xs)
         => _settings.Route.Points = xs.Select((x, i) => RoutePoint.At($"Точка {i + 1}", new Position(x, 0, 0))).ToList();
 
+    // Точки «в воздухе»: копаем с полётника, у точки не слезаем
+    private void AirRoute(params float[] xs)
+        => _settings.Route.Points = xs.Select((x, i) => RoutePoint.At($"Точка {i + 1}", new Position(x, 0, 0), flying: true)).ToList();
+
     private GroundItem AddResource(uint id, float x, string name)
     {
         var item = new GroundItem(0, id, 3079, GroundItemKind.Resource, new Position(x, 0, 0), name);
@@ -99,7 +103,7 @@ public class RouteScenarioTests
     [Fact]
     public void StartedInAirFliesAtPointHeightAndTakesOffAgainIfLanded()
     {
-        _settings.Route.Points = [RoutePoint.At("Над рудой", new Position(50, 30, 0)), RoutePoint.At("Дальше", new Position(100, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("Над рудой", new Position(50, 30, 0), flying: true), RoutePoint.At("Дальше", new Position(100, 30, 0), flying: true)];
         _world.Flying = true;
         // Уже на высоте точек — сразу к ней, без подъёма
         _world.Position = new Position(0, 30, 0);
@@ -230,7 +234,7 @@ public class RouteScenarioTests
     public void DangerousAttackerMakesBotRecallPetTakeOffAndClimbInsteadOfFighting()
     {
         // На земле у точки 1 напал опасный тигр (бьёт пета): отозвать пета, взлететь, подниматься шагами по 10 м — не бить
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = false;
         _world.SetPets(1, new PetInCage(1, 1, 0));
@@ -259,7 +263,7 @@ public class RouteScenarioTests
     public void AfterDangerousMobGivesUpBotReturnsToLastVisitedPoint()
     {
         // Ушли от тигра вверх у точки 1, он отстал (бросил цель) — снова к точке 1 (на её высоту) и ищем ресурсы там заново
-        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0), flying: true), RoutePoint.At("2", new Position(300, 30, 0), flying: true)];
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         _world.Position = new Position(0, 30, 0);
@@ -283,7 +287,7 @@ public class RouteScenarioTests
     public void ReturningDangerousMobEndsEscapeAtOnce()
     {
         // Отагр виден сразу: моб «возвращается», хотя цель ещё показывает перса
-        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0), flying: true), RoutePoint.At("2", new Position(300, 30, 0), flying: true)];
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         _world.Position = new Position(0, 30, 0);
@@ -307,7 +311,7 @@ public class RouteScenarioTests
     public void ClimbsOnlyWhileHitThenHovers()
     {
         // Поднялись на шаг, моб больше не бьёт (стоит внизу, цель — мы) — выше не лезем, висим
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         Tick();
@@ -331,7 +335,7 @@ public class RouteScenarioTests
     public void FarMobStuckInAttackStateDoesNotMakeBotClimbHigher()
     {
         // Поднялись на 35 м, моб внизу всё «бьёт» (состояние залипло, цель — мы), но ударов нет — выше не лезем, висим
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         Tick();
@@ -354,7 +358,7 @@ public class RouteScenarioTests
     public void RealHitFromFarMobMakesBotClimbHigher()
     {
         // Моб далеко внизу, но по нам пришёл удар с уроном (дальний каст) — поднимаемся ещё
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         Tick();
@@ -378,7 +382,7 @@ public class RouteScenarioTests
     public void StuckTargetWithoutHitsCountsAsShakenOff()
     {
         // Ударил, мы ушли вверх; цель застряла на нас (клиент не узнал об отагре), моб 30 с не бьёт — отстал
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         Tick();
@@ -417,7 +421,7 @@ public class RouteScenarioTests
     public void ShakenDangerousMobWithStuckTargetIsNotFought()
     {
         // Отстал (30 с не бьёт), а цель у него всё ещё на нас: бой не принимает его за напавшего — не берём в цель и не бьём
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         Tick();
@@ -440,7 +444,7 @@ public class RouteScenarioTests
     public void DangerousMobWithStuckTargetDoesNotScareBot()
     {
         // Опасный с застрявшей после старого отагра целью: NpcTracker её снимает (цель 0) — не напал, уходить незачем, копаем
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _world.Flying = true;
         AddResource(0xC0000001, 30, "Железная руда");
@@ -472,7 +476,7 @@ public class RouteScenarioTests
     public void AvoidFightsMakesBotFlyFromWeakPassiveAttacker()
     {
         // «Не драться»: напал пассивный слабый волк — не бьём, а улетаем вверх, как от опасного
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.DangerLevel = 25;
         _settings.Route.AvoidFights = true;
         _world.Flying = true;
@@ -492,7 +496,7 @@ public class RouteScenarioTests
     public void AvoidFightsIgnoresAttackerAlreadyInTarget()
     {
         // «Не драться»: напавший уже у нас в цели — всё равно не бьём
-        Route(0, 300);
+        AirRoute(0, 300);
         _settings.Route.AvoidFights = true;
         _world.Flying = true;
         Tick();
@@ -512,7 +516,7 @@ public class RouteScenarioTests
     public void AvoidFightsTurnedOnMidFightDropsTheFight()
     {
         // Дрались со слабым волком, включили «Не драться» — бой бросаем, от волка уходим
-        Route(0, 300);
+        AirRoute(0, 300);
         _world.Flying = true;
         Tick();
         Tick();
@@ -595,8 +599,9 @@ public class RouteScenarioTests
     }
 
     [Fact]
-    public void InAirRouteWithoutFlyerGoesOnFoot()
+    public void FlyerLostBotGoesToGroundPointsOnFoot()
     {
+        // Точки на земле, летели к ним; полётник пропал — пешком
         _settings.Route.Points = [RoutePoint.At("Над рудой", new Position(50, 30, 0)), RoutePoint.At("Дальше", new Position(100, 30, 0))];
         _world.Flying = true;
         Tick();
@@ -637,7 +642,7 @@ public class RouteScenarioTests
     public void AfterDiggingBotReturnsToPointAndFliesToNextFromIt()
     {
         // Точки в воздухе на 30 м; выкопали руду у земли в 30 м от точки — к следующей не от руды, а сначала назад на точку
-        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0), flying: true), RoutePoint.At("2", new Position(300, 30, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 30, 0);
         var ore = AddResource(0xC0000001, 30, "Железная руда");
@@ -733,7 +738,7 @@ public class RouteScenarioTests
     // Обход в полёте: точка на 30 м над землёй, перс на ней
     private void HoverAtPoint()
     {
-        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(300, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0), flying: true), RoutePoint.At("2", new Position(300, 30, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 30, 0);
     }
@@ -856,7 +861,7 @@ public class RouteScenarioTests
     public void InAirClimbIsSentOnceWhileRising()
     {
         // Подъём идёт — не шлём его заново каждый снимок
-        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 0, 0);
 
@@ -873,7 +878,7 @@ public class RouteScenarioTests
     public void InAirAtPointHeightFliesStraightToPoint()
     {
         // Уже на высоте точки (чуть ниже — меньше 3 м) — сразу к ней
-        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 38, 0);
 
@@ -886,7 +891,7 @@ public class RouteScenarioTests
     public void InAirClimbNotReachedFliesToPointDirectly()
     {
         // Не поднялись (потолок, скала над головой) — стоим 2,5 с: дальше к точке напрямую, точку не пропускаем
-        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0)), RoutePoint.At("2", new Position(300, 40, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(100, 40, 0), flying: true), RoutePoint.At("2", new Position(300, 40, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 0, 0);
 
@@ -942,7 +947,7 @@ public class RouteScenarioTests
     {
         // Над точкой по горизонтали, но ниже на 20 м — полёт ещё идёт: копание получило бы «занято», а это не «копать нечего».
         // Долетели (с высотой) — копаем камень у точки, к следующей не уходим
-        _settings.Route.Points = [RoutePoint.At("1", new Position(50, 40, 0)), RoutePoint.At("2", new Position(200, 40, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(50, 40, 0), flying: true), RoutePoint.At("2", new Position(200, 40, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 40, 0);
         Tick();
@@ -1011,7 +1016,7 @@ public class RouteScenarioTests
     {
         // Пет общий с фармом мобов; стартовали в воздухе — зовём летающего
         _settings.Pet.Enabled = true;
-        Route(0, 300);
+        AirRoute(0, 300);
         _world.Flying = true;
         _world.SetPets(null, new PetInCage(1, 1, 0) { Name = "Скорпион", Habitat = Habitat.Ground },
             new PetInCage(2, 1, 0) { Name = "Пчела", Habitat = Habitat.Air });
@@ -1093,6 +1098,68 @@ public class RouteScenarioTests
         Tick();
 
         Assert.Equal(["fly-toggle", "fly (100,0; 0,0; h 30,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void FlyingToGroundPointBotLandsThereAndDigsOnFoot()
+    {
+        // Летим, а точка на земле: долетаем, слезаем с полётника, копаем пешком
+        _settings.Route.Points = [RoutePoint.At("На земле", new Position(100, 0, 0))];
+        _world.HasFlyer = true;
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+        AddResource(0xC0000001, 120, "Железная руда");
+
+        Tick();
+        Assert.Equal(["fly (100,0; 0,0; h 0,0)"], _actions.Calls);
+
+        _world.Position = new Position(100, 0, 0);
+        Tick();
+        Tick();
+        Assert.Equal("fly-toggle", _actions.Calls.Last());
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("gather"));
+
+        // Слез и стоит на земле (посадка ждёт, пока высота не перестанет меняться) — копает пешком, не сверху
+        _world.Flying = false;
+        for (var i = 0; i < 20 && !_actions.Calls.Any(c => c.StartsWith("gather")); i++)
+            Tick();
+        Assert.Equal("gather C0000001", _actions.Calls.Last());
+        Assert.Equal(1, _actions.Calls.Count(c => c == "fly-toggle"));
+        Assert.Contains(_log, e => e.Message == "Точка 1 на земле — дальше пешком");
+    }
+
+    [Fact]
+    public void FromGroundPointToGroundPointBotWalks()
+    {
+        // Обе точки на земле, перс на земле: идёт пешком, полётник не трогает
+        Route(50, 100);
+        _world.HasFlyer = true;
+
+        Tick();
+        _world.Position = new Position(50, 0, 0);
+        Tick();
+        Tick();
+
+        Assert.Equal(["move (50,0; 0,0; h 0,0) умно", "move (100,0; 0,0; h 0,0) умно"], _actions.Calls);
+    }
+
+    [Fact]
+    public void FromGroundPointToAirPointBotTakesOff()
+    {
+        // Отработали точку на земле, следующая в воздухе — взлетаем у точки, к следующей летим
+        _settings.Route.Points = [RoutePoint.At("На земле", new Position(50, 0, 0)), RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
+        _world.HasFlyer = true;
+
+        Tick();
+        _world.Position = new Position(50, 0, 0);
+        Tick();
+        Tick();
+        Assert.Equal("fly-toggle", _actions.Calls.Last());
+
+        // Сначала вертикально вверх на высоту точки, потом к ней
+        _world.Flying = true;
+        Tick();
+        Assert.Equal("fly (50,0; 0,0; h 30,0)", _actions.Calls.Last());
     }
 
     [Fact]

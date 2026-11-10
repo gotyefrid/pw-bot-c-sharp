@@ -95,7 +95,7 @@ public class RouteDeathTests
     // Обход в полёте: две точки на 30 м, перс у первой
     private void FlyingRoute()
     {
-        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0)), RoutePoint.At("2", new Position(200, 30, 0))];
+        _settings.Route.Points = [RoutePoint.At("1", new Position(0, 30, 0), flying: true), RoutePoint.At("2", new Position(200, 30, 0), flying: true)];
         _world.Flying = true;
         _world.Position = new Position(0, 30, 0);
     }
