@@ -208,6 +208,47 @@ public class NpcAggroTests
     }
 
     [Fact]
+    public void RunningWhenAloneIsNotAggroWhereMobTargetIsKnown()
+    {
+        // Comeback: у моба есть поле цели, оно пустое — гуляет, хоть игра и пишет «бег» (Призрак наскальника шёл к персу)
+        var tracker = new NpcTracker(knowsMobTarget: true);
+        var mob = _world.AddMob(1, "Призрак наскальника", 38, state: NpcState.Moving);
+        _world.Replace(mob, m => m with { Pose = NpcPose.Running });
+        tracker.Track(_world.Wait(0.25).Snapshot());
+        _world.Replace(mob, m => m with { Position = new Position(36, 0, 0) });
+
+        var seen = Assert.Single(tracker.Track(_world.Wait(0.25).Snapshot()).Npcs, n => n.Kind == NpcKind.Mob);
+
+        Assert.Equal(0u, seen.TargetWid);
+        Assert.Equal(AggroSign.None, seen.Aggro);
+    }
+
+    [Fact]
+    public void CombatPoseWhenAloneIsNotAggroWhereMobTargetIsKnown()
+    {
+        var tracker = new NpcTracker(knowsMobTarget: true);
+        var mob = _world.AddMob(1, "Бес пустоты", 15);
+        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
+
+        var seen = Assert.Single(tracker.Track(_world.Wait(0.25).Snapshot()).Npcs, n => n.Kind == NpcKind.Mob);
+
+        Assert.Equal(AggroSign.None, seen.Aggro);
+    }
+
+    [Fact]
+    public void TargetOnUsIsAggroWhereMobTargetIsKnown()
+    {
+        var tracker = new NpcTracker(knowsMobTarget: true);
+        var mob = _world.AddMob(1, "Бес пустоты", 15, targetWid: FakeWorld.HostWid, state: NpcState.Moving);
+        _world.Replace(mob, m => m with { Pose = NpcPose.Running });
+
+        var seen = Assert.Single(tracker.Track(_world.Wait(0.25).Snapshot()).Npcs, n => n.Kind == NpcKind.Mob);
+
+        Assert.Equal(FakeWorld.HostWid, seen.TargetWid);
+        Assert.Equal(AggroSign.Target, seen.Aggro);
+    }
+
+    [Fact]
     public void WalkingTowardsUsIsNotAggro()
     {
         // Носорог 2,6 с шёл в сторону перса шагом — просто гулял

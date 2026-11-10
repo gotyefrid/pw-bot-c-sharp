@@ -22,12 +22,13 @@ namespace Notes.Core.World;
 /// <para>
 /// Без подтверждения — догадка по анимации: моб в боевой стойке или бежит, а вокруг нет других игроков и чужих петов — значит,
 /// бой с нами (с персом или петом — кто к нему ближе). Это единственное, что видно до первого удара там, где общего поля цели
-/// нет (PW Classic). После отагра догадку не делаем, пока моб не успокоится (встанет или пойдёт шагом).
+/// нет (PW Classic). После отагра догадку не делаем, пока моб не успокоится (встанет или пойдёт шагом). Где поле цели есть
+/// (<paramref name="knowsMobTarget"/>), догадки нет: пустая цель — моб ни на кого не напал, а «бег» бывает и у гуляющего моба.
 /// </para>
 /// Один на подключение, стоит между читателем и лентой снимков. Неудачный снимок (не в мире, перезаход) память не сбрасывает;
 /// мобов, которых нет в новом снимке, забывает (WID моба после респавна тот же, но это уже другой бой).
 /// </summary>
-public sealed class NpcTracker
+public sealed class NpcTracker(bool knowsMobTarget = false)
 {
     /// <summary>Сколько держим цель-«нас» без подтверждений и без боевой стойки.</summary>
     public static readonly TimeSpan HoldFor = TimeSpan.FromSeconds(10);
@@ -140,8 +141,8 @@ public sealed class NpcTracker
             _held.Remove(wid);
         }
 
-        // Догадка по анимации: в бою, а драться вокруг не с кем, кроме нас
-        if (mob.InCombatPose && scene.Alone && !_cooling.ContainsKey(wid) && mob.Offset.Horizontal <= PoseRadius)
+        // Догадка по анимации (только без поля цели): в бою, а драться вокруг не с кем, кроме нас
+        if (!knowsMobTarget && mob.InCombatPose && scene.Alone && !_cooling.ContainsKey(wid) && mob.Offset.Horizontal <= PoseRadius)
         {
             var guess = scene.Nearest(mob);
             _held[wid] = new Hold(guess, scene.Time, AggroSign.Pose);

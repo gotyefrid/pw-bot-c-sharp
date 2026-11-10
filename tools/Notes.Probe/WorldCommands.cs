@@ -31,7 +31,7 @@ internal static class WorldCommands
     {
         var reader = CreateReader(profile, game, out _);
         // Как видит бот: застрявшая после отагра цель снята, «идёт к нам» проставлено
-        var tracker = new NpcTracker();
+        var tracker = new NpcTracker(knowsMobTarget: profile.Data.Npc.Target != 0);
         var stop = false;
         Console.CancelKeyPress += (_, e) =>
         {
@@ -70,7 +70,7 @@ internal static class WorldCommands
     {
         var seconds = args.Select(a => int.TryParse(a, out var n) && n != game.Pid ? n : 0).FirstOrDefault(n => n is > 0 and <= 3600);
         var reader = CreateReader(profile, game, out _);
-        var tracker = new NpcTracker();
+        var tracker = new NpcTracker(knowsMobTarget: profile.Data.Npc.Target != 0);
         var stop = false;
         Console.CancelKeyPress += (_, e) =>
         {
