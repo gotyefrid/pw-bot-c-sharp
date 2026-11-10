@@ -368,7 +368,7 @@
           <StackPanel>
             <TextBlock Text="МАРШРУТ ОБХОДА" Style="{StaticResource CardTitle}" />
             <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
-                       Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в радиусе, после последней — снова к первой. Летает, если при «Старт» персонаж в воздухе. Что копать — у каждой точки своё: выберите точку в списке. «Старт» — с выбранной точки (не выбрана — с первой)." />
+                       Text="Бот идёт по точкам по порядку, у каждой копает ресурсы в своём радиусе, после последней — снова к первой. У точки с галкой «в воздухе» бот взлетает сам (в воде сначала всплывает), пешком к ней не бежит. Двойной щелчок по точке или карандаш — правка: координаты, «в воздухе», радиус и что копать. «Старт» — с выбранной точки; чтобы начать с ближайшей, снимите выбор кнопкой «Снять выбор» или Esc." />
             <DockPanel Margin="0,0,0,8">
               <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                 <ComboBox Width="200" ItemsSource="{Binding Route.Routes}" SelectedItem="{Binding Route.SelectedRoute}"
@@ -382,7 +382,8 @@
               </StackPanel>
               <TextBlock Text="Маршрут" VerticalAlignment="Center" />
             </DockPanel>
-            <ListView MinHeight="80" MaxHeight="320" ItemsSource="{Binding Route.RouteRows}" SelectedItem="{Binding Route.SelectedRoutePoint}" BorderThickness="0" Background="Transparent">
+            <ListView MinHeight="80" MaxHeight="320" MouseDoubleClick="EditRoutePoint" KeyDown="RoutePointListKey"
+                      ItemsSource="{Binding Route.RouteRows}" SelectedItem="{Binding Route.SelectedRoutePoint}" BorderThickness="0" Background="Transparent">
               <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                   <Style.Triggers>
@@ -395,7 +396,9 @@
               <ListView.View>
                 <GridView>
                   <GridViewColumn Header="№" Width="34" DisplayMemberBinding="{Binding Number}" />
-                  <GridViewColumn Header="Что копать" Width="250" DisplayMemberBinding="{Binding What}" />
+                  <GridViewColumn Header="Где" Width="60" DisplayMemberBinding="{Binding Place}" />
+                  <GridViewColumn Header="Радиус" Width="60" DisplayMemberBinding="{Binding RadiusText}" />
+                  <GridViewColumn Header="Что копать" Width="230" DisplayMemberBinding="{Binding What}" />
                   <GridViewColumn Header="Отсюда" Width="60" DisplayMemberBinding="{Binding DistanceText}" />
                 </GridView>
               </ListView.View>
@@ -403,35 +406,21 @@
             <DockPanel Margin="0,8,0,0">
               <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
                       Command="{Binding Route.RemoveRoutePointCommand}" ToolTip="Удалить выбранную точку маршрута" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70F;" Margin="6,0,0,0"
+                      Command="{Binding Route.EditRoutePointCommand}"
+                      ToolTip="Изменить выбранную точку: координаты, «в воздухе», радиус и что копать" />
               <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70D;" Margin="6,0,0,0"
                       Command="{Binding Route.RoutePointDownCommand}" ToolTip="Позже в обходе" />
               <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"
                       Command="{Binding Route.RoutePointUpCommand}" ToolTip="Раньше в обходе" />
-              <Button Style="{StaticResource ButtonBase}" Content="Добавить здесь" HorizontalAlignment="Left"
-                      Command="{Binding Route.AddRoutePointCommand}"
-                      ToolTip="Место персонажа — следующая точка маршрута (с высотой: в полёте бот потом летит на ней)" />
-            </DockPanel>
-            <StackPanel Margin="0,8,0,0" Visibility="{Binding Route.HasSelectedRoutePoint, Converter={StaticResource Visible}}">
-              <DockPanel>
-                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.LootModes}" SelectedItem="{Binding Route.SelectedRouteMode}"
-                          ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка (например, ресурс у агрессивного моба)">
-                  <ComboBox.ItemTemplate>
-                    <DataTemplate>
-                      <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
-                    </DataTemplate>
-                  </ComboBox.ItemTemplate>
-                </ComboBox>
-                <TextBlock Text="{Binding Route.SelectedRouteTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-              </DockPanel>
-              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Route.RouteNames}" Options="{Binding Route.RouteOptions}"
-                             Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
-                             ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
-            </StackPanel>
-            <DockPanel Margin="0,8,0,0">
-              <TextBlock Text="Ресурсы в радиусе, м" VerticalAlignment="Center" />
-              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Route.Radius, UpdateSourceTrigger=PropertyChanged}"
-                       ToolTip="Сколько метров вокруг точки бот ищет ресурсы. Участок ресурса ~110 м, видно его целиком с ~50 м" />
-              <Grid />
+              <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource ButtonBase}" Content="Добавить здесь"
+                        Command="{Binding Route.AddRoutePointCommand}"
+                        ToolTip="Место персонажа — следующая точка маршрута (с высотой и «в воздухе», как стоит персонаж)" />
+                <Button Style="{StaticResource ButtonBase}" Content="Снять выбор" Margin="8,0,0,0"
+                        Command="{Binding Route.ClearRoutePointSelectionCommand}"
+                        ToolTip="Ничего не выбрано — «Старт» начнёт с ближайшей точки (то же — Esc в таблице)" />
+              </StackPanel>
             </DockPanel>
             <CheckBox Style="{StaticResource Switch}" Content="Вставать после смерти" IsChecked="{Binding Settings.Target.ReviveAndReturn}" Margin="0,8,0,0">
               <CheckBox.ToolTip>

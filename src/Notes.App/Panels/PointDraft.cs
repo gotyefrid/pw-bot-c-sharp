@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Windows.Input;
 using Notes.App.Mvvm;
 using Notes.Core.Settings;
@@ -35,7 +34,7 @@ public sealed class PointDraft : ObservableObject
         _here = here;
         _none = none;
         _name = point.Name;
-        (_x, _y, _height) = Format(point.Position);
+        (_x, _y, _height) = PointText.Format(point.Position);
         (_shownX, _shownY, _shownHeight) = (_x, _y, _height);
         (_flying, _inWater) = (point.Flying, point.InWater);
         CurrentCommand = new RelayCommand(Current, () => _here() is not null);
@@ -64,7 +63,7 @@ public sealed class PointDraft : ObservableObject
     {
         if (_here() is not { } host)
             return;
-        (X, Y, Height) = Format(host.Position);
+        (X, Y, Height) = PointText.Format(host.Position);
         // Где стоит сейчас — в воздухе или в воде: прилетев, бот встанет так же
         Flying = host.Flying == true;
         _inWater = host.InWater == true;
@@ -76,7 +75,7 @@ public sealed class PointDraft : ObservableObject
     {
         if (BotSettings.WhyNotName(_points, _point, Name, _none) is { } why)
             return Fail(char.ToUpper(why[0]) + why.Substring(1));
-        if (Parse(X) is not { } x || Parse(Y) is not { } y || Parse(Height) is not { } h)
+        if (PointText.Parse(X) is not { } x || PointText.Parse(Y) is not { } y || PointText.Parse(Height) is not { } h)
             return Fail("Координаты — числа, как на миникарте: 394 447, высота 22");
 
         // Поле не трогали — координата прежняя до сантиметра (в поле она округлена)
@@ -97,22 +96,5 @@ public sealed class PointDraft : ObservableObject
     {
         Error = why;
         return false;
-    }
-
-    private static (string X, string Y, string Height) Format(Position p)
-    {
-        var map = MapCoords.From(p);
-        return (Show(map.X), Show(map.Y), Show(map.Height));
-    }
-
-    private static string Show(double v) => v.ToString("0.#", CultureInfo.CurrentCulture);
-
-    // Дробь — и через запятую, и через точку
-    private static double? Parse(string text)
-    {
-        var t = (text ?? "").Trim().Replace(',', '.');
-        return double.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && !double.IsNaN(v) && !double.IsInfinity(v)
-            ? v
-            : null;
     }
 }

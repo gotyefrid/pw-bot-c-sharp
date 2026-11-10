@@ -3,7 +3,7 @@ using Notes.Core.Settings;
 
 namespace Notes.App;
 
-/// <summary>Строка маршрута обхода: номер, что копать, сколько до точки, отметка «сейчас идём сюда».</summary>
+/// <summary>Строка маршрута обхода: номер, где точка (воздух/земля), радиус, что копать, сколько до неё, отметка «сейчас идём сюда».</summary>
 public sealed class RouteRow(int number, RoutePoint point) : ObservableObject
 {
     private string _distanceText = "";
@@ -16,8 +16,19 @@ public sealed class RouteRow(int number, RoutePoint point) : ObservableObject
     /// <summary>Что копать у точки — коротко.</summary>
     public string What => Point.Describe();
 
-    /// <summary>Поменяли «что копать» у точки.</summary>
-    public void Refresh() => OnPropertyChanged(nameof(What));
+    /// <summary>«воздух» или «земля» — как добираться до точки.</summary>
+    public string Place => Point.Flying ? "воздух" : "земля";
+
+    /// <summary>Сколько вокруг точки искать ресурсы.</summary>
+    public string RadiusText => $"{Point.Radius} м";
+
+    /// <summary>Поменяли поля точки.</summary>
+    public void Refresh()
+    {
+        OnPropertyChanged(nameof(What));
+        OnPropertyChanged(nameof(Place));
+        OnPropertyChanged(nameof(RadiusText));
+    }
 
     public string DistanceText { get => _distanceText; private set => SetProperty(ref _distanceText, value); }
 

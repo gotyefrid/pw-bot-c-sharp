@@ -1,0 +1,73 @@
+<Window x:Class="Notes.App.RoutePointWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Notes.App"
+        Title="{Binding Title}" Width="460" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
+        Style="{StaticResource AppWindow}">
+  <Window.Resources>
+    <app:LootModeConverter x:Key="LootMode" />
+  </Window.Resources>
+  <!-- Правка точки маршрута: DataContext — Panels.RoutePointDraft. В точку уходит только по «Сохранить» -->
+  <Border Style="{StaticResource Card}" Margin="12">
+    <StackPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="Название" VerticalAlignment="Center" />
+        <TextBox DockPanel.Dock="Right" Width="280" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+      </DockPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="Координаты" VerticalAlignment="Center"
+                   ToolTip="Как на миникарте игры: X, Y и высота" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="70" Text="{Binding Height, UpdateSourceTrigger=PropertyChanged}" ToolTip="Высота" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="70" Text="{Binding Y, UpdateSourceTrigger=PropertyChanged}" ToolTip="Y" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="70" Text="{Binding X, UpdateSourceTrigger=PropertyChanged}" ToolTip="X" />
+      </DockPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="X, Y, высота — как на миникарте" Style="{StaticResource Muted}" FontSize="11" VerticalAlignment="Center" />
+        <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Текущие" Command="{Binding CurrentCommand}" Padding="10,4"
+                ToolTip="Подставить, где стоит персонаж сейчас: координаты и «в воздухе»" />
+      </DockPanel>
+      <DockPanel Style="{StaticResource SettingRow}">
+        <TextBlock Text="Радиус поиска, м" VerticalAlignment="Center"
+                   ToolTip="Сколько метров вокруг этой точки бот ищет ресурсы. У каждой точки свой, по умолчанию 100" />
+        <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="70" Text="{Binding Radius, UpdateSourceTrigger=PropertyChanged}"
+                 ToolTip="5–500 м. Участок ресурса ~110 м, видно его целиком с ~50 м" />
+      </DockPanel>
+      <CheckBox Style="{StaticResource Switch}" Content="В воздухе" IsChecked="{Binding Flying}" Margin="0,4,0,0">
+        <CheckBox.ToolTip>
+          <TextBlock MaxWidth="420" TextWrapping="Wrap"
+                     Text="Включено — точка в воздухе: бот обязан лететь к ней. С земли сам взлетает, в воде сначала всплывает, потом жмёт «Полёт».&#10;&#10;Выключено — точка на земле (или в воде): можно идти или плыть. Если бот уже летит, он и дальше летит.&#10;&#10;«Текущие» ставит галочку сами — как стоит персонаж" />
+        </CheckBox.ToolTip>
+      </CheckBox>
+      <DockPanel Style="{StaticResource SettingRow}" Margin="0,8,0,0">
+        <TextBlock Text="Что копать" VerticalAlignment="Center" />
+        <ComboBox DockPanel.Dock="Right" Width="190" ItemsSource="{Binding Modes}" SelectedItem="{Binding Mode}"
+                  ToolTip="Всё подряд — любые обычные ресурсы; только из списка; всё, кроме списка (например, ресурс у агрессивного моба)">
+          <ComboBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Converter={StaticResource LootMode}}" />
+            </DataTemplate>
+          </ComboBox.ItemTemplate>
+        </ComboBox>
+      </DockPanel>
+      <app:TagPicker Margin="0,4,0,0" Selected="{Binding Resources}" Options="{Binding Options}"
+                     Placeholder="Ресурсы не выбраны" EmptyOptionsText="Рядом ресурсов нет, и раньше не встречались"
+                     ToolTip="Квестовые и особые ресурсы копаются, только если выбраны (и не «кроме списка»)" />
+      <TextBlock Text="{Binding Error}" Foreground="{StaticResource Bad}" TextWrapping="Wrap" Margin="0,4,0,0">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Error}" Value="">
+                <Setter Property="Visibility" Value="Collapsed" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+        <Button Style="{StaticResource ButtonBase}" Content="Отмена" IsCancel="True" Margin="0,0,8,0" />
+        <Button Style="{StaticResource PrimaryButton}" Content="Сохранить" IsDefault="True" Click="Save" />
+      </StackPanel>
+    </StackPanel>
+  </Border>
+</Window>

@@ -34,6 +34,8 @@ public partial class CharacterView : UserControl
         // Правка сохранённой точки (центр фарма, место для смертей)
         model.Farm.FarmCenter.EditRequested += EditPoint;
         model.Farm.DeathPoint.EditRequested += EditPoint;
+        // Правка точки маршрута: координаты, «в воздухе», радиус и что копать
+        model.Route.EditRequested += draft => new RoutePointWindow { Owner = Owner, DataContext = draft }.ShowDialog();
         model.Route.AskName = (title, current) => NameWindow.Ask(Owner, title, current);
 
         // Лог в RichTextBox: текст можно выделять и копировать
@@ -126,6 +128,22 @@ public partial class CharacterView : UserControl
     {
         if (ItemsControl.ContainerFromElement((ItemsControl)sender, (DependencyObject)e.OriginalSource) is ListViewItem)
             _model.Clicker.Edit();
+    }
+
+    // Двойной щелчок по точке маршрута (не по заголовку и не по пустому месту) — окно правки точки
+    private void EditRoutePoint(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (ItemsControl.ContainerFromElement((ItemsControl)sender, (DependencyObject)e.OriginalSource) is ListViewItem)
+            _model.Route.EditSelected();
+    }
+
+    // Esc в таблице маршрута — снять выбор: «Старт» пойдёт с ближайшей точки
+    private void RoutePointListKey(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Escape)
+            return;
+        _model.Route.ClearSelection();
+        e.Handled = true;
     }
 
     // Delete в списке шагов — удалить без вопросов; строки пересобраны — фокус на новую выбранную, чтобы жать дальше

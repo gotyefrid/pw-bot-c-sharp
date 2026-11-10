@@ -14,10 +14,11 @@ using Notes.Core.World;
 namespace Notes.App.Panels;
 
 /// <summary>
-/// Вкладка «Ресы» — маршрут обхода (режим «Собирать ресурсы»): точки по порядку, что копать у каждой, опасные мобы.
-/// Маршруты — общие у всех персонажей и копий бота (<see cref="RouteStore"/>): у персонажа только какой выбран, а его точки
-/// окно кладёт в настройки (по ним идёт бот). Правка точек — сразу в общий файл; файл поменяла другая копия — точки
-/// перечитываются. Опасные мобы и радиус — в настройках персонажа. О правке говорит модели окна (та сохраняет и отдаёт боту).
+/// Вкладка «Ресы» — маршрут обхода (режим «Собирать ресурсы»): точки по порядку, у каждой свои координаты, «в воздухе»,
+/// радиус и что копать, а также опасные мобы. Точка правится в своём окне (<see cref="RoutePointDraft"/>) — двойным щелчком
+/// или карандашом. Маршруты — общие у всех персонажей и копий бота (<see cref="RouteStore"/>): у персонажа только какой
+/// выбран, а его точки окно кладёт в настройки (по ним идёт бот). Правка точек — сразу в общий файл; файл поменяла другая
+/// копия — точки перечитываются. О правке говорит модели окна (та сохраняет и отдаёт боту).
 /// </summary>
 public sealed class RoutePanel : ObservableObject, IDisposable
 {
@@ -83,14 +84,18 @@ public sealed class RoutePanel : ObservableObject, IDisposable
             _watcher.Renamed += (o, e) => changed(o, e);
             _watcher.EnableRaisingEvents = true;
         }
-        RouteNames.CollectionChanged += (_, _) => RouteNamesEdited();
         DangerNames.CollectionChanged += (_, _) => DangerNamesEdited();
         AddRoutePointCommand = new RelayCommand(AddRoutePoint, () => _world() is not null);
+        ClearRoutePointSelectionCommand = new RelayCommand(ClearSelection, () => SelectedRoutePoint is not null);
+        EditRoutePointCommand = new RelayCommand(EditSelected, () => SelectedRoutePoint is not null);
         RemoveRoutePointCommand = new RelayCommand(RemoveRoutePoint, () => SelectedRoutePoint is not null);
         RoutePointUpCommand = new RelayCommand(() => MoveRoutePoint(-1), () => SelectedRoutePoint is { } r && RouteRows.IndexOf(r) > 0);
         RoutePointDownCommand = new RelayCommand(() => MoveRoutePoint(1),
             () => SelectedRoutePoint is { } r && RouteRows.IndexOf(r) is var i && i >= 0 && i < RouteRows.Count - 1);
     }
+
+    /// <summary>Правка точки: окну открыть <see cref="RoutePointWindow"/> с этим черновиком.</summary>
+    public event Action<RoutePointDraft>? EditRequested;
 
     private BotSettings Settings => _settings();
 
@@ -119,13 +124,12 @@ public sealed class RoutePanel : ObservableObject, IDisposable
     /// <summary>Точки обхода по порядку: после последней бот идёт к первой.</summary>
     public ObservableCollection<RouteRow> RouteRows { get; } = new();
 
-    /// <summary>Список «что копать» выбранной точки (для её режима: только эти / всё, кроме этих).</summary>
-    public ObservableCollection<string> RouteNames { get; } = new();
-
     /// <summary>Опасные мобы обхода по названию (боссы) — выбираются из мобов вокруг.</summary>
     public ObservableCollection<string> DangerNames { get; } = new();
 
     public ICommand AddRoutePointCommand { get; }
+    public ICommand ClearRoutePointSelectionCommand { get; }
+    public ICommand EditRoutePointCommand { get; }
     public ICommand RemoveRoutePointCommand { get; }
     public ICommand RoutePointUpCommand { get; }
     public ICommand RoutePointDownCommand { get; }
@@ -133,36 +137,36 @@ public sealed class RoutePanel : ObservableObject, IDisposable
     public RouteRow? SelectedRoutePoint
     {
         get => _selectedRoutePoint;
-        set
-        {
-            if (!SetProperty(ref _selectedRoutePoint, value))
-                return;
-            LoadPointNames();
-            OnPropertyChanged(nameof(HasSelectedRoutePoint));
-            OnPropertyChanged(nameof(SelectedRouteMode));
-            OnPropertyChanged(nameof(SelectedRouteTitle));
-        }
+        set => SetProperty(ref _selectedRoutePoint, value);
     }
 
-    /// <summary>С какой точки начинать обход (с 0): выбранная в списке, не выбрана — первая.</summary>
-    public int StartIndex => SelectedRoutePoint is { } start ? Math.Max(0, RouteRows.IndexOf(start)) : 0;
-
-    public bool HasSelectedRoutePoint => SelectedRoutePoint is not null;
-
-    public string SelectedRouteTitle => SelectedRoutePoint is { } row ? $"Что копать у точки {RouteRows.IndexOf(row) + 1}" : "";
-
-    /// <summary>Что копать у выбранной точки: всё подряд / только из списка / всё, кроме списка.</summary>
-    public LootListMode SelectedRouteMode
+    /// <summary>
+    /// С какой точки начинать обход (с 0): выбрана в списке — с неё; не выбрана — с ближайшей к персонажу (мир не читается —
+    /// с первой).
+    /// </summary>
+    public int StartIndex
     {
-        get => SelectedRoutePoint?.Point.ListMode ?? LootListMode.All;
-        set
+        get
         {
-            if (SelectedRoutePoint is not { } row || row.Point.ListMode == value)
-                return;
-            row.Point.ListMode = value;
-            row.Refresh();
-            OnPropertyChanged();
-            PointsEdited();
+            if (RouteRows.Count == 0)
+                return 0;
+            if (SelectedRoutePoint is { } selected)
+                return Math.Max(0, RouteRows.IndexOf(selected));
+            if (_world() is not { } w)
+                return 0;
+
+            var here = w.Host.Position;
+            var nearest = 0;
+            var best = float.MaxValue;
+            for (var i = 0; i < RouteRows.Count; i++)
+            {
+                var distance = here.HorizontalDistanceTo(RouteRows[i].Point.Position);
+                if (distance >= best)
+                    continue;
+                best = distance;
+                nearest = i;
+            }
+            return nearest;
         }
     }
 
@@ -257,7 +261,6 @@ public sealed class RoutePanel : ObservableObject, IDisposable
         }
 
         SelectedRoutePoint = RouteRows.FirstOrDefault(r => r.Point == selected);
-        LoadPointNames();
     }
 
     public void Dispose()
@@ -350,12 +353,45 @@ public sealed class RoutePanel : ObservableObject, IDisposable
         var n = 1;
         while (points.Any(p => p.Name.Equals($"Точка {n}", StringComparison.OrdinalIgnoreCase)))
             n++;
-        var point = RoutePoint.At($"Точка {n}", w.Host.Position);
+        var point = RoutePoint.At($"Точка {n}", w.Host.Position, flying: w.Host.Flying == true);
         points.Add(point);
-        _log.Info($"Маршрут: точка {points.Count} {point.Position}{(w.Host.Flying == true ? " (в воздухе)" : "")}");
+        _log.Info($"Маршрут: точка {points.Count} {point.Position}{(point.Flying ? " (в воздухе)" : "")}");
         PointsEdited();
         LoadRows();
         SelectedRoutePoint = RouteRows.LastOrDefault();
+    }
+
+    /// <summary>
+    /// Снять выбор: «Старт» начнёт не с выбранной, а с ближайшей точки. Кнопка на вкладке и Esc в таблице.
+    /// </summary>
+    public void ClearSelection() => SelectedRoutePoint = null;
+
+    /// <summary>
+    /// Править выбранную точку в её окне: координаты, «в воздухе», радиус и что копать (двойной щелчок по строке или карандаш).
+    /// </summary>
+    public void EditSelected()
+    {
+        if (SelectedRoutePoint is not { } row)
+            return;
+
+        var point = row.Point;
+        var draft = new RoutePointDraft(Settings.Route.Points, point, () => _world()?.Host, RouteOptions);
+        draft.Saved += () =>
+        {
+            _log.Info($"Точка маршрута «{point.Name}» изменена: {Describe(point)}");
+            row.Refresh();
+            PointsEdited();
+            LoadRows();
+            SelectedRoutePoint = RouteRows.FirstOrDefault(r => r.Point == point);
+        };
+        EditRequested?.Invoke(draft);
+    }
+
+    private static string Describe(RoutePoint point)
+    {
+        var map = MapCoords.From(point.Position);
+        return $"{map.X:0} {map.Y:0}, высота {map.Height:0}, {(point.Flying ? "в воздухе" : "на земле")}, "
+               + $"радиус {point.Radius} м, {point.Describe()}";
     }
 
     private void RemoveRoutePoint()
@@ -385,11 +421,7 @@ public sealed class RoutePanel : ObservableObject, IDisposable
         PointsEdited();
         LoadRows();
         SelectedRoutePoint = RouteRows[to];
-        OnPropertyChanged(nameof(SelectedRouteTitle));
     }
-
-    /// <summary>Список «что копать» в окне ← выбранная точка.</summary>
-    private void LoadPointNames() => Sync(RouteNames, SelectedRoutePoint?.Point.Resources ?? []);
 
     // Список в окне ← настройки (это не правка пользователя)
     private void Sync(ObservableCollection<string> target, IEnumerable<string> names)
@@ -405,16 +437,6 @@ public sealed class RoutePanel : ObservableObject, IDisposable
         {
             _syncing = false;
         }
-    }
-
-    private void RouteNamesEdited()
-    {
-        if (_syncing || SelectedRoutePoint is not { } row)
-            return;
-
-        row.Point.Resources = MobNameFilter.Clean(RouteNames);
-        row.Refresh();
-        PointsEdited();
     }
 
     private void DangerNamesEdited()
