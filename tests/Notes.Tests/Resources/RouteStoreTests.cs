@@ -43,6 +43,8 @@ public class RouteStoreTests : IDisposable
         var store = Store();
         var route = store.Create();
         var points = Points(10, 20);
+        points[0].Flying = true;
+        points[0].Radius = 120;
         points[1].ListMode = LootListMode.OnlyListed;
         points[1].Resources = ["Чёрное железо"];
 
@@ -50,6 +52,8 @@ public class RouteStoreTests : IDisposable
 
         var read = Store().Find(route.Id)!;
         Assert.Equal([10f, 20f], read.Points.Select(p => p.X));
+        Assert.True(read.Points[0].Flying);
+        Assert.Equal(120, read.Points[0].Radius);
         Assert.Equal(LootListMode.OnlyListed, read.Points[1].ListMode);
         Assert.Equal(["Чёрное железо"], read.Points[1].Resources);
         // Копия: правка своих точек файл не меняет

@@ -54,6 +54,25 @@ public class ProfileCatalogTests
     [InlineData("pwclassic136")]
     [InlineData("comeback136")]
     [InlineData("comeback146")]
+    public void EveryServerCanSwimUpWithExistingMoveFunction(string id)
+    {
+        // Отдельной функции «всплыть» нет: это уже найденное движение «плыть в точку» вверх (moveTypes.fly). Новый оффсет не
+        // нужен, но функция движения и кнопка «Полёт» должны быть у каждого клиента — иначе всплытие не собрать.
+        var profile = _catalog.Load(id);
+
+        Assert.True(profile.Capabilities.Has(Capability.FlyTo));
+        Assert.NotEqual(0u, profile.Data.MoveTypes.Fly);
+        foreach (var name in new[]
+                 {
+                     GameFunctions.WorkCreate, GameFunctions.WorkMoveSetDestination, GameFunctions.WorkStart, GameFunctions.HostFly,
+                 })
+            Assert.Contains(name, profile.Data.Functions.Keys);
+    }
+
+    [Theory]
+    [InlineData("pwclassic136")]
+    [InlineData("comeback136")]
+    [InlineData("comeback146")]
     public void EveryServerCanDoTheSame(string id)
     {
         // Бот на всех серверах умеет одно и то же: одинаковые функции, все возможности. Кроме того, чего в клиенте нет вовсе

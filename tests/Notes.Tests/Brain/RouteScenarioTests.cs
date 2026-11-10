@@ -45,7 +45,8 @@ public class RouteScenarioTests
         {
             if (_brain is not null)
                 return _brain;
-            _brain = BotModes.Create(BotMode.GatherResources, new ActionRunner(new GameControl(_actions), NullLogger.Instance), Skills, _settings,
+            // Клавиши — тот же подставной объект: всплытие Пробелом проверяется в тестах воды
+            _brain = BotModes.Create(BotMode.GatherResources, new ActionRunner(new GameControl(_actions, _actions), NullLogger.Instance), Skills, _settings,
                 new Logger { MinLevel = LogLevel.Debug }.AddSink(new ListSink(_log)).For("мозг"), [Pickaxe], _routeStart, new Random(1));
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
@@ -119,6 +120,7 @@ public class RouteScenarioTests
     public void DigsOnlyListedResourcesNearCurrentPoint()
     {
         Route(0, 300);
+        _settings.Route.Points[0].Radius = 50;
         _settings.Route.Points[0].ListMode = LootListMode.OnlyListed;
         _settings.Route.Points[0].Resources = ["Железная руда"];
         AddResource(0xC0000001, 10, "Шалфей");          // не в списке
@@ -1072,6 +1074,100 @@ public class RouteScenarioTests
             Tick();
 
         Assert.DoesNotContain("recall", _actions.Calls);
+    }
+
+    [Fact]
+    public void PointInAirMakesBotTakeOffFromGround()
+    {
+        // Точка помечена «в воздухе», а перс на земле: сам жмёт «Полёт», пешком не бежит
+        _settings.Route.Points = [RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
+        _world.HasFlyer = true;
+
+        Tick();
+
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Точка 1 в воздухе — взлетаю");
+
+        // Взлетели — летим к точке на её высоте
+        _world.Flying = true;
+        _world.Position = new Position(0, 30, 0);
+        Tick();
+
+        Assert.Equal(["fly-toggle", "fly (100,0; 0,0; h 30,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void AirPointWithoutFlyerStopsInsteadOfWalking()
+    {
+        _settings.Route.Points = [RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
+        _world.HasFlyer = false;
+
+        Tick();
+
+        Assert.StartsWith("точка 1 в воздухе, а полётника нет", _stopped);
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void RadiusIsSetPerPoint()
+    {
+        // У точки 1 радиус 20: шалфей в 30 м не копаем; у точки 2 радиус 40: руда в 30 м — копаем
+        Route(0, 300);
+        _settings.Route.Points[0].Radius = 20;
+        _settings.Route.Points[1].Radius = 40;
+        AddResource(0xC0000001, 30, "Шалфей");
+        AddResource(0xC0000002, 330, "Железная руда");
+
+        Tick(); // на точке 1
+        Tick(); // шалфей за радиусом — к следующей
+        Assert.DoesNotContain("gather C0000001", _actions.Calls);
+        Assert.Contains("move (300,0; 0,0; h 0,0) умно", _actions.Calls);
+
+        _world.Position = new Position(300, 0, 0);
+        Tick(); // на точке 2
+        Tick(); // руда в радиусе
+        Assert.Contains("gather C0000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void InWaterBotSwimsUpBeforeTakeOff()
+    {
+        _settings.Route.Points = [RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
+        _world.HasFlyer = true;
+        _world.InWater = true;
+
+        Tick();
+
+        Assert.Contains(_log, e => e.Message == "В воде — всплываю, потом взлечу");
+        Assert.Contains(_actions.Calls, c => c.StartsWith("fly ("));
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+        Assert.DoesNotContain("key Space", _actions.Calls);
+
+        // Поднялись на шаг — плывём ещё
+        _world.Position = new Position(0, 5, 0);
+        Tick();
+        Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("fly (")));
+
+        // На поверхности выше не поднимаемся: всплытие движением сдаётся, жмём «Полёт»
+        for (var i = 0; i < 12; i++)
+            Tick();
+        Assert.Contains("fly-toggle", _actions.Calls);
+        Assert.DoesNotContain("key Space", _actions.Calls);
+    }
+
+    [Fact]
+    public void SpaceIsOnlyFallbackWhenFlightFromWaterFails()
+    {
+        // Всплыли движением, но с поверхности взлететь не вышло — только тогда пробуем Пробел
+        _settings.Route.Points = [RoutePoint.At("В воздухе", new Position(100, 30, 0), flying: true)];
+        _world.HasFlyer = true;
+        _world.InWater = true;
+
+        for (var i = 0; i < 100 && !_actions.Calls.Contains("key Space"); i++)
+            Tick();
+
+        Assert.Contains("fly-toggle", _actions.Calls);
+        Assert.Contains("key Space", _actions.Calls);
     }
 
     [Theory]

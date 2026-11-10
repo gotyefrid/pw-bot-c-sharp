@@ -69,6 +69,8 @@ internal static class ActCommands
           act move-to <x> <y>   дойти до точки в координатах карты игры (как в углу экрана), не дальше 1000 м
           act fly               взлететь (на земле) или сесть (в воздухе) — как кнопкой «Полёт»
           act fly-to <dx> <dy> <dh>  в воздухе: лететь на dx, dy метров в сторону и dh вверх (минус — вниз), не дальше 100 м
+          act key КЛАВИША       нажать клавишу в окне игры (например, Space — гребок вверх в воде)
+          act swim-up           в воде: всплыть на шаг движением «плыть в точку» (без клавиш)
         """;
 
     // «Доступные» как строит окно: кандидаты по уровню → проверка игры одним вызовом; печать — что можно взять и сколько с какой причиной нет
@@ -162,7 +164,8 @@ internal static class ActCommands
 
         Console.WriteLine(transport == CallTransport.Thread ? "Вызовы: отдельным потоком (--thread)" : "Вызовы: в главном потоке игры (через окно)");
         var log = new Logger { MinLevel = LogLevel.Debug }.AddSink(new ConsoleSink()).For("act");
-        var runner = new ActionRunner(new GameControl(calls.Caller), log);
+        // Клавиши — как у бота: сообщениями в окно игры, не SendInput
+        var runner = new ActionRunner(new GameControl(calls.Caller, new WindowKeys(game.Pid)), log);
 
         var world = reader.Read();
         if (name == "quest-check")
@@ -569,6 +572,22 @@ internal static class ActCommands
                 var from = w.Host.Position;
                 Console.WriteLine($"Сейчас высота {from.Height:0.0}, лечу на {from.Height + shift[2]:0.0}");
                 return new MoveAction(new Position(from.X + shift[0], from.Height + shift[2], from.Y + shift[1]), fly: true);
+
+            case "key":
+                var keyText = Word(args);
+                if (keyText is null || !KeyStroke.TryParse(keyText, out var stroke) || stroke.Forbidden is not null)
+                {
+                    problem = "нужно: act key КЛАВИША (например, Space)";
+                    return null;
+                }
+
+                Console.WriteLine($"Клавиша: {stroke}");
+                return new KeyAction(stroke);
+
+            case "swim-up":
+                problem = "персонаж не в воде";
+                Console.WriteLine($"Сейчас высота {w.Host.Position.Height:0.0}, вода: {(w.Host.InWater switch { true => "да", false => "нет", _ => "неизвестно" })}");
+                return w.Host.InWater == true ? new SwimUpAction(w.Host.Position) : null;
 
             case "npc-go":
                 var go = FindNpc(args, w, out problem);

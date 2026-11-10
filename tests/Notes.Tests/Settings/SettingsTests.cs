@@ -283,7 +283,7 @@ public class SettingsStoreTests : IDisposable
         s.Edited += () => edits++;
 
         s.Target.FarmRadius = 30;
-        s.Route.Radius = 80;
+        s.Route.DangerLevel = 30;
         s.Pet.GroundPet = "Пчела";
         s.Mode = BotMode.GatherResources;
         s.Target.FarmRadius = 30;

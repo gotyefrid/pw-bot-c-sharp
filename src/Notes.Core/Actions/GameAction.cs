@@ -968,6 +968,51 @@ public sealed class MoveAction(Position point, float tolerance = 2f, bool smart 
 }
 
 /// <summary>
+/// Всплыть в воде на шаг вверх — игровым движением «плыть в точку» (та же функция, что ныряние у <see cref="MoveAction.Swim"/>),
+/// без клавиш. Отдельной функции «всплыть» искать не нужно: это уже найденная на всех клиентах `moveTypes.fly` — нового
+/// оффсета нет. Подтверждение — поднялись на <see cref="Rose"/> или вышли из воды; за <see cref="Patience"/> не поднялись —
+/// отказ: значит, уже на поверхности (или выше не пускает).
+/// </summary>
+public sealed class SwimUpAction(Position here) : GameAction
+{
+    /// <summary>Куда плыть за шаг, как в памяти (10 — 1 м): выше на 5 м — меньше лишних команд, поднимаемся до поверхности.</summary>
+    public const float Rise = 50f;
+
+    /// <summary>Поднялись хотя бы на столько (0,5 м) — шаг удался, можно следующий. Меньше — это качка на волне, не всплытие.</summary>
+    public const float Rose = 5f;
+
+    /// <summary>Столько не поднимаемся — считаем, что на поверхности.</summary>
+    public static readonly TimeSpan Patience = TimeSpan.FromSeconds(2);
+
+    /// <summary>Куда плыть: та же точка, но выше.</summary>
+    public Position To { get; } = here with { Height = here.Height + Rise };
+
+    public override string Name => "всплыть";
+    public override ActionSlot Slot => ActionSlot.Movement;
+    public override ActionResource Resource => ActionResource.Body;
+    public override TimeSpan Timeout => Patience + TimeSpan.FromSeconds(1);
+
+    public override string? Precondition(WorldState now)
+        => now.Host.InWater != true ? "уже не в воде" : null;
+
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.FlyTo(To);
+
+    public override Verdict Check(WorldState start, WorldState now)
+    {
+        if (now.Host.InWater != true)
+            return Verdict.Confirmed("вышел из воды");
+        if (now.Host.Flying == true)
+            return Verdict.Confirmed("в воздухе");
+        var rose = now.Host.Position.Height - start.Host.Position.Height;
+        if (rose >= Rose)
+            return Verdict.Confirmed($"всплыл на {rose / 10:0.0} м");
+        return now.Time - start.Time >= Patience
+            ? Verdict.Rejected("выше не поднимается — на поверхности")
+            : Verdict.Pending;
+    }
+}
+
+/// <summary>
 /// Взлететь или сесть кнопкой «Полёт» (она переключает). Отправляем, только если персонаж не там, где нужно — иначе
 /// нажатие сделало бы обратное. Подтверждение — персонаж в воздухе (или на земле).
 /// </summary>

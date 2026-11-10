@@ -188,7 +188,6 @@ public sealed class BotSettings
         Pet.Food = Pet.Food?.Trim() ?? "";
         Route.RouteId = Route.RouteId?.Trim() ?? "";
         Route.Points = RoutePoint.Clean(Route.Points);
-        Route.Radius = Clamp(Route.Radius, 5, 500);
         Route.DangerLevel = Clamp(Route.DangerLevel, 0, 150);
         Route.DangerMobs = MobNameFilter.Clean(Route.DangerMobs);
         Route.DangerMargin = Clamp(Route.DangerMargin, 1, 50);
@@ -375,7 +374,8 @@ public sealed class TargetSettings : SettingsPart
 }
 
 /// <summary>
-/// Обход ресурсов: точки по порядку (после последней — первая), у каждой копаем ресурсы в радиусе — что именно, у каждой точки своё.
+/// Обход ресурсов: точки по порядку (после последней — первая), у каждой свои «что копать» и радиус поиска, а также
+/// «в воздухе» — тогда бот сам взлетает (в воде сначала всплывает).
 /// </summary>
 public sealed class RouteSettings : SettingsPart
 {
@@ -391,10 +391,6 @@ public sealed class RouteSettings : SettingsPart
     /// Точки обхода по порядку — копия точек выбранного маршрута (по ним идёт бот). Записаны в полёте — бот летит на их высоте.
     /// </summary>
     public List<RoutePoint> Points { get => _points; set => Set(ref _points, value); }
-
-    private int _radius = 50;
-    /// <summary>Радиус поиска ресурсов вокруг точки, м. Участок ресурса ~110 м, виден с ~80 м — 50 м от точки хватает.</summary>
-    public int Radius { get => _radius; set => Set(ref _radius, value); }
 
     private int _dangerLevel;
     /// <summary>Опасны агрессивные мобы от этого уровня (0 — по уровню не считаем). См. <see cref="Brain.DangerZones"/>.</summary>
@@ -427,6 +423,15 @@ public sealed class RoutePoint
     public float Y { get; set; }
     public float Height { get; set; }
 
+    /// <summary>
+    /// Точка в воздухе: бот обязан добраться до неё в полёте — с земли взлетает сам, из воды сначала всплывает.
+    /// Выключено — точка на земле (или в воде): можно идти/плыть; если бот уже летит, он и дальше летит.
+    /// </summary>
+    public bool Flying { get; set; }
+
+    /// <summary>Радиус поиска ресурсов вокруг этой точки, м (5–500). У каждой точки свой.</summary>
+    public int Radius { get; set; } = 100;
+
     public LootListMode ListMode { get; set; } = LootListMode.All;
 
     /// <summary>Названия ресурсов для <see cref="ListMode"/>.</summary>
@@ -435,7 +440,8 @@ public sealed class RoutePoint
     [JsonIgnore]
     public Position Position => new(X, Height, Y);
 
-    public static RoutePoint At(string name, Position p) => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height };
+    public static RoutePoint At(string name, Position p, bool flying = false, int radius = 100)
+        => new() { Name = name, X = p.X, Y = p.Y, Height = p.Height, Flying = flying, Radius = radius };
 
     /// <summary>Обычный ресурс копать здесь.</summary>
     public bool Wants(string? name) => LootFilter.ByList(ListMode, Resources, name);
@@ -452,13 +458,14 @@ public sealed class RoutePoint
         _ => "все ресурсы",
     };
 
-    /// <summary>Без пустых названий и повторов (без учёта регистра).</summary>
+    /// <summary>Без пустых названий и повторов (без учёта регистра), радиус — в пределы 5–500 м.</summary>
     public static List<RoutePoint> Clean(IEnumerable<RoutePoint?>? points)
         => (points ?? [])
             .Where(p => p is not null && !string.IsNullOrWhiteSpace(p.Name))
             .Select(p =>
             {
                 p!.Name = p.Name.Trim();
+                p.Radius = Math.Min(500, Math.Max(5, p.Radius));
                 p.Resources = MobNameFilter.Clean(p.Resources);
                 return p;
             })
