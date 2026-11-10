@@ -27,6 +27,24 @@ public class RouteStoreTests : IDisposable
         => xs.Select((x, i) => RoutePoint.At($"Точка {i + 1}", new Position(x, 30, 0))).ToList();
 
     [Fact]
+    public void OldPointWithoutFlyingFieldIsInAir()
+    {
+        // Точка записана до галки «в воздухе» — поля в файле нет: считаем, что в воздухе. Снятая галка («false») остаётся
+        var store = Store();
+        var route = store.Create();
+        Assert.True(store.SavePoints(route.Id, Points(10, 20)));
+        var text = System.IO.File.ReadAllText(File);
+        var first = text.IndexOf("\"flying\": false", StringComparison.Ordinal);
+        Assert.True(first >= 0);
+        System.IO.File.WriteAllText(File, text.Remove(first, "\"flying\": false,".Length));
+
+        var read = Store().Find(route.Id)!;
+
+        Assert.True(read.Points[0].Flying);
+        Assert.False(read.Points[1].Flying);
+    }
+
+    [Fact]
     public void NewRoutesGetNumberedNames()
     {
         var store = Store();
