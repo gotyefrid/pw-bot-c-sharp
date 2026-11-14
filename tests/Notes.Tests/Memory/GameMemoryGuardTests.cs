@@ -31,7 +31,7 @@ public class GameMemoryGuardTests
     [Fact]
     public void PlentyOfMemoryIsQuiet()
     {
-        Assert.False(Guard().ShouldStop(T0));
+        Assert.Equal(GameMemoryState.Ok, Guard().Check(T0));
         Assert.Empty(_log);
     }
 
@@ -39,46 +39,69 @@ public class GameMemoryGuardTests
     public void ChecksAtMostEvery30Seconds()
     {
         var guard = Guard();
-        guard.ShouldStop(T0);
-        guard.ShouldStop(T0.AddSeconds(10));
-        guard.ShouldStop(T0.AddSeconds(29));
+        guard.Check(T0);
+        guard.Check(T0.AddSeconds(10));
+        guard.Check(T0.AddSeconds(29));
         Assert.Equal(1, _queries);
 
-        guard.ShouldStop(T0.AddSeconds(30));
+        guard.Check(T0.AddSeconds(30));
         Assert.Equal(2, _queries);
     }
 
     [Fact]
-    public void LowMemoryWarnsOnceIn10Minutes()
+    public void LowMemoryAsksForRestartWhenFreeAndWarnsOnce()
     {
         _free = new FreeMemory(120 * Mb, 20 * Mb);
         var guard = Guard();
 
-        Assert.False(guard.ShouldStop(T0));
-        Assert.False(guard.ShouldStop(T0.AddMinutes(1)));
-        Assert.Single(_log, e => e.Level == LogLevel.Warning && e.Message.Contains("мало памяти"));
+        Assert.Equal(GameMemoryState.Low, guard.Check(T0));
+        Assert.Equal(GameMemoryState.Low, guard.Check(T0.AddMinutes(1)));
+        Assert.Single(_log);
+        Assert.Contains("мало памяти", _log[0].Message);
+    }
 
-        guard.ShouldStop(T0.AddMinutes(11));
-        Assert.Equal(2, _log.Count);
+    [Fact]
+    public void LowStaysLowEvenIfMemoryCameBack()
+    {
+        _free = new FreeMemory(120 * Mb, 20 * Mb);
+        var guard = Guard();
+        guard.Check(T0);
+
+        _free = new FreeMemory(500 * Mb, 100 * Mb);
+        Assert.Equal(GameMemoryState.Low, guard.Check(T0.AddMinutes(1)));
+    }
+
+    [Fact]
+    public void NoFreeMomentForFiveMinutesMakesItCritical()
+    {
+        _free = new FreeMemory(120 * Mb, 20 * Mb);
+        var guard = Guard();
+        guard.Check(T0);
+
+        Assert.Equal(GameMemoryState.Low, guard.Check(T0 + GameMemoryGuard.LowWait - TimeSpan.FromSeconds(1)));
+        Assert.Equal(GameMemoryState.Critical, guard.Check(T0 + GameMemoryGuard.LowWait));
+        Assert.Contains(_log, e => e.Level == LogLevel.Warning && e.Message.Contains("перезапускаю клиент как есть"));
     }
 
     [Theory]
     [InlineData(40, 10)] // мало всего
     [InlineData(300, 0)] // много, но мелкими кусками
-    public void StopsNearTheLimit(long totalMb, long largestKb)
+    public void CriticalNearTheLimit(long totalMb, long largestKb)
     {
         _free = new FreeMemory(totalMb * Mb, largestKb * 1024);
+        var guard = Guard();
 
-        Assert.True(Guard().ShouldStop(T0));
-        Assert.Single(_log, e => e.Level == LogLevel.Error && e.Message.Contains("Перезапустите клиент"));
+        Assert.Equal(GameMemoryState.Critical, guard.Check(T0));
+        Assert.Equal(GameMemoryState.Critical, guard.Check(T0.AddSeconds(1)));
+        Assert.Single(_log, e => e.Level == LogLevel.Error && e.Message.Contains("перезапускаю клиент сейчас"));
     }
 
     [Fact]
-    public void NoAnswerFromWindowsDoesNotStop()
+    public void NoAnswerFromWindowsChangesNothing()
     {
         _free = null;
 
-        Assert.False(Guard().ShouldStop(T0));
+        Assert.Equal(GameMemoryState.Ok, Guard().Check(T0));
         Assert.Empty(_log);
     }
 

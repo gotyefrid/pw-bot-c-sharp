@@ -27,6 +27,12 @@ public interface IBotRunner
 
     void Tick(WorldState world);
 
+    /// <summary>
+    /// После хода: чем перс занят так, что обрывать нельзя (бой, на нас напали, банк, копание, каст) — для лога; null —
+    /// свободен, клиент можно закрыть (перезапуск, когда у игры мало памяти).
+    /// </summary>
+    string? Busy { get; }
+
     void UpdateSettings(BotSettings settings);
 
     void Reset();

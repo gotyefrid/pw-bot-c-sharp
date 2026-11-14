@@ -510,11 +510,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     private Resume? _resume;
 
     /// <summary>
-    /// Персонаж выпал из игры, пока бот работал (после «Стопа» сторож не смотрит — переподключения нет). Персонаж есть в
+    /// Персонаж выпал из игры или у игры кончается память, пока бот работал (после «Стопа» — ничего). Персонаж есть в
     /// «Персонажах» с логином — остановить бота, закрыть клиент, войти заново и снова «Старт». Нет — только остановить:
     /// клиент остаётся, как есть.
     /// </summary>
-    private void LinkLost(ClientConnection connection, string reason)
+    private void Reconnect(ClientConnection connection, string reason)
     {
         if (_connection != connection || !IsRunning)
             return;
@@ -1143,7 +1143,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             connection.BotStatusChanged += status => UiThread.Run(() => BotState = Capitalize(status));
             // Из хода бота — остановку не здесь, а в потоке окна (бот ждёт как раз этот ход)
             connection.BotStopRequested += _ => UiThread.Run(Stop);
-            connection.LinkLost += reason => UiThread.Run(() => LinkLost(connection, reason));
+            connection.LinkLost += reason => UiThread.Run(() => Reconnect(connection, reason));
+            connection.RestartRequested += reason => UiThread.Run(() => Reconnect(connection, $"{reason} — перезапускаю клиент"));
 
             IsConnected = true;
             ConnectionText = client.Nick ?? $"PID {client.Pid}";
@@ -1277,7 +1278,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             // Бот работал — переподключиться (сторож увидел бы то же самое через пару секунд)
             if (IsRunning)
             {
-                LinkLost(connection, "клиент игры закрылся");
+                Reconnect(connection, "клиент игры закрылся");
                 return;
             }
 

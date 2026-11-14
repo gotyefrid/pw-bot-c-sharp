@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Notes.Core.Brain;
+using Notes.Core.Memory;
 using Notes.Core.Session;
 using Notes.Core.Settings;
 using Notes.Core.World;
@@ -66,6 +67,7 @@ public class RunningBotTests
         public Action? DuringTick { get; set; }
 
         public string Status => "";
+        public string? Busy { get; set; }
         public event Action<string>? StatusChanged;
         public event Action<string>? StopRequested;
 
@@ -91,9 +93,9 @@ public class RunningBotTests
         public T? Part<T>() where T : class => null;
     }
 
-    private RunningBot Start(Func<DateTime, bool>? outOfMemory = null, Func<string?>? broken = null)
+    private RunningBot Start(Func<DateTime, GameMemoryState>? memory = null, Func<string?>? broken = null)
     {
-        var bot = new RunningBot(_feed, _brain, _calls, outOfMemory, broken);
+        var bot = new RunningBot(_feed, _brain, _calls, memory, broken);
         bot.Start();
         return bot;
     }
@@ -207,16 +209,41 @@ public class RunningBotTests
     }
 
     [Fact]
-    public void GameOutOfMemoryAsksToStopOnceAndMakesNoMoreMoves()
+    public void CriticalMemoryAsksRestartAtOnceEvenWhenBusy()
     {
-        using var bot = Start(outOfMemory: _ => true);
-        var reasons = new List<string>();
-        bot.StopRequested += reasons.Add;
+        _brain.Busy = "бой";
+        using var bot = Start(memory: _ => GameMemoryState.Critical);
+        var restarts = new List<string>();
+        var stops = new List<string>();
+        bot.RestartRequested += restarts.Add;
+        bot.StopRequested += stops.Add;
 
         _feed.Push(_world);
         _feed.Push(_world);
 
-        Assert.Equal(["у игры кончается память"], reasons);
+        Assert.Equal(["у игры кончается память"], restarts);
+        Assert.Empty(stops);
         Assert.Empty(Events());
+    }
+
+    [Fact]
+    public void LowMemoryWaitsUntilCharacterIsFree()
+    {
+        // Мало памяти: бот работает дальше, пока перс занят; освободился — перезапуск после этого хода, дальше ходов нет
+        _brain.Busy = "бой";
+        using var bot = Start(memory: _ => GameMemoryState.Low);
+        var restarts = new List<string>();
+        bot.RestartRequested += restarts.Add;
+
+        _feed.Push(_world);
+        _feed.Push(_world);
+        Assert.Empty(restarts);
+
+        _brain.Busy = null;
+        _feed.Push(_world);
+        _feed.Push(_world);
+
+        Assert.Equal(["у игры мало памяти"], restarts);
+        Assert.Equal(["вызов", "вызов", "вызов"], Events());
     }
 }

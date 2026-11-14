@@ -168,8 +168,8 @@ internal static class Program
         }
 
         Console.WriteLine($"Свободно у игры: {free.TotalMb} МБ, самый большой кусок подряд: {free.Largest / 1024} КБ");
-        Console.WriteLine($"Бот остановится при < {GameMemoryGuard.StopTotal >> 20} МБ или куске < {GameMemoryGuard.StopLargest >> 10} КБ, "
-                          + $"предупредит при < {GameMemoryGuard.WarnTotal >> 20} МБ");
+        Console.WriteLine($"Бот перезапустит клиент сразу при < {GameMemoryGuard.CriticalTotal >> 20} МБ или куске < {GameMemoryGuard.CriticalLargest >> 10} КБ, "
+                          + $"в свободный момент — при < {GameMemoryGuard.LowTotal >> 20} МБ");
         return 0;
     }
 
@@ -263,7 +263,7 @@ internal static class Program
         FreeMemory? first = null;
         long firstUsed = 0;
 
-        Console.WriteLine($"Клиент {game.Pid}. Бот остановится при свободных < {GameMemoryGuard.StopTotal >> 20} МБ. Ctrl+C — выход");
+        Console.WriteLine($"Клиент {game.Pid}. Бот перезапустит клиент при свободных < {GameMemoryGuard.LowTotal >> 20} МБ. Ctrl+C — выход");
         Console.WriteLine("время      свободно      изм.     кусок подряд   занято игрой   изм.    темп       хватит");
         while (!game.HasExited)
         {
@@ -281,7 +281,7 @@ internal static class Program
                 var minutes = (DateTime.Now - started).TotalMinutes;
                 // Темп — с запуска консоли; первые полминуты он ещё ничего не значит
                 var rate = minutes >= 0.5 ? change / minutes : double.NaN;
-                var left = rate < -0.1 ? TimeSpan.FromMinutes((free.TotalMb - (GameMemoryGuard.StopTotal >> 20)) / -rate) : (TimeSpan?)null;
+                var left = rate < -0.1 ? TimeSpan.FromMinutes((free.TotalMb - (GameMemoryGuard.LowTotal >> 20)) / -rate) : (TimeSpan?)null;
 
                 Console.WriteLine($"{DateTime.Now:HH:mm:ss}  {free.TotalMb,6} МБ  {change,+6:+0;-0;0} МБ  {free.Largest >> 20,8} МБ  "
                                   + $"{used,9} МБ  {used - firstUsed,+6:+0;-0;0} МБ  "

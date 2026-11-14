@@ -24,6 +24,7 @@ public sealed class BotBrain : IBotRunner
     private readonly StatsWatcher _stats = new();
     private BotSettings? _newSettings;
     private string _status = "ожидание";
+    private volatile string? _busy;
 
     /// <param name="context">Контекст хода; настройки в нём — уже копия (окно может менять свои дальше).</param>
     /// <param name="behaviors">Поведения по приоритету: первое занявшее ход останавливает перебор.</param>
@@ -102,6 +103,7 @@ public sealed class BotBrain : IBotRunner
             }
 
             Record(_stats.Observe(world, Draining, Collecting));
+            _busy = BusyNow(world);
 
             // Остановку могут попросить и живым, и мёртвым (встать в городе не вышло)
             if (stop is null && _context.StopReason is { } reason)
@@ -119,6 +121,20 @@ public sealed class BotBrain : IBotRunner
         }
     }
 
+    public string? Busy => _busy;
+
+    // Те же признаки «посреди дела», что ждёт слив опыта, и ещё: на нас напали, перс мёртв (встаёт)
+    private string? BusyNow(WorldState world)
+    {
+        if (world.Host.IsDead)
+            return "персонаж мёртв";
+        if (_context.Fight.Busy)
+            return "бой";
+        if (TargetSelector.Aggressor(world) is not null)
+            return "на нас напали";
+        return _context.InMiddle ?? _context.Runner.BodyBusy(world);
+    }
+
     /// <summary>Поведение с этой возможностью (например, обход — <see cref="IRouteProgress"/>).</summary>
     public T? Part<T>() where T : class => _behaviors.OfType<T>().FirstOrDefault();
 
@@ -133,6 +149,7 @@ public sealed class BotBrain : IBotRunner
             _context.StopReason = null;
             _context.Fight.Abort();
             _context.Fight.LootSpots.Clear();
+            _busy = null;
             foreach (var behavior in _behaviors)
                 behavior.Reset();
             SetStatus("ожидание");

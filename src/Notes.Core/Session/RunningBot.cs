@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using Notes.Core.Brain;
 using Notes.Core.Logging;
+using Notes.Core.Memory;
 using Notes.Core.Settings;
 using Notes.Core.World;
 
@@ -22,7 +23,9 @@ public sealed class RunningBot : IDisposable
     private readonly IWorldFeed _feed;
     private readonly IBotRunner _brain;
     private readonly IDisposable _calls;
-    private readonly Func<DateTime, bool> _outOfMemory;
+    private readonly Func<DateTime, GameMemoryState> _memory;
+    // Чем был занят перс на прошлом ходу, пока ждём свободного момента для перезапуска
+    private string? _waitingFor;
     private readonly Func<string?> _broken;
     private readonly ILogger _log;
     private volatile bool _stopping;
@@ -31,19 +34,19 @@ public sealed class RunningBot : IDisposable
     private bool _closeAfterTick;
     private int _disposed;
     private int _closed;
-    // Бот сам попросил остановку (кончается память игры, потеряна связь с окном) — ходов больше нет, ждём «Стоп»
+    // Бот сам попросил остановку или перезапуск (кончается память игры, потеряна связь с окном) — ходов больше нет
     private bool _halted;
 
     /// <param name="calls">Транспорт вызовов (<see cref="GameCalls"/>); закрывается последним.</param>
-    /// <param name="outOfMemory">Проверка памяти игры по времени снимка: true — пора остановиться (<see cref="Memory.GameMemoryGuard"/>).</param>
+    /// <param name="memory">Память игры по времени снимка (<see cref="GameMemoryGuard"/>): мало или критично — перезапуск клиента.</param>
     /// <param name="broken">После хода: вызовы больше не доходят (<see cref="GameCalls.Broken"/>) — причина; null — всё в порядке.</param>
-    public RunningBot(IWorldFeed feed, IBotRunner brain, IDisposable calls, Func<DateTime, bool>? outOfMemory = null,
+    public RunningBot(IWorldFeed feed, IBotRunner brain, IDisposable calls, Func<DateTime, GameMemoryState>? memory = null,
         Func<string?>? broken = null, ILogger? log = null)
     {
         _feed = feed;
         _brain = brain;
         _calls = calls;
-        _outOfMemory = outOfMemory ?? (_ => false);
+        _memory = memory ?? (_ => GameMemoryState.Ok);
         _broken = broken ?? (() => null);
         _log = log ?? NullLogger.Instance;
         brain.StatusChanged += status => StatusChanged?.Invoke(status);
@@ -63,8 +66,14 @@ public sealed class RunningBot : IDisposable
     /// <summary>Что делает бот — из потока снимков.</summary>
     public event Action<string>? StatusChanged;
 
-    /// <summary>Бот сам просит остановку (персонаж погиб, у игры кончается память) — из потока снимков, посреди хода.</summary>
+    /// <summary>Бот сам просит остановку (персонаж погиб, связь с окном игры потеряна) — из потока снимков, посреди хода.</summary>
     public event Action<string>? StopRequested;
+
+    /// <summary>
+    /// У игры кончается память — бот просит закрыть клиент и войти заново (<see cref="GameMemoryGuard"/>): «мало» — после хода,
+    /// когда перс свободен, «критично» — сразу. Из потока снимков, посреди хода, один раз; ходов после него нет.
+    /// </summary>
+    public event Action<string>? RestartRequested;
 
     public void UpdateSettings(BotSettings settings) => _brain.UpdateSettings(settings);
 
@@ -82,12 +91,13 @@ public sealed class RunningBot : IDisposable
             _ticking = Thread.CurrentThread;
             try
             {
+                var memory = _halted ? GameMemoryState.Ok : _memory(world.Time);
                 if (_halted)
                 {
                 }
-                else if (_outOfMemory(world.Time))
+                else if (memory == GameMemoryState.Critical)
                 {
-                    Halt("у игры кончается память");
+                    Restart("у игры кончается память");
                 }
                 else
                 {
@@ -96,6 +106,22 @@ public sealed class RunningBot : IDisposable
                     {
                         _log.Warning($"{char.ToUpper(why[0])}{why.Substring(1)} — бот остановлен, нажмите «Старт»");
                         Halt(why);
+                    }
+                    else if (memory == GameMemoryState.Low)
+                    {
+                        // Ждём хода, после которого перс ничем не занят; о том, чего ждём, — в лог при каждой смене
+                        var busy = _brain.Busy;
+                        if (busy is null)
+                        {
+                            _log.Info("Перс свободен — перезапускаю клиент: у игры мало памяти");
+                            Restart("у игры мало памяти");
+                        }
+                        else if (busy != _waitingFor)
+                        {
+                            _log.Info($"Перезапуск клиента ждёт: {busy}");
+                        }
+
+                        _waitingFor = busy;
                     }
                 }
             }
@@ -115,6 +141,13 @@ public sealed class RunningBot : IDisposable
     {
         _halted = true;
         StopRequested?.Invoke(reason);
+    }
+
+    // Просим перезапуск клиента один раз; ходов больше нет — закроет клиент и войдёт заново тот, кто подписан
+    private void Restart(string reason)
+    {
+        _halted = true;
+        RestartRequested?.Invoke(reason);
     }
 
     /// <summary>

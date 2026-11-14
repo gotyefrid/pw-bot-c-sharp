@@ -125,8 +125,14 @@ public sealed class ClientConnection : IDisposable
     /// <summary>Что делает бот — из потока снимков.</summary>
     public event Action<string>? BotStatusChanged;
 
-    /// <summary>Бот сам просит остановку (погиб, у игры кончается память) — из потока снимков, посреди хода: остановить не здесь.</summary>
+    /// <summary>Бот сам просит остановку (погиб, связь с окном игры потеряна) — из потока снимков, посреди хода: остановить не здесь.</summary>
     public event Action<string>? BotStopRequested;
+
+    /// <summary>
+    /// У игры кончается память — бот просит закрыть клиент и войти заново (<see cref="RunningBot.RestartRequested"/>). Из потока
+    /// снимков, посреди хода: перезапускать не здесь.
+    /// </summary>
+    public event Action<string>? RestartRequested;
 
     /// <summary>
     /// Пока бот работает, персонаж выпал из игры (<see cref="LinkWatch"/>): разрыв связи, экран входа, клиент закрылся — из
@@ -202,9 +208,10 @@ public sealed class ClientConnection : IDisposable
             if (inspector.QueryFreeMemory() is FreeMemory free)
                 memoryLog.Info($"Свободно у игры {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ");
 
-            var bot = new RunningBot(_monitor, brain, calls, guard.ShouldStop, () => calls.Broken, _log);
+            var bot = new RunningBot(_monitor, brain, calls, guard.Check, () => calls.Broken, _log);
             bot.StatusChanged += status => BotStatusChanged?.Invoke(status);
             bot.StopRequested += reason => BotStopRequested?.Invoke(reason);
+            bot.RestartRequested += reason => RestartRequested?.Invoke(reason);
             lock (_lock)
                 _bot = bot;
             bot.Start();

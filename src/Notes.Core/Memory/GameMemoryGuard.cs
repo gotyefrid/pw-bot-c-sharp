@@ -21,49 +21,76 @@ public sealed record MemoryRegion(uint Start, uint AllocationBase, long Size, ui
     public const uint Image = 0x1000000;
 }
 
+/// <summary>Что делать с клиентом по его памяти.</summary>
+public enum GameMemoryState
+{
+    /// <summary>Памяти хватает.</summary>
+    Ok,
+
+    /// <summary>Памяти мало — перезапустить клиент, как только перс ничем не занят.</summary>
+    Low,
+
+    /// <summary>Памяти нет или ждали свободного момента слишком долго — перезапустить клиент сейчас, чем бы перс ни был занят.</summary>
+    Critical,
+}
+
 /// <summary>
-/// Следит за памятью игры. Клиент 32-битный (2 ГБ адресов) и при долгом фарме только растёт; у края
-/// любой вызов из бота падает с ошибкой 8, а скоро и сама игра. Бот замечает это заранее и останавливается
-/// с понятной причиной, а не сыплет «не отправлено».
+/// Следит за памятью игры. Клиент 32-битный (2 ГБ адресов) и при долгом фарме только растёт; у края любой вызов из бота
+/// падает с ошибкой 8, а скоро и сама игра — лечится только перезапуском клиента. Сторож говорит заранее: сначала «мало»
+/// (перезапуск в свободный момент), через <see cref="LowWait"/> или у самого края — «критично» (перезапуск сразу).
+/// Однажды сказав «мало», назад не возвращается: память клиента сама не освобождается.
 /// </summary>
 public sealed class GameMemoryGuard(Func<FreeMemory?> query, ILogger log)
 {
     public static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan WarnEvery = TimeSpan.FromMinutes(10);
 
-    /// <summary>Меньше — останавливаем бота. Кусок подряд нужен под стек нашего потока (256 КБ) и страницу вызова.</summary>
-    public const long StopTotal = 48L * 1024 * 1024;
-    public const long StopLargest = 512L * 1024;
+    /// <summary>Столько после «мало» ждём свободного момента; не дождались — перезапуск как есть.</summary>
+    public static readonly TimeSpan LowWait = TimeSpan.FromMinutes(5);
 
-    /// <summary>Меньше — предупреждаем, что скоро придётся перезапускать клиент.</summary>
-    public const long WarnTotal = 150L * 1024 * 1024;
+    /// <summary>Меньше — критично. Кусок подряд нужен под стек нашего потока (256 КБ) и страницу вызова.</summary>
+    public const long CriticalTotal = 48L * 1024 * 1024;
+    public const long CriticalLargest = 512L * 1024;
+
+    /// <summary>Меньше — мало: пора перезапускать клиент.</summary>
+    public const long LowTotal = 150L * 1024 * 1024;
 
     private DateTime _nextCheck = DateTime.MinValue;
-    private DateTime _nextWarning = DateTime.MinValue;
+    private DateTime? _lowSince;
+    private GameMemoryState _state = GameMemoryState.Ok;
 
-    /// <summary>Пора ли остановить бота. Меряет не чаще раза в 30 с; причину пишет в лог.</summary>
-    public bool ShouldStop(DateTime now)
+    /// <summary>Что с памятью. Меряет не чаще раза в 30 с, между замерами отдаёт прошлый ответ; причину пишет в лог один раз.</summary>
+    public GameMemoryState Check(DateTime now)
     {
+        if (_state == GameMemoryState.Critical)
+            return _state;
+
+        if (_lowSince is { } since && now - since >= LowWait)
+        {
+            log.Warning($"Свободного момента за {LowWait.TotalMinutes:0} мин не было — перезапускаю клиент как есть");
+            return _state = GameMemoryState.Critical;
+        }
+
         if (now < _nextCheck)
-            return false;
+            return _state;
 
         _nextCheck = now + Interval;
         if (query() is not FreeMemory free)
-            return false;
+            return _state;
 
-        if (free.Total < StopTotal || free.Largest < StopLargest)
+        if (free.Total < CriticalTotal || free.Largest < CriticalLargest)
         {
-            log.Error($"Игре не хватает памяти (свободно {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ) — бот остановлен. "
-                      + "Перезапустите клиент игры");
-            return true;
+            log.Error($"Игре не хватает памяти (свободно {free.TotalMb} МБ, кусок подряд {free.Largest / 1024} КБ) — перезапускаю клиент сейчас");
+            return _state = GameMemoryState.Critical;
         }
 
-        if (free.Total < WarnTotal && now >= _nextWarning)
+        if (free.Total < LowTotal && _state == GameMemoryState.Ok)
         {
-            _nextWarning = now + WarnEvery;
-            log.Warning($"У игры осталось мало памяти ({free.TotalMb} МБ) — скоро придётся перезапустить клиент");
+            _lowSince = now;
+            log.Warning($"У игры осталось мало памяти ({free.TotalMb} МБ) — перезапущу клиент, как только перс освободится "
+                        + $"(не дольше {LowWait.TotalMinutes:0} мин)");
+            return _state = GameMemoryState.Low;
         }
 
-        return false;
+        return _state;
     }
 }
