@@ -170,6 +170,8 @@ public sealed class BotSettings
         Target.FarmPoints = FarmPoint.Clean(Target.FarmPoints);
         Target.FarmCenter = Target.FarmCenter?.Trim() ?? "";
         Combat.ComeCloserDistance = Clamp(Combat.ComeCloserDistance, 1, 30);
+        Combat.ComboId = Combat.ComboId?.Trim() ?? "";
+        Combat.Combo = ComboRow.Clean(Combat.Combo);
         Loot.ItemNames = MobNameFilter.Clean(Loot.ItemNames);
         Loot.ResourceNames = MobNameFilter.Clean(Loot.ResourceNames);
         Loot.StashNames = MobNameFilter.Clean(Loot.StashNames);
@@ -541,6 +543,21 @@ public sealed class CombatSettings : SettingsPart
     private int _attackMacro;
     /// <summary>Макрос персонажа 1..N вместо атакующего скилла; 0 — бьём скиллом <see cref="AttackSkillId"/>.</summary>
     public int AttackMacro { get => _attackMacro; set => Set(ref _attackMacro, value); }
+
+    private bool _useCombo;
+    /// <summary>Бить связкой скиллов (<see cref="Combo"/>) вместо одного скилла или макроса.</summary>
+    public bool UseCombo { get => _useCombo; set => Set(ref _useCombo, value); }
+
+    private string _comboId = "";
+    /// <summary>
+    /// Выбранная связка из общего файла связок (<see cref="Resources.ComboStore"/>, видят все персонажи); "" — не выбрана.
+    /// Её строки окно кладёт в <see cref="Combo"/>.
+    /// </summary>
+    public string ComboId { get => _comboId; set => Set(ref _comboId, value); }
+
+    private List<ComboRow> _combo = [];
+    /// <summary>Строки связки по порядку — копия строк выбранной связки (по ним бьёт бот).</summary>
+    public List<ComboRow> Combo { get => _combo; set => Set(ref _combo, value); }
 
     private bool _useSword;
     /// <summary>Обычная атака (раз в ~5 с).</summary>
