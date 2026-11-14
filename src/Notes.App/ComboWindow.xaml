@@ -1,51 +1,28 @@
 <Window x:Class="Notes.App.ComboWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Связка скиллов" Width="640" SizeToContent="Height" ResizeMode="NoResize"
+        Title="Связка скиллов" Width="820" Height="560" MinWidth="640" MinHeight="360"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         Style="{StaticResource AppWindow}">
-  <!-- Связка скиллов: DataContext — Panels.ComboPanel. Правки сразу уходят в общий файл связок и персонажу — «Готово» только закрывает -->
+  <!-- Связка скиллов: DataContext — Panels.ComboPanel. Строка правится в своём окне (ComboRowWindow) — двойной щелчок или
+       карандаш. Правки сразу уходят в общий файл связок и персонажу — «Готово» только закрывает -->
   <Window.Resources>
-    <BooleanToVisibilityConverter x:Key="Visible" />
-
-    <!-- Иконка скилла; нет иконки (не в игре или ещё не загрузилась) — места не занимает -->
-    <Style x:Key="SkillIcon" TargetType="Image">
-      <Setter Property="Width" Value="20" />
-      <Setter Property="Height" Value="20" />
-      <Setter Property="Margin" Value="0,0,6,0" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
-      <Style.Triggers>
-        <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
-          <Setter Property="Visibility" Value="Collapsed" />
-        </DataTrigger>
-      </Style.Triggers>
-    </Style>
-
-    <!-- Скилл в списке: иконка и название; не изученный — серый -->
-    <DataTemplate x:Key="SkillItem">
-      <StackPanel Orientation="Horizontal">
-        <Image Source="{Binding Icon}" Style="{StaticResource SkillIcon}" />
-        <TextBlock Text="{Binding Title}" VerticalAlignment="Center">
-          <TextBlock.Style>
-            <Style TargetType="TextBlock">
-              <Style.Triggers>
-                <DataTrigger Binding="{Binding Missing}" Value="True">
-                  <Setter Property="Foreground" Value="{StaticResource MutedText}" />
-                </DataTrigger>
-              </Style.Triggers>
-            </Style>
-          </TextBlock.Style>
-        </TextBlock>
-      </StackPanel>
-    </DataTemplate>
+    <ResourceDictionary Source="ComboTemplates.xaml" />
   </Window.Resources>
 
   <Border Style="{StaticResource Card}" Margin="12">
-    <StackPanel>
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
+
       <TextBlock TextWrapping="Wrap" Style="{StaticResource Muted}" Margin="0,0,0,8"
-                 Text="Бот смотрит строки сверху вниз и жмёт первую, у которой выполнены все условия. Выключенные строки и не изученные скиллы пропускаются. Связки общие: их видят все персонажи во всех копиях бота." />
-      <DockPanel Margin="0,0,0,8">
+                 Text="Бот смотрит строки сверху вниз и жмёт первую, у которой выполнены все условия. Выключенные строки и не изученные скиллы пропускаются. Двойной щелчок по строке или карандаш — правка: скилл, условия, «ждать», как часто. Связки общие: их видят все персонажи во всех копиях бота." />
+      <DockPanel Grid.Row="1" Margin="0,0,0,8">
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
           <ComboBox Width="240" ItemsSource="{Binding Combos}" SelectedItem="{Binding SelectedCombo}"
                     ToolTip="Какой связкой бьёт этот персонаж. В скобках — сколько строк" />
@@ -61,11 +38,13 @@
         <TextBlock Text="Связка" VerticalAlignment="Center" />
       </DockPanel>
 
-      <ListView MinHeight="100" MaxHeight="260" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+      <ListView x:Name="Table" Grid.Row="2" ItemsSource="{Binding Rows}" SelectedItem="{Binding SelectedRow}"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled" MouseDoubleClick="EditRow" SizeChanged="TableSized"
                 BorderThickness="0" Background="Transparent">
         <ListView.ItemContainerStyle>
           <Style TargetType="ListViewItem">
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Top" />
             <Style.Triggers>
               <DataTrigger Binding="{Binding Missing}" Value="True">
                 <Setter Property="Foreground" Value="{StaticResource MutedText}" />
@@ -86,31 +65,41 @@
                 </DataTemplate>
               </GridViewColumn.CellTemplate>
             </GridViewColumn>
-            <GridViewColumn Header="Скилл" Width="170">
+            <GridViewColumn Header="Скилл" Width="200">
               <GridViewColumn.CellTemplate>
                 <DataTemplate>
                   <StackPanel Orientation="Horizontal">
                     <Image Source="{Binding Icon}" Style="{StaticResource SkillIcon}" />
-                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}" />
                   </StackPanel>
                 </DataTemplate>
               </GridViewColumn.CellTemplate>
             </GridViewColumn>
-            <GridViewColumn Header="Когда" Width="210">
+            <!-- Ширина — всё, что осталось от других колонок (TableSized); длинные условия переносятся -->
+            <GridViewColumn x:Name="WhenColumn" Header="Когда" Width="300">
               <GridViewColumn.CellTemplate>
                 <DataTemplate>
-                  <TextBlock Text="{Binding When}" TextTrimming="CharacterEllipsis" ToolTip="{Binding When}" />
+                  <TextBlock Text="{Binding When}" TextWrapping="Wrap" VerticalAlignment="Center" ToolTip="{Binding When}" />
                 </DataTemplate>
               </GridViewColumn.CellTemplate>
             </GridViewColumn>
-            <GridViewColumn Header="Как часто" Width="95" DisplayMemberBinding="{Binding RepeatText}" />
-            <GridViewColumn Header="" Width="45" DisplayMemberBinding="{Binding WaitText}" />
+            <GridViewColumn Header="Как часто" Width="100" DisplayMemberBinding="{Binding RepeatText}" />
+            <GridViewColumn Header="Ждать" Width="55">
+              <GridViewColumn.CellTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding WaitText}"
+                             ToolTip="«да» — условия выполнены, а скилл на перезарядке: бот ждёт его и строки ниже не смотрит" />
+                </DataTemplate>
+              </GridViewColumn.CellTemplate>
+            </GridViewColumn>
           </GridView>
         </ListView.View>
       </ListView>
-      <DockPanel Margin="0,8,0,0">
+      <DockPanel Grid.Row="3" Margin="0,8,0,0">
         <Button DockPanel.Dock="Right" Style="{StaticResource ButtonBase}" Content="Удалить" Margin="6,0,0,0"
                 Command="{Binding RemoveRowCommand}" ToolTip="Удалить выбранную строку" />
+        <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70F;" Margin="6,0,0,0"
+                Command="{Binding EditRowCommand}" ToolTip="Изменить выбранную строку: скилл, условия, «ждать», как часто" />
         <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70D;" Margin="6,0,0,0"
                 Command="{Binding RowDownCommand}" ToolTip="Ниже: бот проверит строку позже" />
         <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Content="&#xE70E;" Margin="6,0,0,0"
@@ -120,68 +109,8 @@
                 ToolTip="Новая строка в конце связки. Скиллы — изученные у персонажа; не в игре — только те, что уже есть в связке" />
       </DockPanel>
 
-      <!-- Выбранная строка -->
-      <StackPanel Margin="0,12,0,0" Visibility="{Binding HasRow, Converter={StaticResource Visible}}">
-        <TextBlock Text="ВЫБРАННАЯ СТРОКА" Style="{StaticResource CardTitle}" />
-        <DockPanel Style="{StaticResource SettingRow}">
-          <TextBlock Text="Скилл" VerticalAlignment="Center" />
-          <ComboBox DockPanel.Dock="Right" Width="260" ItemsSource="{Binding SkillChoices}"
-                    SelectedValuePath="Id" SelectedValue="{Binding SelectedSkillId}" ItemTemplate="{StaticResource SkillItem}"
-                    ToolTip="Какой скилл жать. Атакующие изученные скиллы персонажа, как в «Атаке»" />
-        </DockPanel>
-
-        <TextBlock Text="Условия" Margin="0,6,0,2" />
-        <TextBlock Text="Строка подходит, когда выполнены все условия. Нет условий — всегда."
-                   TextWrapping="Wrap" Style="{StaticResource Muted}" FontSize="11" Margin="0,0,0,4" />
-        <ItemsControl ItemsSource="{Binding Conditions}" Focusable="False">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate>
-              <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                <ComboBox Width="180" ItemsSource="{Binding Checks}" DisplayMemberPath="Title"
-                          SelectedValuePath="Check" SelectedValue="{Binding Check}" ToolTip="Что проверяем" />
-                <ComboBox Width="50" Margin="6,0,0,0" ItemsSource="{Binding Ops}" DisplayMemberPath="Title"
-                          SelectedValuePath="Below" SelectedValue="{Binding Below}"
-                          Visibility="{Binding AboutNumber, Converter={StaticResource Visible}}"
-                          ToolTip="Меньше или больше числа" />
-                <TextBox Style="{StaticResource Number}" Width="60" Margin="6,0,0,0"
-                         Text="{Binding Value, UpdateSourceTrigger=PropertyChanged}"
-                         Visibility="{Binding AboutNumber, Converter={StaticResource Visible}}"
-                         ToolTip="Проценты (HP, MP), метры до моба или секунды боя" />
-                <ComboBox Width="232" Margin="6,0,0,0" ItemsSource="{Binding Skills}" ItemTemplate="{StaticResource SkillItem}"
-                          SelectedValuePath="Id" SelectedValue="{Binding SkillId}"
-                          Visibility="{Binding AboutSkill, Converter={StaticResource Visible}}"
-                          ToolTip="Про какой скилл условие" />
-                <Button Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE711;"
-                        Command="{Binding DataContext.RemoveConditionCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        CommandParameter="{Binding}" ToolTip="Удалить условие" />
-              </StackPanel>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-        <Button Style="{StaticResource ButtonBase}" Content="+ условие" HorizontalAlignment="Left" Margin="0,2,0,0"
-                Command="{Binding AddConditionCommand}" ToolTip="Ещё одно условие: строка подойдёт, только когда выполнены все" />
-
-        <CheckBox Style="{StaticResource Switch}" Content="Ждать, если на перезарядке" IsChecked="{Binding WaitReady}" Margin="0,10,0,0">
-          <CheckBox.ToolTip>
-            <TextBlock MaxWidth="320" TextWrapping="Wrap"
-                       Text="Включено — условия выполнены, а скилл ещё на перезарядке: бот ждёт этот скилл и строки ниже не смотрит (строгая очередь).&#10;&#10;Выключено — строка пропускается, бот смотрит строки ниже." />
-          </CheckBox.ToolTip>
-        </CheckBox>
-        <DockPanel Style="{StaticResource SettingRow}">
-          <TextBlock Text="Как часто" VerticalAlignment="Center" />
-          <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Width="60" Margin="6,0,0,0"
-                   Text="{Binding IntervalSeconds, UpdateSourceTrigger=PropertyChanged}"
-                   Visibility="{Binding IsInterval, Converter={StaticResource Visible}}"
-                   ToolTip="Не чаще раза в столько секунд — и между боями тоже. 1–3600" />
-          <ComboBox DockPanel.Dock="Right" Width="140" ItemsSource="{Binding Repeats}" DisplayMemberPath="Title"
-                    SelectedValuePath="Repeat" SelectedValue="{Binding SelectedRepeat}"
-                    ToolTip="Каждый раз, как дойдёт очередь; один раз за бой с мобом; или не чаще раза в N секунд" />
-          <Grid />
-        </DockPanel>
-      </StackPanel>
-
-      <Button Style="{StaticResource PrimaryButton}" Content="Готово" HorizontalAlignment="Right" Margin="0,12,0,0"
+      <Button Grid.Row="4" Style="{StaticResource PrimaryButton}" Content="Готово" HorizontalAlignment="Right" Margin="0,12,0,0"
               IsCancel="True" Click="Done" ToolTip="Правки уже сохранены — просто закрыть" />
-    </StackPanel>
+    </Grid>
   </Border>
 </Window>

@@ -1,0 +1,36 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <!-- Связка скиллов: иконка и скилл в списке — общие у окна связок и окна строки, оба подключают этот словарь -->
+
+  <!-- Иконка скилла; нет иконки (не в игре или ещё не загрузилась) — места не занимает -->
+  <Style x:Key="SkillIcon" TargetType="Image">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="20" />
+    <Setter Property="Margin" Value="0,0,6,0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality" />
+    <Style.Triggers>
+      <DataTrigger Binding="{Binding Icon}" Value="{x:Null}">
+        <Setter Property="Visibility" Value="Collapsed" />
+      </DataTrigger>
+    </Style.Triggers>
+  </Style>
+
+  <!-- Скилл в списке: иконка и название; не изученный — серый -->
+  <DataTemplate x:Key="SkillItem">
+    <StackPanel Orientation="Horizontal">
+      <Image Source="{Binding Icon}" Style="{StaticResource SkillIcon}" />
+      <TextBlock Text="{Binding Title}" VerticalAlignment="Center">
+        <TextBlock.Style>
+          <Style TargetType="TextBlock">
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding Missing}" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+              </DataTrigger>
+            </Style.Triggers>
+          </Style>
+        </TextBlock.Style>
+      </TextBlock>
+    </StackPanel>
+  </DataTemplate>
+</ResourceDictionary>

@@ -111,7 +111,7 @@ public partial class CharacterView : UserControl
 
     private void EditPoint(Panels.PointDraft draft) => new PointWindow { Owner = Owner, DataContext = draft }.ShowDialog();
 
-    // Окно связок скиллов: пока оно открыто, вопросы и название связки — поверх него
+    // Окно связок скиллов: пока оно открыто, вопросы, название связки и окно строки — поверх него
     private void OpenCombos(object sender, RoutedEventArgs e)
     {
         var combos = _model.Combos;
@@ -120,6 +120,7 @@ public partial class CharacterView : UserControl
         var askName = combos.AskName;
         combos.Dialogs = new WindowDialogs(window);
         combos.AskName = (title, current) => NameWindow.Ask(window, title, current);
+        combos.EditRequested = draft => new ComboRowWindow { Owner = window, DataContext = draft }.ShowDialog();
         combos.Observe();
         try
         {
@@ -129,6 +130,7 @@ public partial class CharacterView : UserControl
         {
             combos.Dialogs = dialogs;
             combos.AskName = askName;
+            combos.EditRequested = null;
         }
     }
 

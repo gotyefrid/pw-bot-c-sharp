@@ -18,8 +18,9 @@ namespace Notes.App.Panels;
 /// <summary>
 /// Окно «Связка скиллов»: строки по порядку — скилл, условия, «ждать», как часто. Бот смотрит строки сверху вниз и жмёт первую
 /// подходящую. Связки — общие у всех персонажей и копий бота (<see cref="ComboStore"/>), как маршруты: у персонажа только
-/// какая выбрана, а её строки панель кладёт в настройки (по ним бьёт бот). Правка — сразу в общий файл; файл поменяла другая
-/// копия — строки перечитываются. О правке говорит модели окна (та сохраняет и отдаёт боту).
+/// какая выбрана, а её строки панель кладёт в настройки (по ним бьёт бот). Строка правится в своём окне
+/// (<see cref="ComboRowDraft"/>) — двойным щелчком или карандашом. Правка — сразу в общий файл; файл поменяла другая копия —
+/// строки перечитываются. О правке говорит модели окна (та сохраняет и отдаёт боту).
 /// </summary>
 public sealed class ComboPanel : ObservableObject, IDisposable
 {
@@ -36,6 +37,7 @@ public sealed class ComboPanel : ObservableObject, IDisposable
     private readonly FileSystemWatcher? _watcher;
     private readonly DispatcherTimer _reload = new() { Interval = ReloadDelay };
     private ComboLine? _selectedRow;
+    private ComboRowDraft? _editing;
     private bool _syncing;
 
     /// <param name="settings">Настройки текущего персонажа (меняются при смене персонажа).</param>
@@ -60,11 +62,10 @@ public sealed class ComboPanel : ObservableObject, IDisposable
         RenameComboCommand = new RelayCommand(RenameCombo, () => SelectedCombo is not null);
         RemoveComboCommand = new RelayCommand(RemoveCombo, () => SelectedCombo is not null);
         AddRowCommand = new RelayCommand(AddRow, () => SkillChoices.Count > 0);
+        EditRowCommand = new RelayCommand(EditSelected, () => SelectedRow is not null);
         RemoveRowCommand = new RelayCommand(RemoveRow, () => SelectedRow is not null);
         RowUpCommand = new RelayCommand(() => MoveRow(-1), () => SelectedRow is { } r && Rows.IndexOf(r) > 0);
         RowDownCommand = new RelayCommand(() => MoveRow(1), () => SelectedRow is { } r && Rows.IndexOf(r) is var i && i >= 0 && i < Rows.Count - 1);
-        AddConditionCommand = new RelayCommand(AddCondition, () => SelectedRow is not null);
-        RemoveConditionCommand = new RelayCommand<ComboConditionLine>(RemoveCondition);
         _reload.Tick += (_, _) =>
         {
             _reload.Stop();
@@ -96,6 +97,9 @@ public sealed class ComboPanel : ObservableObject, IDisposable
     /// <summary>Название связки: окну спросить у игрока (заголовок, текущее название); null — передумал.</summary>
     public Func<string, string, string?>? AskName { get; set; }
 
+    /// <summary>Окно строки: показать черновик поверх окна связок (пока оно открыто); null — окна связок нет.</summary>
+    public Action<ComboRowDraft>? EditRequested { get; set; }
+
     // ── Связки ───────────────────────────────────────────────────────────────
 
     /// <summary>Сохранённые связки (общие у всех персонажей) по названию.</summary>
@@ -124,96 +128,18 @@ public sealed class ComboPanel : ObservableObject, IDisposable
     public ObservableCollection<ComboLine> Rows { get; } = new();
 
     public ICommand AddRowCommand { get; }
+    public ICommand EditRowCommand { get; }
     public ICommand RemoveRowCommand { get; }
     public ICommand RowUpCommand { get; }
     public ICommand RowDownCommand { get; }
 
-    public ComboLine? SelectedRow
-    {
-        get => _selectedRow;
-        set
-        {
-            if (!SetProperty(ref _selectedRow, value))
-                return;
-            LoadEditor();
-        }
-    }
-
-    // ── Выбранная строка ─────────────────────────────────────────────────────
+    public ComboLine? SelectedRow { get => _selectedRow; set => SetProperty(ref _selectedRow, value); }
 
     /// <summary>Скиллы для строки: атакующие изученные (как в «Атаке», без макросов), а скиллы строк, которых нет, — с пометкой.</summary>
     public ObservableCollection<ComboSkillChoice> SkillChoices { get; } = new();
 
     /// <summary>Скиллы для проверок «скилл готов» и др.: все изученные.</summary>
     public ObservableCollection<ComboSkillChoice> ConditionSkills { get; } = new();
-
-    public sealed record RepeatChoice(ComboRepeat Repeat, string Title);
-
-    public IReadOnlyList<RepeatChoice> Repeats { get; } =
-        [new(ComboRepeat.Always, "каждый раз"), new(ComboRepeat.OncePerFight, "1 раз за бой"), new(ComboRepeat.Interval, "не чаще, с")];
-
-    public bool HasRow => SelectedRow is not null;
-
-    public int SelectedSkillId
-    {
-        get => SelectedRow?.Row.SkillId ?? 0;
-        set
-        {
-            // 0 — пересборка списка сбросила выбор: это не выбор игрока
-            if (SelectedRow is not { } line || value <= 0 || line.Row.SkillId == value)
-                return;
-            line.Row.SkillId = value;
-            line.Row.SkillName = SkillChoices.FirstOrDefault(s => s.Id == value)?.Name ?? "";
-            RowEdited(line);
-        }
-    }
-
-    /// <summary>Условия выбранной строки: все сразу; пусто — всегда.</summary>
-    public ObservableCollection<ComboConditionLine> Conditions { get; } = new();
-
-    public ICommand AddConditionCommand { get; }
-    public ICommand RemoveConditionCommand { get; }
-
-    public bool WaitReady
-    {
-        get => SelectedRow?.Row.WaitReady ?? false;
-        set
-        {
-            if (SelectedRow is not { } line || line.Row.WaitReady == value)
-                return;
-            line.Row.WaitReady = value;
-            RowEdited(line);
-        }
-    }
-
-    public ComboRepeat SelectedRepeat
-    {
-        get => SelectedRow?.Row.Repeat ?? ComboRepeat.Always;
-        set
-        {
-            if (SelectedRow is not { } line || line.Row.Repeat == value)
-                return;
-            line.Row.Repeat = value;
-            RowEdited(line);
-            OnPropertyChanged(nameof(IsInterval));
-        }
-    }
-
-    public bool IsInterval => SelectedRow?.Row.Repeat == ComboRepeat.Interval;
-
-    public int IntervalSeconds
-    {
-        get => SelectedRow?.Row.IntervalSeconds ?? 10;
-        set
-        {
-            // Границы — как у файла связок: иначе файл и персонаж разойдутся и строки перечитаются посреди ввода
-            value = Math.Min(3600, Math.Max(1, value));
-            if (SelectedRow is not { } line || line.Row.IntervalSeconds == value)
-                return;
-            line.Row.IntervalSeconds = value;
-            RowEdited(line);
-        }
-    }
 
     // ── Загрузка и сверка с файлом ───────────────────────────────────────────
 
@@ -295,8 +221,6 @@ public sealed class ComboPanel : ObservableObject, IDisposable
             Rows.Add(new ComboLine(i + 1, rows[i], () => RowsEdited()));
         LoadSkills(force: true);
         SelectedRow = at >= 0 && at < Rows.Count ? Rows[at] : null;
-        // Та же позиция, но строки — новые объекты: правка должна идти в них
-        LoadEditor();
     }
 
     // Списки скиллов ← снимок и строки; пересобраны — перечитать выбор в окне
@@ -313,9 +237,7 @@ public sealed class ComboPanel : ObservableObject, IDisposable
 
         foreach (var line in Rows)
             line.Show(SkillChoices.FirstOrDefault(s => s.Id == line.Row.SkillId));
-        OnPropertyChanged(nameof(SelectedSkillId));
-        foreach (var condition in Conditions)
-            condition.Reselect();
+        _editing?.Reselect();
     }
 
     private List<ComboSkillChoice> Choices(IEnumerable<ComboSkill> skills, bool inGame)
@@ -329,23 +251,6 @@ public sealed class ComboPanel : ObservableObject, IDisposable
         foreach (var item in items)
             target.Add(item);
         return true;
-    }
-
-    // Поля выбранной строки ← строка
-    private void LoadEditor()
-    {
-        Conditions.Clear();
-        if (SelectedRow is { } line)
-        {
-            foreach (var condition in line.Row.Conditions)
-                Conditions.Add(new ComboConditionLine(condition, ConditionSkills, () => RowEdited(line)));
-        }
-        OnPropertyChanged(nameof(HasRow));
-        OnPropertyChanged(nameof(SelectedSkillId));
-        OnPropertyChanged(nameof(WaitReady));
-        OnPropertyChanged(nameof(SelectedRepeat));
-        OnPropertyChanged(nameof(IsInterval));
-        OnPropertyChanged(nameof(IntervalSeconds));
     }
 
     public void Dispose()
@@ -425,6 +330,38 @@ public sealed class ComboPanel : ObservableObject, IDisposable
         _edited();
     }
 
+    /// <summary>
+    /// Править выбранную строку в её окне: скилл, условия, «ждать», как часто (двойной щелчок по строке или карандаш).
+    /// </summary>
+    public void EditSelected()
+    {
+        if (SelectedRow is not { } line || EditRequested is not { } edit)
+            return;
+
+        var row = line.Row;
+        var draft = new ComboRowDraft(Rows.IndexOf(line) + 1, row, SkillChoices, ConditionSkills, edited =>
+        {
+            // Пока окно строки было открыто, связку перечитали из файла (правка в другой копии) — строки уже другие
+            if (!Combat.Combo.Contains(row))
+                return "Связку только что изменили в другой копии бота — закройте окно и откройте строку заново";
+            ComboEditing.Apply(row, edited);
+            _log.Info($"Строка {Combat.Combo.IndexOf(row) + 1} связки изменена: {row.Title}, когда {ComboEditing.ConditionsText(row)}, "
+                      + $"{ComboEditing.RepeatText(row)}{(row.WaitReady ? ", ждать перезарядку" : "")}");
+            // Строки могли пересобраться (файл перечитан), а строка та же: правим её строку в таблице
+            RowEdited(Rows.FirstOrDefault(l => l.Row == row) ?? line);
+            return null;
+        });
+        _editing = draft;
+        try
+        {
+            edit(draft);
+        }
+        finally
+        {
+            _editing = null;
+        }
+    }
+
     // Поменяли поле строки: таблица, списки скиллов (скилл мог стать «не изучен») и файл
     private void RowEdited(ComboLine line)
     {
@@ -466,25 +403,6 @@ public sealed class ComboPanel : ObservableObject, IDisposable
             return;
         RowsEdited();
         LoadRows(select: to);
-    }
-
-    private void AddCondition()
-    {
-        if (SelectedRow is not { } line)
-            return;
-        var condition = ComboEditing.NewCondition(ComboCheck.MobHp);
-        line.Row.Conditions.Add(condition);
-        Conditions.Add(new ComboConditionLine(condition, ConditionSkills, () => RowEdited(line)));
-        RowEdited(line);
-    }
-
-    private void RemoveCondition(ComboConditionLine? condition)
-    {
-        if (condition is null || SelectedRow is not { } line)
-            return;
-        line.Row.Conditions.Remove(condition.Condition);
-        Conditions.Remove(condition);
-        RowEdited(line);
     }
 }
 

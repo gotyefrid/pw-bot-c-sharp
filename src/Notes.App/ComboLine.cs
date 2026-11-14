@@ -52,7 +52,7 @@ public sealed class ComboLine(int number, ComboRow row, Action edited) : Observa
 
     public string RepeatText => ComboEditing.RepeatText(Row);
 
-    public string WaitText => Row.WaitReady ? "ждать" : "";
+    public string WaitText => Row.WaitReady ? "да" : "";
 
     /// <summary>Скилл строки из списка окна (иконка, изучен ли).</summary>
     public void Show(ComboSkillChoice? skill)
@@ -81,8 +81,8 @@ public sealed record ComboCheckChoice(ComboCheck Check, string Title);
 public sealed record ComboOpChoice(bool Below, string Title);
 
 /// <summary>
-/// Условие выбранной строки связки в окне: что проверяем, больше/меньше и число или про какой скилл. Правка — сразу в условие
-/// строки, о ней говорит панели.
+/// Условие в окне строки связки: что проверяем, больше/меньше и число или про какой скилл. Правка — сразу в условие (копии
+/// строки в <see cref="Panels.ComboRowDraft"/>), о ней говорит <c>edited</c>.
 /// </summary>
 public sealed class ComboConditionLine(ComboCondition condition, ObservableCollection<ComboSkillChoice> skills, Action edited) : ObservableObject
 {
@@ -98,7 +98,7 @@ public sealed class ComboConditionLine(ComboCondition condition, ObservableColle
 
     public ComboCondition Condition { get; } = condition;
 
-    /// <summary>Скиллы для проверок про скилл — все изученные (список общий у условий, его пересобирает панель).</summary>
+    /// <summary>Скиллы для проверок про скилл — все изученные (список общий у условий, его пересобирает панель связок).</summary>
     public ObservableCollection<ComboSkillChoice> Skills { get; } = skills;
 
     public ComboCheck Check
