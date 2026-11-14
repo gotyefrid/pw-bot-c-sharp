@@ -230,6 +230,9 @@ public sealed class FarmPanel : ObservableObject
         _skillsRebuilt();
     }
 
+    /// <summary>Картинка иконки скилла для окна (одна на иконку); null — иконки нет.</summary>
+    public ImageSource? SkillImage(int id) => ToImage(_skillIcon(id));
+
     private ImageSource? ToImage(IconImage? icon)
     {
         if (icon is null)

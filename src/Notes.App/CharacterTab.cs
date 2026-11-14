@@ -57,6 +57,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     private readonly SpotService _spots;
     // Маршруты обхода — общие у всех персонажей и копий бота
     private readonly RouteStore _routes;
+    // Связки скиллов — общие у всех персонажей и копий бота
+    private readonly ComboStore _combos;
 
     // Правка настроек — сохранить файл и отдать боту копию через 0,5 с после последней (число в поле набирают по цифре)
     private static readonly TimeSpan SaveDelay = TimeSpan.FromSeconds(0.5);
@@ -119,6 +121,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         var shared = SharedFolder.Prepare(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), resourcesLog);
         _spots = new SpotService(shared, resourcesLog);
         _routes = new RouteStore(Path.Combine(shared, RouteStore.FileName));
+        _combos = new ComboStore(Path.Combine(shared, ComboStore.FileName));
         _spots.ImportOld(Path.Combine(appDirectory, "resources.json"));
 
         Servers = _catalog.Ids.Select(id => _catalog.Load(id)).ToList();
@@ -155,6 +158,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         Route = new RoutePanel(() => Settings, () => _lastWorld,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IRouteProgress>()?.Index : null, _spots, _log, SettingsEdited,
             _routes, () => _config.Character, dialogs);
+        Combos = new ComboPanel(() => Settings, () => _lastWorld, () => _profile, Farm.SkillImage, _log, SettingsEdited, _combos, dialogs);
         Clicker = new ClickerPanel(() => Settings,
             () => IsRunning ? _connection?.Bot?.Brain.Part<IClickerProgress>()?.Current : null,
             new ClickerChoices(() => Farm.LootOptions(), () => Route.RouteOptions(), () => Farm.TargetOptions(),
@@ -164,6 +168,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         Chat = new ChatPanel(() => _config.App.ChatNotify, () => _profile, SaveSettings, _chatLog);
         Farm.Load();
         Route.Load();
+        Combos.Load();
         Clicker.Load();
         Quests.Load();
 
@@ -848,6 +853,9 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>Вкладка «Ресы»: точки маршрута, что копать, опасные мобы.</summary>
     public RoutePanel Route { get; }
 
+    /// <summary>Окно «Связка скиллов»: строки связки, выбор и правка общих связок.</summary>
+    public ComboPanel Combos { get; }
+
     /// <summary>Вкладка «Кликер»: сценарий — шаги по кругу, у каждого действие и условие.</summary>
     public ClickerPanel Clicker { get; }
 
@@ -953,6 +961,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         var closing = Disconnect();
         _spots.Save();
         Route.Dispose();
+        Combos.Dispose();
         _appSettings.Saved -= AppSettingsSaved;
         return closing;
     }
@@ -1267,6 +1276,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         ConnectionText = h.Name;
         Status.Show(w);
         Farm.ShowFor(w);
+        Combos.Observe();
         Route.ShowDistances(w);
         Clicker.ShowCurrent();
     }
@@ -1327,6 +1337,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         Repair.Rebind();
         Farm.Load();
         Route.Load();
+        Combos.Load();
         Clicker.Load();
         Quests.Load();
         ModeChanged();
