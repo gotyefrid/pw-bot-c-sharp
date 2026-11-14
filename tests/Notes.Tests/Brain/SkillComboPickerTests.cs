@@ -104,6 +104,79 @@ public class SkillComboPickerTests
         Assert.Equal(2, Picked([finisher, Row(2)]));
     }
 
+    private static ComboRow Wait(int skill, params ComboCondition[] conditions)
+    {
+        var row = Row(skill, conditions);
+        row.WaitReady = true;
+        return row;
+    }
+
+    [Fact]
+    public void WaitRowsGoInTurn()
+    {
+        // «Ждать» на всех строках — строго по очереди 1 → 2 → 3 → 1, и ждём следующую, даже если готова другая
+        _world.AddSkill(1);
+        _world.AddSkill(2);
+        _world.AddSkill(3);
+        ComboRow[] rows = [Wait(1), Wait(2), Wait(3)];
+
+        Assert.Equal(1, Picked(rows));
+        Press(rows);
+        Cool(1, 3000);
+        Assert.Equal(2, Picked(rows));
+        Press(rows);
+        Cool(2, 3000);
+        Assert.Equal(3, Picked(rows));
+        Press(rows);
+        Cool(3, 3000);
+
+        // Все на перезарядке; первым освободился второй — но очередь у первого, ждём его
+        Cool(2, 0);
+        var choice = Pick(rows);
+        Assert.Null(choice.Row);
+        Assert.Contains("жду «с1»", choice.Waiting);
+        Cool(1, 0);
+        Assert.Equal(1, Picked(rows));
+    }
+
+    [Fact]
+    public void QueueSkipsRowWithFailedCondition()
+    {
+        // У следующей по очереди не выполнено условие — очередь у следующей за ней
+        _world.AddSkill(1);
+        _world.AddSkill(2);
+        _world.AddSkill(3);
+        ComboRow[] rows = [Wait(1), Wait(2, Num(ComboCheck.MobHp, below: true, 30)), Wait(3)];
+
+        Press(rows);
+        Assert.Equal(3, Picked(rows));
+    }
+
+    [Fact]
+    public void QueueStartsFromTopEachFight()
+    {
+        _world.AddSkill(1);
+        _world.AddSkill(2);
+        ComboRow[] rows = [Wait(1), Wait(2)];
+
+        Press(rows);
+        Assert.Equal(2, Picked(rows));
+        _picker.NewFight();
+        Assert.Equal(1, Picked(rows));
+    }
+
+    [Fact]
+    public void RowsWithoutWaitKeepPriority()
+    {
+        // Без «ждать» — как раньше: верхняя готовая, хоть её только что жали
+        _world.AddSkill(1);
+        _world.AddSkill(2);
+        ComboRow[] rows = [Row(1), Row(2)];
+
+        Press(rows);
+        Assert.Equal(1, Picked(rows));
+    }
+
     [Fact]
     public void NumberConditions()
     {
