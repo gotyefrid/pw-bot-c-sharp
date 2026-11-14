@@ -62,6 +62,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     private DateTime _lastMacro = DateTime.MinValue;
     private DateTime _lastPetOrder = DateTime.MinValue;
     private DateTime _lastApproach;
+    private readonly SkillComboPicker _combo = new();
 
     public string Name => "бой";
     public string? Status { get; private set; }
@@ -144,6 +145,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         _lastSword = DateTime.MinValue;
         _lastMacro = DateTime.MinValue;
         _lastPetOrder = DateTime.MinValue;
+        _combo.NewFight();
         c.Log.Info($"Бой: {mob.Name} 0x{mob.Wid:X8}, {mob.Offset}{(why.Length > 0 ? " — " + why : "")}");
     }
 
@@ -285,7 +287,9 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         // Моба загораживает камень, дом или дерево — сначала обходим, пока прямая до него не откроется (скилл «как кнопкой»
         // иначе ведёт перса по прямой в препятствие)
         // Скилл бьёт сквозь препятствия, если моб в радиусе (дальность скилла, как в подсказке, с запасом 1 м) — тогда не обходим
-        var range = combat.UseSkill && combat.AttackMacro == 0 ? w.Skill(combat.AttackSkillId)?.Range : null;
+        var combo = combat.UseSkill && combat.UseCombo ? _combo.Pick(combat.Combo, w, mob, c.Now - _fightStarted, c.Now) : null;
+        var range = combo is not null ? combo.Row is { } row ? w.Skill(row.SkillId)?.Range : null
+            : combat.UseSkill && combat.AttackMacro == 0 ? w.Skill(combat.AttackSkillId)?.Range : null;
         if (_walk.Step(c, mob.Position, mob.Name, within: range is { } r ? r - RangeMargin : 0))
         {
             Status = $"обхожу препятствие к {mob.Name}";
@@ -297,7 +301,12 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         if (combat.ComeCloser && c.Runner.Capabilities.Has(Capability.Move) && ComeCloser(c, mob))
             return true;
 
-        if (combat.UseSkill && combat.AttackMacro > 0)
+        if (combo is not null)
+        {
+            if (Combo(c, combo, mob))
+                return true;
+        }
+        else if (combat.UseSkill && combat.AttackMacro > 0)
         {
             if (Macro(c, combat.AttackMacro))
                 return true;
@@ -318,6 +327,40 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         if (!combat.UseSkill && !combat.UseSword && !(c.Settings.Pet.Enabled && w.Pet is { IsSummoned: true }))
             c.Say("nothing-to-attack", "Нечем бить: включите скилл или меч (или пета)", LogLevel.Warning, 60);
 
+        return true;
+    }
+
+    /// <summary>Нажать строку связки, которую выбрал <see cref="SkillComboPicker"/>. true — нажата сейчас или ждём строку «ждать».</summary>
+    private bool Combo(BrainContext c, ComboChoice choice, NpcInfo mob)
+    {
+        if (c.Settings.Combat.Combo.Count == 0)
+        {
+            c.Say("no-combo", "Связка скиллов пуста — выберите связку или добавьте в неё скиллы", LogLevel.Warning, 60);
+            return false;
+        }
+
+        if (choice.Waiting is { } waiting)
+        {
+            Status = $"бой: {mob.Name}, {waiting}";
+            return true;
+        }
+
+        if (choice.Row is not { } row)
+        {
+            Status = $"бой: {mob.Name}, в связке ничего не подходит";
+            if (choice.Skipped.Count > 0)
+                c.Say("combo-none", "Связка: ничего не подходит — " + string.Join("; ", choice.Skipped), LogLevel.Debug, 10);
+            return false;
+        }
+
+        // Строку считаем нажатой, только когда скилл действительно ушёл (не «занято» и не «прошлый ещё ждёт подтверждения»)
+        var sent = c.Send(new SkillAction(row.SkillId, 0, approach: true, $"связка: {row.Title}"));
+        if (sent != SubmitStatus.Sent)
+            return sent == SubmitStatus.AlreadyPending;
+
+        _combo.Pressed(choice, c.Now);
+        c.Log.Debug(choice.Skipped.Count == 0 ? $"Связка: строка {choice.Index + 1}, {row.Title}"
+            : $"Связка: строка {choice.Index + 1}, {row.Title}; пропущены: {string.Join("; ", choice.Skipped)}");
         return true;
     }
 

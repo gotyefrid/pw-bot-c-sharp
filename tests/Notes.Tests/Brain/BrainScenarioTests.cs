@@ -1155,6 +1155,80 @@ public class BrainScenarioTests
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("macro"));
     }
 
+    [Fact]
+    public void ComboPressesRowsTopDown()
+    {
+        // Связка: «Огненный шар» пока готов, на перезарядке — «Молния»; строку «добить» (HP моба < 30 %) не трогаем
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.UseCombo = true;
+        _settings.Combat.Combo =
+        [
+            new ComboRow { SkillId = 3, Conditions = [new ComboCondition { Check = ComboCheck.MobHp, Below = true, Value = 30 }] },
+            new ComboRow { SkillId = 1 },
+            new ComboRow { SkillId = 2 },
+        ];
+        _world.AddSkill(1);
+        _world.AddSkill(2);
+        _world.AddSkill(3);
+        var mob = _world.AddMob(0x80000001, "Волк", 2, hp: 100);
+        _world.Replace(mob, m => m with { MaxHp = 100 });
+        _world.TargetWid = mob.Wid;
+
+        Tick();
+        Tick();
+        Assert.Equal("apply 1 0", LastCall);
+
+        // Шар ушёл на перезарядку — подтверждён; дальше молния
+        _world.Skills[0] = _world.Skills[0] with { CooldownLeftMs = 3000 };
+        Tick();
+        Tick();
+        Assert.Equal("apply 2 0", LastCall);
+
+        // Моб почти умер — добивание
+        _world.Skills[1] = _world.Skills[1] with { CooldownLeftMs = 3000 };
+        _world.Replace(mob, m => m with { Hp = 20 });
+        Tick();
+        Tick();
+        Assert.Equal("apply 3 0", LastCall);
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("macro"));
+    }
+
+    [Fact]
+    public void ComboWaitRowHoldsSword()
+    {
+        // Строка «ждать» на перезарядке: ниже не смотрим и меч не жмём — ждём её
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.UseSword = true;
+        _settings.Combat.UseCombo = true;
+        _settings.Combat.Combo = [new ComboRow { SkillId = 1, WaitReady = true }, new ComboRow { SkillId = 2 }];
+        _world.AddSkill(1, cooldownLeftMs: 2000);
+        _world.AddSkill(2);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 2, hp: 100).Wid;
+
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply") || c.StartsWith("attack"));
+    }
+
+    [Fact]
+    public void EmptyComboFallsBackToSword()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.UseSword = true;
+        _settings.Combat.UseCombo = true;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 2, hp: 100).Wid;
+
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
+        Assert.Contains(_log, e => e.Message.Contains("Связка скиллов пуста"));
+    }
+
     // ── Лут ─────────────────────────────────────────────────────────────────
 
     [Fact]
