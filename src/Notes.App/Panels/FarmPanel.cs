@@ -80,28 +80,42 @@ public sealed class FarmPanel : ObservableObject
 
     // ── Списки и скилл ───────────────────────────────────────────────────────
 
-    /// <param name="Key">ID скилла; у макроса — минус его номер.</param>
+    /// <param name="Key">ID скилла; у макроса — минус его номер; у связки — <see cref="ComboKey"/>.</param>
     public sealed record AttackChoice(int Key, string Title, ImageSource? Icon);
+
+    /// <summary>Пункт «Связка скиллов» в списке «Атака»: не ID скилла и не номер макроса.</summary>
+    public const int ComboKey = int.MinValue;
+
+    private static readonly AttackChoice ComboChoice = new(ComboKey, "Связка скиллов", null);
 
     /// <summary>
     /// Чем бить: атакующие скиллы персонажа (изученные, кроме лечения/воскрешения/портала) с названиями из игры, за ними —
-    /// его макросы.
+    /// его макросы, в конце — связка скиллов (есть и без игры).
     /// </summary>
     public ObservableCollection<AttackChoice> AttackSkills { get; } = new();
 
-    /// <summary>Выбор в списке «Атакующий скилл»: ID скилла или минус номер макроса (<see cref="AttackChoice.Key"/>).</summary>
+    /// <summary>
+    /// Выбор в списке «Атакующий скилл»: ID скилла, минус номер макроса или связка (<see cref="AttackChoice.Key"/>). Связка
+    /// помнит прежний скилл или макрос: выбрали их снова — бот бьёт ими.
+    /// </summary>
     public int SelectedAttack
     {
-        get => Settings.Combat.AttackMacro > 0 ? -Settings.Combat.AttackMacro : Settings.Combat.AttackSkillId;
+        get => Settings.Combat.UseCombo ? ComboKey : Settings.Combat.AttackMacro > 0 ? -Settings.Combat.AttackMacro : Settings.Combat.AttackSkillId;
         set
         {
             // 0 — пересборка списка сбросила выбор: это не выбор пользователя
-            if (value < 0)
+            if (value == ComboKey)
             {
+                Settings.Combat.UseCombo = true;
+            }
+            else if (value < 0)
+            {
+                Settings.Combat.UseCombo = false;
                 Settings.Combat.AttackMacro = -value;
             }
             else if (value > 0)
             {
+                Settings.Combat.UseCombo = false;
                 Settings.Combat.AttackMacro = 0;
                 Settings.Combat.AttackSkillId = value;
             }
@@ -165,6 +179,7 @@ public sealed class FarmPanel : ObservableObject
         LoadNameLists();
         LoadPoints();
         AttackSkills.Clear();
+        AttackSkills.Add(ComboChoice);
         OnPropertyChanged(nameof(SelectedAttack));
     }
 
@@ -204,6 +219,7 @@ public sealed class FarmPanel : ObservableObject
             .Where(s => !profile.Skills.NotAttack.Contains(s.Id))
             .Select(s => new AttackChoice(s.Id, s.Name is null ? $"скилл {s.Id}" : $"{s.Name} ({s.Id})", ToImage(_skillIcon(s.Id))))
             .Concat(w.Macros.Select(m => new AttackChoice(-m.Number, $"Макрос {m.Number}", ToImage(_macroIcon(m)))))
+            .Append(ComboChoice)
             .ToList();
         if (choices.SequenceEqual(AttackSkills))
             return;

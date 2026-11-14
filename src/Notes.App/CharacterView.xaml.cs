@@ -37,6 +37,7 @@ public partial class CharacterView : UserControl
         // Правка точки маршрута: координаты, «в воздухе», радиус и что копать
         model.Route.EditRequested += draft => new RoutePointWindow { Owner = Owner, DataContext = draft }.ShowDialog();
         model.Route.AskName = (title, current) => NameWindow.Ask(Owner, title, current);
+        model.Combos.AskName = (title, current) => NameWindow.Ask(Owner, title, current);
 
         // Лог в RichTextBox: текст можно выделять и копировать
         RebuildLog();
@@ -109,6 +110,27 @@ public partial class CharacterView : UserControl
     }
 
     private void EditPoint(Panels.PointDraft draft) => new PointWindow { Owner = Owner, DataContext = draft }.ShowDialog();
+
+    // Окно связок скиллов: пока оно открыто, вопросы и название связки — поверх него
+    private void OpenCombos(object sender, RoutedEventArgs e)
+    {
+        var combos = _model.Combos;
+        var window = new ComboWindow { Owner = Owner, DataContext = combos };
+        var dialogs = combos.Dialogs;
+        var askName = combos.AskName;
+        combos.Dialogs = new WindowDialogs(window);
+        combos.AskName = (title, current) => NameWindow.Ask(window, title, current);
+        combos.Observe();
+        try
+        {
+            window.ShowDialog();
+        }
+        finally
+        {
+            combos.Dialogs = dialogs;
+            combos.AskName = askName;
+        }
+    }
 
     private void OpenLogFilters(object sender, RoutedEventArgs e) => new LogFilterWindow { Owner = Owner, DataContext = _model.Log }.ShowDialog();
 

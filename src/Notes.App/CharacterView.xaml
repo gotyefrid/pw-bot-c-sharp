@@ -757,9 +757,11 @@
             <TextBlock Text="БОЙ" Style="{StaticResource CardTitle}" />
             <DockPanel Style="{StaticResource SettingRow}">
               <CheckBox Style="{StaticResource Switch}" Content="Атакующий скилл" IsChecked="{Binding Settings.Combat.UseSkill}" VerticalAlignment="Center" />
+              <Button DockPanel.Dock="Right" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="6,0,0,0" Content="&#xE713;"
+                      Click="OpenCombos" ToolTip="Связки скиллов: какие скиллы жать, по порядку и при каких условиях. Бот бьёт связкой, когда в списке выбрано «Связка скиллов»" />
               <ComboBox DockPanel.Dock="Right" Width="220" ItemsSource="{Binding Farm.AttackSkills}"
                         SelectedValuePath="Key" SelectedValue="{Binding Farm.SelectedAttack}"
-                        ToolTip="Скилл — бот кастует его и ждёт, что каст начался. Макрос — бот только запускает его, дальше игра крутит его сама">
+                        ToolTip="Скилл — бот кастует его и ждёт, что каст начался. Макрос — бот только запускает его, дальше игра крутит его сама. Связка скиллов — бот жмёт скиллы по строкам связки (настройка — кнопка рядом)">
                 <ComboBox.ItemTemplate>
                   <DataTemplate>
                     <StackPanel Orientation="Horizontal">
