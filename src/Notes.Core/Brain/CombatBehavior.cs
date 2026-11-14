@@ -24,7 +24,8 @@ namespace Notes.Core.Brain;
 /// </list>
 /// </summary>
 /// <param name="defendOnly">Только защита (обход ресурсов): сами мобов не ищем, бьём того, кто напал на перса или пета, —
-/// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма).</param>
+/// всегда, что бы ни стояло в «сначала тех, кто бьёт меня» (это настройка фарма). Никто не нападает — бьём моба, которого просит
+/// другое поведение (<see cref="FightState.Prey"/>: моб задания), тем же, что настроено для боя.</param>
 /// <param name="leaveDangerous">Опасных мобов обхода (<see cref="DangerZones.Flee"/>; с «Не драться» — всех) не бить никогда, даже
 /// напавших: от них уходит <see cref="EscapeBehavior"/>. Цель у моба после отагра может застрять на нас — без этого бой принимал его за напавшего.</param>
 public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous = false) : IBehavior, IWatchingBehavior
@@ -62,6 +63,8 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     private DateTime _lastMacro = DateTime.MinValue;
     private DateTime _lastPetOrder = DateTime.MinValue;
     private DateTime _lastApproach;
+    // Бой начат по просьбе другого поведения (<see cref="FightState.Prey"/>), а не потому, что моб напал
+    private bool _forPrey;
     private readonly SkillComboPicker _combo = new();
 
     public string Name => "бой";
@@ -104,16 +107,18 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         var aggressor = MostDangerous(c, out _);
         if (defendOnly)
         {
-            if (aggressor is null)
+            var enemy = aggressor ?? Prey(c);
+            if (enemy is null)
                 return false;
-            if (w.Host.TargetWid == aggressor.Wid)
+            if (w.Host.TargetWid == enemy.Wid)
             {
-                StartFight(c, aggressor, "напал");
+                StartFight(c, enemy, aggressor is not null ? "напал" : "просят убить");
+                _forPrey = aggressor is null;
                 return Fight(c);
             }
 
-            Status = $"выбираю цель {aggressor.Name}";
-            return c.Submit(new SelectTargetAction(aggressor));
+            Status = $"выбираю цель {enemy.Name}";
+            return c.Submit(new SelectTargetAction(enemy));
         }
 
         var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && c.InFarmArea(t) ? t : null;
@@ -136,9 +141,16 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         return c.Submit(new SelectTargetAction(mob));
     }
 
+    // Моб, которого просит убить другое поведение (задания): виден, жив, не брошен боем и не из тех, с кем не дерёмся
+    private NpcInfo? Prey(BrainContext c)
+        => c.Fight.Prey is var wid and not 0
+            ? c.World.Mobs.FirstOrDefault(m => m.Wid == wid && !m.IsDead && !_gaveUp.ContainsKey(m.Wid) && !Leaves(c, m))
+            : null;
+
     private void StartFight(BrainContext c, NpcInfo mob, string why)
     {
         c.Fight.Start(mob);
+        _forPrey = false;
         _fightStarted = c.Now;
         _lowestHp = 0;
         _targetLostAt = null;
@@ -178,6 +190,14 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             c.Log.Info($"{name}: не дерусь — бросаю бой");
             fight.Abort();
             return false;
+        }
+
+        // Моба больше не просят убить (задания бросили его: не убить за свой срок), а он нас не бьёт — бросаем и снимаем цель
+        if (_forPrey && mob.Wid != fight.Prey && ThreatOf(c, mob) == Threat.None)
+        {
+            c.Log.Info($"{name}: больше не нужен — бросаю бой");
+            fight.Abort();
+            return c.Submit(new UnselectAction());
         }
 
         // Цель у перса сбрасывается чуть раньше, чем у моба ставится флаг смерти — даём ему время

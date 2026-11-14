@@ -98,14 +98,15 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Прокачать друида: выжить → (прервать каст без цели) → пет → защита (бьём только напавших) → задания по журналу: бить мобов
-    /// цели издалека, ходить «умно», брать и сдавать у NPC.
+    /// Прокачать друида: выжить → (прервать каст без цели) → пет → бой (напавших — первыми, потом моба задания, которого выбрали
+    /// задания; бьёт тем, что настроено в «Общем») → лут (как настроен; он же возвращает бой к поиску после убийства) → задания по
+    /// журналу: найти моба цели и подойти к нему, ходить «умно», брать и сдавать у NPC.
     /// </summary>
     private static BotBrain LevelUp(BrainContext context, QuestGuide guide)
     {
         var quests = new QuestBehavior(guide);
         return new BotBrain(context,
-            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), quests],
+            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), new LootBehavior(), quests],
             main: quests);
     }
 

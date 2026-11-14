@@ -14,7 +14,7 @@ using Xunit;
 
 namespace Notes.Tests.Brain;
 
-/// <summary>«Прокачать друида»: взять первое задание, бить мобов цели издалека, ходить «умно», сдавать и закрывать окно NPC.</summary>
+/// <summary>«Прокачать друида»: взять первое задание, найти мобов цели (бьёт их бой из «Общего»), ходить «умно», сдавать и закрывать окно NPC.</summary>
 public class QuestBehaviorTests
 {
     private const int StartTask = 1177;
@@ -160,8 +160,9 @@ public class QuestBehaviorTests
     }
 
     [Fact]
-    public void QuestMobInRange_SelectsThenCastsWithoutApproach()
+    public void QuestMobInRange_SelectsThenCombatHitsWithItsSkill()
     {
+        _settings.Combat.UseSkill = true;
         _world.Quests = [KillMoths(3)];
         var moth = AddMob(0x80103FA0, Moth, "Малахитовый мотыль", 12);
         AddMob(0x80103E72, 3303, "Малая росянка", 5);
@@ -171,8 +172,103 @@ public class QuestBehaviorTests
 
         _world.TargetWid = moth.Wid;
         Tick();
-        // Пакетом по WID — без подхода «как кнопкой»
-        Assert.Equal($"cast {_settings.Combat.AttackSkillId} {moth.Wid:X}", _actions.Calls.Last());
+        // Бьёт бой из «Общего»: скилл из настроек «как кнопкой» по текущей цели, а не пакет по WID
+        Assert.Equal($"apply {_settings.Combat.AttackSkillId} 0", _actions.Calls.Last());
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("cast"));
+    }
+
+    [Fact]
+    public void QuestMob_HitWithCombatMacro()
+    {
+        _settings.Combat.UseSkill = true;
+        _settings.Combat.AttackMacro = 2;
+        _world.Macros.Add(new MacroInfo(2, 0));
+        _world.Quests = [KillMoths(3)];
+        var moth = AddMob(0x80103FA0, Moth, "Малахитовый мотыль", 12);
+
+        Tick();
+        _world.TargetWid = moth.Wid;
+        Tick();
+
+        Assert.Equal("macro 2", _actions.Calls.Last());
+    }
+
+    // Жалоба из игры: моб умер, а скилл по нему ждал подтверждения 8 с — бот стоял
+    [Fact]
+    public void QuestMobDied_NextOneWithoutWaitingForSkillTimeout()
+    {
+        _settings.Combat.UseSkill = true;
+        _settings.Loot.Enabled = false;
+        _world.Quests = [KillMoths(3)];
+        var first = AddMob(0x80103FA7, Moth, "Малахитовый мотыль", 10);
+        var second = AddMob(0x80103FA5, Moth, "Малахитовый мотыль", 15);
+        Tick();
+        _world.TargetWid = first.Wid;
+        Tick();
+        Assert.Equal($"apply {_settings.Combat.AttackSkillId} 0", _actions.Calls.Last());
+
+        // Скилл ещё ждёт подтверждения, а моб умер (цель у перса осталась на нём)
+        _world.Replace(first, m => m with { State = NpcState.Dead });
+        Tick();
+        Tick();
+        Assert.Equal($"select {second.Wid:X}", _actions.Calls.Last());
+
+        _world.TargetWid = second.Wid;
+        Tick();
+        Assert.Equal($"apply {_settings.Combat.AttackSkillId} 0", _actions.Calls.Last());
+        Assert.Equal(2, _actions.Calls.Count(c => c.StartsWith("apply")));
+    }
+
+    [Fact]
+    public void Aggressor_BeatenBeforeQuestMob()
+    {
+        _settings.Combat.UseSkill = true;
+        _world.Quests = [KillMoths(3)];
+        var moth = AddMob(0x80103FA0, Moth, "Малахитовый мотыль", 10);
+        var wolf = new NpcInfo(0x80103E72, 0x80103E72, NpcKind.Mob, NpcState.Attacking, FakeWorld.HostWid, new Position(6, 0, 0), "Волк", 0) { Tid = 3303 };
+        _world.Npcs.Add(wolf);
+        _world.TargetWid = moth.Wid;
+
+        Tick();
+
+        Assert.Equal([$"select {wolf.Wid:X}"], _actions.Calls);
+    }
+
+    [Fact]
+    public void Aggressor_TakesOverFightWithQuestMob()
+    {
+        _settings.Combat.UseSkill = true;
+        _world.Quests = [KillMoths(3)];
+        var moth = AddMob(0x80103FA0, Moth, "Малахитовый мотыль", 10);
+        Tick();
+        _world.TargetWid = moth.Wid;
+        Tick();
+        Assert.Equal("apply", _actions.Calls.Last().Split(' ')[0]);
+
+        var wolf = new NpcInfo(0x80103E72, 0x80103E72, NpcKind.Mob, NpcState.Attacking, FakeWorld.HostWid, new Position(6, 0, 0), "Волк", 0) { Tid = 3303 };
+        _world.Npcs.Add(wolf);
+        Tick();
+
+        Assert.Equal($"select {wolf.Wid:X}", _actions.Calls.Last());
+    }
+
+    [Fact]
+    public void QuestMobNotKilledInTime_DroppedForNextOne()
+    {
+        _settings.Combat.UseSkill = true;
+        _world.Quests = [KillMoths(3)];
+        var stuck = AddMob(0x80103FA0, Moth, "Малахитовый мотыль", 10);
+        var other = AddMob(0x80103FA1, Moth, "Малахитовый мотыль", 16);
+        Tick();
+        _world.TargetWid = stuck.Wid;
+        for (var i = 0; i < 42; i++)
+            Tick(1);
+
+        Assert.Contains("unselect", _actions.Calls);
+        _world.TargetWid = 0;
+        Tick();
+        Tick();
+        Assert.Equal($"select {other.Wid:X}", _actions.Calls.Last());
     }
 
     [Fact]

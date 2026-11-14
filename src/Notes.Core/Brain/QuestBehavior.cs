@@ -16,8 +16,9 @@ namespace Notes.Core.Brain;
 public sealed record QuestGuide(GuidePoints Points, IReadOnlyDictionary<int, QuestScript>? Scripts = null);
 
 /// <summary>
-/// «Прокачать друида»: делает принятые задания по журналу. Убить — бьёт мобов цели скиллом издалека (без подхода «как кнопкой»):
-/// видит такого — выбирает и бьёт, далеко — подходит «умно» на дальность скилла, нет рядом — идёт к местам, где они водятся. Цель
+/// «Прокачать друида»: делает принятые задания по журналу. Убить — сам не бьёт: видит моба цели — далеко — подходит «умно» на дальность
+/// скилла, рядом — выбирает целью и просит бой (<see cref="FightState.Prey"/>), а бьёт бой из «Общего» (<see cref="CombatBehavior"/>:
+/// скилл, связка, макрос, меч, пет — что настроено; напавшие — раньше); нет рядом — идёт к местам, где они водятся. Цель
 /// выполнена или задание «поговорить» — идёт «умно» к NPC, заговаривает, сдаёт и закрывает окно. Следующее задание игра выдаёт
 /// сама; принятых нет — берёт первое из «Доступных», которого нет в списке «не брать» (<see cref="Settings.QuestSettings"/>), у
 /// NPC, который его даёт; «Доступные» — как у окна игры: задания по уровню и проверка игры «можно взять». Брать нечего — встаёт:
@@ -27,7 +28,7 @@ public sealed record QuestGuide(GuidePoints Points, IReadOnlyDictionary<int, Que
 /// сдачи в том же разговоре выполняет шаги «after» (<see cref="QuestStep"/>: выучить скилл, вывести питомца…), потом закрывает окно.
 /// «Собрать» и прочие цели не умеет — встаёт с причиной.
 /// </summary>
-public sealed class QuestBehavior : IBehavior
+public sealed class QuestBehavior : IBehavior, IWatchingBehavior
 {
     // С какого расстояния NPC слышит разговор (сервер отказывает дальше ~5 м)
     private const float TalkDistance = 4f;
@@ -68,8 +69,11 @@ public sealed class QuestBehavior : IBehavior
     private QuestInfo? _offer;
     // Шаги скрипта после сдачи — по порядку, первый — текущий
     private readonly Queue<QuestStep> _steps = new();
+    // Какого моба цели бьём (бой — по просьбе FightState.Prey) и с какого времени: дольше MobLimit — бросаем
     private uint _mobWid;
     private DateTime _mobSince;
+    // На этом ходу задания охотились: нет — моба больше не просим
+    private bool _hunting;
     // С какого времени стоим под (над) NPC, а по высоте до него не достать
     private DateTime? _highSince;
 
@@ -79,6 +83,20 @@ public sealed class QuestBehavior : IBehavior
     public string? Status { get; private set; }
 
     public bool Tick(BrainContext c)
+    {
+        _hunting = false;
+        var busy = Step(c);
+        // Не охотимся (сдаём, берём, читаем журнал) — моба задания бой больше не бьёт, срок на него — с нуля
+        if (!_hunting)
+        {
+            _mobWid = 0;
+            c.Fight.Prey = 0;
+        }
+
+        return busy;
+    }
+
+    private bool Step(BrainContext c)
     {
         Status = null;
         c.Executor.Control.Requests.Quests = true;
@@ -133,45 +151,41 @@ public sealed class QuestBehavior : IBehavior
         }
     }
 
-    // Бить мобов цели: выбранный — скиллом издалека; иначе выбрать ближайшего; нет рядом — к местам, где водятся
+    // Мобы цели: выбрать одного (тот же, пока жив; иначе ближайший), далеко — подойти на дальность скилла, рядом — выбрать целью и
+    // попросить бой (FightState.Prey): бьёт бой из «Общего», тем, что там настроено. Рядом нет — к местам, где водятся
     private bool Hunt(BrainContext c, QuestInfo quest, List<QuestTarget> left)
     {
+        _hunting = true;
         var w = c.World;
         var tids = new HashSet<uint>(left.Select(t => t.Tid));
         Status = $"задание «{quest.Name}»: {string.Join(", ", left.Select(t => $"{MobName(w, t.Tid)} {Progress(w, t)}"))}";
 
-        if (w.Target is { Kind: NpcKind.Mob, IsDead: false } target && tids.Contains((uint)target.Tid) && !_skip.Contains(target.Wid))
-        {
-            if (_mobWid != target.Wid)
-                (_mobWid, _mobSince) = (target.Wid, c.Now);
-            if (c.Now - _mobSince > MobLimit)
-            {
-                c.Log.Info($"{target.Name}: не убить за {MobLimit.TotalSeconds:0} с — бросаю");
-                _skip.Add(target.Wid);
-                return c.Submit(new UnselectAction());
-            }
-
-            // По прямой, с высотой; моб выше дистанции — встать под ним
-            if (!target.Offset.WithinOnFoot(CastRange, NpcStop))
-                return Walk(c, Toward(w.Host.Position, target.Position, Math.Max(1f, target.Offset.FlatWithin(CastRange - 3))));
-
-            ForgetWalk(c);
-            var skill = c.Settings.Combat.AttackSkillId;
-            if (w.Skill(skill) is not { IsReady: true })
-                return true;
-            c.Submit(new SkillAction(skill, target.Wid, approach: false, $"атака скиллом {skill}"));
-            return true;
-        }
-
-        var mob = w.Mobs
-            .Where(m => !m.IsDead && tids.Contains((uint)m.Tid) && !_skip.Contains(m.Wid) && m.Offset.Direct <= SeeRange)
-            .OrderBy(m => m.Offset.Direct)
-            .FirstOrDefault();
+        bool Wanted(NpcInfo m) => !m.IsDead && tids.Contains((uint)m.Tid) && !_skip.Contains(m.Wid);
+        var mob = w.Mobs.FirstOrDefault(m => m.Wid == _mobWid && Wanted(m))
+                  ?? (w.Target is { Kind: NpcKind.Mob } target && Wanted(target) ? target : null)
+                  ?? w.Mobs.Where(m => Wanted(m) && m.Offset.Direct <= SeeRange).OrderBy(m => m.Offset.Direct).FirstOrDefault();
         if (mob is not null)
         {
+            if (_mobWid != mob.Wid)
+                (_mobWid, _mobSince) = (mob.Wid, c.Now);
+            if (Overdue(c))
+                return mob.Wid == w.Host.TargetWid ? c.Submit(new UnselectAction()) : true;
+
+            // По прямой, с высотой; моб выше дистанции — встать под ним. Пока идём, бой его не трогает
+            if (!mob.Offset.WithinOnFoot(CastRange, NpcStop))
+            {
+                c.Fight.Prey = 0;
+                return Walk(c, Toward(w.Host.Position, mob.Position, Math.Max(1f, mob.Offset.FlatWithin(CastRange - 3))));
+            }
+
             ForgetWalk(c);
-            return c.Submit(new SelectTargetAction(mob));
+            c.Fight.Prey = mob.Wid;
+            Status += $" — бой: {mob.Name}";
+            return w.Host.TargetWid == mob.Wid || c.Submit(new SelectTargetAction(mob));
         }
+
+        _mobWid = 0;
+        c.Fight.Prey = 0;
 
         // Рядом нет — к ближайшему ещё не осмотренному месту, где водятся
         var here = w.Host.Position;
@@ -190,6 +204,28 @@ public sealed class QuestBehavior : IBehavior
 
         Status += " — ищу";
         return Walk(c, fresh.OrderBy(s => s.HorizontalDistanceTo(here)).First());
+    }
+
+    // Текущего моба цели не убить за MobLimit (застрял за камнем, не достать) — бросить: больше его не выбирать и не просить бой
+    private bool Overdue(BrainContext c)
+    {
+        if (_mobWid == 0 || c.Now - _mobSince <= MobLimit)
+            return false;
+
+        var name = c.World.Npcs.FirstOrDefault(n => n.Wid == _mobWid)?.Name ?? $"0x{_mobWid:X8}";
+        c.Log.Info($"{name}: не убить за {MobLimit.TotalSeconds:0} с — бросаю");
+        _skip.Add(_mobWid);
+        if (c.Fight.Prey == _mobWid)
+            c.Fight.Prey = 0;
+        _mobWid = 0;
+        return true;
+    }
+
+    // Пока моба бьёт бой, ход у него, а не у заданий: срок на моба смотрим и здесь. Цель снимет бой — его больше не просят
+    public void Observe(BrainContext c, IBehavior? acted)
+    {
+        if (acted != this && c.Fight.Prey != 0 && c.Fight.Prey == _mobWid)
+            Overdue(c);
     }
 
     // Первое задание «Доступных», которое игра разрешает взять сейчас (её же проверка, что у окна), не из «не брать» и не отказанное.
@@ -403,8 +439,6 @@ public sealed class QuestBehavior : IBehavior
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
-        if (outcome.Action is SkillAction && outcome.Status == ActionStatus.Rejected)
-            c.Say("quest-skill", $"Скилл не прошёл: {outcome.Details}", LogLevel.Debug, 10);
     }
 
     public void Reset()

@@ -665,6 +665,10 @@ public sealed class SkillAction : GameAction
     {
         if (now.Skill(Skill) is { IsReady: false })
             return Verdict.Confirmed("началась перезарядка");
+        // Моб-цель умер, пока ждали (добил пет или прошлый удар) — скилл не понадобился: тело не держим до срока
+        var aim = TargetWid != 0 ? TargetWid : _approach ? now.Host.TargetWid : 0;
+        if (aim != 0 && now.Mobs.Any(m => m.Wid == aim && m.IsDead))
+            return Verdict.Cancelled("цель умерла, скилл не понадобился");
         // По текущей цели: игрок/бот сменил цель — скилл ушёл бы не туда. Цель умерла (каст после смерти, бот уже снял её) —
         // просто не понадобился
         if (_approach && TargetWid == 0 && now.Host.TargetWid != start.Host.TargetWid)

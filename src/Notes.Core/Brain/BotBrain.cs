@@ -148,6 +148,7 @@ public sealed class BotBrain : IBotRunner
             _context.StartPosition = null;
             _context.StopReason = null;
             _context.Fight.Abort();
+            _context.Fight.Prey = 0;
             _context.Fight.LootSpots.Clear();
             _busy = null;
             foreach (var behavior in _behaviors)
