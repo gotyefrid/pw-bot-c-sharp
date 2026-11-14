@@ -7,7 +7,7 @@ namespace Notes.Core.Settings;
 
 /// <summary>
 /// Связка скиллов в окне без самого окна: как строка читается в таблице, какие проверки можно выбрать, условие по умолчанию,
-/// перестановка строк и из каких скиллов выбирать.
+/// копия строки для окна строки, перестановка строк и из каких скиллов выбирать.
 /// </summary>
 public static class ComboEditing
 {
@@ -74,6 +74,31 @@ public static class ComboEditing
         var fresh = NewCondition(check, condition.SkillId, condition.SkillName);
         condition.Below = fresh.Below;
         condition.Value = fresh.Value;
+    }
+
+    /// <summary>Копия строки для окна строки: правки в ней не трогают строку, пока не нажали «Сохранить».</summary>
+    public static ComboRow Copy(ComboRow row)
+    {
+        var copy = new ComboRow { Enabled = row.Enabled };
+        Apply(copy, row);
+        return copy;
+    }
+
+    /// <summary>
+    /// Настройки из окна строки — в строку: скилл, условия (копиями), «ждать», как часто. «Вкл» не трогает: она правится в
+    /// таблице, а не в окне строки.
+    /// </summary>
+    public static void Apply(ComboRow target, ComboRow edited)
+    {
+        target.SkillId = edited.SkillId;
+        target.SkillName = edited.SkillName;
+        target.Conditions = edited.Conditions.Select(c => new ComboCondition
+        {
+            Check = c.Check, Below = c.Below, Value = c.Value, SkillId = c.SkillId, SkillName = c.SkillName,
+        }).ToList();
+        target.WaitReady = edited.WaitReady;
+        target.Repeat = edited.Repeat;
+        target.IntervalSeconds = edited.IntervalSeconds;
     }
 
     /// <summary>Сдвинуть элемент на <paramref name="step"/> (−1 — выше, +1 — ниже). Новое место; сдвинуть некуда — −1.</summary>

@@ -96,6 +96,41 @@ public class ComboEditingTests
     }
 
     [Fact]
+    public void CopyIsIndependent()
+    {
+        var row = new ComboRow
+        {
+            SkillId = 1, SkillName = "Удар", Enabled = false, WaitReady = true, Repeat = ComboRepeat.Interval, IntervalSeconds = 15,
+            Conditions = [new ComboCondition { Check = ComboCheck.MobHp, Below = true, Value = 30 }],
+        };
+
+        var copy = ComboEditing.Copy(row);
+        copy.Conditions[0].Value = 50;
+        copy.Conditions.Add(new ComboCondition { Check = ComboCheck.MyMp, Value = 10 });
+
+        Assert.Equal((1, "Удар", false, true, ComboRepeat.Interval, 15), (copy.SkillId, copy.SkillName, copy.Enabled, copy.WaitReady, copy.Repeat, copy.IntervalSeconds));
+        Assert.Single(row.Conditions);
+        Assert.Equal(30, row.Conditions[0].Value);
+    }
+
+    [Fact]
+    public void ApplyTakesSettingsButNotEnabled()
+    {
+        var row = new ComboRow { SkillId = 1, SkillName = "Удар", Enabled = false };
+        var edited = new ComboRow
+        {
+            SkillId = 7, SkillName = "Молния", Enabled = true, WaitReady = true, Repeat = ComboRepeat.OncePerFight, IntervalSeconds = 20,
+            Conditions = [new ComboCondition { Check = ComboCheck.SkillReady, SkillId = 7, SkillName = "Молния" }],
+        };
+
+        ComboEditing.Apply(row, edited);
+
+        Assert.Equal((7, "Молния", false, true, ComboRepeat.OncePerFight, 20), (row.SkillId, row.SkillName, row.Enabled, row.WaitReady, row.Repeat, row.IntervalSeconds));
+        Assert.Equal("готов «Молния»", ComboEditing.ConditionsText(row));
+        Assert.NotSame(edited.Conditions[0], row.Conditions[0]);
+    }
+
+    [Fact]
     public void MoveUpAndDown()
     {
         var items = new List<string> { "a", "b", "c" };
