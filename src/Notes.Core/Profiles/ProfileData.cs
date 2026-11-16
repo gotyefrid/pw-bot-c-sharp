@@ -714,8 +714,11 @@ public sealed class SkillRangeOffsets
     /// <summary>Описание: стоимость в ярости (int); 0 — не требует.</summary>
     public uint ChiCost { get; init; }
 
-    /// <summary>Описание: стоимость в мане (int); 0 — не требует.</summary>
-    public uint ManaCost { get; init; }
+    /// <summary>Таблица описания [stub]: функция стоимости маны (float; обычно A × уровень + B).</summary>
+    public uint ManaCostFunction { get; init; }
+
+    /// <summary>Таблица описания [stub]: функция времени атаки, мс (int).</summary>
+    public uint AttackTimeFunction { get; init; }
 
     /// <summary>Объект скилла → ElementSkill.</summary>
     public uint Element { get; init; }
