@@ -701,16 +701,22 @@ public sealed class SkillOffsets
     /// <summary>Младший бит — «на перезарядке».</summary>
     public uint Flags { get; init; }
 
-    /// <summary>Где искать дальность скилла (<see cref="World.SkillRangeReader"/>); <see cref="SkillRangeOffsets.Element"/> 0 — не найдено.</summary>
+    /// <summary>Где искать дальность и стоимость скилла (описание); <see cref="SkillRangeOffsets.Element"/> 0 — не найдено.</summary>
     public SkillRangeOffsets Range { get; init; } = new();
 }
 
 /// <summary>
-/// Дальность скилла (<see cref="World.SkillRangeReader"/>): объект скилла клиента → объект ElementSkill (elementskill.dll) → его
-/// описание (stub) → тип, вид дальности и функция дальности в таблице описания.
+/// Описание скилла (stub): объект скилла + <see cref="Element"/> → ElementSkill, его + <see cref="Stub"/> → описание.
+/// В описании — дальность (<see cref="World.SkillRangeReader"/>), стоимость в ярости и мане.
 /// </summary>
 public sealed class SkillRangeOffsets
 {
+    /// <summary>Описание: стоимость в ярости (int); 0 — не требует.</summary>
+    public uint ChiCost { get; init; }
+
+    /// <summary>Описание: стоимость в мане (int); 0 — не требует.</summary>
+    public uint ManaCost { get; init; }
+
     /// <summary>Объект скилла → ElementSkill.</summary>
     public uint Element { get; init; }
 
