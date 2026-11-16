@@ -156,6 +156,85 @@ internal static class ScanCommands
         return 0;
     }
 
+    /// <summary>
+    /// Числа по любому адресу — int и float: таблицы функций, объекты скиллов и прочие структуры.
+    /// memints 0xАДРЕС [0xОТ 0xДО].
+    /// </summary>
+    public static int MemInts(GameProcess game, string[] args)
+    {
+        var range = args.Where(a => a.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            .Select(a => Convert.ToUInt32(a.Substring(2), 16)).ToList();
+        if (range.Count == 0)
+        {
+            Console.Error.WriteLine("Адрес: memints 0xАДРЕС [0xОТ 0xДО]");
+            return 1;
+        }
+
+        var address = range[0];
+        var from = range.Count > 1 ? range[1] : 0;
+        var to = range.Count > 2 ? range[2] : from + 0xFF;
+        if (to < from || to - from > 0x800)
+        {
+            Console.Error.WriteLine("❌ Диапазон — 0xОТ 0xДО, не больше 0x800 байт");
+            return 1;
+        }
+
+        var block = game.ReadBytes(address + from, (int)(to - from) + 4);
+        Console.WriteLine($"Адрес 0x{address:X8}");
+        for (var offset = from; offset <= to; offset += 4)
+        {
+            var at = (int)(offset - from);
+            var u = BitConverter.ToUInt32(block, at);
+            Console.WriteLine($"+0x{offset:X3}: 0x{u:X8} {unchecked((int)u),12} {BitConverter.ToSingle(block, at),12:0.##}");
+        }
+
+        return 0;
+    }
+
+    /// <summary>Байты по адресу — код функций, таблицы: memhex 0xАДРЕС [сколько].</summary>
+    public static int MemHex(GameProcess game, string[] args)
+    {
+        var hex = args.Where(a => a.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            .Select(a => Convert.ToUInt32(a.Substring(2), 16)).ToList();
+        if (hex.Count == 0)
+        {
+            Console.Error.WriteLine("Адрес: memhex 0xАДРЕС [сколько байт]");
+            return 1;
+        }
+
+        var address = hex[0];
+        var count = hex.Count > 1 ? (int)hex[1] : 64;
+        if (count <= 0 || count > 0x1000)
+        {
+            Console.Error.WriteLine("❌ Сколько байт — от 1 до 0x1000");
+            return 1;
+        }
+
+        var data = game.ReadBytes(address, count);
+        for (var i = 0; i < count; i += 16)
+        {
+            var line = data.Skip(i).Take(16).Select(b => b.ToString("X2"));
+            Console.WriteLine($"{address + (uint)i:X8}: {string.Join(" ", line)}");
+        }
+
+        return 0;
+    }
+
+    /// <summary>Строка UTF-16 по адресу (в данные игры): memstr 0xАДРЕС.</summary>
+    public static int MemStr(GameProcess game, string[] args)
+    {
+        var address = args.Where(a => a.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            .Select(a => Convert.ToUInt32(a.Substring(2), 16)).FirstOrDefault();
+        if (address == 0)
+        {
+            Console.Error.WriteLine("Адрес: memstr 0xАДРЕС");
+            return 1;
+        }
+
+        Console.WriteLine($"0x{address:X8}: «{game.ReadUnicodeString(address, 200)}»");
+        return 0;
+    }
+
     internal static string? TryString(IMemory memory, uint address)
     {
         try

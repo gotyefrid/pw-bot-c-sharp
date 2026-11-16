@@ -82,12 +82,20 @@ internal static class Program
                     return WithClient(rest, (profile, game) => ScanCommands.HostInts(profile, game, rest));
                 case "skillints":
                     return WithClient(rest, (profile, game) => SkillCommands.Ints(profile, game, rest));
+                case "skilltext":
+                    return WithClient(rest, (profile, game) => SkillCommands.Text(profile, game, rest));
                 case "mobessence":
                     return WithClient(rest, (profile, game) => ScanCommands.MobEssence(profile, game, rest));
                 case "mobfields":
                     return WithClient(rest, (profile, game) => ScanCommands.MobFields(profile, game, rest));
                 case "scanint":
                     return WithClient(rest, (profile, game) => ScanCommands.ScanInt(profile, game, rest));
+                case "memints":
+                    return WithClient(rest, (_, game) => ScanCommands.MemInts(game, rest));
+                case "memhex":
+                    return WithClient(rest, (_, game) => ScanCommands.MemHex(game, rest));
+                case "memstr":
+                    return WithClient(rest, (_, game) => ScanCommands.MemStr(game, rest));
                 case "scanstr":
                     return WithClient(rest, (profile, game) => ScanCommands.ScanStrings(profile, game, rest));
                 case "protector":
@@ -136,8 +144,12 @@ internal static class Program
         Console.WriteLine("  mobfields [мин макс]  поля мобов, одинаковые у одного вида и разные у разных (уровень?)");
         Console.WriteLine("  hostints [0xОТ 0xДО]  числа структуры перса подряд, int и float (соседние поля: опыт рядом с HP и MP)");
         Console.WriteLine(SkillCommands.Usage);
+        Console.WriteLine("  skilltext ID...  текст скилла из skillstr.txt как есть (название и описание)");
         Console.WriteLine("  mobessence [0xОТ 0xДО]  поля записи моба в справочнике (MONSTER_ESSENCE) по видам: int и float (поиск полей справочника)");
         Console.WriteLine("  scanint   ЧИСЛО... найти в структуре перса поля с этим значением (поиск «до/после»)");
+        Console.WriteLine("  memints 0xАДРЕС [0xОТ 0xДО]  числа по любому адресу, int и float (объект, таблица функций, описание)");
+        Console.WriteLine("  memhex 0xАДРЕС [сколько]  байты по адресу (код функции, таблица)");
+        Console.WriteLine("  memstr 0xАДРЕС  строка UTF-16 по адресу (названия, описания, статусы)");
         Console.WriteLine("  scanstr   [mob|npc|item|0xАДРЕС] найти в структуре указатели на строки (поиск поля «название»)");
         Console.WriteLine("  protector [exe игры] сторож клиента (pwprotector) рядом с exe: путь, размер, дата, sha256 и сверка с профилем");
         Console.WriteLine(CodeCommands.Usage);

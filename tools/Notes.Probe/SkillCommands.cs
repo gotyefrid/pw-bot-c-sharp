@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using Notes.Core.GameFiles;
 using Notes.Core.Memory;
 using Notes.Core.Profiles;
@@ -16,6 +18,66 @@ namespace Notes.Probe;
 internal static class SkillCommands
 {
     public const string Usage = "  skillints ID... [0xОТ 0xДО]  числа описания скиллов рядом: стоимость ярости и другие поля подсказки";
+
+    private static readonly Regex SkillString = new("^\\s*(\\d+)\\s+\"([^\"]*)\"", RegexOptions.Multiline | RegexOptions.Compiled);
+    private static readonly string[] Archives = ["configs.pck", "configs2.pck"];
+
+    /// <summary>
+    /// Текст скилла из skillstr.txt как есть: название (ID*10) и описание (ID*10+1). По нему видно, какие строки подсказки
+    /// игра собирает сама. Только чтение файлов игры.
+    /// </summary>
+    public static int Text(ServerProfile profile, GameProcess game, string[] args)
+    {
+        var ids = args.Where(a => int.TryParse(a, out var n) && n != game.Pid).Select(int.Parse).ToList();
+        if (ids.Count == 0)
+        {
+            Console.Error.WriteLine("Номера скиллов: skilltext 54 363");
+            return 1;
+        }
+
+        var directory = Path.GetDirectoryName(game.MainModulePath)!;
+        string? text = null;
+        foreach (var archive in Archives)
+        {
+            var path = Path.Combine(directory, archive);
+            if (!File.Exists(path))
+                continue;
+            try
+            {
+                if (PckArchive.ReadFile(path, "\\skillstr.txt", profile.Data.GameFiles.Pck) is { } data)
+                {
+                    text = Encoding.Unicode.GetString(data);
+                    break;
+                }
+            }
+            catch (Exception e) when (e is IOException or InvalidDataException)
+            {
+                Console.Error.WriteLine($"{archive}: {e.Message}");
+            }
+        }
+
+        if (text is null)
+        {
+            Console.Error.WriteLine("❌ Нет skillstr.txt в configs.pck/configs2.pck");
+            return 1;
+        }
+
+        var lines = new Dictionary<int, string>();
+        foreach (Match match in SkillString.Matches(text))
+            if (int.TryParse(match.Groups[1].Value, out var key))
+                lines[key] = match.Groups[2].Value;
+
+        foreach (var id in ids)
+        {
+            Console.WriteLine($"=== {id} ===");
+            Console.WriteLine(lines.TryGetValue(id * 10, out var name) ? name : "(названия нет)");
+            Console.WriteLine(lines.TryGetValue(id * 10 + 1, out var description) ? description : "(описания нет)");
+            Console.WriteLine();
+        }
+
+        return 0;
+    }
+
 
     public static int Ints(ServerProfile profile, GameProcess game, string[] args)
     {
