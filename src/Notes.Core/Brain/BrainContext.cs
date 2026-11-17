@@ -72,6 +72,9 @@ public sealed class BrainContext
     /// <summary>Когда последний раз выкопали ресурс (копка подтвердилась). Пишет копание; возврат в центр после копки не ждёт.</summary>
     public DateTime? GatheredAt { get; internal set; }
 
+    /// <summary>Когда последний раз убрали вещь в банк (подтвердилось). Пишет банк; лут после этого снова берёт предметы.</summary>
+    public DateTime? StashedAt { get; internal set; }
+
     public WorldState World { get; internal set; } = null!;
 
     /// <summary>Где стоял персонаж, когда бот запустили.</summary>

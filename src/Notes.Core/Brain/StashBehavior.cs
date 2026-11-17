@@ -239,6 +239,7 @@ public sealed class StashBehavior : IBehavior, IMultiStepBehavior
         if (outcome.Status == ActionStatus.Confirmed)
         {
             c.Log.Info($"В банк: {Text(item with { Count = count })}");
+            c.StashedAt = c.Now;
             return;
         }
 

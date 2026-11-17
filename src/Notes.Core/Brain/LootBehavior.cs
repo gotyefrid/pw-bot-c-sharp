@@ -31,6 +31,8 @@ public sealed class LootBehavior : IBehavior
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
     private const int ItemFailuresToPause = 2;
     private static readonly TimeSpan ItemPause = TimeSpan.FromMinutes(3);
+    // Неудачи «подряд» — только если между ними не дольше этого: старая неудача (часы назад) о сумке сейчас ничего не говорит
+    private static readonly TimeSpan ItemFailureMemory = TimeSpan.FromMinutes(2);
 
     private readonly HashSet<uint> _skipped = [];
     // На какое место списан подбор, что идёт сейчас (отменили — вернуть)
@@ -41,6 +43,7 @@ public sealed class LootBehavior : IBehavior
     private int _attempts;
     private DateTime _nextPickup;
     private int _itemFailures;
+    private DateTime _lastItemFailure = DateTime.MinValue;
     private DateTime _onlyMoneyUntil = DateTime.MinValue;
 
     public string Name => "лут";
@@ -98,6 +101,12 @@ public sealed class LootBehavior : IBehavior
             return true;
         }
 
+        // Убрали вещи в банк после начала паузы — место в сумке есть, предметы снова берём
+        if (_onlyMoneyUntil > c.Now && c.StashedAt is { } stashed && stashed > _onlyMoneyUntil - ItemPause)
+        {
+            _onlyMoneyUntil = DateTime.MinValue;
+            c.Log.Info("Убрал вещи в банк — снова подбираю предметы");
+        }
         var onlyMoney = c.Now < _onlyMoneyUntil;
         if (w.BagFull)
             c.Say("bag-full", "Сумка полна — подбираю только монеты и то, что ляжет в начатые стопки", LogLevel.Warning, 300);
@@ -154,7 +163,13 @@ public sealed class LootBehavior : IBehavior
         // Монеты идут в кошелёк — по ним о сумке не судим
         if (pickup.Item.Kind != GroundItemKind.Money && outcome.Status != ActionStatus.Failed)
         {
-            _itemFailures = outcome.Status == ActionStatus.Confirmed ? 0 : _itemFailures + 1;
+            if (outcome.Status == ActionStatus.Confirmed || c.Now - _lastItemFailure > ItemFailureMemory)
+                _itemFailures = 0;
+            if (outcome.Status != ActionStatus.Confirmed)
+            {
+                _itemFailures++;
+                _lastItemFailure = c.Now;
+            }
             if (_itemFailures >= ItemFailuresToPause)
             {
                 _itemFailures = 0;
@@ -191,6 +206,7 @@ public sealed class LootBehavior : IBehavior
         _skipped.Clear();
         _picking = null;
         _itemFailures = 0;
+        _lastItemFailure = DateTime.MinValue;
         _onlyMoneyUntil = DateTime.MinValue;
         Status = null;
     }
