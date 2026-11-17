@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Threading;
 using Notes.Core.Actions;
@@ -122,6 +122,12 @@ public sealed record LoginTimeouts
 
     /// <summary>Как часто смотреть на экран: чтение дешёвое, а каждая проверка шага (логин в поле, фокус) ждёт хотя бы один раз.</summary>
     public TimeSpan Poll { get; init; } = TimeSpan.FromMilliseconds(100);
+
+    /// <summary>
+    /// Пауза перед каждым действием на экране входа. Comeback 1.4.6: свежий клиент, которому сразу после появления экрана
+    /// вписали логин и нажали «Войти», падает (ошибка кучи 0xc0000374); с паузой 0,5 с — входит.
+    /// </summary>
+    public TimeSpan Pause { get; init; } = TimeSpan.FromMilliseconds(500);
 }
 
 /// <summary>
@@ -204,8 +210,10 @@ public sealed class LoginFlow
         if (view.Stage == LoginStage.Login)
         {
             progress(string.IsNullOrEmpty(view.Ping) ? "экран логина" : $"экран логина, пинг {view.Ping}");
+            Pause(token);
             TypeLogin(login, password, token);
             progress("логин и пароль введены, жду ответ сервера");
+            Pause(token);
             Button(GameFunctions.LoginConfirm, c => c.Login(), () => Press(EnterKey));
             view = WaitFor(v => v.Stage is LoginStage.Select or LoginStage.World || v.Message is not null, Timeouts.Answer,
                 "сервер не ответил на вход", token);
@@ -216,12 +224,14 @@ public sealed class LoginFlow
         if (view.Stage == LoginStage.Select)
         {
             progress("выбор персонажа");
+            Pause(token);
             ChooseRole(nick, token);
             progress($"вхожу {nick}, жду мир");
             // Comeback 1.3.6: поверх выбора бывает окно «Подсказка» (Win_PwdHint) — первый Enter закрывает его, а не входит.
             // Не ушли с выбора — Enter ещё раз. Вызову «Играть» подсказка не мешает
             for (var enter = 1; ; enter++)
             {
+                Pause(token);
                 Button(GameFunctions.SelectPlay, c => c.Play(), () => Press(EnterKey));
                 if (enter == 3 || TryWaitFor(v => v.Stage != LoginStage.Select || v.Message is not null, Timeouts.Step, token) is not null)
                     break;
@@ -237,6 +247,15 @@ public sealed class LoginFlow
         return new LoginResult(LoginOutcome.InWorld, name == nick ? $"{name} в мире" : $"в мире {name}, а не {nick}", name);
     }
 
+    // Пауза перед действием: клиент успевает доделать своё (см. LoginTimeouts.Pause). true — чтобы ставить в цепочку условий
+    private bool Pause(CancellationToken token)
+    {
+        _clock.Wait(Timeouts.Pause, token);
+        if (token.IsCancellationRequested)
+            throw new Stop(new LoginResult(LoginOutcome.Cancelled, "вход отменён"));
+        return true;
+    }
+
     // Логин — в поле логина с проверкой, что дошёл; пароль. Пароль из памяти не проверить: проверит ответ сервера
     private void TypeLogin(string login, string password, CancellationToken token)
     {
@@ -245,7 +264,7 @@ public sealed class LoginFlow
         {
             var account = calls.SetText(LoginScreen.AccountField, login);
             if (account.Ok && TryWaitFor(v => v.Account == login, Timeouts.Step, token) is not null
-                && calls.SetText(LoginScreen.PasswordField, password) is { Ok: true })
+                && Pause(token) && calls.SetText(LoginScreen.PasswordField, password) is { Ok: true })
                 return;
             _progress($"текст функцией игры не вписался ({(account.Ok ? "логин не в поле" : account.Details)}) — печатаю");
         }
