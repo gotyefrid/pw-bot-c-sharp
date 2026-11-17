@@ -29,6 +29,11 @@ public sealed class PetBehavior : IBehavior
 
     private readonly PetFeeding _feeding = new();
 
+    // Пет не призвался: игра пишет «Здесь невозможно призвать питомца», если перс стоит вплотную к дереву или камню. На том же
+    // месте звать бесполезно (бот так звал часами) — идём в центр фарма с обходом препятствий и зовём оттуда
+    private bool _toCenter;
+    private const float AtCenter = 2f;
+
     public string Name => "пет";
     public string? Status { get; private set; }
 
@@ -86,6 +91,12 @@ public sealed class PetBehavior : IBehavior
         {
             if (inCage.IsAlive)
             {
+                if (_toCenter && GoToCenter(c))
+                {
+                    Status = "иду в центр фарма — отсюда пет не призывается";
+                    return true;
+                }
+
                 Status = "призываю пета";
                 if (inCage.Name is { } name)
                     c.Say($"pet-summon-{inCage.Cage}", $"Зову {name} (клетка {inCage.Cage}, {PetPicker.Text(where)})", seconds: 60);
@@ -175,8 +186,38 @@ public sealed class PetBehavior : IBehavior
         => pet.ActiveCage is int cage && pet.InCage(cage) is { } active && active.HpPercent < c.Settings.Pet.HealPercent
            && c.World.Skill(c.Skills.HealPet) is { CooldownLeftMs: <= HealWaitMs };
 
+    // Ход к центру фарма: true — идём (ход занят); false — дошли, не можем или не идём — зовём пета здесь
+    private bool GoToCenter(BrainContext c)
+    {
+        var w = c.World;
+        if (c.Mine.Any(a => a is MoveAction))
+            return true;
+        if (c.FarmCenter is not { } center || !c.Runner.Capabilities.Has(Capability.Move)
+            || w.Host.Position.HorizontalDistanceTo(center) <= AtCenter || c.Runner.BodyBusy(w) is not null)
+        {
+            _toCenter = false;
+            return false;
+        }
+
+        var move = w.Host.Flying == true ? new MoveAction(center with { Height = w.Host.Position.Height }, AtCenter, fly: true)
+            : c.Swimming ? new MoveAction(center, AtCenter, swim: true)
+            : new MoveAction(center, AtCenter, smart: true);
+        var sent = c.Send(move);
+        if (sent == SubmitStatus.Sent)
+            c.Log.Info($"Пет отсюда не призывается — иду в центр фарма, {w.Host.Position.HorizontalDistanceTo(center):0} м");
+        if (sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending)
+            return true;
+        _toCenter = false;
+        return false;
+    }
+
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
+        // Не призвался — в центр фарма; дошли или не дошли до центра — зовём снова оттуда, где стоим
+        if (outcome.Action is SummonPetAction && outcome.Status is ActionStatus.Rejected or ActionStatus.Timeout)
+            _toCenter = true;
+        if (outcome.Action is MoveAction)
+            _toCenter = false;
         if (outcome.Action is UseItemAction { Use: ItemUse.PetFood } feed && outcome.Status != ActionStatus.Failed)
             c.Log.Info(_feeding.Report(feed.Item.Tid, outcome.Status == ActionStatus.Confirmed, c.Now));
     }
@@ -188,5 +229,6 @@ public sealed class PetBehavior : IBehavior
         _walk.Reset();
         Status = null;
         _calmSince = null;
+        _toCenter = false;
     }
 }

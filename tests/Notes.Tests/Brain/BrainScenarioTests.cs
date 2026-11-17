@@ -289,6 +289,27 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void PetNotSummonedGoesToFarmCenterAndCallsAgain()
+    {
+        // «Здесь невозможно призвать питомца» — перс стоит вплотную к дереву: идём в центр фарма и зовём оттуда
+        _settings.Pet.Enabled = true;
+        _world.SetPets(null, Scorpion);
+        Tick(); // центр фарма — место старта (0, 0)
+        Assert.Equal(["summon 1"], _actions.Calls);
+
+        _world.Position = new Position(20, 0, 0);
+        Tick(9); // призыв не подтвердился за 8 с
+        Tick();
+        Assert.StartsWith("move", LastCall);
+        Assert.EndsWith(" умно", LastCall);
+
+        _world.Position = new Position(0, 0, 0);
+        Tick();
+        Tick();
+        Assert.Equal("summon 1", LastCall);
+    }
+
+    [Fact]
     public void OnGroundFlyingPetIsSummonedToo()
     {
         // Летающих призывают и на земле; водного (карп в клетке раньше пчелы) — нет
@@ -1338,6 +1359,47 @@ public class BrainScenarioTests
         Tick();
 
         Assert.DoesNotContain("pickup-approach C0000002", _actions.Calls);
+    }
+
+    // Убить моба, уронить мех и не отдавать его: подбор отказан (стоим рядом, а предмет не исчезает)
+    private void KillAndFailPickup(uint mobWid, uint itemId)
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Loot.Enabled = true;
+        var mob = _world.AddMob(mobWid, "Волк", 2, hp: 100);
+        _world.TargetWid = mob.Wid;
+        Tick();
+        _world.Replace(mob, m => m with { State = NpcState.Dead });
+        _world.TargetWid = 0;
+        _world.Ground.Add(new GroundItem(0, itemId, 8094, GroundItemKind.Item, new Position(0.5f, 0, 0), "Мягкий мех"));
+        for (var i = 0; i < 30; i++)
+            Tick(0.5);
+        Assert.Contains($"pickup-approach {itemId:X}", _actions.Calls);
+        _world.Ground.Clear();
+        _world.Npcs.RemoveAll(n => n.Wid == mobWid);
+        Tick();
+    }
+
+    private bool OnlyMoneyPause => _log.Any(e => e.Message.Contains("подбираю только монеты"));
+
+    [Fact]
+    public void ItemFailuresHoursApartDoNotPauseItems()
+    {
+        KillAndFailPickup(0x80000001, 0xC0000001);
+        _world.Wait(3 * 3600);
+        KillAndFailPickup(0x80000002, 0xC0000002);
+
+        Assert.False(OnlyMoneyPause);
+    }
+
+    [Fact]
+    public void ItemFailuresInARowPauseItems()
+    {
+        KillAndFailPickup(0x80000001, 0xC0000001);
+        KillAndFailPickup(0x80000002, 0xC0000002);
+
+        Assert.True(OnlyMoneyPause);
     }
 
     private NpcInfo KillMobForLoot()
