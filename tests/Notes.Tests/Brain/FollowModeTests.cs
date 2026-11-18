@@ -328,6 +328,82 @@ public class FollowModeTests
         Assert.Contains($"select {mob.Wid:X}", _actions.Calls);
     }
 
+    // «Триумф»: 2 награды на выбор, как в игре
+    private static QuestInfo Triumph() => new QuestInfo(1179, "Триумф", 0, QuestGoals.Talk, Giver, [], [])
+    {
+        RewardChoices = [[new RewardItem(12498, 1), new RewardItem(8617, 5)], [new RewardItem(12501, 1), new RewardItem(8647, 5)]],
+    };
+
+    [Fact]
+    public void Board_LearnsLeadersRewardChoiceFromHisBag()
+    {
+        _leader.Quests = [Triumph()];
+        _board.Publish(_leader.Snapshot());
+
+        _leader.Quests = [];
+        _board.Publish(_leader.Wait(0.25).Snapshot());
+        Assert.Null(_board.RewardChoice("Главный", 1179));
+
+        _leader.Bag.Add(new InventoryItem(1, 12501, 0, 1, null, null));
+        _leader.Bag.Add(new InventoryItem(2, 8647, 9, 5, null, null));
+        _board.Publish(_leader.Wait(0.25).Snapshot());
+
+        Assert.Equal(1, _board.RewardChoice("главный", 1179));
+    }
+
+    [Fact]
+    public void Board_RewardNeverCame_ChoiceUnknown()
+    {
+        _leader.Quests = [Triumph()];
+        _board.Publish(_leader.Snapshot());
+        _leader.Quests = [];
+        _board.Publish(_leader.Wait(0.25).Snapshot());
+        _board.Publish(_leader.Wait(11).Snapshot());
+
+        _leader.Bag.Add(new InventoryItem(1, 12501, 0, 1, null, null));
+        _leader.Bag.Add(new InventoryItem(2, 8647, 9, 5, null, null));
+        _board.Publish(_leader.Wait(0.25).Snapshot());
+
+        Assert.Null(_board.RewardChoice("Главный", 1179));
+    }
+
+    [Fact]
+    public void LeaderHandedInWithChoice_HandsInSameReward()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.Quests = [Triumph()];
+        _leader.Quests = [Triumph()];
+        Tick();
+
+        _leader.Quests = [];
+        Tick();
+        Assert.Empty(_actions.Calls);
+        Assert.Contains("какую награду", Brain.Status);
+
+        _leader.Bag.Add(new InventoryItem(1, 12501, 0, 1, null, null));
+        _leader.Bag.Add(new InventoryItem(2, 8647, 9, 5, null, null));
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "return-task 1179 награда 1"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderHandedInWithChoice_Unknown_DoesNotHandIn()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.Quests = [Triumph()];
+        _leader.Quests = [Triumph()];
+        Tick();
+
+        _leader.Quests = [];
+        for (var i = 0; i < 20; i++)
+            Tick(1);
+
+        Assert.Empty(_actions.Calls);
+        Assert.Null(_stopped);
+    }
+
     [Fact]
     public void AsksLeaderTabToReadQuests()
     {

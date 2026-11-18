@@ -13,7 +13,9 @@ namespace Notes.Core.Brain.Follow;
 /// NPC, который его даёт, виден рядом (<see cref="NpcRange"/>): главный только что взял его у этого NPC, мы идём следом. Задания,
 /// которые выдаёт сама игра (следующее подзадание), не берём — придут сами. Сдать — задание было в журнале главного, а теперь
 /// его нет (сдал), у нас оно выполнено, и NPC, который принимает, виден рядом. Не выполнено — добиваем мобов цели, которых видно
-/// рядом (просьба бою, <see cref="FightState.Prey"/>), сами за ними далеко не ходим. NPC не дал или не принял <see cref="NpcTaskDeal.Tries"/>
+/// рядом (просьба бою, <see cref="FightState.Prey"/>), сами за ними далеко не ходим. Награда на выбор — та же, что взял главный
+/// (табло узнаёт её по его сумке, <see cref="LeaderBoard.RewardChoice"/>); не узнали за <see cref="LeaderBoard.RewardWait"/> —
+/// не гадаем: задание не сдаём, пишем в лог, сдать — руками. NPC не дал или не принял <see cref="NpcTaskDeal.Tries"/>
 /// раза — задание пропускаем до перезапуска, бота не останавливаем.
 /// </summary>
 public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
@@ -28,6 +30,10 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
     private readonly HashSet<int> _leaderHad = [];
     // Не берём и не сдаём больше в этот запуск: игра не даёт, NPC отказал, не знаем, кто даёт
     private readonly HashSet<int> _skip = [];
+    // Когда заметили, что главный сдал задание
+    private readonly Dictionary<int, DateTime> _leaderHanded = [];
+    // Choice: ждём, какую награду выбрал главный
+    private bool _waitingReward;
     private NpcTaskDeal? _deal;
     // Кого просили убить ради своего задания
     private uint _hunted;
@@ -77,10 +83,20 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
         {
             if (quest.AwardNpc == 0)
                 continue;
+            if (!_leaderHanded.ContainsKey(quest.Id))
+                _leaderHanded[quest.Id] = c.Now;
             if (Done(c.World, quest))
             {
+                // Ждём, какую награду выбрал главный, — стоим у NPC
+                if (Choice(c, leader.Host.Name, quest) is not { } choice)
+                {
+                    if (_waitingReward)
+                        return true;
+                    continue;
+                }
                 if (Npc(c.World, quest.AwardNpc) is { } npc)
-                    return Begin(c, new NpcTaskDeal(npc.Tid, quest.Id, accept: false, $"сдать «{quest.Name}»"), mine);
+                    return Begin(c, new NpcTaskDeal(npc.Tid, quest.Id, accept: false,
+                        choice > 0 || quest.RewardChoices is { Count: > 1 } ? $"сдать «{quest.Name}», награда {choice + 1}" : $"сдать «{quest.Name}»", choice), mine);
                 Status = $"задания: сдать «{quest.Name}» — не вижу NPC рядом";
                 continue;
             }
@@ -163,6 +179,28 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
         return true;
     }
 
+    // Какую награду брать: выбора нет — 0; есть — ту же, что главный. null — пока не знаем (ждём) или не узнали (пропускаем)
+    private int? Choice(BrainContext c, string leader, QuestInfo quest)
+    {
+        _waitingReward = false;
+        if (quest.RewardChoices is not { Count: > 1 })
+            return 0;
+        if (board.RewardChoice(leader, quest.Id) is { } choice)
+            return choice < quest.RewardChoices.Count ? choice : null;
+
+        if (c.Now - _leaderHanded[quest.Id] <= LeaderBoard.RewardWait + TimeSpan.FromSeconds(2))
+        {
+            Status = $"задания: «{quest.Name}» — жду, какую награду выбрал главный";
+            _waitingReward = true;
+            return null;
+        }
+
+        c.Log.Warning($"Задания: «{quest.Name}» — не узнал, какую награду выбрал главный (сумка полна или награда не пришла); "
+                      + "не сдаю — сдайте руками");
+        _skip.Add(quest.Id);
+        return null;
+    }
+
     private static bool Done(WorldState w, QuestInfo quest) => quest.Goal switch
     {
         QuestGoals.Kill => quest.Monsters.All(m => QuestBehavior.Enough(w, m)),
@@ -195,6 +233,7 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
     {
         _leaderHad.Clear();
         _skip.Clear();
+        _leaderHanded.Clear();
         _deal = null;
         _hunted = 0;
         Status = null;
@@ -213,7 +252,7 @@ public enum DealStep
 /// или сдать, дождаться журнала (<see cref="DealWait"/>), закрыть окно. Не вышло — ещё раз, всего <see cref="Tries"/> раза. Тот же
 /// разговор, что у «Прокачать друида» (<see cref="QuestBehavior"/>), без его скриптов после сдачи.
 /// </summary>
-public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what)
+public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what, int choice = 0)
 {
     public const int Tries = 3;
     private const float TalkDistance = 4f;
@@ -241,7 +280,7 @@ public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what)
             case Stage.Hello:
                 if (c.Now - _at < DialogWait)
                     return DealStep.Going;
-                c.Send(accept ? new NpcAcceptTaskAction(Task) : new NpcReturnTaskAction(Task));
+                c.Send(accept ? new NpcAcceptTaskAction(Task) : new NpcReturnTaskAction(Task, choice));
                 (_stage, _at) = (Stage.Deal, c.Now);
                 return DealStep.Going;
 

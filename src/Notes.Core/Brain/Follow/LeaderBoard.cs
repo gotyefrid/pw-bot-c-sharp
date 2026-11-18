@@ -12,6 +12,9 @@ namespace Notes.Core.Brain.Follow;
 /// Журнал заданий клиент читает не всегда (<see cref="WorldRequests.Quests"/>) — помощник просит его у главного
 /// (<see cref="WantQuests"/>), вкладка главного включает чтение (<see cref="QuestsWanted"/>). Потокобезопасна: пишут потоки
 /// снимков разных вкладок.
+/// Награда на выбор: игра не говорит, какую выбрал игрок, — табло видит это по его сумке. Задание с выбором пропало из журнала
+/// (сдал) — сравнивает сумку с той, что была до сдачи, пока не прибавятся предметы одного из вариантов (не дольше
+/// <see cref="RewardWait"/>); узнанный номер — <see cref="RewardChoice"/>.
 /// </summary>
 public sealed class LeaderBoard
 {
@@ -21,7 +24,16 @@ public sealed class LeaderBoard
     /// <summary>Сколько держать просьбу читать журнал после последней (помощник просит её каждый ход).</summary>
     public static readonly TimeSpan QuestsWish = TimeSpan.FromSeconds(10);
 
+    /// <summary>Столько после сдачи ждём награду в сумке; не пришла (сумка полна) — выбор не узнан.</summary>
+    public static readonly TimeSpan RewardWait = TimeSpan.FromSeconds(10);
+
     public static LeaderBoard Shared { get; } = new();
+
+    // Сдал задание с выбором — ждём награду в сумке: варианты, сумка до сдачи (tid → сколько), когда сдал
+    private sealed record Handed(int Task, IReadOnlyList<IReadOnlyList<RewardItem>> Choices, Dictionary<uint, int> Before, DateTime At);
+
+    private readonly Dictionary<string, List<Handed>> _handed = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(string Nick, int Task), int> _choices = [];
 
     private readonly object _lock = new();
     private readonly Dictionary<string, WorldState> _worlds = new(StringComparer.OrdinalIgnoreCase);
@@ -33,8 +45,51 @@ public sealed class LeaderBoard
         if (world.Host.Name.Length == 0)
             return;
         lock (_lock)
+        {
+            if (_worlds.TryGetValue(world.Host.Name, out var was))
+                WatchRewards(was, world);
             _worlds[world.Host.Name] = world;
+        }
     }
+
+    /// <summary>
+    /// Какую награду на выбор взял <paramref name="nick"/> за задание <paramref name="task"/> — номер с 0, как для сдачи; null — не
+    /// узнали (ещё не сдал, награда не пришла, сумка полна).
+    /// </summary>
+    public int? RewardChoice(string nick, int task)
+    {
+        lock (_lock)
+            return _choices.TryGetValue((nick.Trim().ToLowerInvariant(), task), out var choice) ? choice : null;
+    }
+
+    private void WatchRewards(WorldState was, WorldState now)
+    {
+        var nick = now.Host.Name;
+        if (!_handed.TryGetValue(nick, out var handed))
+            _handed[nick] = handed = [];
+
+        if (was.Quests is { } before && now.Quests is { } after)
+            foreach (var quest in before.Where(q => q.RewardChoices is { Count: > 1 } && after.All(a => a.Id != q.Id)))
+                handed.Add(new Handed(quest.Id, quest.RewardChoices!, Counts(was), now.Time));
+
+        foreach (var h in handed.ToList())
+        {
+            var counts = Counts(now);
+            var got = Enumerable.Range(0, h.Choices.Count)
+                .Where(i => h.Choices[i].Count > 0 && h.Choices[i].All(r => Gain(h.Before, counts, r.Tid) >= Math.Max(1, r.Count)))
+                .ToList();
+            if (got.Count == 1)
+                _choices[(nick.ToLowerInvariant(), h.Task)] = got[0];
+            if (got.Count == 1 || now.Time - h.At > RewardWait)
+                handed.Remove(h);
+        }
+    }
+
+    private static int Gain(Dictionary<uint, int> before, Dictionary<uint, int> now, uint tid)
+        => (now.TryGetValue(tid, out var n) ? n : 0) - (before.TryGetValue(tid, out var b) ? b : 0);
+
+    private static Dictionary<uint, int> Counts(WorldState w)
+        => w.Inventory.GroupBy(i => i.Tid).ToDictionary(g => g.Key, g => g.Sum(i => i.Count));
 
     /// <summary>Последний снимок персонажа <paramref name="nick"/>, если он не старше <see cref="Fresh"/> на момент <paramref name="now"/>; иначе null.</summary>
     public WorldState? Find(string nick, DateTime now)
