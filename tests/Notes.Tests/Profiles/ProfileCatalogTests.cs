@@ -122,6 +122,7 @@ public class ProfileCatalogTests
         Assert.Equal([1956u, 1957u, 1958u, 1959u, 1960u], profile.Data.LootGroups.Single(g => g.Name == "Камни").Types);
         Assert.Equal([5287u], profile.Data.LootGroups.Single(g => g.Name == "Яшма").Types);
         Assert.Equal([13632u, 13633u, 13634u, 13635u, 13636u, 13637u], profile.Data.LootGroups.Single(g => g.Name == "Сведения о Бездушных").Tids);
+        Assert.Equal([23343u], profile.Data.LootGroups.Single(g => g.Name == "Кристалл дружбы").Tids);
     }
 
     [Fact]
