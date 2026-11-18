@@ -15,7 +15,7 @@ namespace Notes.Core.Brain.Follow;
 /// его нет (сдал), у нас оно выполнено, и NPC, который принимает, виден рядом. Не выполнено — добиваем мобов цели, которых видно
 /// рядом (просьба бою, <see cref="FightState.Prey"/>), сами за ними далеко не ходим. Награда на выбор — та же, что взял главный
 /// (табло узнаёт её по его сумке, <see cref="LeaderBoard.RewardChoice"/>); не узнали за <see cref="LeaderBoard.RewardWait"/> —
-/// не гадаем: задание не сдаём, пишем в лог, сдать — руками. NPC не дал или не принял <see cref="NpcTaskDeal.Tries"/>
+/// не гадаем: задание не сдаём, пишем в лог, сдать — руками. NPC не дал или не принял <see cref="NpcDeal.Tries"/>
 /// раза — задание пропускаем до перезапуска, бота не останавливаем.
 /// </summary>
 public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
@@ -34,7 +34,7 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
     private readonly Dictionary<int, DateTime> _leaderHanded = [];
     // Choice: ждём, какую награду выбрал главный
     private bool _waitingReward;
-    private NpcTaskDeal? _deal;
+    private NpcDeal? _deal;
     // Кого просили убить ради своего задания
     private uint _hunted;
 
@@ -76,7 +76,7 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
             _leaderHad.Add(quest.Id);
 
         if (_deal is { } deal)
-            return Continue(c, deal, mine);
+            return Continue(c, deal);
 
         // Главный сдал — сдаём и мы (выполненное), не выполненное — добиваем мобов рядом
         foreach (var quest in mine.Where(q => _leaderHad.Contains(q.Id) && theirs.All(t => t.Id != q.Id) && !_skip.Contains(q.Id)))
@@ -95,8 +95,8 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
                     continue;
                 }
                 if (Npc(c.World, quest.AwardNpc) is { } npc)
-                    return Begin(c, new NpcTaskDeal(npc.Tid, quest.Id, accept: false,
-                        choice > 0 || quest.RewardChoices is { Count: > 1 } ? $"сдать «{quest.Name}», награда {choice + 1}" : $"сдать «{quest.Name}»", choice), mine);
+                    return Begin(c, NpcDeal.Task(npc.Tid, quest.Id, accept: false,
+                        choice > 0 || quest.RewardChoices is { Count: > 1 } ? $"сдать «{quest.Name}», награда {choice + 1}" : $"сдать «{quest.Name}»", choice));
                 Status = $"задания: сдать «{quest.Name}» — не вижу NPC рядом";
                 continue;
             }
@@ -123,23 +123,23 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
             }
 
             if (Npc(c.World, giver) is { } npc)
-                return Begin(c, new NpcTaskDeal(npc.Tid, quest.Id, accept: true, $"взять «{quest.Name}»"), mine);
+                return Begin(c, NpcDeal.Task(npc.Tid, quest.Id, accept: true, $"взять «{quest.Name}»"));
             Status = $"задания: взять «{quest.Name}» — не вижу NPC рядом";
         }
 
         return false;
     }
 
-    private bool Begin(BrainContext c, NpcTaskDeal deal, IReadOnlyList<QuestInfo> mine)
+    private bool Begin(BrainContext c, NpcDeal deal)
     {
         c.Log.Info($"Задания за главным: {deal.What}");
         _deal = deal;
-        return Continue(c, deal, mine);
+        return Continue(c, deal);
     }
 
-    private bool Continue(BrainContext c, NpcTaskDeal deal, IReadOnlyList<QuestInfo> mine)
+    private bool Continue(BrainContext c, NpcDeal deal)
     {
-        var step = deal.Tick(c, mine);
+        var step = deal.Tick(c);
         Status = $"задания: {deal.What}";
         switch (step)
         {
@@ -150,7 +150,7 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
                 return true;
             default:
                 c.Log.Warning($"Задания за главным: {deal.What} — не вышло ({deal.Failed}), пропускаю");
-                _skip.Add(deal.Task);
+                _skip.Add(deal.Key);
                 _deal = null;
                 return true;
         }
@@ -237,124 +237,5 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
         _deal = null;
         _hunted = 0;
         Status = null;
-    }
-}
-
-public enum DealStep
-{
-    Going,
-    Done,
-    Failed,
-}
-
-/// <summary>
-/// Взять или сдать одно задание у NPC: подойти по прямой (загораживает препятствие — своим обходом, <see cref="ObstacleWalk"/>; не
-/// автопутём клиента) на <see cref="TalkDistance"/>, «привет», через <see cref="DialogWait"/> — взять
-/// или сдать, дождаться журнала (<see cref="DealWait"/>), закрыть окно. Не вышло — ещё раз, всего <see cref="Tries"/> раза. Тот же
-/// разговор, что у «Прокачать друида» (<see cref="QuestBehavior"/>), без его скриптов после сдачи.
-/// </summary>
-public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what, int choice = 0)
-{
-    public const int Tries = 3;
-    private const float TalkDistance = 4f;
-    private const float NpcStop = 2.5f;
-    private static readonly TimeSpan DialogWait = TimeSpan.FromSeconds(1);
-    private static readonly TimeSpan DealWait = TimeSpan.FromSeconds(4);
-
-    private enum Stage { Walk, Hello, Deal }
-
-    private Stage _stage;
-    private DateTime _at;
-    private int _tries;
-    private readonly ObstacleWalk _walk = new();
-
-    public int Task { get; } = task;
-    public string What { get; } = what;
-
-    /// <summary>Почему не вышло (<see cref="DealStep.Failed"/>).</summary>
-    public string? Failed { get; private set; }
-
-    public DealStep Tick(BrainContext c, IReadOnlyList<QuestInfo> journal)
-    {
-        var w = c.World;
-        switch (_stage)
-        {
-            case Stage.Hello:
-                if (c.Now - _at < DialogWait)
-                    return DealStep.Going;
-                c.Send(accept ? new NpcAcceptTaskAction(Task) : new NpcReturnTaskAction(Task, choice));
-                (_stage, _at) = (Stage.Deal, c.Now);
-                return DealStep.Going;
-
-            case Stage.Deal:
-                var has = journal.Any(q => q.Id == Task);
-                if (accept == has)
-                {
-                    c.Log.Info(accept ? $"Взял задание {Task}" : $"Сдал задание {Task}");
-                    c.Send(new NpcDialogCloseAction());
-                    return DealStep.Done;
-                }
-                if (c.Now - _at < DealWait)
-                    return DealStep.Going;
-                c.Send(new NpcDialogCloseAction());
-                if (++_tries >= Tries)
-                {
-                    Failed = $"NPC не {(accept ? "дал" : "принял")} задание {Task} ({Tries} раза)";
-                    return DealStep.Failed;
-                }
-                c.Log.Warning($"Задание {Task}: NPC не {(accept ? "дал" : "принял")} — попробую ещё раз");
-                _stage = Stage.Walk;
-                return DealStep.Going;
-        }
-
-        var npc = w.Npcs.Where(n => n.Kind == NpcKind.Npc && n.Tid == npcTid).OrderBy(n => n.Offset.Direct).FirstOrDefault();
-        if (npc is null)
-        {
-            Failed = $"NPC {npcTid} пропал из виду";
-            return DealStep.Failed;
-        }
-
-        // Говорить — по прямой, с высотой: NPC на этаж выше или ниже сервер не слышит
-        if (npc.Offset.Direct <= TalkDistance)
-        {
-            _walk.Stop(c);
-            if (c.Runner.BodyBusy(w) is not null)
-                return DealStep.Going;
-            foreach (var walking in c.Mine.OfType<MoveAction>().ToList())
-                c.Forget(walking);
-            if (c.Send(new NpcHelloAction(npc.Wid)) == SubmitStatus.Sent)
-                (_stage, _at) = (Stage.Hello, c.Now);
-            return DealStep.Going;
-        }
-
-        if (npc.Offset.WithinOnFoot(TalkDistance, NpcStop))
-        {
-            Failed = $"{npc.Name} {(npc.Offset.Vertical > 0 ? "выше" : "ниже")} на {Math.Abs(npc.Offset.Vertical):0} м — не подойти";
-            return DealStep.Failed;
-        }
-
-        var point = Toward(w.Host.Position, npc.Position, Math.Max(1f, npc.Offset.FlatWithin(NpcStop)));
-        if (_walk.Step(c, point, npc.Name))
-            return DealStep.Going;
-        if (c.Mine.OfType<MoveAction>().FirstOrDefault() is { } going && going.Point.HorizontalDistanceTo(point) <= 3)
-            return DealStep.Going;
-        var sent = c.Mine.OfType<MoveAction>().Any() ? c.Replace(new MoveAction(point, 2f)) : c.Send(new MoveAction(point, 2f));
-        return sent == SubmitStatus.Failed ? Fail("не идёт к NPC") : DealStep.Going;
-    }
-
-    private DealStep Fail(string why)
-    {
-        Failed = why;
-        return DealStep.Failed;
-    }
-
-    // Точка на линии от перса к цели, не доходя до неё stop метров; высота — цели
-    private static Position Toward(Position from, Position to, float stop)
-    {
-        var dx = to.X - from.X;
-        var dy = to.Y - from.Y;
-        var length = (float)Math.Sqrt(dx * dx + dy * dy);
-        var keep = length <= stop ? 0f : (length - stop) / length;
-        return new Position(from.X + dx * keep, to.Height, from.Y + dy * keep);
     }
 }
