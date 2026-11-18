@@ -2268,15 +2268,62 @@ public class BrainScenarioTests
     [Fact]
     public void ReturnInAirFliesAtOwnHeight()
     {
-        // В воздухе к центру — на своей высоте, а не к земле (на перелёте — в склон)
+        // В воздухе за радиусом — к центру на своей высоте, а не к земле (на перелёте — в склон); сядет уже в радиусе
         FarmAt(30, radius: 60);
         _world.Flying = true;
-        _world.Position = new Position(0, 25, 0);
+        _world.Position = new Position(-40, 25, 0);
 
         for (var i = 0; i < 44; i++)
             Tick();
 
         Assert.Equal(["fly (30,0; 0,0; h 25,0)"], _actions.Calls);
+    }
+
+    [Fact]
+    public void GroundFarmInAirLandsEvenInFight()
+    {
+        // Точка фарма на земле, а перс в радиусе летит (встал на полёт руками) — садится сразу, бой подождёт
+        FarmAt(10, radius: 60);
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.Flying = true;
+        _world.Position = new Position(0, 20, 0);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+
+        Tick();
+
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+        Assert.Contains(_log, e => e.Message == "Центр фарма на земле, а перс в воздухе — сажусь");
+    }
+
+    [Fact]
+    public void StartPointHasNoStance()
+    {
+        // Без сохранённой точки (центр — где нажали «Старт») позы нет: в воздухе не сажаем
+        _settings.Target.KillMobs = true;
+        _settings.Target.FarmRadius = 60;
+        _world.Flying = true;
+        _world.Position = new Position(0, 20, 0);
+
+        for (var i = 0; i < 60; i++)
+            Tick();
+
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
+    }
+
+    [Fact]
+    public void AirFarmOnGroundWaitsWhileFighting()
+    {
+        // Точка в воздухе, перс на земле, но бьёт моба — не взлетает, пока бой
+        FarmInAirThenLand(new Position(0, 0, 0));
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+
+        for (var i = 0; i < 60; i++)
+            Tick();
+
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
     }
 
     // Центр фарма в воздухе (точку запоминали в полёте): старт — висим в нём, потом сели под ним (копали)
@@ -2305,14 +2352,14 @@ public class BrainScenarioTests
         for (var i = 0; i < 8; i++)
             Tick();
         Assert.Equal(["fly-toggle"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с, центр фарма в воздухе — взлетаю к нему"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Центр фарма в воздухе, а перс на земле — взлетаю"));
 
         _world.Flying = true;
         Tick();
         Tick();
 
         Assert.Equal(["fly-toggle", "fly (3,0; 0,0; h 50,0)"], _actions.Calls);
-        Assert.Contains(_log, e => e.Message.StartsWith("Целей рядом нет 10 с — поднимаюсь к центру фарма"));
+        Assert.Contains(_log, e => e.Message.StartsWith("Взлетел — поднимаюсь к центру фарма, 50 м вверх"));
     }
 
     [Fact]

@@ -156,7 +156,8 @@ public class StartTripBehaviorTests
         TickFor(120);
 
         Assert.True(_world.Flying);
-        Assert.Equal(1 + FlightTrip.LandFails, _actions.Calls.Count(x => x == "fly-toggle"));
+        // Поездка бросила посадку; поза у фарма потом пробует сесть ещё, раз в 30 с
+        Assert.True(_actions.Calls.Count(x => x == "fly-toggle") >= 1 + FlightTrip.LandFails);
         Assert.True(Logged("не смог сесть"));
         Assert.False(Logged("Долетел"));
     }
