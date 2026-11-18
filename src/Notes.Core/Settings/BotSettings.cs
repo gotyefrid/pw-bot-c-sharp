@@ -518,6 +518,7 @@ public sealed class FollowSettings : SettingsPart
     private bool _fly = true;
     private bool _skills = true;
     private bool _jump = true;
+    private bool _portal = true;
     private FollowPath _path = FollowPath.Direct;
 
     /// <summary>Ник главного; пусто — не выбран.</summary>
@@ -540,6 +541,9 @@ public sealed class FollowSettings : SettingsPart
 
     /// <summary>Прыгать, как главный: прыгнул он — прыгаем, прыгнул второй раз — второй (двойной).</summary>
     public bool Jump { get => _jump; set => Set(ref _jump, value); }
+
+    /// <summary>Главный кастует «Городской портал» — кастовать тоже (если не в откате).</summary>
+    public bool Portal { get => _portal; set => Set(ref _portal, value); }
 
     /// <summary>Как идти к главному по земле.</summary>
     public FollowPath Path { get => _path; set => Set(ref _path, value); }

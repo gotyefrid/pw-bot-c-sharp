@@ -18,6 +18,7 @@ public class FollowModeTests
     private const uint LeaderWid = 0x0015B000;
     private const uint Giver = 3518;
     private const int Task = 1204;
+    private const int Portal = 167;
 
     private readonly FakeWorld _me = new() { Name = "Помощник", Quests = [], QuestCandidates = [] };
     private readonly FakeWorld _leader = new() { Name = "Главный", Wid = LeaderWid, Quests = [] };
@@ -42,7 +43,7 @@ public class FollowModeTests
         {
             if (_brain is not null)
                 return _brain;
-            _brain = BotModes.Create(BotMode.Follow, new ActionRunner(new GameControl(_actions), NullLogger.Instance), new ClassSkills(),
+            _brain = BotModes.Create(BotMode.Follow, new ActionRunner(new GameControl(_actions), NullLogger.Instance), new ClassSkills { TownPortal = Portal },
                 _settings, NullLogger.Instance, random: new Random(1), leaders: _board);
             _brain.StopRequested += reason => _stopped = reason;
             return _brain;
@@ -243,6 +244,43 @@ public class FollowModeTests
         Tick();
 
         Assert.DoesNotContain("jump", _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderCastsPortal_CastsToo_OnceAndHoldsTurn()
+    {
+        _me.AddSkill(Portal);
+        _leader.CastingSkillId = Portal;
+        _leader.Position = new Position(30, 0, 0);
+
+        Tick();
+        _me.CastingSkillId = Portal;
+        Tick();
+
+        Assert.Equal([$"apply {Portal} 0"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderCastsPortal_MineOnCooldown_Stays()
+    {
+        _me.AddSkill(Portal, cooldownLeftMs: 600_000);
+        _leader.CastingSkillId = Portal;
+
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
+    }
+
+    [Fact]
+    public void LeaderCastsPortal_PortalOff_Stays()
+    {
+        _settings.Follow.Portal = false;
+        _me.AddSkill(Portal);
+        _leader.CastingSkillId = Portal;
+
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
     }
 
     [Fact]

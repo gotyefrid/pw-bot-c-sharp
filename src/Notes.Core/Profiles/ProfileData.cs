@@ -834,6 +834,8 @@ public sealed class ClassSkills
     public int HealPet { get; init; }
     public int RevivePet { get; init; }
     public int DefaultAttack { get; init; }
+    /// <summary>«Городской портал» — телепорт в город. 0 — не найдено.</summary>
+    public int TownPortal { get; init; }
     public List<int> NotAttack { get; init; } = new();
 }
 

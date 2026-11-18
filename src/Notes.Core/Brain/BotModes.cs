@@ -120,7 +120,7 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Следовать за главным (персонаж другой вкладки): прыгнуть, как он (хода не занимает) → выжить → (прервать каст без цели) → пет → бой (напавших — первыми, потом
+    /// Следовать за главным (персонаж другой вкладки): прыгнуть, как он (хода не занимает) → выжить → «Городской портал», если его кастует главный → (прервать каст без цели) → пет → бой (напавших — первыми, потом
     /// моба, которого просят: бьёт главный или нужен своему заданию; бьёт тем, что настроено в «Общем») → лут → ассист (просьба бою)
     /// → задания за главным (взять и сдать у NPC рядом) → скиллы за главным (у того же учителя) → идти за главным.
     /// </summary>
@@ -128,7 +128,7 @@ public static class BotModes
     {
         var follow = new FollowBehavior(leaders);
         return new BotBrain(context,
-            [new FollowJumpBehavior(leaders), new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true),
+            [new FollowJumpBehavior(leaders), new SurvivalBehavior(), new FollowPortalBehavior(leaders), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true),
              new LootBehavior(), new AssistBehavior(leaders), new FollowQuestBehavior(leaders), new FollowSkillsBehavior(leaders), follow],
             main: follow);
     }
