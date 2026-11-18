@@ -6,7 +6,7 @@ using Notes.Core.World;
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Кого из питомцев звать: персонаж летит — того, кто живёт в воздухе, в воде — водного, иначе — наземного или летающего
+/// Кого из питомцев звать: персонаж летит — того, кто живёт в воздухе, в воде — водного, иначе — наземного, а нет его — летающего
 /// (летающие призываются и на земле; не того сервер не призовёт). По названию из настроек, а если оно пустое — первого подходящего по порядку клеток.
 /// Сервер не говорит, где питомцы живут (поля не найдены), — как раньше, по номеру клетки.
 /// </summary>
@@ -38,7 +38,9 @@ public static class PetPicker
             return named;
         }
 
-        var first = pet.Cages.Where(p => p.CanSummon(where)).OrderBy(p => p.Cage).FirstOrDefault();
+        // Сначала тот, кто здесь живёт (на земле — наземный); летающий на земле — только если наземного нет
+        var first = pet.Cages.Where(p => p.Lives(where)).OrderBy(p => p.Cage).FirstOrDefault()
+            ?? pet.Cages.Where(p => p.CanSummon(where)).OrderBy(p => p.Cage).FirstOrDefault();
         if (first is null)
             problem = $"нет питомца, которого можно призвать {text}";
         return first;

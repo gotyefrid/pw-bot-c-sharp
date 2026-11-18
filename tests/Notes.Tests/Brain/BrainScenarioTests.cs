@@ -322,10 +322,24 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void FlyingPetSummonedByHandOnGroundIsKept()
+    public void FlyingPetOnGroundIsSwappedForGroundOne()
     {
+        // На земле призвана пчела (позвали руками), а скорпион есть — до новой цели меняем на наземного
         _settings.Pet.Enabled = true;
         _world.SetPets(2, Scorpion, Bee);
+
+        Tick();
+
+        Assert.Contains("recall", _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Призван пет из клетки 2, а здесь нужен из клетки 1 — отзываю"));
+    }
+
+    [Fact]
+    public void FlyingPetOnGroundIsKeptWithoutGroundOne()
+    {
+        // Наземного нет (только карп и пчела) — пчелу на земле оставляем
+        _settings.Pet.Enabled = true;
+        _world.SetPets(2, Carp with { Cage = 1 }, Bee);
 
         Tick();
 
