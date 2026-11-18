@@ -250,6 +250,12 @@ public sealed record HostState(
     /// <summary>Класс, номер как в игре (<see cref="PlayerClasses"/>); null — поле не найдено для этого сервера.</summary>
     public int? Class { get; init; }
 
+    /// <summary>Сколько раз прыгнул, пока в воздухе: 0 — на земле, 1 — прыжок, 2 — двойной; null — поле не найдено для этого сервера.</summary>
+    public int? Jumps { get; init; }
+
+    /// <summary>Скорость вверх в прыжке, м/с (0 — верхняя точка, минус — падает); null — поле не найдено для этого сервера.</summary>
+    public float? JumpSpeed { get; init; }
+
     public double? ExpPercent => Exp is { } exp && ExpToLevel is > 0 and { } need ? exp * 100.0 / need : null;
 
     public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;

@@ -257,6 +257,10 @@ public sealed class HostOffsets
     public uint TargetId { get; init; }
     /// <summary>Перезарядка корма пета, мс осталось (0 — можно кормить).</summary>
     public uint PetFoodCooldown { get; init; }
+    /// <summary>Счётчик прыжков (int): 0 — на земле, 1 — прыгнул, 2 — двойной прыжок. 0 — не найдено.</summary>
+    public uint JumpCount { get; init; }
+    /// <summary>Скорость вверх в прыжке (float, м/с): +9 в начале, 0 в верхней точке, дальше минус. 0 — не найдено.</summary>
+    public uint JumpSpeed { get; init; }
     /// <summary>Координаты: X, высота, Y — три float подряд.</summary>
     public uint Location { get; init; }
     /// <summary>Указатель на объект скилла, который кастуется сейчас (0 — не кастует); номер — по <see cref="SkillOffsets.Id"/>.</summary>
