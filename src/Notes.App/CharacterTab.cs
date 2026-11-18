@@ -1289,6 +1289,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>«Следовать»: кого можно выбрать главным — персонажи других вкладок этого окна (по свежим снимкам).</summary>
     public IReadOnlyList<string> LeaderChoices { get; private set; } = [];
 
+    public sealed record FollowPathChoice(FollowPath Path, string Title);
+
+    public IReadOnlyList<FollowPathChoice> FollowPaths { get; } =
+        [new(FollowPath.Direct, "По прямой"), new(FollowPath.Obstacles, "Обход — бот"), new(FollowPath.Client, "Автопуть клиента")];
+
     private void ShowLeaderChoices(WorldState w)
     {
         if (Settings.Mode != BotMode.Follow)

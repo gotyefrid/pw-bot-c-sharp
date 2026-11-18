@@ -518,6 +518,7 @@ public sealed class FollowSettings : SettingsPart
     private bool _fly = true;
     private bool _skills = true;
     private bool _jump = true;
+    private FollowPath _path = FollowPath.Direct;
 
     /// <summary>Ник главного; пусто — не выбран.</summary>
     public string Leader { get => _leader; set => Set(ref _leader, value ?? ""); }
@@ -539,6 +540,20 @@ public sealed class FollowSettings : SettingsPart
 
     /// <summary>Прыгать, как главный: прыгнул он — прыгаем, прыгнул второй раз — второй (двойной).</summary>
     public bool Jump { get => _jump; set => Set(ref _jump, value); }
+
+    /// <summary>Как идти к главному по земле.</summary>
+    public FollowPath Path { get => _path; set => Set(ref _path, value); }
+}
+
+/// <summary>Как помощник идёт к главному по земле (<see cref="FollowSettings.Path"/>).</summary>
+public enum FollowPath
+{
+    /// <summary>По прямой, как клик по земле: препятствия главный обходит или перепрыгивает сам, помощник повторяет.</summary>
+    Direct,
+    /// <summary>По прямой, а камни, дома и деревья обходит свой путь бота (<see cref="Brain.ObstacleWalk"/>).</summary>
+    Obstacles,
+    /// <summary>Автопуть клиента, как клик по карте. Нет у сервера — по прямой.</summary>
+    Client,
 }
 
 /// <summary>Кликер: сценарий — шаги по порядку, по кругу (<see cref="ClickerBehavior"/>).</summary>

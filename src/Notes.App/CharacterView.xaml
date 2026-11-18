@@ -538,6 +538,12 @@
               <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Follow.Distance, UpdateSourceTrigger=LostFocus}"
                        ToolTip="Можно дробное через точку: 0.2" />
             </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Путь к главному" VerticalAlignment="Center" />
+              <ComboBox DockPanel.Dock="Right" Width="150" ItemsSource="{Binding FollowPaths}" DisplayMemberPath="Title"
+                        SelectedValuePath="Path" SelectedValue="{Binding Settings.Follow.Path}" HorizontalAlignment="Right"
+                        ToolTip="По прямой — как клик по земле: препятствия обходите или перепрыгиваете вы, помощник повторяет. Обход — бот: по прямой, а камни, дома и деревья обходит сам бот. Автопуть клиента — как клик по карте" />
+            </DockPanel>
             <WrapPanel>
               <CheckBox Style="{StaticResource Switch}" Content="Ассист" IsChecked="{Binding Settings.Follow.Assist}" Margin="0,4,18,4"
                         ToolTip="Бить того, кого бьёт главный, и тех, кто бьёт его. Чем бить — во вкладке «Общее»" />

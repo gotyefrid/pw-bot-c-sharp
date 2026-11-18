@@ -122,15 +122,25 @@ public class FollowModeTests
     }
 
     [Fact]
-    public void LeaderAway_WalksStraightNotByClientAutopath()
+    public void LeaderAway_WalksStraight()
     {
         _leader.Position = new Position(30, 0, 0);
 
         Tick();
 
-        // Препятствий для места не знаем — по прямой; автопуть клиента («умно») — никогда
         Assert.Equal(["move (30,0; 0,0; h 0,0)"], _actions.Calls);
         Assert.Null(_stopped);
+    }
+
+    [Fact]
+    public void LeaderAway_ClientPath_WalksByAutopath()
+    {
+        _settings.Follow.Path = FollowPath.Client;
+        _leader.Position = new Position(30, 0, 0);
+
+        Tick();
+
+        Assert.Equal(["move (30,0; 0,0; h 0,0) умно"], _actions.Calls);
     }
 
     [Fact]
