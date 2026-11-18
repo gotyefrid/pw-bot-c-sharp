@@ -15,6 +15,8 @@ namespace Notes.Core.Brain.Follow;
 /// Награда на выбор: игра не говорит, какую выбрал игрок, — табло видит это по его сумке. Задание с выбором пропало из журнала
 /// (сдал) — сравнивает сумку с той, что была до сдачи, пока не прибавятся предметы одного из вариантов (не дольше
 /// <see cref="RewardWait"/>); узнанный номер — <see cref="RewardChoice"/>.
+/// Скиллы: у персонажа появился скилл или вырос уровень — табло запоминает, у какого NPC (ближайший, не дальше
+/// <see cref="TeacherNear"/>): <see cref="Teacher"/>. NPC рядом нет (скилл дала игра сама) — учитель неизвестен.
 /// </summary>
 public sealed class LeaderBoard
 {
@@ -27,7 +29,12 @@ public sealed class LeaderBoard
     /// <summary>Столько после сдачи ждём награду в сумке; не пришла (сумка полна) — выбор не узнан.</summary>
     public static readonly TimeSpan RewardWait = TimeSpan.FromSeconds(10);
 
+    /// <summary>Учитель — NPC не дальше этого от персонажа, когда скилл вырос (говорить можно с ~4 м).</summary>
+    public const float TeacherNear = 6f;
+
     public static LeaderBoard Shared { get; } = new();
+
+    private readonly Dictionary<(string Nick, int Skill), int> _teachers = [];
 
     // Сдал задание с выбором — ждём награду в сумке: варианты, сумка до сдачи (tid → сколько), когда сдал
     private sealed record Handed(int Task, IReadOnlyList<IReadOnlyList<RewardItem>> Choices, Dictionary<uint, int> Before, DateTime At);
@@ -47,7 +54,10 @@ public sealed class LeaderBoard
         lock (_lock)
         {
             if (_worlds.TryGetValue(world.Host.Name, out var was))
+            {
                 WatchRewards(was, world);
+                WatchSkills(was, world);
+            }
             _worlds[world.Host.Name] = world;
         }
     }
@@ -60,6 +70,27 @@ public sealed class LeaderBoard
     {
         lock (_lock)
             return _choices.TryGetValue((nick.Trim().ToLowerInvariant(), task), out var choice) ? choice : null;
+    }
+
+    /// <summary>У какого NPC (tid) <paramref name="nick"/> последний раз учил или поднимал скилл <paramref name="skill"/>; null — не видели.</summary>
+    public int? Teacher(string nick, int skill)
+    {
+        lock (_lock)
+            return _teachers.TryGetValue((nick.Trim().ToLowerInvariant(), skill), out var npc) ? npc : null;
+    }
+
+    // Скилл появился или вырос: учитель — ближайший NPC рядом. Пустой список до или после — не прочитали, не сравниваем
+    private void WatchSkills(WorldState was, WorldState now)
+    {
+        if (was.Skills.Count == 0 || now.Skills.Count == 0)
+            return;
+
+        foreach (var skill in now.Skills.Where(s => s.Level > (was.Skill(s.Id)?.Level ?? 0)))
+        {
+            var npc = now.Npcs.Where(n => n.Kind == NpcKind.Npc && n.Offset.Direct <= TeacherNear).OrderBy(n => n.Offset.Direct).FirstOrDefault();
+            if (npc is { Tid: > 0 })
+                _teachers[(now.Host.Name.ToLowerInvariant(), skill.Id)] = npc.Tid;
+        }
     }
 
     private void WatchRewards(WorldState was, WorldState now)

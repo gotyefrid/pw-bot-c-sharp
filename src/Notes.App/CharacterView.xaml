@@ -230,6 +230,8 @@
                           ToolTip="Бить того, кого бьёт главный, и тех, кто бьёт его. Чем бить — во вкладке «Общее»" />
                 <CheckBox Style="{StaticResource Switch}" Content="Задания" IsChecked="{Binding Settings.Follow.Quests}" Margin="0,4,18,4"
                           ToolTip="Брать и сдавать те же задания, что главный, у NPC рядом" />
+                <CheckBox Style="{StaticResource Switch}" Content="Скиллы" IsChecked="{Binding Settings.Follow.Skills}" Margin="0,4,18,4"
+                          ToolTip="Учить и поднимать скиллы, как главный, — у того же NPC, у которого учился он" />
                 <CheckBox Style="{StaticResource Switch}" Content="Летать за главным" IsChecked="{Binding Settings.Follow.Fly}" Margin="0,4,18,4"
                           ToolTip="Главный взлетел — взлетать за ним. Выключено — идти под ним по земле" />
               </WrapPanel>

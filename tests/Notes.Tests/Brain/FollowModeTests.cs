@@ -405,6 +405,100 @@ public class FollowModeTests
         Assert.Null(_stopped);
     }
 
+    private const uint Teacher = 4000;
+    // Не атакующий скилл по умолчанию (тот у ведомого уже есть)
+    private const int Swarm = 330;
+
+    // Главный учится у учителя рядом: был один скилл, появился «Исцеление питомца» (или вырос уровень)
+    private void LeaderLearns(int level)
+    {
+        if (_leader.Skills.Count == 0)
+            _leader.AddSkill(167);
+        if (!_leader.Npcs.Any(n => n.Tid == Teacher))
+            AddNpc(_leader, Teacher, 3);
+        _board.Publish(_leader.Snapshot());
+        _leader.Skills.RemoveAll(s => s.Id == Swarm);
+        _leader.Skills.Add(new SkillInfo(Swarm, level, 0, 3000, 0, "Исцеление питомца"));
+        _board.Publish(_leader.Wait(0.25).Snapshot());
+    }
+
+    [Fact]
+    public void Board_RemembersTeacherWhenSkillLearned()
+    {
+        LeaderLearns(1);
+
+        Assert.Equal((int)Teacher, _board.Teacher("Главный", Swarm));
+    }
+
+    [Fact]
+    public void Board_SkillWithoutNpcNearby_TeacherUnknown()
+    {
+        _leader.AddSkill(167);
+        _board.Publish(_leader.Snapshot());
+        _leader.AddSkill(Swarm);
+        _board.Publish(_leader.Wait(0.25).Snapshot());
+
+        Assert.Null(_board.Teacher("Главный", Swarm));
+    }
+
+    [Fact]
+    public void LeaderLearnedSkill_LearnsAtSameTeacher()
+    {
+        LeaderLearns(1);
+        AddNpc(_me, Teacher, 3);
+
+        Tick();
+        Assert.Equal(["npc-hello"], _actions.Calls);
+        Tick(1.1);
+        Assert.Equal(["npc-hello", $"learn-skill {Swarm}"], _actions.Calls);
+
+        _me.Skills.Add(new SkillInfo(Swarm, 1, 0, 3000, 0, "Исцеление питомца"));
+        Tick();
+        Assert.Equal(["npc-hello", $"learn-skill {Swarm}", "npc-back"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderRaisedSkill_RaisesLevelByLevel()
+    {
+        _me.Skills.Add(new SkillInfo(Swarm, 1, 0, 3000, 0, "Исцеление питомца"));
+        LeaderLearns(3);
+        AddNpc(_me, Teacher, 3);
+
+        Tick();
+        Tick(1.1);
+        _me.Skills[_me.Skills.Count - 1] = new SkillInfo(Swarm, 2, 0, 3000, 0, "Исцеление питомца");
+        Tick();
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(2, _actions.Calls.Count(x => x == $"learn-skill {Swarm}"));
+    }
+
+    [Fact]
+    public void TeacherRefuses_GivesUpUntilLeaderGoesHigher()
+    {
+        LeaderLearns(1);
+        AddNpc(_me, Teacher, 3);
+
+        for (var i = 0; i < 40; i++)
+            Tick(1);
+
+        Assert.Equal(3, _actions.Calls.Count(x => x == $"learn-skill {Swarm}"));
+        Assert.Null(_stopped);
+    }
+
+    [Fact]
+    public void SkillsOff_DoesNotLearn()
+    {
+        _settings.Follow.Skills = false;
+        LeaderLearns(1);
+        AddNpc(_me, Teacher, 3);
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
     [Fact]
     public void AsksLeaderTabToReadQuests()
     {

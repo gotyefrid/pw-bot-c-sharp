@@ -516,6 +516,7 @@ public sealed class FollowSettings : SettingsPart
     private bool _assist = true;
     private bool _quests = true;
     private bool _fly = true;
+    private bool _skills = true;
 
     /// <summary>Ник главного; пусто — не выбран.</summary>
     public string Leader { get => _leader; set => Set(ref _leader, value ?? ""); }
@@ -531,6 +532,9 @@ public sealed class FollowSettings : SettingsPart
 
     /// <summary>Главный взлетел — взлетать и лететь за ним; выключено — идти под ним по земле.</summary>
     public bool Fly { get => _fly; set => Set(ref _fly, value); }
+
+    /// <summary>Учить и поднимать скиллы, как главный: у того же NPC, у которого учился он.</summary>
+    public bool Skills { get => _skills; set => Set(ref _skills, value); }
 }
 
 /// <summary>Кликер: сценарий — шаги по порядку, по кругу (<see cref="ClickerBehavior"/>).</summary>

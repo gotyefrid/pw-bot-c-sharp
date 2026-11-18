@@ -117,14 +117,14 @@ public static class BotModes
     /// <summary>
     /// Следовать за главным (персонаж другой вкладки): выжить → (прервать каст без цели) → пет → бой (напавших — первыми, потом
     /// моба, которого просят: бьёт главный или нужен своему заданию; бьёт тем, что настроено в «Общем») → лут → ассист (просьба бою)
-    /// → задания за главным (взять и сдать у NPC рядом) → идти за главным.
+    /// → задания за главным (взять и сдать у NPC рядом) → скиллы за главным (у того же учителя) → идти за главным.
     /// </summary>
     private static BotBrain Follow(BrainContext context, LeaderBoard leaders)
     {
         var follow = new FollowBehavior(leaders);
         return new BotBrain(context,
             [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), new LootBehavior(),
-             new AssistBehavior(leaders), new FollowQuestBehavior(leaders), follow],
+             new AssistBehavior(leaders), new FollowQuestBehavior(leaders), new FollowSkillsBehavior(leaders), follow],
             main: follow);
     }
 
