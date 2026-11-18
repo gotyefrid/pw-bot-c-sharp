@@ -191,6 +191,8 @@
                        Visibility="{Binding ShowMobsTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Задания" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=6}"
                        Visibility="{Binding ShowQuestsTab, Converter={StaticResource Visible}}" />
+          <RadioButton Style="{StaticResource Segment}" Content="Следовать" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=8}"
+                       Visibility="{Binding ShowFollowTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Общее" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=5}"
                        Visibility="{Binding ShowCommonTab, Converter={StaticResource Visible}}" />
           <RadioButton Style="{StaticResource Segment}" Content="Чат" GroupName="View" IsChecked="{Binding Tab, Converter={StaticResource TabChecked}, ConverterParameter=7}" />
@@ -211,32 +213,6 @@
               <ComboBox ItemsSource="{Binding Modes}" DisplayMemberPath="Title" SelectedValuePath="Mode" SelectedValue="{Binding Mode}"
                         ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
             </DockPanel>
-            <!-- «Следовать»: за кем и что повторять -->
-            <StackPanel Margin="0,0,0,12" Visibility="{Binding ShowFollowCard, Converter={StaticResource Visible}}">
-              <DockPanel Style="{StaticResource SettingRow}">
-                <TextBlock Text="Главный" VerticalAlignment="Center" Width="60"
-                           ToolTip="За кем идти. Его вкладка должна быть подключена в этом же окне бота; бота на ней запускать не нужно — играете вы" />
-                <ComboBox IsEditable="True" ItemsSource="{Binding LeaderChoices}"
-                          Text="{Binding Settings.Follow.Leader, UpdateSourceTrigger=LostFocus}"
-                          ToolTip="Ник главного персонажа — из открытых вкладок или вручную" />
-              </DockPanel>
-              <DockPanel Style="{StaticResource SettingRow}">
-                <TextBlock Text="Догонять, если отстал больше, м" VerticalAlignment="Center"
-                           ToolTip="Ближе — стоит на месте; дальше — идёт к главному" />
-                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Follow.Distance, UpdateSourceTrigger=LostFocus}"
-                         ToolTip="Можно дробное через точку: 0.2" />
-              </DockPanel>
-              <WrapPanel>
-                <CheckBox Style="{StaticResource Switch}" Content="Ассист" IsChecked="{Binding Settings.Follow.Assist}" Margin="0,4,18,4"
-                          ToolTip="Бить того, кого бьёт главный, и тех, кто бьёт его. Чем бить — во вкладке «Общее»" />
-                <CheckBox Style="{StaticResource Switch}" Content="Задания" IsChecked="{Binding Settings.Follow.Quests}" Margin="0,4,18,4"
-                          ToolTip="Брать и сдавать те же задания, что главный, у NPC рядом" />
-                <CheckBox Style="{StaticResource Switch}" Content="Скиллы" IsChecked="{Binding Settings.Follow.Skills}" Margin="0,4,18,4"
-                          ToolTip="Учить и поднимать скиллы, как главный, — у того же NPC, у которого учился он" />
-                <CheckBox Style="{StaticResource Switch}" Content="Летать за главным" IsChecked="{Binding Settings.Follow.Fly}" Margin="0,4,18,4"
-                          ToolTip="Главный взлетел — взлетать за ним. Выключено — идти под ним по земле" />
-              </WrapPanel>
-            </StackPanel>
             <DockPanel Margin="0,0,0,8">
               <TextBlock DockPanel.Dock="Right" Text="{Binding Status.HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
               <TextBlock Text="{Binding Status.HostName}" FontSize="15" FontWeight="SemiBold" />
@@ -538,6 +514,43 @@
           </DockPanel>
         </StackPanel>
       </Border>
+    </ScrollViewer>
+
+    <!-- Следовать — режим «Следовать»: за кем идти и что повторять за главным -->
+    <ScrollViewer Grid.Row="3" Grid.RowSpan="3" VerticalScrollBarVisibility="Auto"
+                  Visibility="{Binding Tab, Converter={StaticResource TabVisible}, ConverterParameter=8}">
+      <StackPanel>
+        <TextBlock Text="{Binding SettingsOwner}" Style="{StaticResource Muted}" Margin="4,0,0,8"
+                   ToolTip="У каждого персонажа свои настройки (папка characters рядом с exe). Новый персонаж начинает с общих" />
+        <Border Style="{StaticResource Card}">
+          <StackPanel>
+            <TextBlock Text="ЗА ГЛАВНЫМ" Style="{StaticResource CardTitle}" />
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Главный" VerticalAlignment="Center" Width="60"
+                         ToolTip="За кем идти. Его вкладка должна быть подключена в этом же окне бота; бота на ней запускать не нужно — играете вы" />
+              <ComboBox IsEditable="True" ItemsSource="{Binding LeaderChoices}"
+                        Text="{Binding Settings.Follow.Leader, UpdateSourceTrigger=LostFocus}"
+                        ToolTip="Ник главного персонажа — из открытых вкладок или вручную" />
+            </DockPanel>
+            <DockPanel Style="{StaticResource SettingRow}">
+              <TextBlock Text="Догонять, если отстал больше, м" VerticalAlignment="Center"
+                         ToolTip="Ближе — стоит на месте; дальше — идёт к главному" />
+              <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Follow.Distance, UpdateSourceTrigger=LostFocus}"
+                       ToolTip="Можно дробное через точку: 0.2" />
+            </DockPanel>
+            <WrapPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="Ассист" IsChecked="{Binding Settings.Follow.Assist}" Margin="0,4,18,4"
+                        ToolTip="Бить того, кого бьёт главный, и тех, кто бьёт его. Чем бить — во вкладке «Общее»" />
+              <CheckBox Style="{StaticResource Switch}" Content="Задания" IsChecked="{Binding Settings.Follow.Quests}" Margin="0,4,18,4"
+                        ToolTip="Брать и сдавать те же задания, что главный, у NPC рядом" />
+              <CheckBox Style="{StaticResource Switch}" Content="Скиллы" IsChecked="{Binding Settings.Follow.Skills}" Margin="0,4,18,4"
+                        ToolTip="Учить и поднимать скиллы, как главный, — у того же NPC, у которого учился он" />
+              <CheckBox Style="{StaticResource Switch}" Content="Летать за главным" IsChecked="{Binding Settings.Follow.Fly}" Margin="0,4,18,4"
+                        ToolTip="Главный взлетел — взлетать за ним. Выключено — идти под ним по земле" />
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+      </StackPanel>
     </ScrollViewer>
 
     <!-- Задания — режим «Прокачать друида»: какие задания из «Доступных» не брать -->

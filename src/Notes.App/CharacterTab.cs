@@ -1407,7 +1407,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     public bool ShowMobsTab => Settings.Mode == BotMode.FarmMobs;
     public bool ShowClickerTab => Settings.Mode == BotMode.Clicker;
     public bool ShowQuestsTab => Settings.Mode == BotMode.LevelUp;
-    public bool ShowFollowCard => Settings.Mode == BotMode.Follow;
+    public bool ShowFollowTab => Settings.Mode == BotMode.Follow;
     // Кликер — только свои шаги: бой, лут, банки и пет из «Общего» он не использует
     public bool ShowCommonTab => Settings.Mode != BotMode.Clicker;
 
@@ -1418,11 +1418,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowClickerTab));
         OnPropertyChanged(nameof(ShowMobsTab));
         OnPropertyChanged(nameof(ShowQuestsTab));
-        OnPropertyChanged(nameof(ShowFollowCard));
+        OnPropertyChanged(nameof(ShowFollowTab));
         OnPropertyChanged(nameof(ShowCommonTab));
         // Вкладка исчезла — на «Бот»
         if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab) || (Tab == TabMobs && !ShowMobsTab)
-            || (Tab == TabQuests && !ShowQuestsTab) || (Tab == TabCommon && !ShowCommonTab))
+            || (Tab == TabQuests && !ShowQuestsTab) || (Tab == TabFollow && !ShowFollowTab) || (Tab == TabCommon && !ShowCommonTab))
             Tab = 0;
     }
 
@@ -1431,6 +1431,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     public const int TabClicker = 4;
     public const int TabCommon = 5;
     public const int TabQuests = 6;
+    public const int TabFollow = 8;
 
     /// <summary>Чьи настройки сейчас на вкладках «Мобы» и «Общее».</summary>
     public string SettingsOwner => _config.Character is null ? "Общие настройки (персонаж не выбран)" : $"Настройки персонажа {_config.Character}";
