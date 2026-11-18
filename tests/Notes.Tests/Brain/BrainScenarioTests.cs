@@ -2341,6 +2341,32 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void GroundFarmInAirLandsThroughCast()
+    {
+        // Взлетели посреди боя, перс кастует атаку — «сесть» прерывает каст, а не ждёт его конца
+        FarmAt(10, radius: 60);
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+        for (var i = 0; i < 8; i++)
+            Tick();
+        Assert.Contains("apply 299 0", _actions.Calls);
+        _world.CastingSkillId = 299;
+        _world.Casting = true;
+        _world.Flying = true;
+        _world.Position = new Position(0, 20, 0);
+
+        Tick();
+        Assert.Equal("cancel", LastCall);
+        _world.Casting = false;
+        _world.CastingSkillId = 0;
+        for (var i = 0; i < 4; i++)
+            Tick();
+
+        Assert.Contains("fly-toggle", _actions.Calls);
+    }
+
+    [Fact]
     public void StartPointHasNoStance()
     {
         // Без сохранённой точки (центр — где нажали «Старт») позы нет: в воздухе не сажаем

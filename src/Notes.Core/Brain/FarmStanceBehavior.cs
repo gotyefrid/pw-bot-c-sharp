@@ -69,7 +69,8 @@ public sealed class FarmStanceBehavior : IBehavior
 
     private bool Send(BrainContext c, bool up, string why)
     {
-        var sent = c.Send(new FlyAction(up));
+        // Сесть — срочно: в бою каст идёт почти без пауз, обычное «сесть» ждало его концов десятки секунд (и пет менялся на летающего)
+        var sent = c.Send(new FlyAction(up) { Priority = up ? ActionPriority.Normal : ActionPriority.Urgent });
         if (sent == SubmitStatus.Sent)
             _climb = up;
         if (sent == SubmitStatus.Sent)
