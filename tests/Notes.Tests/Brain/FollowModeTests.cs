@@ -499,6 +499,68 @@ public class FollowModeTests
         Assert.Empty(_actions.Calls);
     }
 
+    // «Призыв дрессировщицы» 5909 → «Верный друг» 5912: у главного уже следующая цепочка «Умение управления» 5910
+    [Fact]
+    public void LeaderPassedChain_HandsInMyDoneSubquestEvenIfNeverSeenAtLeader()
+    {
+        const uint Trainer = 11534;
+        AddNpc(_me, Trainer, 2);
+        _me.Quests =
+        [
+            new QuestInfo(5909, "Призыв дрессировщицы", 0, QuestGoals.Parts, 0, [], []),
+            new QuestInfo(5912, "Верный друг", 5909, QuestGoals.Talk, Trainer, [], []),
+        ];
+        _leader.Quests = [new QuestInfo(5910, "Умение управления", 0, QuestGoals.Parts, 0, [], [])];
+
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "return-task 5912"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderStillOnChain_DoesNotHandIn()
+    {
+        AddNpc(_me, Giver, 2);
+        _me.Quests = [new QuestInfo(5909, "Призыв", 0, QuestGoals.Parts, 0, [], []), new QuestInfo(5912, "Верный друг", 5909, QuestGoals.Talk, Giver, [], [])];
+        _leader.Quests = [new QuestInfo(5909, "Призыв", 0, QuestGoals.Parts, 0, [], []), new QuestInfo(5911, "Друг", 5909, QuestGoals.Talk, Giver, [], [])];
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void GameRefusedQuest_ChecksAgainLater()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.QuestCandidates = [new QuestInfo(Task, "Мотыльки", 0, QuestGoals.Kill, Giver, [], []) { GiverNpc = Giver }];
+        _actions.QuestCheckAnswers[Task] = 15;
+        _leader.Quests = [Quest()];
+        Tick();
+        Assert.Empty(_actions.Calls);
+
+        _actions.QuestCheckAnswers.Remove(Task);
+        Tick(31);
+
+        Assert.Equal(["npc-hello"], _actions.Calls);
+    }
+
+    [Fact]
+    public void ChooseOneParent_TakesSubquestNotParent()
+    {
+        const uint Trainer = 11534;
+        AddNpc(_me, Trainer, 3);
+        var wolf = new QuestInfo(5913, "Свирепый волк", 5910, QuestGoals.Kill, Trainer, [], []) { GiverNpc = Trainer };
+        _me.QuestCandidates = [new QuestInfo(5910, "Умение управления", 0, QuestGoals.Parts, 0, [], []) { GiverNpc = Trainer, Options = [wolf] }];
+        _leader.Quests = [new QuestInfo(5910, "Умение управления", 0, QuestGoals.Parts, 0, [], []), wolf];
+
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "accept-task 5913"], _actions.Calls);
+    }
+
     [Fact]
     public void AsksLeaderTabToReadQuests()
     {
