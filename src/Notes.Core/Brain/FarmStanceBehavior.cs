@@ -9,24 +9,20 @@ namespace Notes.Core.Brain;
 /// <summary>
 /// Поза у фарма — как стоял перс, когда точку фарма запоминали (<see cref="BrainContext.FarmSpot"/>): точка на земле, а перс в радиусе
 /// фарма летит (взлетел сам, руками, или его оставил в воздухе кто-то из поведений) — садимся сразу, даже в бою: снизу бьёт и лутает
-/// по-другому. Точка в воздухе, а перс стоит на земле — взлетаем, но только когда делать нечего <see cref="IdleBeforeTakeoff"/>: на
-/// земле под центром копают, а бой с земли лучше не рвать взлётом; к высоте центра потом поднимает <see cref="ReturnBehavior"/>.
+/// по-другому. Точка в воздухе, а перс стоит на земле — взлетаем между мобами, до новой цели: не в бою (его с земли не рвём), не в
+/// касте и не сразу после копки (<see cref="AfterDig"/>: под центром копают по нескольку ресурсов подряд); взлетев — к высоте центра.
 /// Только для сохранённой точки фарма: у точки старта позы нет. Вне радиуса, в воде, без полётника — не трогаем.
 /// В наборе — после лечения, перед петом (пет зовётся по позе) и копкой.
 /// </summary>
 public sealed class FarmStanceBehavior : IBehavior
 {
-    /// <summary>Перс на земле у центра в воздухе, делать нечего столько — взлетаем.</summary>
-    public static readonly TimeSpan IdleBeforeTakeoff = ReturnBehavior.IdleInside;
+    /// <summary>Выкопали ресурс — столько не взлетаем: рядом может быть следующий.</summary>
+    public static readonly TimeSpan AfterDig = TimeSpan.FromSeconds(10);
 
     // Не сели / не взлетели — не жать «Полёт» каждый шаг
     private static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(30);
-    // Шаги мозга — раз в ~0.25 с; пропуск дольше — ход забирал кто-то другой, «нечего делать» начинается заново
-    private static readonly TimeSpan TickGap = TimeSpan.FromSeconds(0.6);
 
     private DateTime _nextTry = DateTime.MinValue;
-    private DateTime _idleSince = DateTime.MinValue;
-    private DateTime _lastIdle = DateTime.MinValue;
     // Сами взлетели к центру в воздухе — следом подняться к нему (иначе возврат ждал бы ещё раз «нечего делать»)
     private bool _climb;
 
@@ -64,16 +60,9 @@ public sealed class FarmStanceBehavior : IBehavior
         if (spot.End != TripEnd.Air || w.Host.Flying != false || w.HasFlyer == false || !c.Runner.Capabilities.Has(Capability.FlyTo))
             return false;
 
-        // На земле у центра в воздухе: ждём, пока делать нечего (не бой, не копка, не каст)
-        if (c.Fight.Busy || c.Mine.Count > 0 || c.Runner.BodyBusy(w) is not null)
-        {
-            _lastIdle = DateTime.MinValue;
-            return false;
-        }
-        if (c.Now - _lastIdle > TickGap)
-            _idleSince = c.Now;
-        _lastIdle = c.Now;
-        if (c.Now - _idleSince < IdleBeforeTakeoff)
+        // На земле у центра в воздухе: взлетаем до новой цели — не в бою, не в касте, не сразу после копки
+        if (c.Fight.Busy || TargetSelector.Aggressor(w) is not null || c.Runner.BodyBusy(w) is not null
+            || c.GatheredAt is { } dug && c.Now - dug < AfterDig)
             return false;
         return Send(c, up: true, "Центр фарма в воздухе, а перс на земле — взлетаю");
     }
@@ -98,7 +87,6 @@ public sealed class FarmStanceBehavior : IBehavior
     public void Reset()
     {
         _nextTry = DateTime.MinValue;
-        _idleSince = _lastIdle = DateTime.MinValue;
         _climb = false;
         Status = null;
     }
