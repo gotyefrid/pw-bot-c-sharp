@@ -333,6 +333,36 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void WrongPetInAirIsSwappedBeforeNextMob()
+    {
+        // В воздухе призван наземный скорпион (звали на земле) — между мобами отзываем, потом зовём пчелу
+        _settings.Pet.Enabled = true;
+        _world.SetPets(1, Scorpion, Bee);
+        _world.Flying = true;
+
+        Tick();
+
+        Assert.Contains("recall", _actions.Calls);
+        Assert.Contains(_log, e => e.Message.StartsWith("Призван пет из клетки 1, а здесь нужен из клетки 2 — отзываю"));
+    }
+
+    [Fact]
+    public void WrongPetIsKeptDuringFight()
+    {
+        // Бой уже идёт — пета не меняем, сменим после
+        _settings.Pet.Enabled = true;
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.SetPets(1, Scorpion, Bee);
+        _world.Flying = true;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5, targetWid: FakeWorld.HostWid).Wid;
+
+        Tick();
+
+        Assert.DoesNotContain("recall", _actions.Calls);
+    }
+
+    [Fact]
     public void ChosenPetByNameWinsOverFirstSuitable()
     {
         _settings.Pet.Enabled = true;
@@ -2314,11 +2344,11 @@ public class BrainScenarioTests
     [Fact]
     public void AirFarmOnGroundWaitsWhileFighting()
     {
-        // Точка в воздухе, перс на земле, но бьёт моба — не взлетает, пока бой
+        // Точка в воздухе, перс на земле, а моб уже бьёт нас — не взлетаем, отбиваемся с земли
         FarmInAirThenLand(new Position(0, 0, 0));
         _settings.Combat.UseSkill = true;
         _world.AddSkill(299);
-        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5, targetWid: FakeWorld.HostWid).Wid;
 
         for (var i = 0; i < 60; i++)
             Tick();
@@ -2343,14 +2373,10 @@ public class BrainScenarioTests
     [Fact]
     public void BelowAirCenterTakesOffAndClimbsToIt()
     {
-        // Сели копать под центром в воздухе — по карте «в центре», но снизу мобов в воздухе не видно: взлетаем и к центру
+        // Оказались на земле под центром в воздухе — снизу мобов в воздухе не видно: до новой цели взлетаем и к центру
         FarmInAirThenLand(new Position(0, 0, 0));
 
-        for (var i = 0; i < 36; i++) // 9 с — ещё ждём
-            Tick();
-        Assert.Empty(_actions.Calls);
-        for (var i = 0; i < 8; i++)
-            Tick();
+        Tick();
         Assert.Equal(["fly-toggle"], _actions.Calls);
         Assert.Contains(_log, e => e.Message.StartsWith("Центр фарма в воздухе, а перс на земле — взлетаю"));
 

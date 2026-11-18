@@ -118,7 +118,16 @@ public sealed class PetBehavior : IBehavior
 
         if (pet.ActiveCage != inCage.Cage)
         {
-            c.Say("pet-other-cage", $"Призван пет из клетки {pet.ActiveCage}, а нужен из клетки {inCage.Cage} — не трогаю", seconds: 300);
+            // Призван не тот (здесь ему не место: наземный в воздухе) — меняем между мобами, пока не взяли новую цель; в бою не трогаем
+            if (inCage.IsAlive && c.Runner.Capabilities.Has(Capability.RecallPet) && !c.Fight.Busy
+                && TargetSelector.Aggressor(c.World) is null && FreeForRecall(c))
+            {
+                Status = "меняю пета";
+                if (c.Send(new RecallPetAction()) == SubmitStatus.Sent)
+                    c.Log.Info($"Призван пет из клетки {pet.ActiveCage}, а здесь нужен из клетки {inCage.Cage} — отзываю, позову нужного");
+                return true;
+            }
+            c.Say("pet-other-cage", $"Призван пет из клетки {pet.ActiveCage}, а нужен из клетки {inCage.Cage} — сменю после боя", seconds: 300);
             return false;
         }
 
