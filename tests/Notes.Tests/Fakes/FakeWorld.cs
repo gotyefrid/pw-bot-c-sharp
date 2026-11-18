@@ -203,6 +203,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcReturnTask(int taskId, int choice = 0) => Record(choice == 0 ? $"return-task {taskId}" : $"return-task {taskId} награда {choice}");
     public CallResult NpcAcceptTask(int taskId) => Record($"accept-task {taskId}");
     public CallResult NpcLearnSkill(int skillId) => Record($"learn-skill {skillId}");
+    public CallResult NpcTeleport(int index) => Record($"teleport {index}");
     public CallResult TeamAssist(uint wid) => Record($"assist {wid:X}");
     public CallResult Follow(uint wid) => Record($"follow {wid:X}");
 

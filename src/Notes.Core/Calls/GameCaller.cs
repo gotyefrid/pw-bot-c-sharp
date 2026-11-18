@@ -315,6 +315,15 @@ public sealed class GameCaller : IGameActions
             : NpcService(_profile.Packets.LearnSkillService, "выучить скилл (packets.learnSkillService)", (uint)skillId);
 
     /// <summary>
+    /// Телепорт у мастера телепортации, с которым начат разговор (<see cref="NpcHello"/>), как выбором точки в его окне: номер строки
+    /// в его списке (<see cref="World.NpcInfo.Teleports"/>). Деньги и уровень проверяет сервер.
+    /// </summary>
+    public CallResult NpcTeleport(int index)
+        => index < 0
+            ? CallResult.Refused($"телепорт: неверная строка {index}")
+            : NpcService(_profile.Packets.TransmitService, "телепорт (packets.transmitService)", (uint)index);
+
+    /// <summary>
     /// Вывести питомца из яйца у NPC, с которым начат разговор, как окном «Инкубация питомца»: яйцо — в ячейке сумки
     /// <paramref name="slot"/>. Что это яйцо и что в клетке есть место, проверяет тот, кто зовёт.
     /// </summary>

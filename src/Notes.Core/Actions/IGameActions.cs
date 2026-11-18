@@ -82,6 +82,9 @@ public interface IGameActions
     /// <summary>Выучить скилл у NPC, с которым начат разговор.</summary>
     CallResult NpcLearnSkill(int skillId);
 
+    /// <summary>Телепорт у мастера телепортации, с которым начат разговор: строка <paramref name="index"/> его списка (с 0).</summary>
+    CallResult NpcTeleport(int index);
+
     /// <summary>«Ассист»: взять в цель то же, что у члена пати.</summary>
     CallResult TeamAssist(uint wid);
 

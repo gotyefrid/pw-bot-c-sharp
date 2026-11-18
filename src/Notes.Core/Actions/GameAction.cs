@@ -392,6 +392,19 @@ public sealed class NpcLearnSkillAction(int skillId) : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>
+/// Телепорт у мастера телепортации, с которым уже начат разговор: строка <c>index</c> его списка. Подтверждение — перс оказался у
+/// точки (смотрит вызывающий).
+/// </summary>
+public sealed class NpcTeleportAction(int index, string? where = null) : GameAction
+{
+    public override string Name => $"телепорт{(where is null ? "" : $" в «{where}»")} (строка {index})";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcTeleport(index);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>Вывести питомца из яйца у NPC, с которым уже начат разговор. Подтверждение — яйца нет в сумке (смотрит вызывающий).</summary>
 public sealed class NpcHatchPetAction(int slot, uint eggTid) : GameAction
 {

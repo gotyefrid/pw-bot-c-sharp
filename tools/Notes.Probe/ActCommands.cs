@@ -36,6 +36,7 @@ internal static class ActCommands
           act quest-return НОМЕР [НАГРАДА]  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests,
                                 награда на выбор — с 1, как в окне (по умолчанию первая)
           act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
+          act npc-teleport СТРОКА телепорт у мастера, с которым начат разговор (после npc-hello); строка — из snapshot («телепорт:»)
           act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
           act whisper НИК ТЕКСТ [wid=WID]  написать в личку, как «/Ник текст» в чате (WID получателя — если известен)
           act quest-check         «Доступные» как в окне: задания по уровню перса и проверка игры «можно взять» (0 — можно)
@@ -410,6 +411,11 @@ internal static class ActCommands
                 problem = "нужно: act npc-learn НОМЕР_СКИЛЛА";
                 var learn = args.Select(a => int.TryParse(a, out var v) && v > 0 ? v : 0).FirstOrDefault(v => v != 0);
                 return learn == 0 ? null : new NpcLearnSkillAction(learn);
+
+            case "npc-teleport":
+                problem = "нужно: act npc-teleport СТРОКА (номер из snapshot, «телепорт:» у мастера)";
+                var row = args.Select(a => int.TryParse(a, out var v) && v >= 0 && v < 32 ? v : -1).FirstOrDefault(v => v >= 0);
+                return args.Any(a => int.TryParse(a, out var v) && v >= 0 && v < 32) ? new NpcTeleportAction(row) : null;
 
             case "npc-hatch":
                 problem = "нужно: act npc-hatch ЯЧЕЙКА_СУМКИ — в ней яйцо питомца";
