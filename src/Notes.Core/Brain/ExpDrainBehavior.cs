@@ -67,8 +67,9 @@ public interface IExpDrainMethod
 /// <item>Куда возвращаться после слива, задаёт режим (<c>home</c>: у фарма — центр фарма и как там стоять); нет точки — где стоим.
 /// Слив начался у фарма в воздухе (фарм летающих мобов) — возвращается на ту же высоту, в воде — на ту же глубину; не у фарма
 /// (на точке смерти) — как запомнена точка фарма.</item>
-/// <item>Где умирать: точка из настроек (<see cref="Settings.ExpDrainSettings.DeathPoint"/>) или место фарма. От каких мобов
-/// (<see cref="Settings.ExpDrainSettings.DeathMobs"/>) — заодно и как ждать смерть: летающих — в воздухе, водных — в воде.</item>
+/// <item>Где умирать: точка из настроек (<see cref="Settings.ExpDrainSettings.DeathPoint"/>) или место фарма. На месте фарма — от
+/// любых мобов рядом, как стоим; в точке — от выбранных (<see cref="Settings.ExpDrainSettings.DeathMobs"/>), заодно и как ждать
+/// смерть: летающих — в воздухе, водных — в воде.</item>
 /// </list>
 /// </summary>
 public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, Spot?> home) : IBehavior
@@ -155,7 +156,7 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         _plan = Plan(c);
         c.Fight.Abort();
         c.Log.Info($"Опыт {percent:0.0} % на {host.Level} ур. (порог {settings.StartPercent} %) — сливаю {method.Name} до {settings.TargetPercent} %, "
-                   + $"от {MobsText(_plan.Mobs)} мобов, {(_plan.DeathAtFarm ? "на месте фарма" : $"в точке «{settings.DeathPoint}» (со второй смерти)")}");
+                   + (_plan.DeathAtFarm ? "на месте фарма от любых мобов" : $"на месте фарма от любых мобов, со второй смерти — в точке «{settings.DeathPoint}» от {MobsText(_plan.Mobs)}"));
         method.Begin(c, _plan);
         _active = true;
         return Step(c);
@@ -183,7 +184,7 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         var point = settings.FindDeathPoint();
         if (point is null && settings.DeathPoint.Length > 0)
             c.Say("drain-no-point", $"Слив опыта: точки «{settings.DeathPoint}» нет среди сохранённых — умираю на месте фарма", LogLevel.Warning, 3600);
-        var death = point is null ? new Spot(farm.Position, mobs is { } m ? End(m) : farm.End) : DeathAt(point, mobs);
+        var death = point is null ? farm : DeathAt(point, mobs);
         return new DrainPlan(farm, death, point is null, mobs, Enough, atFarm);
     }
 

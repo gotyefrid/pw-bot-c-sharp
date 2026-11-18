@@ -643,64 +643,17 @@ public class ExpDrainBehaviorTests
         Assert.Equal(DrainMobs.Air, SettingsJson.Parse("{ \"expDrain\": { \"deathMobs\": \"Air\" } }").ExpDrain.DeathMobs);
     }
 
+    // Было: «от летающих», а у фарма только земные — слив бросался раз за разом, перс фармил дальше и апнул уровень
     [Fact]
-    public void FlyingMobsOnlyLeaveGroundMobsAlone()
+    public void AtFarmDiesFromAnyMobsWhateverChoice()
     {
         _settings.ExpDrain.DeathMobs = DrainMobs.Air;
-        _world.Flying = true;
-        _world.Position = new Position(0, 200, 0);
-        _world.Npcs.Add(new NpcInfo(0x80000001, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(5, 200, 0), "Змея", 0) { Habitat = Habitat.Air });
-        var wolf = _world.AddMob(0x80000002, "Волк", 10);
-        _world.Replace(wolf, m => m with { Habitat = Habitat.Ground });
+        AddGroundMobs();
 
         TickFor(3);
 
-        Assert.Contains("select 80000001", _actions.Calls);
-        Assert.DoesNotContain("select 80000002", _actions.Calls);
         Assert.DoesNotContain("fly-toggle", _actions.Calls);
-        Assert.True(Logged("собрал 1"));
-    }
-
-    [Fact]
-    public void GroundMobsOnlyLeaveKnownFlyersAlone()
-    {
-        _settings.ExpDrain.DeathMobs = DrainMobs.Ground;
-        var bird = _world.AddMob(0x80000005, "Птица", 5);
-        _world.Replace(bird, m => m with { Habitat = Habitat.Air });
-        AddGroundMobs();
-
-        TickFor(3);
-
-        Assert.DoesNotContain("select 80000005", _actions.Calls);
         Assert.Contains("select 80000002", _actions.Calls);
-    }
-
-    [Fact]
-    public void FlyingMobsWantedTakesOffFirst()
-    {
-        _settings.ExpDrain.DeathMobs = DrainMobs.Air;
-        _world.Npcs.Add(new NpcInfo(0x80000001, 0x80000001, NpcKind.Mob, NpcState.Standing, 0, new Position(5, 20, 0), "Змея", 0) { Habitat = Habitat.Air });
-
-        TickFor(3);
-
-        Assert.Equal("fly-toggle", _actions.Calls[0]);
-        Assert.Contains("select 80000001", _actions.Calls);
-    }
-
-    // Было: не сел — всё равно собирать, из воздуха выбирать земных в цель
-    [Fact]
-    public void GroundMobsNeverLandedGivesUpWithoutPulling()
-    {
-        _settings.ExpDrain.DeathMobs = DrainMobs.Ground;
-        _world.Flying = true;
-        _world.Position = new Position(0, 650, 0);
-        _ignoredLandings = int.MaxValue;
-        AddGroundMobs();
-
-        TickFor(80);
-
-        Assert.True(_world.Flying);
-        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("select"));
-        Assert.True(Logged("Слив опыта брошен: не смог сесть"));
+        Assert.False(Logged("Слив опыта брошен"));
     }
 }

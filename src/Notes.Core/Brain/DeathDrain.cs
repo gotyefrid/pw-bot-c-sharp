@@ -55,6 +55,9 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     private Leg _leg;
     // Умираем на точке для смертей (встаём в её городе), а не на месте фарма (город у фарма) — к месту слива на «обычной» высоте
     private bool _diesAtDeathPoint;
+
+    // От каких мобов умирать здесь: на месте фарма — от любых рядом (там могут жить совсем другие), выбор — только для точки для смертей
+    private Habitat? Mobs => _diesAtDeathPoint ? _plan.Mobs : null;
     private DateTime _since;
     private DateTime? _noMobsSince;
     private DateTime? _calmSince;
@@ -124,7 +127,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
                 if (RecallPet(c))
                     return DrainStep.Working;
                 _stage = Stage.Settle;
-                _settle = new FlightTrip(new Spot(c.World.Host.Position, End(c, _plan.Mobs)), cruise: 0);
+                _settle = new FlightTrip(new Spot(c.World.Host.Position, End(c, Mobs)), cruise: 0);
                 return Settle(c);
             case Stage.Settle:
                 return Settle(c);
@@ -192,7 +195,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
     private void NewRound(BrainContext c)
     {
         // Земных — ближних по горизонтали (по высоте рельеф), остальных — в пространстве
-        _pull = new MobPull(c.Settings.ExpDrain.Mobs, Suits, inSpace: _plan.Mobs != Habitat.Ground);
+        _pull = new MobPull(c.Settings.ExpDrain.Mobs, Suits, inSpace: Mobs != Habitat.Ground);
         _stage = Stage.Pull;
         _since = c.Now;
         _noMobsSince = null;
@@ -200,7 +203,7 @@ public sealed class DeathDrain(DeathReturnBehavior afterDeath) : IExpDrainMethod
 
     private bool Suits(NpcInfo mob)
     {
-        if (_plan.Mobs is not { } kind)
+        if (Mobs is not { } kind)
             return true;
         if (mob.Habitat is not null)
             return mob.Lives(kind);
