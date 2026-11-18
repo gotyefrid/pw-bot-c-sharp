@@ -118,6 +118,9 @@ public class ProfileCatalogTests
         Assert.Equal(["0"], profile.Data.Functions[GameFunctions.Unselect].Args);
         Assert.True(profile.Capabilities.Has(Capability.SmartMove));
         Assert.True(profile.Capabilities.Has(Capability.RecallPet));
+        // Камни и яшма — по типу из справочника (проверено на живом клиенте: «Желтая яшма 3 ур.» 5322 — тип 5287)
+        Assert.Equal([1956u, 1957u, 1958u, 1959u, 1960u], profile.Data.LootGroups.Single(g => g.Name == "Камни").Types);
+        Assert.Equal([5287u], profile.Data.LootGroups.Single(g => g.Name == "Яшма").Types);
     }
 
     [Fact]
