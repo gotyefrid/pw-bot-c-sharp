@@ -528,7 +528,16 @@ public sealed record QuestInfo(int Id, string Name, int ParentId, int Goal, uint
     /// обычное задание (берётся само, подзадания игра выдаёт по порядку).
     /// </summary>
     public IReadOnlyList<QuestInfo> Options { get; init; } = [];
+
+    /// <summary>
+    /// Награда на выбор: варианты по порядку окна сдачи (номер с 0 — для сдачи), в каждом — предметы. Пусто — выбора нет; null — не
+    /// знаем (на этом сервере не найдено).
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<RewardItem>>? RewardChoices { get; init; }
 }
+
+/// <summary>Предмет награды за задание: tid и сколько.</summary>
+public sealed record RewardItem(uint Tid, int Count);
 
 /// <summary>Кого убить или что собрать: tid, сколько нужно и сколько уже (у предметов null — считать по сумке).</summary>
 public sealed record QuestTarget(uint Tid, int Need, int? Done)

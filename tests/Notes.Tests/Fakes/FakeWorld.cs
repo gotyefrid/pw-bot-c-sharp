@@ -199,7 +199,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcDialogClose() => Record("npc-back");
     public CallResult ShopDialogClose() => Record("shop-close");
     public CallResult NpcOpenBank() => Record("npc-bank");
-    public CallResult NpcReturnTask(int taskId) => Record($"return-task {taskId}");
+    public CallResult NpcReturnTask(int taskId, int choice = 0) => Record(choice == 0 ? $"return-task {taskId}" : $"return-task {taskId} награда {choice}");
     public CallResult NpcAcceptTask(int taskId) => Record($"accept-task {taskId}");
     public CallResult NpcLearnSkill(int skillId) => Record($"learn-skill {skillId}");
     public CallResult TeamAssist(uint wid) => Record($"assist {wid:X}");

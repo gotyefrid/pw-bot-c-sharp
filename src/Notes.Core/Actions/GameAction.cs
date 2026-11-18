@@ -342,13 +342,16 @@ public sealed class NpcOpenBankAction : GameAction
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
-/// <summary>Сдать задание NPC, с которым уже начат разговор. Подтверждение — задания нет в списке принятых (смотрит вызывающий).</summary>
-public sealed class NpcReturnTaskAction(int taskId) : GameAction
+/// <summary>
+/// Сдать задание NPC, с которым уже начат разговор; <c>choice</c> — номер награды на выбор с 0 (как варианты в окне сдачи; у задания
+/// без выбора — 0). Подтверждение — задания нет в списке принятых (смотрит вызывающий).
+/// </summary>
+public sealed class NpcReturnTaskAction(int taskId, int choice = 0) : GameAction
 {
-    public override string Name => $"сдать задание {taskId}";
+    public override string Name => choice == 0 ? $"сдать задание {taskId}" : $"сдать задание {taskId}, награда {choice + 1}";
     public override ActionSlot Slot => ActionSlot.Bank;
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
-    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcReturnTask(taskId);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.NpcReturnTask(taskId, choice);
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 

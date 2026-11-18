@@ -466,6 +466,18 @@ public sealed class QuestOffsets
     public uint NextSibling { get; init; }
     /// <summary>В записи задания: байт «выполнить одно из подзаданий» — NPC выдаёт подзадание, а не само задание.</summary>
     public uint ChooseOne { get; init; }
+
+    /// <summary>В записи задания: указатель на награду за выполнение (поле не выровнено); 0 — не найдено для сервера.</summary>
+    public uint Award { get; init; }
+    /// <summary>В награде: сколько вариантов на выбор (int) и указатель на массив вариантов по <see cref="AwardChoiceSize"/> байт.</summary>
+    public uint AwardChoiceCount { get; init; }
+    public uint AwardChoices { get; init; }
+    public uint AwardChoiceSize { get; init; }
+    /// <summary>В варианте: сколько предметов (int) и указатель на массив по <see cref="AwardItemSize"/> байт: +0 tid, +<see cref="AwardItemCount"/> сколько.</summary>
+    public uint AwardChoiceItemCount { get; init; }
+    public uint AwardChoiceItems { get; init; }
+    public uint AwardItemSize { get; init; }
+    public uint AwardItemCount { get; init; }
 }
 
 /// <summary>

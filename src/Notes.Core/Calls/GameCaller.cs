@@ -295,7 +295,8 @@ public sealed class GameCaller : IGameActions
     /// Сдать задание NPC, с которым начат разговор (<see cref="NpcHello"/>), как пунктом «сдать» в его окне. Награда — первая
     /// (номер 0): так клиент сдаёт задания без выбора награды.
     /// </summary>
-    public CallResult NpcReturnTask(int taskId) => Call(GameFunctions.NpcReturnTask, null, ("task", (uint)taskId), ("choice", 0));
+    public CallResult NpcReturnTask(int taskId, int choice = 0)
+        => Call(GameFunctions.NpcReturnTask, null, ("task", (uint)taskId), ("choice", (uint)choice));
 
     /// <summary>
     /// Взять задание у NPC, с которым начат разговор (<see cref="NpcHello"/>), как пунктом задания в его окне. Склад и обновление —

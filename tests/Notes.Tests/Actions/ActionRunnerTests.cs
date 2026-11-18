@@ -1076,7 +1076,7 @@ public class ActionRunnerTests
         public CallResult NpcDialogClose() => Slow();
         public CallResult ShopDialogClose() => Slow();
         public CallResult NpcOpenBank() => Slow();
-        public CallResult NpcReturnTask(int taskId) => Slow();
+        public CallResult NpcReturnTask(int taskId, int choice = 0) => Slow();
         public CallResult NpcAcceptTask(int taskId) => Slow();
         public CallResult NpcLearnSkill(int skillId) => Slow();
         public CallResult TeamAssist(uint wid) => Slow();

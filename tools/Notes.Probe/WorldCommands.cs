@@ -332,6 +332,9 @@ internal static class WorldCommands
                 var have = world.Inventory.Where(x => x.Tid == i.Tid).Sum(x => x.Count);
                 Console.WriteLine($"{indent}    предмет {i.Tid}: в сумке {have}/{i.Need}");
             }
+            if (q.RewardChoices is { Count: > 0 } choices)
+                for (var c = 0; c < choices.Count; c++)
+                    Console.WriteLine($"{indent}    награда на выбор {c + 1}: {string.Join(", ", choices[c].Select(r => $"{r.Tid} ×{r.Count}"))}");
         }
 
         var available = reader.ReadAvailableQuests();
@@ -351,6 +354,9 @@ internal static class WorldCommands
                 Console.WriteLine($"      моб {m.Tid}: {m.Need}{(m.DropItem != 0 ? $", предмет {m.DropItem} ×{m.DropNeed}" : "")}");
             foreach (var i in q.Items)
                 Console.WriteLine($"      предмет {i.Tid}: {i.Need}");
+            if (q.RewardChoices is { Count: > 0 } choices)
+                for (var c = 0; c < choices.Count; c++)
+                    Console.WriteLine($"      награда на выбор {c + 1}: {string.Join(", ", choices[c].Select(r => $"{r.Tid} ×{r.Count}"))}");
         }
 
         return 0;

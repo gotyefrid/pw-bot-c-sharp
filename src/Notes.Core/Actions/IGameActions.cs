@@ -71,7 +71,7 @@ public interface IGameActions
     CallResult NpcOpenBank();
 
     /// <summary>Сдать задание NPC, с которым начат разговор.</summary>
-    CallResult NpcReturnTask(int taskId);
+    CallResult NpcReturnTask(int taskId, int choice = 0);
 
     /// <summary>Взять задание у NPC, с которым начат разговор.</summary>
     CallResult NpcAcceptTask(int taskId);

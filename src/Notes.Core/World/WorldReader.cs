@@ -718,7 +718,44 @@ public sealed class WorldReader
             k => goal == QuestGoals.Kill && kills is not null ? kills(k) : null, q.MonsterDrop, q.MonsterDropNeed);
         var items = ReadQuestTargets(t.Int32(q.ItemCount), t.UInt32(q.Items), q.ItemSize, q.ItemNeed, _ => null);
         var name = Color.Replace(_memory.ReadUnicodeString(address + q.Name, 32), "").Trim();
-        return new QuestInfo(number, name, parent, goal, Field(t, q.AwardNpc), monsters, items) { GiverNpc = Field(t, q.GiverNpc) };
+        return new QuestInfo(number, name, parent, goal, Field(t, q.AwardNpc), monsters, items)
+        {
+            GiverNpc = Field(t, q.GiverNpc),
+            RewardChoices = ReadRewardChoices(address),
+        };
+    }
+
+    // Награда на выбор: варианты и предметы в них; null — смещений нет в профиле или память не прочиталась
+    private List<IReadOnlyList<RewardItem>>? ReadRewardChoices(uint template)
+    {
+        var q = _p.Quests;
+        if (q.Award == 0 || q.AwardChoices == 0 || q.AwardChoiceSize == 0 || q.AwardItemSize == 0
+            || !_memory.TryReadUInt32(template + q.Award, out var award))
+            return null;
+        if (award == 0)
+            return [];
+        if (!MemoryBlock.TryRead(_memory, award, BlockSize(q.AwardChoiceCount, q.AwardChoices), out var a))
+            return null;
+
+        var count = a.Int32(q.AwardChoiceCount);
+        if (count <= 0)
+            return [];
+        if (count > MaxQuestTargets || !MemoryBlock.TryRead(_memory, a.UInt32(q.AwardChoices), count * (int)q.AwardChoiceSize, out var choices))
+            return null;
+
+        var result = new List<IReadOnlyList<RewardItem>>();
+        for (var c = 0; c < count; c++)
+        {
+            var at = (uint)c * q.AwardChoiceSize;
+            var items = new List<RewardItem>();
+            var itemCount = Math.Min(choices.Int32(at + q.AwardChoiceItemCount), MaxQuestTargets);
+            if (itemCount > 0 && MemoryBlock.TryRead(_memory, choices.UInt32(at + q.AwardChoiceItems), itemCount * (int)q.AwardItemSize, out var list))
+                for (var i = 0; i < itemCount; i++)
+                    items.Add(new RewardItem(list.UInt32((uint)i * q.AwardItemSize), list.Int32((uint)i * q.AwardItemSize + q.AwardItemCount)));
+            result.Add(items);
+        }
+
+        return result;
     }
 
     private List<QuestTarget> ReadQuestTargets(int count, uint array, uint size, uint need, Func<int, int?> done, uint drop = 0,

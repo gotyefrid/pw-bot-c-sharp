@@ -398,7 +398,16 @@
     // Дерево заданий и «выполнить одно из подзаданий»: как найти, см. comeback146.jsonc. Не проверено
     "firstChild": "",
     "nextSibling": "",
-    "chooseOne": ""
+    "chooseOne": "",
+    // Награда на выбор: как найти, см. comeback146.jsonc. Не проверено
+    "award": "",
+    "awardChoiceCount": "",
+    "awardChoices": "",
+    "awardChoiceSize": "",
+    "awardChoiceItemCount": "",
+    "awardChoiceItems": "",
+    "awardItemSize": "",
+    "awardItemCount": ""
   },
 
   // Другой игрок. У игры это тот же класс, что наш персонаж: ник, WID и координаты — на тех же смещениях, что в "host"

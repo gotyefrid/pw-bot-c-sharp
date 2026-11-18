@@ -32,7 +32,8 @@ internal static class ActCommands
           act npc-bank          открыть банк у банкира, стоя рядом с ним (разговор не нужен)
           act npc-back           закрыть окно разговора с NPC, как кнопкой «Назад» (разговор сервер помнит)
           act revive-town        встать в ближайшем городе после смерти, как кнопкой «Ближний город» окна смерти
-          act quest-return НОМЕР  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests
+          act quest-return НОМЕР [НАГРАДА]  сдать задание NPC, с которым начат разговор (после npc-hello); номер — из quests,
+                                награда на выбор — с 1, как в окне (по умолчанию первая)
           act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
           act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
           act whisper НИК ТЕКСТ [wid=WID]  написать в личку, как «/Ник текст» в чате (WID получателя — если известен)
@@ -393,9 +394,11 @@ internal static class ActCommands
                 return new NpcOpenBankAction();
 
             case "quest-return":
-                problem = "нужно: act quest-return НОМЕР_ЗАДАНИЯ (номер — из Probe quests)";
-                var task = args.Select(a => int.TryParse(a, out var v) && v > 0 && v < 65536 ? v : 0).FirstOrDefault(v => v != 0);
-                return task == 0 ? null : new NpcReturnTaskAction(task);
+                problem = "нужно: act quest-return НОМЕР_ЗАДАНИЯ [НАГРАДА] (номер — из Probe quests; награда на выбор — с 1, как в окне)";
+                var returnArgs = args.Select(a => int.TryParse(a, out var v) ? v : 0).Where(v => v > 0).ToList();
+                if (returnArgs.Count == 0 || returnArgs[0] >= 65536)
+                    return null;
+                return new NpcReturnTaskAction(returnArgs[0], returnArgs.Count > 1 && returnArgs[1] <= 8 ? returnArgs[1] - 1 : 0);
 
             case "quest-take":
                 problem = "нужно: act quest-take НОМЕР_ЗАДАНИЯ (номер — из файла заданий клиента)";
