@@ -60,6 +60,7 @@ internal sealed class FakeWorld
 
     /// <summary>В воздухе (null — сервер не показывает).</summary>
     public bool? Flying { get; set; } = false;
+    public int? Jumps { get; set; } = 0;
 
     /// <summary>Надет полётник; null — не знаем (как на сервере без ячейки полётника в профиле).</summary>
     public bool? HasFlyer { get; set; }
@@ -95,7 +96,7 @@ internal sealed class FakeWorld
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, Wid, Name, Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
-            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel, Money = Money },
+            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, Jumps = Jumps, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel, Money = Money },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList(), Party = Party, MacroRunning = MacroRunning };
 
     /// <param name="state">Не задано: с целью — бьёт, без — стоит.</param>

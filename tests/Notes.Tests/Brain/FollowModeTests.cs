@@ -193,6 +193,49 @@ public class FollowModeTests
     }
 
     [Fact]
+    public void LeaderJumped_JumpsOnce()
+    {
+        _leader.Jumps = 1;
+
+        Tick();
+        Tick();
+
+        Assert.Equal(["jump"], _actions.Calls.Where(c => c == "jump"));
+    }
+
+    [Fact]
+    public void LeaderDoubleJumped_SecondJump()
+    {
+        _leader.Jumps = 1;
+        Tick();
+        _me.Jumps = 1;
+        _leader.Jumps = 2;
+
+        Tick();
+
+        Assert.Equal(["jump", "jump"], _actions.Calls.Where(c => c == "jump"));
+    }
+
+    [Fact]
+    public void LeaderJumped_JumpOff_StaysDown()
+    {
+        _settings.Follow.Jump = false;
+        _leader.Jumps = 1;
+
+        Tick();
+
+        Assert.DoesNotContain("jump", _actions.Calls);
+    }
+
+    [Fact]
+    public void BothOnGround_NoJump()
+    {
+        Tick();
+
+        Assert.DoesNotContain("jump", _actions.Calls);
+    }
+
+    [Fact]
     public void LeaderBeatsMob_SelectsSameMob()
     {
         var mob = _leader.AddMob(0x80200001, "Мотылёк", 6, hp: 50);
