@@ -645,6 +645,26 @@ public class FollowModeTests
         Assert.Equal(["npc-hello", "return-task 5912"], _actions.Calls);
     }
 
+    // «Общее дело» 14: главный сдал подзадание «Необходимые материалы» 120 и взял следующее «Разговор со швеей» 127
+    [Fact]
+    public void LeaderHandedSubquestAndMovedOn_HandsInMine()
+    {
+        const uint Elder = 2192;
+        AddNpc(_me, Elder, 2);
+        var chain = new QuestInfo(14, "Общее дело", 0, QuestGoals.Parts, 0, [], []);
+        var materials = new QuestInfo(120, "Необходимые материалы", 14, QuestGoals.Talk, Elder, [], []);
+        _me.Quests = [chain, materials];
+        _leader.Quests = [chain, materials];
+        Tick();
+        Assert.Empty(_actions.Calls);
+
+        _leader.Quests = [chain, new QuestInfo(127, "Разговор со швеей", 14, QuestGoals.Talk, 2194, [], [])];
+        Tick();
+        Tick(1.1);
+
+        Assert.Equal(["npc-hello", "return-task 120"], _actions.Calls);
+    }
+
     [Fact]
     public void LeaderStillOnChain_DoesNotHandIn()
     {

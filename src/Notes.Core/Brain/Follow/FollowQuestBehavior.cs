@@ -32,6 +32,8 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
     private readonly Dictionary<int, DateTime> _skip = [];
     // Когда заметили, что главный сдал задание
     private readonly Dictionary<int, DateTime> _leaderHanded = [];
+    // Задания, которые видели в журнале главного: пропало оттуда — он его сдал (подзадание цепочки — тоже)
+    private readonly HashSet<int> _leaderHad = [];
     // Choice: ждём, какую награду выбрал главный
     private bool _waitingReward;
     private NpcDeal? _deal;
@@ -66,6 +68,8 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
             return false;
         }
 
+        _leaderHad.UnionWith(theirs.Select(q => q.Id));
+
         if (c.Runner.IsPending(ActionSlot.Bank))
         {
             Status = "задания: жду ответа NPC";
@@ -75,9 +79,10 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
         if (_deal is { } deal)
             return Continue(c, deal);
 
-        // Главный прошёл — сдаём и мы (выполненное), не выполненное — добиваем мобов рядом. «Прошёл» — у него в журнале нет ни этого
-        // задания, ни его цепочки: номера подзаданий у главного и у нас бывают разные, а сдать он мог быстрее, чем мы увидели
-        foreach (var quest in mine.Where(q => Passed(q, mine, theirs) && !Skipped(c, q.Id)))
+        // Главный прошёл — сдаём и мы (выполненное), не выполненное — добиваем мобов рядом. «Прошёл» — задание было у него в журнале и
+        // пропало (подзадание цепочки, а дальше по ней — следующее), или у него нет ни задания, ни его цепочки: номера подзаданий у
+        // главного и у нас бывают разные, а сдать он мог быстрее, чем мы увидели
+        foreach (var quest in mine.Where(q => Passed(q, mine, theirs, _leaderHad) && !Skipped(c, q.Id)))
         {
             if (quest.AwardNpc == 0)
                 continue;
@@ -211,9 +216,11 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
 
     private void Skip(BrainContext c, int task, TimeSpan time) => _skip[task] = c.Now + time;
 
-    // У главного нет ни задания, ни его цепочки (верхнего задания в нашем журнале)
-    private static bool Passed(QuestInfo quest, IReadOnlyList<QuestInfo> mine, IReadOnlyList<QuestInfo> theirs)
+    // Задание было у главного и пропало, или у него нет ни задания, ни его цепочки (верхнего задания в нашем журнале)
+    private static bool Passed(QuestInfo quest, IReadOnlyList<QuestInfo> mine, IReadOnlyList<QuestInfo> theirs, HashSet<int> had)
     {
+        if (had.Contains(quest.Id) && theirs.All(t => t.Id != quest.Id))
+            return true;
         var root = quest;
         for (var depth = 0; root.ParentId != 0 && depth < 8; depth++)
             root = mine.FirstOrDefault(q => q.Id == root.ParentId) ?? root;
@@ -256,6 +263,7 @@ public sealed class FollowQuestBehavior(LeaderBoard board) : IBehavior
     {
         _skip.Clear();
         _leaderHanded.Clear();
+        _leaderHad.Clear();
         _deal = null;
         _hunted = 0;
         Status = null;
