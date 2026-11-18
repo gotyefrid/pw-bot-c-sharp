@@ -617,7 +617,17 @@
     // члену пати с 16 м и встал в 4 м
     "followMessage": "0xEE",
     // Прыжок: сообщение игре — не проверено (как найти: см. comeback146)
-    "jumpMessage": ""
+    "jumpMessage": "",
+    "transmitService": ""
+  },
+
+  // Телепорт у NPC и справочник игры (см. comeback146) — не проверены на этом клиенте
+  "teleports": {
+    "waypointsFind": "", "waypointsAt": "", "waypointCountAt": "", "waypointSize": "", "waypointName": "", "waypointPosition": "",
+    "npcService": "", "serviceKind": "", "destinationCount": "", "destinations": "", "destinationSize": "", "destinationFee": ""
+  },
+  "elementData": {
+    "manager": "", "table": "", "buckets": "", "bucketCount": "", "nodeKind": "", "nodeSlot": "", "nodeKey": "", "records": "", "recordSizes": ""
   },
 
   // Окна игры: [game + 0x14] — менеджеры окон; [+0x8] — окна в мире (CECGameUIMan), если [+0xC] = 1; в них [+0x69C] — окно

@@ -40,6 +40,7 @@ public sealed class WorldReader
     private readonly ProfileData _p;
     private readonly Func<int, string?> _skillName;
     private readonly SkillRangeReader _ranges;
+    private readonly TeleportReader _teleports;
     private readonly int _hostSize;
     private readonly int _npcSize;
     private readonly int _itemSize;
@@ -74,6 +75,7 @@ public sealed class WorldReader
         _p = profile;
         _skillName = skillName ?? (_ => null);
         _ranges = new SkillRangeReader(memory, profile.Skill.Range);
+        _teleports = new TeleportReader(memory, roots, profile);
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
@@ -313,6 +315,8 @@ public sealed class WorldReader
             Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
             Pose = n.Pose == 0 ? NpcPose.Unknown : NpcStates.Pose(b.UInt32(n.Pose)),
         };
+        if (kind == NpcKind.Npc && n.Essence != 0 && _teleports.Destinations(b.UInt32(n.Essence)) is { } teleports)
+            npc = npc with { Teleports = teleports };
         return n.Essence != 0 && ReadMonster(b.UInt32(n.Essence)) is { } m
             ? npc with { Aggressive = m.Aggressive, AggroRadius = m.Radius, Habitat = m.Habitat }
             : npc;

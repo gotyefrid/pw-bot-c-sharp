@@ -414,6 +414,9 @@ public sealed record NpcInfo(
     /// <summary>Где обитает (земля, вода, воздух — бывает несколько); null — неизвестно (поле не найдено для сервера).</summary>
     public Habitat? Habitat { get; init; }
 
+    /// <summary>Мастер телепортации: куда ведёт (строки его списка); null — не мастер или не найдено для сервера.</summary>
+    public IReadOnlyList<TeleportPoint>? Teleports { get; init; }
+
     /// <summary>Живёт здесь (по справочнику); неизвестно — false.</summary>
     public bool Lives(Habitat where) => Habitat is { } h && (h & where) != 0;
 

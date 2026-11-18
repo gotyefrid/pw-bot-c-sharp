@@ -44,6 +44,8 @@ public sealed class ProfileData
     public GatherWorkOffsets GatherWork { get; init; } = new();
     public MoveTypes MoveTypes { get; init; } = new();
     public PacketFormats Packets { get; init; } = new();
+    public TeleportOffsets Teleports { get; init; } = new();
+    public ElementDataOffsets ElementData { get; init; } = new();
     /// <summary>Что сделать у NPC сразу после сдачи задания: номер задания → шаги.</summary>
     public Dictionary<int, QuestScript> QuestScripts { get; init; } = new();
     public UiOffsets Ui { get; init; } = new();
@@ -164,6 +166,54 @@ public sealed class PacketFormats
 
     /// <summary>Сообщение игре «прыжок» (в очередь сообщений, postMessage; без параметров). 0 — не найдено.</summary>
     public uint JumpMessage { get; init; }
+
+    /// <summary>Номер услуги NPC «телепорт» (данные — номер строки в списке точек мастера). 0 — не найдено.</summary>
+    public uint TransmitService { get; init; }
+}
+
+/// <summary>
+/// Телепорт у NPC: таблица точек игры (массив по <see cref="WaypointSize"/>; адреса указателя и числа — из кода по
+/// <see cref="WaypointsFind"/>) и список мастера — запись справочника вида <see cref="ServiceKind"/>, её номер — в записи NPC на
+/// <see cref="NpcService"/>. 0 / null — не найдено для сервера.
+/// </summary>
+public sealed class TeleportOffsets
+{
+    public Signature? WaypointsFind { get; init; }
+    /// <summary>Где в сигнатуре адрес переменной «указатель на массив точек».</summary>
+    public uint WaypointsAt { get; init; }
+    /// <summary>Где в сигнатуре адрес переменной «число точек».</summary>
+    public uint WaypointCountAt { get; init; }
+    public uint WaypointSize { get; init; }
+    /// <summary>Название (UTF-16, строка в самой записи).</summary>
+    public uint WaypointName { get; init; }
+    /// <summary>Координаты: x, высота, y (float).</summary>
+    public uint WaypointPosition { get; init; }
+    /// <summary>В записи NPC: номер его услуги телепорта (0 — не мастер).</summary>
+    public uint NpcService { get; init; }
+    /// <summary>Вид записи справочника «услуга телепорта».</summary>
+    public uint ServiceKind { get; init; }
+    public uint DestinationCount { get; init; }
+    public uint Destinations { get; init; }
+    public uint DestinationSize { get; init; }
+    public uint DestinationFee { get; init; }
+}
+
+/// <summary>
+/// Справочник игры в памяти: менеджер = [база + <see cref="Manager"/>], хэш «номер записи → (вид, номер в массиве вида)» —
+/// менеджер + <see cref="Table"/>; запись = [[менеджер + <see cref="Records"/>] + вид×4] + номер × [[менеджер + <see cref="RecordSizes"/>] + вид×4].
+/// 0 — не найдено для сервера.
+/// </summary>
+public sealed class ElementDataOffsets
+{
+    public uint Manager { get; init; }
+    public uint Table { get; init; }
+    public uint Buckets { get; init; }
+    public uint BucketCount { get; init; }
+    public uint NodeKind { get; init; }
+    public uint NodeSlot { get; init; }
+    public uint NodeKey { get; init; }
+    public uint Records { get; init; }
+    public uint RecordSizes { get; init; }
 }
 
 /// <summary>

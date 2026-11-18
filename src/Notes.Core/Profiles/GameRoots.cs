@@ -15,6 +15,7 @@ public sealed class GameRoots
     private readonly Lazy<uint?> _chatList;
     private readonly Lazy<uint?> _questLists;
     private readonly Lazy<uint?> _expTable;
+    private Lazy<(uint Table, uint Count)?> _waypoints = new(() => null);
     private readonly ProfileData _profile;
 
     /// <param name="pointer">Где лежит указатель на базу — адрес в данных exe.</param>
@@ -43,7 +44,7 @@ public sealed class GameRoots
     /// каждое чтение от базы — <see cref="MemoryAccessException"/> с причиной, как любая непрочитанная память.
     /// </summary>
     public static GameRoots Find(IMemory memory, uint moduleBase, ProfileData profile)
-        => new(memory, new Lazy<uint>(() =>
+        => new GameRoots(memory, new Lazy<uint>(() =>
         {
             try
             {
@@ -55,7 +56,13 @@ public sealed class GameRoots
             }
         }), new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Chat.Find, profile.Chat.At)),
             new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Quests.AvailableFind, profile.Quests.AvailableAt)),
-            new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Host.ExpTableFind, profile.Host.ExpTableAt)), profile);
+            new Lazy<uint?>(() => FindData(memory, moduleBase, profile.Host.ExpTableFind, profile.Host.ExpTableAt)), profile)
+        {
+            _waypoints = new(() =>
+                FindData(memory, moduleBase, profile.Teleports.WaypointsFind, profile.Teleports.WaypointsAt) is { } table
+                && FindData(memory, moduleBase, profile.Teleports.WaypointsFind, profile.Teleports.WaypointCountAt) is { } count
+                    ? (table, count) : null),
+        };
 
     // Глобальная переменная — по коду, один раз. Не нашлась — то, что от неё зависит (чат, доступные задания, опыт до уровня), просто не читается
     private static uint? FindData(IMemory memory, uint moduleBase, Signature? find, uint at)
@@ -83,6 +90,9 @@ public sealed class GameRoots
 
     /// <summary>Таблица «опыт до следующего уровня»: нужно на уровне L — [таблица + L × 4]; null — на этом сервере не найдена.</summary>
     public uint? ExpTable() => _expTable.Value;
+
+    /// <summary>Переменные «указатель на массив точек телепорта» и «их число»; null — на этом сервере не найдены.</summary>
+    public (uint Table, uint Count)? Waypoints() => _waypoints.Value;
 
     /// <summary>База; не читается — <see cref="MemoryAccessException"/>.</summary>
     public uint Base() => _memory.ReadUInt32(Pointer);
