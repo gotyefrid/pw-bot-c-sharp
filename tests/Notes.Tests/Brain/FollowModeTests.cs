@@ -261,6 +261,42 @@ public class FollowModeTests
     }
 
     [Fact]
+    public void LeaderBeatsMobFarFromStart_StillAssists()
+    {
+        // Радиус фарма — про фарм: за главным ушли далеко от места «Старт», его моба всё равно бьём
+        _settings.Target.FarmRadius = 30;
+        Tick();
+        _me.Position = _leader.Position = new Position(200, 0, 0);
+        var mob = _leader.AddMob(0x80200001, "Мотылёк", 206, hp: 50);
+        _leader.Replace(mob, m => m with { MaxHp = 100 });
+        _leader.TargetWid = mob.Wid;
+        _me.AddMob(mob.Wid, "Мотылёк", 206);
+
+        Tick();
+        Tick();
+
+        Assert.Contains($"select {mob.Wid:X}", _actions.Calls);
+    }
+
+    [Fact]
+    public void PetNotSummoned_CallsAgainHere_NotToStart()
+    {
+        // Центра фарма у «Следовать» нет: пет не призвался — зовём снова там, где стоим, к месту «Старт» не идём
+        _settings.Pet.Enabled = true;
+        _me.SetPets(null, new PetInCage(1, 1, 0) { Name = "Скорпион", Habitat = Habitat.Ground });
+        Tick();
+        Assert.Equal(["summon 1"], _actions.Calls);
+
+        _me.Position = _leader.Position = new Position(20, 0, 0);
+        Tick(9); // призыв не подтвердился за 8 с
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, call => call.StartsWith("move"));
+        Assert.Equal("summon 1", _actions.Calls.Last());
+    }
+
+    [Fact]
     public void LeaderOnlySelectedMob_DoesNotAttack()
     {
         var mob = _leader.AddMob(0x80200001, "Мотылёк", 6, hp: 100);

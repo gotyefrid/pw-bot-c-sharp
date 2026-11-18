@@ -3,6 +3,7 @@ using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
+using Notes.Core.World;
 
 namespace Notes.Core.Brain;
 
@@ -14,7 +15,9 @@ namespace Notes.Core.Brain;
 /// после боя (вылечив) отзываем. Идёт ли бой — из <see cref="FightState"/>, как и у копания.
 /// Лечение и воскрешение — срочные (<see cref="ActionPriority.Urgent"/>): что их пропускает вперёд, решает исполнитель.
 /// </summary>
-public sealed class PetBehavior : IBehavior
+/// <param name="retreat">Куда отойти, если пет отсюда не призывается (обычно — центр фарма); null — некуда (или режим не даёт):
+/// зовём снова там, где стоим.</param>
+public sealed class PetBehavior(Func<BrainContext, Position?>? retreat = null) : IBehavior
 {
     // Боя нет столько — отзываем (не сразу: моб мог отойти на шаг, лут ещё собирается)
     private static readonly TimeSpan CalmBeforeRecall = TimeSpan.FromSeconds(3);
@@ -30,7 +33,7 @@ public sealed class PetBehavior : IBehavior
     private readonly PetFeeding _feeding = new();
 
     // Пет не призвался: игра пишет «Здесь невозможно призвать питомца», если перс стоит вплотную к дереву или камню. На том же
-    // месте звать бесполезно (бот так звал часами) — идём в центр фарма с обходом препятствий и зовём оттуда
+    // месте звать бесполезно (бот так звал часами) — идём туда, куда велит режим (retreat: центр фарма), и зовём оттуда
     private bool _toCenter;
     private const float AtCenter = 2f;
 
@@ -202,7 +205,7 @@ public sealed class PetBehavior : IBehavior
         var w = c.World;
         if (c.Mine.Any(a => a is MoveAction))
             return true;
-        if (c.FarmCenter is not { } center || !c.Runner.Capabilities.Has(Capability.Move)
+        if (retreat?.Invoke(c) is not { } center || !c.Runner.Capabilities.Has(Capability.Move)
             || w.Host.Position.HorizontalDistanceTo(center) <= AtCenter || c.Runner.BodyBusy(w) is not null)
         {
             _toCenter = false;

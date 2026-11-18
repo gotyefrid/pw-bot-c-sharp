@@ -28,8 +28,12 @@ namespace Notes.Core.Brain;
 /// другое поведение (<see cref="FightState.Prey"/>: моб задания), тем же, что настроено для боя.</param>
 /// <param name="leaveDangerous">Опасных мобов обхода (<see cref="DangerZones.Flee"/>; с «Не драться» — всех) не бить никогда, даже
 /// напавших: от них уходит <see cref="EscapeBehavior"/>. Цель у моба после отагра может застрять на нас — без этого бой принимал его за напавшего.</param>
-public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous = false) : IBehavior, IWatchingBehavior
+/// <param name="area">Где искать и бить мобов (кроме напавших): обычно радиус фарма от центра; null — везде.</param>
+public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous = false, Func<BrainContext, Position, bool>? area = null)
+    : IBehavior, IWatchingBehavior
 {
+    private bool InArea(BrainContext c, Position point) => area is null || area(c, point);
+
     // Обычная атака: перс бьёт сам, пока не собьют; повтор раз в секунду — сбили (подход, каст) — снова бьёт почти сразу
     private static readonly TimeSpan SwordPeriod = TimeSpan.FromSeconds(1);
     // Макрос: только запускаем, дальше игра крутит его сама; запуск поверх идущего начинает его сначала — не чаще раза в секунду
@@ -121,8 +125,8 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             return c.Submit(new SelectTargetAction(enemy));
         }
 
-        var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && c.InFarmArea(t) ? t : null;
-        var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, c.InFarmArea);
+        var current = w.Target is { } t && TargetSelector.IsAllowed(t, target) && !_gaveUp.ContainsKey(t.Wid) && InArea(c, t.Position) ? t : null;
+        var mob = aggressor ?? current ?? TargetSelector.Nearest(w, target, _gaveUp.Keys, m => InArea(c, m.Position));
         if (mob is null)
         {
             Status = MobNameFilter.ListIsEmpty(target) ? "ищу цель: список мобов пуст — бью только напавших"

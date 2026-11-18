@@ -106,11 +106,16 @@ public static class BotModes
     /// задания; бьёт тем, что настроено в «Общем») → лут (как настроен; он же возвращает бой к поиску после убийства) → задания по
     /// журналу: найти моба цели и подойти к нему, ходить «умно», брать и сдавать у NPC.
     /// </summary>
+    // Для фарма: пет не призвался — отойти в центр фарма; бить — в радиусе фарма от него
+    private static Position? FarmCenter(BrainContext c) => c.FarmCenter;
+    private static bool InFarmArea(BrainContext c, Position point) => c.InFarmArea(point);
+
     private static BotBrain LevelUp(BrainContext context, QuestGuide guide)
     {
         var quests = new QuestBehavior(guide);
         return new BotBrain(context,
-            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), new LootBehavior(), quests],
+            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(FarmCenter), new CombatBehavior(defendOnly: true, area: InFarmArea), new LootBehavior(),
+             quests],
             main: quests);
     }
 
@@ -137,10 +142,10 @@ public static class BotModes
     /// </summary>
     private static BotBrain FarmMobs(BrainContext context, IReadOnlyCollection<uint> tools)
     {
-        var combat = new CombatBehavior();
+        var combat = new CombatBehavior(area: InFarmArea);
         var afterDeath = new DeathReturnBehavior(c => c.FarmSpot);
         return new BotBrain(context,
-            [new FarmCenterLog(), afterDeath, new RepairBehavior(c => c.FarmSpot), new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new FarmStanceBehavior(), new PetBehavior(), new StashBehavior(), new GatherBehavior(tools),
+            [new FarmCenterLog(), afterDeath, new RepairBehavior(c => c.FarmSpot), new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new FarmStanceBehavior(), new PetBehavior(FarmCenter), new StashBehavior(), new GatherBehavior(tools),
              combat, new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }
@@ -152,10 +157,10 @@ public static class BotModes
     /// </summary>
     private static BotBrain GatherResources(BrainContext context, IReadOnlyCollection<uint> tools, int routeStart)
     {
-        var combat = new CombatBehavior(defendOnly: true, leaveDangerous: true);
+        var combat = new CombatBehavior(defendOnly: true, leaveDangerous: true, area: InFarmArea);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
-            [new DeathReturnBehavior(route.AfterDeath), new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(),
+            [new DeathReturnBehavior(route.AfterDeath), new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(FarmCenter),
              new StashBehavior(), new GatherBehavior(tools, route), combat, new LootBehavior(), route],
             main: combat);
     }
