@@ -23,8 +23,9 @@ internal static class Leader
 }
 
 /// <summary>
-/// «Следовать»: идти за главным. Отстал дальше <see cref="Settings.FollowSettings.Distance"/> — идёт к нему (по земле — «умно», в
-/// воздухе — летит с его высотой, в воде — плывёт) и останавливается примерно на половине этого расстояния; главный ушёл от точки,
+/// «Следовать»: идти за главным. Отстал дальше <see cref="Settings.FollowSettings.Distance"/> — идёт к нему (по земле — по прямой,
+/// а загораживает камень, дом или дерево — своим обходом, <see cref="ObstacleWalk"/>; автопутём клиента — никогда; в воздухе —
+/// летит с его высотой, в воде — плывёт) и останавливается примерно на половине этого расстояния; главный ушёл от точки,
 /// к которой идём, — к новому месту. Главный взлетел — взлетает (если включено «летать»); главный на земле, а мы рядом в воздухе —
 /// садится. Главный дальше <see cref="TooFar"/> (телепорт) — ждёт на месте. Главного не видно — ждёт, бота не останавливает.
 /// Ход не занимает, пока рядом: бой, лут и задания помощника — раньше по порядку.
@@ -41,6 +42,7 @@ public sealed class FollowBehavior(LeaderBoard board) : IBehavior
     private const float LandMargin = 5f;
 
     private DateTime _movedAt;
+    private readonly ObstacleWalk _walk = new();
 
     public string Name => "следовать";
     public string? Status { get; private set; }
@@ -94,6 +96,9 @@ public sealed class FollowBehavior(LeaderBoard board) : IBehavior
         }
 
         Status = $"иду за {name}: {distance:0} м";
+        // По земле прямую загораживает препятствие — свой обход (в воздухе и в воде он сам не нужен)
+        if (_walk.Step(c, at, name))
+            return true;
         return Go(c, at, Math.Max(FollowSettings.MinDistance, s.Distance / 2f));
     }
 
@@ -103,7 +108,7 @@ public sealed class FollowBehavior(LeaderBoard board) : IBehavior
         var w = c.World;
         var move = w.Host.Flying == true ? new MoveAction(at, stop, fly: true)
             : c.Swimming ? new MoveAction(at, stop, swim: true)
-            : new MoveAction(at, stop, smart: true);
+            : new MoveAction(at, stop);
 
         if (c.Mine.OfType<MoveAction>().FirstOrDefault() is { } walking)
         {
@@ -121,8 +126,9 @@ public sealed class FollowBehavior(LeaderBoard board) : IBehavior
         return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
     }
 
-    private static void Stop(BrainContext c)
+    private void Stop(BrainContext c)
     {
+        _walk.Stop(c);
         foreach (var walking in c.Mine.OfType<MoveAction>().ToList())
             c.Forget(walking);
     }
@@ -138,6 +144,7 @@ public sealed class FollowBehavior(LeaderBoard board) : IBehavior
     public void Reset()
     {
         _movedAt = default;
+        _walk.Reset();
         Status = null;
     }
 }

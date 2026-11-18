@@ -248,7 +248,8 @@ public enum DealStep
 }
 
 /// <summary>
-/// Взять или сдать одно задание у NPC: подойти «умно» на <see cref="TalkDistance"/>, «привет», через <see cref="DialogWait"/> — взять
+/// Взять или сдать одно задание у NPC: подойти по прямой (загораживает препятствие — своим обходом, <see cref="ObstacleWalk"/>; не
+/// автопутём клиента) на <see cref="TalkDistance"/>, «привет», через <see cref="DialogWait"/> — взять
 /// или сдать, дождаться журнала (<see cref="DealWait"/>), закрыть окно. Не вышло — ещё раз, всего <see cref="Tries"/> раза. Тот же
 /// разговор, что у «Прокачать друида» (<see cref="QuestBehavior"/>), без его скриптов после сдачи.
 /// </summary>
@@ -265,6 +266,7 @@ public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what, 
     private Stage _stage;
     private DateTime _at;
     private int _tries;
+    private readonly ObstacleWalk _walk = new();
 
     public int Task { get; } = task;
     public string What { get; } = what;
@@ -315,6 +317,7 @@ public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what, 
         // Говорить — по прямой, с высотой: NPC на этаж выше или ниже сервер не слышит
         if (npc.Offset.Direct <= TalkDistance)
         {
+            _walk.Stop(c);
             if (c.Runner.BodyBusy(w) is not null)
                 return DealStep.Going;
             foreach (var walking in c.Mine.OfType<MoveAction>().ToList())
@@ -331,9 +334,11 @@ public sealed class NpcTaskDeal(int npcTid, int task, bool accept, string what, 
         }
 
         var point = Toward(w.Host.Position, npc.Position, Math.Max(1f, npc.Offset.FlatWithin(NpcStop)));
+        if (_walk.Step(c, point, npc.Name))
+            return DealStep.Going;
         if (c.Mine.OfType<MoveAction>().FirstOrDefault() is { } going && going.Point.HorizontalDistanceTo(point) <= 3)
             return DealStep.Going;
-        var sent = c.Mine.OfType<MoveAction>().Any() ? c.Replace(new MoveAction(point, 2f, smart: true)) : c.Send(new MoveAction(point, 2f, smart: true));
+        var sent = c.Mine.OfType<MoveAction>().Any() ? c.Replace(new MoveAction(point, 2f)) : c.Send(new MoveAction(point, 2f));
         return sent == SubmitStatus.Failed ? Fail("не идёт к NPC") : DealStep.Going;
     }
 
