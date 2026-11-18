@@ -69,6 +69,8 @@ public enum ActionSlot
     Bank,
     /// <summary>Нажатие клавиши (кликер); в ключе — номер нажатия: каждое своё, когда жать снова, решает кликер.</summary>
     Key,
+    /// <summary>Прыжок.</summary>
+    Jump,
 }
 
 /// <summary>«То же самое действие»: слот и, где нужно, что в нём (ID скилла, ячейка, предмет); у остальных 0.</summary>
@@ -211,6 +213,21 @@ public sealed class FollowAction(uint wid, string name) : GameAction
     public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
     public override CallResult Send(GameControl control, WorldState now) => control.Calls.Follow(wid);
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
+/// <summary>
+/// Прыжок, как «Пробелом»: в воздухе — второй (двойной). Тело не занимает — прыгать можно на бегу. Итог — счётчик прыжков
+/// (<see cref="HostState.Jumps"/>) вырос; поля нет для сервера — ушло сообщение, и ладно.
+/// </summary>
+public sealed class JumpAction : GameAction
+{
+    public override string Name => "прыжок";
+    public override ActionSlot Slot => ActionSlot.Jump;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(1);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.Jump();
+
+    public override Verdict Check(WorldState start, WorldState now)
+        => start.Host.Jumps is not { } before || now.Host.Jumps > before ? Verdict.Confirmed() : Verdict.Pending;
 }
 
 public sealed class UnselectAction : GameAction

@@ -26,6 +26,7 @@ internal static class ActCommands
           act target [имя]      выбрать ближайшего живого моба (в названии которого есть «имя»)
           act untarget          снять цель
           act assist НИК        «Ассист»: взять в цель то же, что у члена пати рядом (часть ника)
+          act jump              прыжок, как «Пробелом» (в воздухе — второй, двойной)
           act follow НИК        «Следовать» за игроком рядом (часть ника) — ведёт сам клиент
           act select-player НИК взять в цель члена пати или самого персонажа (часть ника)
           act npc-hello [имя]   начать разговор с NPC в цели или ближайшим NPC, в имени которого есть «имя» (откроется его окно)
@@ -438,6 +439,9 @@ internal static class ActCommands
 
             case "sell":
                 return BuildSell(args, w, out problem);
+
+            case "jump":
+                return new JumpAction();
 
             case "untarget":
                 return new UnselectAction();

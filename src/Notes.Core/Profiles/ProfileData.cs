@@ -161,6 +161,9 @@ public sealed class PacketFormats
 
     /// <summary>Сообщение игре «следовать за игроком» (в очередь сообщений, postMessage; параметр — его WID). 0 — не найдено.</summary>
     public uint FollowMessage { get; init; }
+
+    /// <summary>Сообщение игре «прыжок» (в очередь сообщений, postMessage; без параметров). 0 — не найдено.</summary>
+    public uint JumpMessage { get; init; }
 }
 
 /// <summary>

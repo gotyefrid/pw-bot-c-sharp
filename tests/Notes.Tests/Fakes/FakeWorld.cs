@@ -205,6 +205,8 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult TeamAssist(uint wid) => Record($"assist {wid:X}");
     public CallResult Follow(uint wid) => Record($"follow {wid:X}");
 
+    public CallResult Jump() => Record("jump");
+
     /// <summary>Ответы проверки «можно взять» по номеру задания; нет в словаре — 0 (можно).</summary>
     public Dictionary<int, uint> QuestCheckAnswers { get; } = [];
     public int QuestCheckCalls { get; private set; }

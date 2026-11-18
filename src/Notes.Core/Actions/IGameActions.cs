@@ -88,6 +88,9 @@ public interface IGameActions
     /// <summary>«Следовать» за игроком: ведёт сам клиент.</summary>
     CallResult Follow(uint wid);
 
+    /// <summary>Прыжок, как «Пробелом» (в воздухе — второй).</summary>
+    CallResult Jump();
+
     /// <summary>Вывести питомца из яйца (ячейка сумки) у NPC, с которым начат разговор.</summary>
     CallResult NpcHatchPet(int slot, uint eggTid);
 

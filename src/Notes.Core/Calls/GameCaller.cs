@@ -356,6 +356,21 @@ public sealed class GameCaller : IGameActions
         return Call(GameFunctions.PostMessage, data);
     }
 
+    /// <summary>
+    /// Прыжок, как «Пробелом»: сообщение игре в очередь [номер:4], остальное нули — то же, что кладёт обработчик горячих клавиш.
+    /// В воздухе — второй прыжок (двойной), дальше игра сама не даёт.
+    /// </summary>
+    public CallResult Jump()
+    {
+        var message = _profile.Packets.JumpMessage;
+        if (message == 0)
+            return CallResult.Refused("прыжок: номер сообщения не найден (packets.jumpMessage)");
+
+        var data = new byte[0x20];
+        Buffer.BlockCopy(BitConverter.GetBytes(message), 0, data, 0, 4);
+        return Call(GameFunctions.PostMessage, data);
+    }
+
     private CallResult NpcService(uint service, string what, params uint[] data)
     {
         if (service == 0)
