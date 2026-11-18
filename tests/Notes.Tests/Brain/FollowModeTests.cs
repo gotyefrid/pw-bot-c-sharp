@@ -192,6 +192,61 @@ public class FollowModeTests
     }
 
     [Fact]
+    public void LeaderBeatsMob_SelectsSameMob()
+    {
+        var mob = _leader.AddMob(0x80200001, "Мотылёк", 6, hp: 50);
+        _leader.Replace(mob, m => m with { MaxHp = 100 });
+        _leader.TargetWid = mob.Wid;
+        _me.AddMob(mob.Wid, "Мотылёк", 6);
+
+        // Просьбу бою ассист ставит после него: выбирает бой на следующем снимке
+        Tick();
+        Tick();
+
+        Assert.Equal([$"select {mob.Wid:X}"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderOnlySelectedMob_DoesNotAttack()
+    {
+        var mob = _leader.AddMob(0x80200001, "Мотылёк", 6, hp: 100);
+        _leader.Replace(mob, m => m with { MaxHp = 100 });
+        _leader.TargetWid = mob.Wid;
+        _me.AddMob(mob.Wid, "Мотылёк", 6);
+
+        Tick();
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void MobAttacksLeader_HelpsHim()
+    {
+        var mob = _leader.AddMob(0x80200001, "Мотылёк", 6, targetWid: LeaderWid);
+        _me.AddMob(mob.Wid, "Мотылёк", 6);
+
+        // Просьбу бою ассист ставит после него: выбирает бой на следующем снимке
+        Tick();
+        Tick();
+
+        Assert.Equal([$"select {mob.Wid:X}"], _actions.Calls);
+    }
+
+    [Fact]
+    public void AssistOff_DoesNotHelp()
+    {
+        _settings.Follow.Assist = false;
+        var mob = _leader.AddMob(0x80200001, "Мотылёк", 6, targetWid: LeaderWid);
+        _me.AddMob(mob.Wid, "Мотылёк", 6);
+
+        Tick();
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
     public void DistanceIsClamped()
     {
         _settings.Follow.Distance = 1000;
