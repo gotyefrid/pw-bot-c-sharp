@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Logging;
 using Notes.Core.Settings;
@@ -11,7 +13,7 @@ namespace Notes.Core.Brain;
 /// каких мобов (<see cref="Mobs"/>; null — от любых) и слили ли уже (<see cref="Enough"/>). <see cref="StartAtFarm"/> — слив
 /// начался у фарма (первая смерть — там); нет — уже на точке смерти (прилетели туда при «Старт»).
 /// </summary>
-public sealed record DrainPlan(Spot Farm, Spot Death, bool DeathAtFarm, Habitat? Mobs, Func<BrainContext, bool> Enough, bool StartAtFarm = true);
+public sealed record DrainPlan(Spot Farm, Spot Death, bool DeathAtFarm, IReadOnlyList<string>? Mobs, Func<BrainContext, bool> Enough, bool StartAtFarm = true);
 
 public enum DrainStepKind
 {
@@ -68,8 +70,8 @@ public interface IExpDrainMethod
 /// Слив начался у фарма в воздухе (фарм летающих мобов) — возвращается на ту же высоту, в воде — на ту же глубину; не у фарма
 /// (на точке смерти) — как запомнена точка фарма.</item>
 /// <item>Где умирать: точка из настроек (<see cref="Settings.ExpDrainSettings.DeathPoint"/>) или место фарма. На месте фарма — от
-/// любых мобов рядом, как стоим; в точке — от выбранных (<see cref="Settings.ExpDrainSettings.DeathMobs"/>), заодно и как ждать
-/// смерть: летающих — в воздухе, водных — в воде.</item>
+/// любых мобов рядом, как стоим; в точке — от любых или из списка (<see cref="Settings.ExpDrainSettings.DeathMobNames"/>),
+/// ждём смерть, как стоял перс, когда точку запоминали.</item>
 /// </list>
 /// </summary>
 public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, Spot?> home) : IBehavior
@@ -156,7 +158,7 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         _plan = Plan(c);
         c.Fight.Abort();
         c.Log.Info($"Опыт {percent:0.0} % на {host.Level} ур. (порог {settings.StartPercent} %) — сливаю {method.Name} до {settings.TargetPercent} %, "
-                   + (_plan.DeathAtFarm ? "на месте фарма от любых мобов" : $"на месте фарма от любых мобов, со второй смерти — в точке «{settings.DeathPoint}» от {MobsText(_plan.Mobs)}"));
+                   + (_plan.DeathAtFarm ? "на месте фарма от любых мобов" : $"на месте фарма от любых мобов, со второй смерти — в точке «{settings.DeathPoint}» {MobsText(_plan.Mobs)}"));
         method.Begin(c, _plan);
         _active = true;
         return Step(c);
@@ -184,23 +186,16 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         var point = settings.FindDeathPoint();
         if (point is null && settings.DeathPoint.Length > 0)
             c.Say("drain-no-point", $"Слив опыта: точки «{settings.DeathPoint}» нет среди сохранённых — умираю на месте фарма", LogLevel.Warning, 3600);
-        var death = point is null ? farm : DeathAt(point, mobs);
+        var death = point is null ? farm : DeathAt(point);
         return new DrainPlan(farm, death, point is null, mobs, Enough, atFarm);
     }
 
-    // null — от любых
-    private static Habitat? Mobs(ExpDrainSettings settings) => settings.DeathMobs switch
-    {
-        DrainMobs.Ground => Habitat.Ground,
-        DrainMobs.Air => Habitat.Air,
-        DrainMobs.Water => Habitat.Water,
-        _ => null,
-    };
+    // Названия мобов для точки для смертей; null — от любых (список пуст — тоже от любых: иначе слив не начнётся никогда)
+    private static IReadOnlyList<string>? Mobs(ExpDrainSettings settings)
+        => settings.UseDeathMobList && settings.DeathMobNames.Count > 0 ? settings.DeathMobNames.ToList() : null;
 
-    // В точке для смертей ждём, как велит вид мобов; любые — как стоял перс, когда точку запоминали
-    private static Spot DeathAt(FarmPoint point, Habitat? mobs) => new(point.Position, mobs is { } m ? End(m) : BrainContext.SpotEnd(point));
-
-    private static TripEnd End(Habitat mobs) => mobs switch { Habitat.Air => TripEnd.Air, Habitat.Water => TripEnd.Water, _ => TripEnd.Ground };
+    // В точке для смертей ждём смерть, как стоял перс, когда точку запоминали (в воздухе, на земле, в воде)
+    private static Spot DeathAt(FarmPoint point) => new(point.Position, BrainContext.SpotEnd(point));
 
     /// <summary>
     /// Пора сливать по опыту и настройкам (а сервер и бой не смотрим): для «Старт» издалека — лететь сразу на точку смерти, а не
@@ -213,24 +208,18 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
                && c.World.Host.ExpPercent is { } percent && percent >= s.StartPercent;
     }
 
-    /// <summary>Точка для смертей и как на ней ждать смерть (от каких мобов); null — точки нет, умирать на месте фарма.</summary>
+    /// <summary>Точка для смертей и как на ней ждать смерть; null — точки нет, умирать на месте фарма.</summary>
     public static Spot? DeathSpot(BrainContext c)
     {
         var s = c.Settings.ExpDrain;
-        return s.FindDeathPoint() is { } point ? DeathAt(point, Mobs(s)) : null;
+        return s.FindDeathPoint() is { } point ? DeathAt(point) : null;
     }
 
     // Слили (или слив выключили, пока летели из города) — на место фарма
     private static bool Enough(BrainContext c)
         => !c.Settings.ExpDrain.Enabled || c.World.Host.ExpPercent is not { } percent || percent <= c.Settings.ExpDrain.TargetPercent;
 
-    private static string MobsText(Habitat? mobs) => mobs switch
-    {
-        Habitat.Air => "летающих",
-        Habitat.Water => "водных",
-        Habitat.Ground => "земных",
-        _ => "любых",
-    };
+    private static string MobsText(IReadOnlyList<string>? mobs) => mobs is null ? "любых мобов" : $"мобов {string.Join(", ", mobs)}";
 
     private string? WhyNot(BrainContext c)
     {

@@ -719,12 +719,12 @@
               <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.DeathPoint.HasPoint, Converter={StaticResource Visible}}">
                 <TextBlock DockPanel.Dock="Right" Text="{Binding Farm.DeathPoint.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
               </DockPanel>
-              <DockPanel Style="{StaticResource SettingRow}">
-                <TextBlock Text="От каких мобов" VerticalAlignment="Center"
-                           ToolTip="Каких мобов собирать, чтобы умереть, — и где ждать смерть: летающих — в воздухе (не садится), водных — в воде, земных — на земле, любых — ближайших, где стоит. Других не трогает" />
-                <ComboBox DockPanel.Dock="Right" Width="170" ItemsSource="{Binding Farm.DrainMobsChoices}" DisplayMemberPath="Title"
-                          SelectedValuePath="Mobs" SelectedValue="{Binding Settings.ExpDrain.DeathMobs}" />
-              </DockPanel>
+              <CheckBox Style="{StaticResource Switch}" Content="В точке для смертей — только мобы из списка" IsChecked="{Binding Settings.ExpDrain.UseDeathMobList}"
+                        ToolTip="На месте фарма бот умирает от любых мобов рядом. Список — только для точки для смертей; выключено или список пуст — от любых. Ждёт смерть, как стоял, когда точку запоминали" />
+              <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.ExpDrain.UseDeathMobList}"
+                             Selected="{Binding Farm.DeathMobNames}" Options="{Binding Farm.MobOptions}"
+                             Placeholder="Мобы не выбраны — от любых" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
+                             ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Высота полёта к месту слива в первый раз" VerticalAlignment="Center"
                            ToolTip="Как в игре. Умер на месте фарма — из ближнего к фарму города к месту слива (точки для смертей нет — так каждый раз)" />

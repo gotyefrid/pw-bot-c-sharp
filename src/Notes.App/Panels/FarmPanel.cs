@@ -61,6 +61,7 @@ public sealed class FarmPanel : ObservableObject
         _edited = edited;
         _skillsRebuilt = skillsRebuilt;
         MobNames.CollectionChanged += (_, _) => NameListsEdited();
+        DeathMobNames.CollectionChanged += (_, _) => NameListsEdited();
         LootNames.CollectionChanged += (_, _) => NameListsEdited();
         FarmResourceNames.CollectionChanged += (_, _) => NameListsEdited();
         StashNames.CollectionChanged += (_, _) => NameListsEdited();
@@ -131,6 +132,9 @@ public sealed class FarmPanel : ObservableObject
     /// <summary>Мобы для белого списка — выбираются из списка (TagPicker), не вводятся руками.</summary>
     public ObservableCollection<string> MobNames { get; } = new();
 
+    /// <summary>От каких мобов умирать в точке для смертей (слив опыта).</summary>
+    public ObservableCollection<string> DeathMobNames { get; } = new();
+
     /// <summary>Предметы для белого/чёрного списка лута.</summary>
     public ObservableCollection<string> LootNames { get; } = new();
 
@@ -165,11 +169,6 @@ public sealed class FarmPanel : ObservableObject
 
     /// <summary>Где умирать при сливе опыта: «На месте фарма» или своя точка для смертей (не точки фарма).</summary>
     public PointPicker DeathPoint { get; }
-
-    public sealed record DrainMobsChoice(DrainMobs Mobs, string Title);
-
-    public IReadOnlyList<DrainMobsChoice> DrainMobsChoices { get; } =
-        [new(DrainMobs.Any, "Любых"), new(DrainMobs.Ground, "Земных"), new(DrainMobs.Air, "Летающих"), new(DrainMobs.Water, "Водных")];
 
     // ── Снимок и персонаж ────────────────────────────────────────────────────
 
@@ -271,6 +270,7 @@ public sealed class FarmPanel : ObservableObject
         try
         {
             Fill(MobNames, Settings.Target.MobNames);
+            Fill(DeathMobNames, Settings.ExpDrain.DeathMobNames);
             Fill(LootNames, Settings.Loot.ItemNames);
             Fill(FarmResourceNames, Settings.Loot.ResourceNames);
             Fill(StashNames, Settings.Loot.StashNames);
@@ -295,6 +295,7 @@ public sealed class FarmPanel : ObservableObject
             return;
 
         Settings.Target.MobNames = MobNameFilter.Clean(MobNames);
+        Settings.ExpDrain.DeathMobNames = MobNameFilter.Clean(DeathMobNames);
         Settings.Loot.ItemNames = MobNameFilter.Clean(LootNames);
         Settings.Loot.ResourceNames = MobNameFilter.Clean(FarmResourceNames);
         Settings.Loot.StashNames = MobNameFilter.Clean(StashNames);

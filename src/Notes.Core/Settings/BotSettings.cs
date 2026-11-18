@@ -205,6 +205,7 @@ public sealed class BotSettings
         ExpDrain.FarmFlightHeight = Clamp(ExpDrain.FarmFlightHeight, 0, 800);
         ExpDrain.DeathPoint = ExpDrain.DeathPoint?.Trim() ?? "";
         ExpDrain.DeathPoints = FarmPoint.Clean(ExpDrain.DeathPoints);
+        ExpDrain.DeathMobNames = MobNameFilter.Clean(ExpDrain.DeathMobNames);
         MoveOldDeathPoint();
         Repair.BelowPercent = Clamp(Repair.BelowPercent, 1, 99);
         Repair.FlightHeight = Clamp(Repair.FlightHeight, 0, 800);
@@ -779,10 +780,13 @@ public sealed class ExpDrainSettings : SettingsPart
     /// <summary>Точки для смертей — свои, не точки фарма (<see cref="TargetSettings.FarmPoints"/>).</summary>
     public List<FarmPoint> DeathPoints { get => _deathPoints; set => Set(ref _deathPoints, value); }
 
-    private DrainMobs _deathMobs = DrainMobs.Any;
-    /// <summary>От каких мобов умирать; заодно — где: летающих ждём в воздухе (не садимся), водных — в воде, любых — как стоим.</summary>
-    [JsonConverter(typeof(DrainMobsJson))]
-    public DrainMobs DeathMobs { get => _deathMobs; set => Set(ref _deathMobs, value); }
+    private bool _useDeathMobList;
+    /// <summary>В точке для смертей умирать только от мобов из <see cref="DeathMobNames"/>; нет — от любых. На месте фарма — всегда от любых.</summary>
+    public bool UseDeathMobList { get => _useDeathMobList; set => Set(ref _useDeathMobList, value); }
+
+    private List<string> _deathMobNames = [];
+    /// <summary>От каких мобов умирать в точке для смертей (при <see cref="UseDeathMobList"/>); одно название — все такие мобы.</summary>
+    public List<string> DeathMobNames { get => _deathMobNames; set => Set(ref _deathMobNames, value); }
 
     /// <summary>Точка для смертей; null — умирать на месте фарма.</summary>
     public FarmPoint? FindDeathPoint()
@@ -836,25 +840,6 @@ public sealed class RepairNpc
         => Tid != 0 && npc.Tid != 0 ? npc.Tid == Tid : string.Equals(npc.Name?.Trim(), Name.Trim(), StringComparison.CurrentCultureIgnoreCase);
 
     public static RepairNpc At(int tid, string name, Position p) => new() { Tid = tid, Name = name, X = p.X, Y = p.Y, Height = p.Height };
-}
-
-/// <summary>От каких мобов умирать при сливе опыта.</summary>
-public enum DrainMobs
-{
-    /// <summary>От любых: ближайшие, ждём смерть как стоим (в точке для смертей — как стоял перс, когда её запоминали).</summary>
-    Any,
-    Ground,
-    Air,
-    Water,
-}
-
-/// <summary>«От каких мобов» из файла: прежнее «AsFarm» («как при фарме») читается как <see cref="DrainMobs.Any"/>.</summary>
-internal sealed class DrainMobsJson : Newtonsoft.Json.Converters.StringEnumConverter
-{
-    public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-        => reader.TokenType == JsonToken.String && (string?)reader.Value == "AsFarm"
-            ? DrainMobs.Any
-            : base.ReadJson(reader, objectType, existingValue, serializer);
 }
 
 /// <summary>Подбирать ли предмет с земли — единственное место, где это решается.</summary>
