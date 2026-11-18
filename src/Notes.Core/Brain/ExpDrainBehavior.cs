@@ -82,6 +82,9 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
     /// <summary>Брошенный слив пробуем снова через столько.</summary>
     public static readonly TimeSpan RetryAfter = TimeSpan.FromMinutes(5);
 
+    /// <summary>Слив не вышел при опыте от стольких % — останавливаем бота, а не фармим дальше.</summary>
+    public const double StopPercent = 99;
+
     private bool _active;
     private DrainPlan? _plan;
     private string? _off;
@@ -118,15 +121,28 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
             case DrainStepKind.AttemptDone:
                 return _plan!.Enough(c) ? Finish(c) : Step(c);
             case DrainStepKind.GaveUp:
+                if (NearLevelUp(c))
+                    return StopNearLevelUp(c, step.Why!);
                 c.Log.Warning($"Слив опыта брошен: {step.Why} — фармлю дальше, попробую через {RetryAfter.TotalMinutes:0} мин");
                 _retryAt = c.Now + RetryAfter;
                 End(c);
                 return false;
             default:
+                if (NearLevelUp(c))
+                    return StopNearLevelUp(c, step.Why!);
                 _off = step.Why;
                 c.Log.Warning($"Слив опыта: {step.Why} — выключаю слив до перезапуска бота");
                 return Finish(c);
         }
+    }
+
+    // Слив не вышел, а до уровня чуть-чуть: фармить дальше — апнуть уровень, которого смертью уже не снять
+    private static bool NearLevelUp(BrainContext c) => c.World.Host.ExpPercent is >= StopPercent;
+
+    private bool StopNearLevelUp(BrainContext c, string why)
+    {
+        End(c);
+        return c.RequestStop($"слив опыта не вышел ({why}), а опыта уже {c.World.Host.ExpPercent:0.0} % — фармить дальше нельзя, апну уровень");
     }
 
     private bool TryStart(BrainContext c)

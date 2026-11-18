@@ -381,6 +381,18 @@ public class ExpDrainBehaviorTests
         Assert.Null(_stop);
     }
 
+    // Было: слив бросался при 99,3 %, бот фармил дальше и апнул уровень
+    [Fact]
+    public void NoMobsNearLevelUpStopsBot()
+    {
+        _world.Exp = 995;
+
+        TickFor(61);
+
+        Assert.NotNull(_stop);
+        Assert.Contains("фармить дальше нельзя", _stop);
+    }
+
     [Fact]
     public void DisabledWhileDeadStillFliesBackThenFarms()
     {
