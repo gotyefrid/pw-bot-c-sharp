@@ -271,6 +271,60 @@ public class FollowModeTests
         Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("apply"));
     }
 
+    private static readonly Position Bridge = new(-1703.7f, 219.6f, 97.8f);
+
+    // Мастер телепортации в 2 м: строка 5 — «Посёлок у моста»
+    private void AddTeleportMaster() => _me.Npcs.Add(new NpcInfo(0x80103F78, 0x80103F78, NpcKind.Npc, NpcState.Standing, 0,
+        new Position(2, 0, 0), "Мастер телепортации", 0)
+    {
+        Tid = 2202,
+        Teleports = [new TeleportPoint(2, 3701, "Портовый город", new Position(267.7f, 219.5f, 973.9f), 200),
+                     new TeleportPoint(5, 4301, "Посёлок у моста", Bridge, 200)],
+    });
+
+    [Fact]
+    public void LeaderTeleportedAtMaster_TeleportsToSamePoint()
+    {
+        AddTeleportMaster();
+        _leader.Position = new Position(1, 0, 0);
+        Tick();
+
+        _leader.Position = Bridge;
+        Tick();
+        Tick(0.6);
+
+        Assert.Equal(["npc-hello", "teleport 5"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderJumpedElsewhere_NoTeleport()
+    {
+        AddTeleportMaster();
+        _leader.Position = new Position(1, 0, 0);
+        Tick();
+
+        _leader.Position = new Position(3000, 0, 3000);
+        Tick();
+        Tick(0.6);
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderTeleported_TeleportOff_Stays()
+    {
+        _settings.Follow.Teleport = false;
+        AddTeleportMaster();
+        _leader.Position = new Position(1, 0, 0);
+        Tick();
+
+        _leader.Position = Bridge;
+        Tick();
+        Tick(0.6);
+
+        Assert.Empty(_actions.Calls);
+    }
+
     [Fact]
     public void LeaderCastsPortal_PortalOff_Stays()
     {

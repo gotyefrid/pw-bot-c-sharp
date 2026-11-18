@@ -519,6 +519,7 @@ public sealed class FollowSettings : SettingsPart
     private bool _skills = true;
     private bool _jump = true;
     private bool _portal = true;
+    private bool _teleport = true;
     private FollowPath _path = FollowPath.Direct;
 
     /// <summary>Ник главного; пусто — не выбран.</summary>
@@ -544,6 +545,9 @@ public sealed class FollowSettings : SettingsPart
 
     /// <summary>Главный кастует «Городской портал» — кастовать тоже (если не в откате).</summary>
     public bool Portal { get => _portal; set => Set(ref _portal, value); }
+
+    /// <summary>Главный телепортировался у мастера телепортации рядом — телепортироваться туда же у того же мастера.</summary>
+    public bool Teleport { get => _teleport; set => Set(ref _teleport, value); }
 
     /// <summary>Как идти к главному по земле.</summary>
     public FollowPath Path { get => _path; set => Set(ref _path, value); }
