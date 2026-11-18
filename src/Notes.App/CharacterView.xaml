@@ -719,10 +719,9 @@
               <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.DeathPoint.HasPoint, Converter={StaticResource Visible}}">
                 <TextBlock DockPanel.Dock="Right" Text="{Binding Farm.DeathPoint.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
               </DockPanel>
-              <CheckBox Style="{StaticResource Switch}" Content="В точке для смертей — только мобы из списка" IsChecked="{Binding Settings.ExpDrain.UseDeathMobList}"
-                        ToolTip="На месте фарма бот умирает от любых мобов рядом. Список — только для точки для смертей; выключено или список пуст — от любых. Ждёт смерть, как стоял, когда точку запоминали" />
-              <app:TagPicker Margin="0,4,0,0" IsEnabled="{Binding Settings.ExpDrain.UseDeathMobList}"
-                             Selected="{Binding Farm.DeathMobNames}" Options="{Binding Farm.MobOptions}"
+              <TextBlock Text="От каких мобов умирать в точке для смертей" Margin="0,4,0,0"
+                         ToolTip="На месте фарма бот умирает от любых мобов рядом. Список — только для точки для смертей; пуст — от любых. Ждёт смерть, как стоял, когда точку запоминали" />
+              <app:TagPicker Margin="0,4,0,0" Selected="{Binding Farm.DeathMobNames}" Options="{Binding Farm.MobOptions}"
                              Placeholder="Мобы не выбраны — от любых" EmptyOptionsText="Рядом нет мобов — подойдите к ним"
                              ToolTip="Одно название — все такие мобы. Варианты — мобы вокруг (в скобках уровень) и те, что встречались за сессию" />
               <DockPanel Style="{StaticResource SettingRow}">

@@ -206,9 +206,9 @@ public sealed class ExpDrainBehavior(IExpDrainMethod method, Func<BrainContext, 
         return new DrainPlan(farm, death, point is null, mobs, Enough, atFarm);
     }
 
-    // Названия мобов для точки для смертей; null — от любых (список пуст — тоже от любых: иначе слив не начнётся никогда)
+    // Названия мобов для точки для смертей; null — список пуст, от любых
     private static IReadOnlyList<string>? Mobs(ExpDrainSettings settings)
-        => settings.UseDeathMobList && settings.DeathMobNames.Count > 0 ? settings.DeathMobNames.ToList() : null;
+        => settings.DeathMobNames.Count > 0 ? settings.DeathMobNames.ToList() : null;
 
     // В точке для смертей ждём смерть, как стоял перс, когда точку запоминали (в воздухе, на земле, в воде)
     private static Spot DeathAt(FarmPoint point) => new(point.Position, BrainContext.SpotEnd(point));

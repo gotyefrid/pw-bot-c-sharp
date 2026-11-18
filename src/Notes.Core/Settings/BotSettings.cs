@@ -780,12 +780,8 @@ public sealed class ExpDrainSettings : SettingsPart
     /// <summary>Точки для смертей — свои, не точки фарма (<see cref="TargetSettings.FarmPoints"/>).</summary>
     public List<FarmPoint> DeathPoints { get => _deathPoints; set => Set(ref _deathPoints, value); }
 
-    private bool _useDeathMobList;
-    /// <summary>В точке для смертей умирать только от мобов из <see cref="DeathMobNames"/>; нет — от любых. На месте фарма — всегда от любых.</summary>
-    public bool UseDeathMobList { get => _useDeathMobList; set => Set(ref _useDeathMobList, value); }
-
     private List<string> _deathMobNames = [];
-    /// <summary>От каких мобов умирать в точке для смертей (при <see cref="UseDeathMobList"/>); одно название — все такие мобы.</summary>
+    /// <summary>От каких мобов умирать в точке для смертей; пусто — от любых. На месте фарма — всегда от любых.</summary>
     public List<string> DeathMobNames { get => _deathMobNames; set => Set(ref _deathMobNames, value); }
 
     /// <summary>Точка для смертей; null — умирать на месте фарма.</summary>

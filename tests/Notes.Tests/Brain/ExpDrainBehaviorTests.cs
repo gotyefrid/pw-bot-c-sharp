@@ -652,7 +652,6 @@ public class ExpDrainBehaviorTests
     public void OldHabitatSettingReadsAsAny()
     {
         var s = SettingsJson.Parse("{ \"expDrain\": { \"deathMobs\": \"Air\" } }");
-        Assert.False(s.ExpDrain.UseDeathMobList);
         Assert.Empty(s.ExpDrain.DeathMobNames);
     }
 
@@ -660,7 +659,6 @@ public class ExpDrainBehaviorTests
     [Fact]
     public void AtFarmDiesFromAnyMobsWhateverList()
     {
-        _settings.ExpDrain.UseDeathMobList = true;
         _settings.ExpDrain.DeathMobNames = ["Чужак"];
         AddGroundMobs();
 
@@ -676,7 +674,6 @@ public class ExpDrainBehaviorTests
     {
         _settings.ExpDrain.DeathPoints = [FarmPoint.At("Смерть", new Position(100, 0, 0))];
         _settings.ExpDrain.DeathPoint = "Смерть";
-        _settings.ExpDrain.UseDeathMobList = true;
         _settings.ExpDrain.DeathMobNames = ["Свой"];
         _world.Npcs.Add(new NpcInfo(0x80000008, 0x80000008, NpcKind.Mob, NpcState.Standing, 0, new Position(102, 0, 0), "Чужак", 0));
         _world.Npcs.Add(new NpcInfo(0x80000009, 0x80000009, NpcKind.Mob, NpcState.Standing, 0, new Position(106, 0, 0), "Свой", 0));
