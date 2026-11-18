@@ -223,7 +223,8 @@
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Догонять, если отстал больше, м" VerticalAlignment="Center"
                            ToolTip="Ближе — стоит на месте; дальше — идёт к главному" />
-                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Follow.Distance, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Follow.Distance, UpdateSourceTrigger=LostFocus}"
+                         ToolTip="Можно дробное через точку: 0.2" />
               </DockPanel>
               <WrapPanel>
                 <CheckBox Style="{StaticResource Switch}" Content="Ассист" IsChecked="{Binding Settings.Follow.Assist}" Margin="0,4,18,4"

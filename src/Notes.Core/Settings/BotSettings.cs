@@ -508,11 +508,11 @@ public sealed class QuestSettings : SettingsPart
 /// </summary>
 public sealed class FollowSettings : SettingsPart
 {
-    public const int MinDistance = 2;
-    public const int MaxDistance = 50;
+    public const float MinDistance = 0.1f;
+    public const float MaxDistance = 50;
 
     private string _leader = "";
-    private int _distance = 5;
+    private float _distance = 5;
     private bool _assist = true;
     private bool _quests = true;
     private bool _fly = true;
@@ -521,8 +521,8 @@ public sealed class FollowSettings : SettingsPart
     /// <summary>Ник главного; пусто — не выбран.</summary>
     public string Leader { get => _leader; set => Set(ref _leader, value ?? ""); }
 
-    /// <summary>Отстал дальше этого, м, — догонять.</summary>
-    public int Distance { get => _distance; set => Set(ref _distance, value); }
+    /// <summary>Отстал дальше этого, м, — догонять (дробное: 0,2 — держаться вплотную).</summary>
+    public float Distance { get => _distance; set => Set(ref _distance, value); }
 
     /// <summary>Бить того, кого бьёт главный (и тех, кто бьёт его).</summary>
     public bool Assist { get => _assist; set => Set(ref _assist, value); }
