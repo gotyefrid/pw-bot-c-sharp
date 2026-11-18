@@ -85,6 +85,9 @@ public interface IGameActions
     /// <summary>Телепорт у мастера телепортации, с которым начат разговор: строка <paramref name="index"/> его списка (с 0).</summary>
     CallResult NpcTeleport(int index);
 
+    /// <summary>Телепорт руной переноса из сумки в точку телепорта <paramref name="waypoint"/>.</summary>
+    CallResult TeleportRune(InventoryItem rune, int waypoint);
+
     /// <summary>«Ассист»: взять в цель то же, что у члена пати.</summary>
     CallResult TeamAssist(uint wid);
 

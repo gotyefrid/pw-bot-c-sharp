@@ -405,6 +405,16 @@ public sealed class NpcTeleportAction(int index, string? where = null) : GameAct
     public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
 }
 
+/// <summary>Телепорт руной переноса в точку <c>waypoint</c>. Подтверждение — перс оказался у точки (смотрит вызывающий).</summary>
+public sealed class TeleportRuneAction(InventoryItem rune, int waypoint, string? where = null) : GameAction
+{
+    public override string Name => $"руна переноса{(where is null ? "" : $" в «{where}»")} (точка {waypoint})";
+    public override ActionSlot Slot => ActionSlot.Bank;
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(2);
+    public override CallResult Send(GameControl control, WorldState now) => control.Calls.TeleportRune(rune, waypoint);
+    public override Verdict Check(WorldState start, WorldState now) => Verdict.Confirmed();
+}
+
 /// <summary>Вывести питомца из яйца у NPC, с которым уже начат разговор. Подтверждение — яйца нет в сумке (смотрит вызывающий).</summary>
 public sealed class NpcHatchPetAction(int slot, uint eggTid) : GameAction
 {

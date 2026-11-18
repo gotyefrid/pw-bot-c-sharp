@@ -601,7 +601,9 @@
     "followMessage": "0xEE",
     // Прыжок: сообщение игре — не проверено (как найти: см. comeback146)
     "jumpMessage": "",
-    "transmitService": ""
+    "transmitService": "",
+    "useItemWithArg": "",
+    "teleportRunes": []
   },
 
   // Телепорт у NPC и справочник игры (см. comeback146) — не проверены на этом клиенте

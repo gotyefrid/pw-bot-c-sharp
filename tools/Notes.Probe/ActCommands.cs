@@ -37,6 +37,7 @@ internal static class ActCommands
                                 награда на выбор — с 1, как в окне (по умолчанию первая)
           act npc-learn НОМЕР     выучить скилл у NPC, с которым начат разговор (после npc-hello); учебник сервер берёт из сумки
           act npc-teleport СТРОКА телепорт у мастера, с которым начат разговор (после npc-hello); строка — из snapshot («телепорт:»)
+          act rune ТОЧКА        телепорт руной переноса из сумки в точку (номер точки — из snapshot, «телепорт:» у мастера)
           act npc-hatch ЯЧЕЙКА    вывести питомца из яйца в ячейке сумки у NPC, с которым начат разговор (после npc-hello)
           act whisper НИК ТЕКСТ [wid=WID]  написать в личку, как «/Ник текст» в чате (WID получателя — если известен)
           act quest-check         «Доступные» как в окне: задания по уровню перса и проверка игры «можно взять» (0 — можно)
@@ -416,6 +417,12 @@ internal static class ActCommands
                 problem = "нужно: act npc-teleport СТРОКА (номер из snapshot, «телепорт:» у мастера)";
                 var row = args.Select(a => int.TryParse(a, out var v) && v >= 0 && v < 32 ? v : -1).FirstOrDefault(v => v >= 0);
                 return args.Any(a => int.TryParse(a, out var v) && v >= 0 && v < 32) ? new NpcTeleportAction(row) : null;
+
+            case "rune":
+                problem = "нужно: act rune НОМЕР_ТОЧКИ и руна переноса в сумке (packets.teleportRunes)";
+                var point = args.Select(a => int.TryParse(a, out var v) && v > 0 && v < 100000 ? v : 0).FirstOrDefault(v => v != 0);
+                var rune = data.Packets.TeleportRunes.Select(t => w.Inventory.FirstOrDefault(i => i.Tid == t)).FirstOrDefault(i => i is not null);
+                return point == 0 || rune is null ? null : new TeleportRuneAction(rune, point);
 
             case "npc-hatch":
                 problem = "нужно: act npc-hatch ЯЧЕЙКА_СУМКИ — в ней яйцо питомца";

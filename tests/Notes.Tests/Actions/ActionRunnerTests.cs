@@ -1080,6 +1080,7 @@ public class ActionRunnerTests
         public CallResult NpcAcceptTask(int taskId) => Slow();
         public CallResult NpcLearnSkill(int skillId) => Slow();
         public CallResult NpcTeleport(int index) => Slow();
+        public CallResult TeleportRune(InventoryItem rune, int waypoint) => Slow();
         public CallResult TeamAssist(uint wid) => Slow();
         public CallResult Follow(uint wid) => Slow();
         public CallResult Jump() => Slow();

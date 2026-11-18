@@ -323,6 +323,24 @@ public sealed class GameCaller : IGameActions
             ? CallResult.Refused($"телепорт: неверная строка {index}")
             : NpcService(_profile.Packets.TransmitService, "телепорт (packets.transmitService)", (uint)index);
 
+    /// <summary>Телепорт руной переноса из сумки в точку <paramref name="waypoint"/> (номер из таблицы точек игры), как выбором на её карте.</summary>
+    public CallResult TeleportRune(InventoryItem rune, int waypoint)
+    {
+        var command = _profile.Packets.UseItemWithArg;
+        if (command == 0)
+            return CallResult.Refused("руна переноса: команда не найдена (packets.useItemWithArg)");
+        if (waypoint <= 0)
+            return CallResult.Refused($"руна переноса: неверная точка {waypoint}");
+
+        var packet = new byte[0xE];
+        Buffer.BlockCopy(BitConverter.GetBytes((ushort)command), 0, packet, 0, 2);
+        packet[3] = 1;
+        Buffer.BlockCopy(BitConverter.GetBytes((ushort)rune.Slot), 0, packet, 4, 2);
+        Buffer.BlockCopy(BitConverter.GetBytes(rune.Tid), 0, packet, 6, 4);
+        Buffer.BlockCopy(BitConverter.GetBytes(waypoint), 0, packet, 0xA, 4);
+        return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
+    }
+
     /// <summary>
     /// Вывести питомца из яйца у NPC, с которым начат разговор, как окном «Инкубация питомца»: яйцо — в ячейке сумки
     /// <paramref name="slot"/>. Что это яйцо и что в клетке есть место, проверяет тот, кто зовёт.

@@ -169,6 +169,12 @@ public sealed class PacketFormats
 
     /// <summary>Номер услуги NPC «телепорт» (данные — номер строки в списке точек мастера). 0 — не найдено.</summary>
     public uint TransmitService { get; init; }
+
+    /// <summary>Команда «использовать предмет с параметром» (руна переноса — номер точки). 0 — не найдено.</summary>
+    public uint UseItemWithArg { get; init; }
+
+    /// <summary>Руны переноса (tid) — порядок: какую брать первой (обычная раньше идеальной). Пусто — нет.</summary>
+    public List<uint> TeleportRunes { get; init; } = new();
 }
 
 /// <summary>
