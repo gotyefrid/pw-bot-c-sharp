@@ -1261,7 +1261,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         _lastWorldAt = DateTime.UtcNow;
         // «Задания»: варианты списка «не брать» — из «Доступных», их читаем, пока выбран этот режим. Ушли из режима — не читаем,
         // кроме запущенного бота: он сам просит задания каждый тик, пока работает
-        if (Settings.Mode == BotMode.LevelUp)
+        // «Следовать»: журнал нужен и помощнику, и главному, у которого его просит помощник другой вкладки
+        if (Settings.Mode is BotMode.LevelUp or BotMode.Follow || LeaderBoard.Shared.QuestsWanted(w.Host.Name, w.Time))
             _connection.Requests.Quests = true;
         else if (_connection.Bot is null)
             _connection.Requests.Quests = false;

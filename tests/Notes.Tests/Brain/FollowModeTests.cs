@@ -247,6 +247,96 @@ public class FollowModeTests
     }
 
     [Fact]
+    public void LeaderTookQuest_TakesSameFromNpcNearby()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.QuestCandidates = [new QuestInfo(Task, "Мотыльки", 0, QuestGoals.Kill, Giver, [], []) { GiverNpc = Giver }];
+        _leader.Quests = [Quest()];
+
+        Tick();
+        Assert.Equal(["npc-hello"], _actions.Calls);
+        Tick(1.1);
+        Assert.Equal(["npc-hello", $"accept-task {Task}"], _actions.Calls);
+
+        _me.Quests = [Quest()];
+        Tick();
+        Assert.Equal(["npc-hello", $"accept-task {Task}", "npc-back"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderTookQuest_GameSaysNo_DoesNotGo()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.QuestCandidates = [new QuestInfo(Task, "Мотыльки", 0, QuestGoals.Kill, Giver, [], []) { GiverNpc = Giver }];
+        _actions.QuestCheckAnswers[Task] = 5;
+        _leader.Quests = [Quest()];
+
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("npc-hello", _actions.Calls);
+    }
+
+    [Fact]
+    public void QuestsOff_DoesNotTake()
+    {
+        _settings.Follow.Quests = false;
+        AddNpc(_me, Giver, 3);
+        _me.QuestCandidates = [new QuestInfo(Task, "Мотыльки", 0, QuestGoals.Kill, Giver, [], []) { GiverNpc = Giver }];
+        _leader.Quests = [Quest()];
+
+        Tick();
+
+        Assert.Empty(_actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderHandedIn_HandsInDoneQuest()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.Quests = [Quest(done: 10)];
+        _leader.Quests = [Quest(done: 10)];
+        Tick();
+        Assert.Empty(_actions.Calls);
+
+        _leader.Quests = [];
+        Tick();
+        Assert.Equal(["npc-hello"], _actions.Calls);
+        Tick(1.1);
+        Assert.Equal(["npc-hello", $"return-task {Task}"], _actions.Calls);
+
+        _me.Quests = [];
+        Tick();
+        Assert.Equal(["npc-hello", $"return-task {Task}", "npc-back"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderHandedIn_MineNotDone_BeatsQuestMobNearby()
+    {
+        AddNpc(_me, Giver, 3);
+        _me.Quests = [Quest(done: 3)];
+        _leader.Quests = [Quest(done: 10)];
+        Tick();
+
+        _leader.Quests = [];
+        var mob = new NpcInfo(0x80200002, 0x80200002, NpcKind.Mob, NpcState.Standing, 0, new Position(10, 0, 0), "Мотылёк", 0) { Tid = 1000 };
+        _me.Npcs.Add(mob);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain($"return-task {Task}", _actions.Calls);
+        Assert.Contains($"select {mob.Wid:X}", _actions.Calls);
+    }
+
+    [Fact]
+    public void AsksLeaderTabToReadQuests()
+    {
+        Tick();
+
+        Assert.True(_board.QuestsWanted("Главный", _me.Time));
+    }
+
+    [Fact]
     public void DistanceIsClamped()
     {
         _settings.Follow.Distance = 1000;

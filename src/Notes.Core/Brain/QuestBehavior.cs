@@ -425,7 +425,7 @@ public sealed class QuestBehavior : IBehavior, IWatchingBehavior
     }
 
     // Цель по мобу выполнена: с него падает предмет — хватает ли их в сумке заданий; иначе — убито ли сколько нужно
-    private static bool Enough(WorldState w, QuestTarget mob)
+    internal static bool Enough(WorldState w, QuestTarget mob)
         => mob.DropItem != 0 ? w.QuestItemCount(mob.DropItem) >= mob.DropNeed : (mob.Done ?? 0) >= mob.Need;
 
     private static string Progress(WorldState w, QuestTarget mob)
