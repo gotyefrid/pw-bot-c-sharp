@@ -7,12 +7,11 @@ using Notes.Core.Profiles;
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Поза у фарма — как стоял перс, когда точку фарма запоминали (<see cref="BrainContext.FarmSpot"/>): точка на земле, а перс в радиусе
-/// фарма летит (взлетел сам, руками, или его оставил в воздухе кто-то из поведений) — садимся сразу, даже в бою: снизу бьёт и лутает
-/// по-другому. Точка в воздухе, а перс стоит на земле — взлетаем между мобами, до новой цели: не в бою (его с земли не рвём), не в
-/// касте и не сразу после копки (<see cref="AfterDig"/>: под центром копают по нескольку ресурсов подряд); взлетев — к высоте центра.
+/// Поза у фарма — как стоял перс, когда точку фарма запоминали (<see cref="BrainContext.FarmSpot"/>). Проверяем только перед новой
+/// целью, когда боя нет: точка на земле, а перс в радиусе фарма летит — садимся; точка в воздухе, а перс на земле — взлетаем (не сразу
+/// после копки, <see cref="AfterDig"/>) и поднимаемся к центру. Пока поза не та — ход держим: пет и новая цель ждут. В бою позу не трогаем.
 /// Только для сохранённой точки фарма: у точки старта позы нет. Вне радиуса, в воде, без полётника — не трогаем.
-/// В наборе — после лечения, перед петом (пет зовётся по позе) и копкой.
+/// В наборе — после лечения, перед петом (пет зовётся по позе) и боем.
 /// </summary>
 public sealed class FarmStanceBehavior : IBehavior
 {
@@ -54,29 +53,32 @@ public sealed class FarmStanceBehavior : IBehavior
             }
         }
 
+        // В бою позу не трогаем — только перед новой целью
+        if (c.Fight.Busy)
+            return false;
+
         if (spot.End == TripEnd.Ground && w.Host.Flying == true)
             return Send(c, up: false, "Центр фарма на земле, а перс в воздухе — сажусь");
 
         if (spot.End != TripEnd.Air || w.Host.Flying != false || w.HasFlyer == false || !c.Runner.Capabilities.Has(Capability.FlyTo))
             return false;
 
-        // На земле у центра в воздухе: взлетаем до новой цели — не в бою, не в касте, не сразу после копки
-        if (c.Fight.Busy || TargetSelector.Aggressor(w) is not null || c.Runner.BodyBusy(w) is not null
-            || c.GatheredAt is { } dug && c.Now - dug < AfterDig)
+        // Сразу после копки не взлетаем: под центром копают по нескольку ресурсов подряд
+        if (c.GatheredAt is { } dug && c.Now - dug < AfterDig)
             return false;
         return Send(c, up: true, "Центр фарма в воздухе, а перс на земле — взлетаю");
     }
 
     private bool Send(BrainContext c, bool up, string why)
     {
-        // Сесть — срочно: в бою каст идёт почти без пауз, обычное «сесть» ждало его концов десятки секунд (и пет менялся на летающего)
-        var sent = c.Send(new FlyAction(up) { Priority = up ? ActionPriority.Normal : ActionPriority.Urgent });
+        var sent = c.Send(new FlyAction(up));
         if (sent == SubmitStatus.Sent)
             _climb = up;
         if (sent == SubmitStatus.Sent)
             c.Say(up ? "stance-up" : "stance-down", why, seconds: 60);
         Status = up ? "взлетаю — центр фарма в воздухе" : "сажусь — центр фарма на земле";
-        return sent is SubmitStatus.Sent or SubmitStatus.AlreadyPending;
+        // Тело занято (докастовывает, лутает) — всё равно держим ход: новую цель — только в нужной позе
+        return sent is not SubmitStatus.Failed;
     }
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)

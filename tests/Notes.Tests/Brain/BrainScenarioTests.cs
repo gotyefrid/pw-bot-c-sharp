@@ -2324,16 +2324,17 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void GroundFarmInAirLandsEvenInFight()
+    public void GroundFarmInAirLandsBeforeNewTarget()
     {
-        // Точка фарма на земле, а перс в радиусе летит (встал на полёт руками) — садится сразу, бой подождёт
+        // Точка фарма на земле, а перс в радиусе летит — до выбора цели садится, цель потом
         FarmAt(10, radius: 60);
         _settings.Combat.UseSkill = true;
         _world.AddSkill(299);
         _world.Flying = true;
         _world.Position = new Position(0, 20, 0);
-        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
+        _world.AddMob(0x80000001, "Волк", 5);
 
+        Tick();
         Tick();
 
         Assert.Equal(["fly-toggle"], _actions.Calls);
@@ -2341,29 +2342,23 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void GroundFarmInAirLandsThroughCast()
+    public void InFightStanceIsNotTouched()
     {
-        // Взлетели посреди боя, перс кастует атаку — «сесть» прерывает каст, а не ждёт его конца
+        // Взлетели посреди боя — бой не рвём, бьём дальше; сядем перед следующей целью
         FarmAt(10, radius: 60);
         _settings.Combat.UseSkill = true;
         _world.AddSkill(299);
         _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5).Wid;
-        for (var i = 0; i < 8; i++)
+        for (var i = 0; i < 4; i++)
             Tick();
         Assert.Contains("apply 299 0", _actions.Calls);
-        _world.CastingSkillId = 299;
-        _world.Casting = true;
         _world.Flying = true;
         _world.Position = new Position(0, 20, 0);
 
-        Tick();
-        Assert.Equal("cancel", LastCall);
-        _world.Casting = false;
-        _world.CastingSkillId = 0;
-        for (var i = 0; i < 4; i++)
+        for (var i = 0; i < 8; i++)
             Tick();
 
-        Assert.Contains("fly-toggle", _actions.Calls);
+        Assert.DoesNotContain("fly-toggle", _actions.Calls);
     }
 
     [Fact]
@@ -2374,21 +2369,6 @@ public class BrainScenarioTests
         _settings.Target.FarmRadius = 60;
         _world.Flying = true;
         _world.Position = new Position(0, 20, 0);
-
-        for (var i = 0; i < 60; i++)
-            Tick();
-
-        Assert.DoesNotContain("fly-toggle", _actions.Calls);
-    }
-
-    [Fact]
-    public void AirFarmOnGroundWaitsWhileFighting()
-    {
-        // Точка в воздухе, перс на земле, а моб уже бьёт нас — не взлетаем, отбиваемся с земли
-        FarmInAirThenLand(new Position(0, 0, 0));
-        _settings.Combat.UseSkill = true;
-        _world.AddSkill(299);
-        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 5, targetWid: FakeWorld.HostWid).Wid;
 
         for (var i = 0; i < 60; i++)
             Tick();
