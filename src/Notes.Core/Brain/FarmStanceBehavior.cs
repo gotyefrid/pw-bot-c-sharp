@@ -18,8 +18,10 @@ public sealed class FarmStanceBehavior : IBehavior
     /// <summary>Выкопали ресурс — столько не взлетаем: рядом может быть следующий.</summary>
     public static readonly TimeSpan AfterDig = TimeSpan.FromSeconds(10);
 
-    // Не сели / не взлетели — не жать «Полёт» каждый шаг
-    private static readonly TimeSpan RetryAfter = TimeSpan.FromSeconds(30);
+    // Не сели / не взлетели — жмём снова через секунду и ход не отдаём, сколько бы ни было попыток: в неправильной позе
+    // скрипт дальше не идёт (игра пропускает «Полёт», пока перс докастовывает)
+    private static readonly TimeSpan QuickRetry = TimeSpan.FromSeconds(1);
+    private int _fails;
 
     private DateTime _nextTry = DateTime.MinValue;
     // Сами взлетели к центру в воздухе — следом подняться к нему (иначе возврат ждал бы ещё раз «нечего делать»)
@@ -39,8 +41,14 @@ public sealed class FarmStanceBehavior : IBehavior
 
         var w = c.World;
         if (c.Settings.Target.SelectedFarmPoint is null || c.FarmSpot is not { } spot || spot.End == TripEnd.Water
-            || w.Host.InWater == true || !c.InFarmArea(w.Host.Position) || c.Now < _nextTry)
+            || w.Host.InWater == true || !c.InFarmArea(w.Host.Position))
             return false;
+        if (c.Now < _nextTry)
+        {
+            // Пауза между попытками — ход держим: пет и цель ждут позы
+            Status = "жду, чтобы снова поменять позу";
+            return !c.Fight.Busy && Wrong(c, spot);
+        }
 
         if (_climb && spot.End == TripEnd.Air && w.Host.Flying == true)
         {
@@ -69,8 +77,19 @@ public sealed class FarmStanceBehavior : IBehavior
         return Send(c, up: true, "Центр фарма в воздухе, а перс на земле — взлетаю");
     }
 
+    // Поза не та: точка на земле — летим, точка в воздухе — стоим на земле
+    private static bool Wrong(BrainContext c, Spot spot)
+        => spot.End == TripEnd.Ground ? c.World.Host.Flying == true : spot.End == TripEnd.Air && c.World.Host.Flying == false;
+
     private bool Send(BrainContext c, bool up, string why)
     {
+        // Каст после боя ещё идёт — игра «Полёт» не примет: сначала прервать
+        if (c.World.Host.IsCasting)
+        {
+            c.Send(new CancelAction("каст"));
+            Status = "прерываю каст, чтобы " + (up ? "взлететь" : "сесть");
+            return true;
+        }
         var sent = c.Send(new FlyAction(up));
         if (sent == SubmitStatus.Sent)
             _climb = up;
@@ -83,13 +102,23 @@ public sealed class FarmStanceBehavior : IBehavior
 
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
-        if (outcome.Action is FlyAction && outcome.Status is ActionStatus.Rejected or ActionStatus.Timeout or ActionStatus.Failed)
-            _nextTry = c.Now + RetryAfter;
+        if (outcome.Action is not FlyAction)
+            return;
+        if (outcome.Status is ActionStatus.Confirmed)
+            _fails = 0;
+        else if (outcome.Status is ActionStatus.Rejected or ActionStatus.Timeout or ActionStatus.Failed)
+        {
+            _fails++;
+            _nextTry = c.Now + QuickRetry;
+            c.Say("stance-fail", $"Не смог {(((FlyAction)outcome.Action).Up ? "взлететь" : "сесть")} ({outcome.Details}), попыток {_fails} — пробую снова, цель не беру",
+                LogLevel.Warning, 60);
+        }
     }
 
     public void Reset()
     {
         _nextTry = DateTime.MinValue;
+        _fails = 0;
         _climb = false;
         Status = null;
     }

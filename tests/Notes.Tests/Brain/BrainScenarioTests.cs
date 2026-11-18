@@ -2342,6 +2342,45 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void CastingAfterFightIsCancelledBeforeLanding()
+    {
+        // Бой кончился, а перс ещё кастует — игра «Полёт» не примет: сначала прервать каст, потом сесть
+        FarmAt(10, radius: 60);
+        _world.Flying = true;
+        _world.Casting = true;
+        _world.CastingSkillId = 299;
+        _world.Position = new Position(0, 20, 0);
+
+        Tick();
+        Assert.Equal(["cancel"], _actions.Calls);
+        _world.Casting = false;
+        _world.CastingSkillId = 0;
+        for (var i = 0; i < 4; i++)
+            Tick();
+
+        Assert.Equal(["cancel", "fly-toggle"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LandingIgnoredRetriesAndTakesNoTarget()
+    {
+        // Игра не приняла «сесть» — жмём снова, а цель не берём и пета не зовём, сколько бы ни ждать
+        FarmAt(10, radius: 60);
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.Flying = true;
+        _world.Position = new Position(0, 20, 0);
+        _world.AddMob(0x80000001, "Волк", 5);
+
+        for (var i = 0; i < 4 * 60; i++) // минута — перс так и висит
+            Tick();
+
+        Assert.True(_actions.Calls.Count(x => x == "fly-toggle") >= 3);
+        Assert.All(_actions.Calls, call => Assert.Equal("fly-toggle", call));
+        Assert.Contains(_log, e => e.Message.StartsWith("Не смог сесть"));
+    }
+
+    [Fact]
     public void InFightStanceIsNotTouched()
     {
         // Взлетели посреди боя — бой не рвём, бьём дальше; сядем перед следующей целью
