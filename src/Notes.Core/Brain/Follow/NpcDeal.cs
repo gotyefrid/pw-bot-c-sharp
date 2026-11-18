@@ -24,7 +24,7 @@ public sealed class NpcDeal
     public const int Tries = 3;
     private const float TalkDistance = 4f;
     private const float NpcStop = 2.5f;
-    private static readonly TimeSpan DialogWait = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan DialogWait = TimeSpan.FromSeconds(0.5);
     private static readonly TimeSpan DealWait = TimeSpan.FromSeconds(4);
 
     private enum Stage { Walk, Hello, Deal }
