@@ -22,6 +22,25 @@ internal sealed class TeleportReader(IMemory memory, GameRoots roots, ProfileDat
 
     private readonly Dictionary<uint, IReadOnlyList<TeleportPoint>?> _byNpc = [];
     private Dictionary<int, (string? Name, Position Position)>? _waypoints;
+    private IReadOnlyList<TeleportPoint>? _all;
+
+    /// <summary>Все точки телепорта игры (<see cref="TeleportPoint.Index"/> — 0, у мастера не нужен); пусто — не найдены.</summary>
+    public IReadOnlyList<TeleportPoint> All()
+    {
+        if (_all is { } known)
+            return known;
+        try
+        {
+            var list = new List<TeleportPoint>();
+            foreach (var p in Waypoints())
+                list.Add(new TeleportPoint(0, p.Key, p.Value.Name, p.Value.Position, 0));
+            return list.Count == 0 ? list : _all = list;
+        }
+        catch (MemoryAccessException)
+        {
+            return [];
+        }
+    }
 
     /// <summary>Список точек мастера по записи NPC (<see cref="NpcOffsets.Essence"/>); null — не мастер или не читается.</summary>
     public IReadOnlyList<TeleportPoint>? Destinations(uint npcRecord)
@@ -113,7 +132,8 @@ internal sealed class TeleportReader(IMemory memory, GameRoots roots, ProfileDat
                 }
             }
         }
-        return _waypoints = result;
+        // Пусто (игра ещё грузится) — прочтём в другой раз
+        return result.Count == 0 ? result : _waypoints = result;
     }
 
     // Строка UTF-16 внутри записи, не длиннее поля

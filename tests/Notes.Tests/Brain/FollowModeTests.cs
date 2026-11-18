@@ -310,6 +310,59 @@ public class FollowModeTests
         Assert.Empty(_actions.Calls);
     }
 
+    private static readonly Position Gorge = new(-132.7f, 218.7f, -309.4f);
+
+    // Мастера рядом нет; в таблице игры — «Древнее ущелье», в сумке — идеальная руна
+    private void AddRune()
+    {
+        _me.Waypoints.Add(new TeleportPoint(0, 4401, "Древнее ущелье", Gorge, 0));
+        _me.Runes.Add(69449);
+        _me.Bag.Add(new InventoryItem(5, 69449, 0, 10, null, null));
+    }
+
+    [Fact]
+    public void LeaderTeleportedNoMaster_UsesRune()
+    {
+        AddRune();
+        _leader.Position = new Position(1, 0, 0);
+        Tick();
+
+        _leader.Position = Gorge;
+        Tick();
+
+        Assert.Equal(["rune 69449 4401"], _actions.Calls);
+    }
+
+    [Fact]
+    public void LeaderTeleportedNoMaster_NoRunes_Stays()
+    {
+        AddRune();
+        _me.Bag.Clear();
+        _leader.Position = new Position(1, 0, 0);
+        Tick();
+
+        _leader.Position = Gorge;
+        Tick();
+
+        Assert.DoesNotContain(_actions.Calls, call => call.StartsWith("rune"));
+    }
+
+    [Fact]
+    public void LeaderTeleportedAtMaster_TeleportsAtMasterNotRune()
+    {
+        AddRune();
+        _me.Waypoints.Add(new TeleportPoint(0, 4301, "Посёлок у моста", Bridge, 0));
+        AddTeleportMaster();
+        _leader.Position = new Position(1, 0, 0);
+        Tick();
+
+        _leader.Position = Bridge;
+        Tick();
+        Tick(0.6);
+
+        Assert.Equal(["npc-hello", "teleport 5"], _actions.Calls);
+    }
+
     [Fact]
     public void LeaderTeleported_TeleportOff_Stays()
     {

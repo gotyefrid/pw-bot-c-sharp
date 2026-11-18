@@ -123,6 +123,8 @@ public sealed class WorldReader
             Players = players,
             PlayerCountInGame = playerCount,
             InventorySlots = slots,
+            Waypoints = _teleports.All(),
+            TeleportRunes = _p.Packets.TeleportRunes.SelectMany(t => inventory.Where(i => i.Tid == t)).ToList(),
             Bank = bank,
             BankSlots = bankSlots,
             Quests = Requests.Quests ? ReadQuests() : null,

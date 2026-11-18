@@ -148,6 +148,12 @@ public sealed record WorldState(
     /// <summary>Сколько ячеек в сумке (0 — неизвестно).</summary>
     public int InventorySlots { get; init; }
 
+    /// <summary>Все точки телепорта игры (номер, название, где); пусто — таблица не найдена для сервера.</summary>
+    public IReadOnlyList<TeleportPoint> Waypoints { get; init; } = [];
+
+    /// <summary>Руны переноса в сумке — в порядке профиля (обычная раньше идеальной); пусто — нет или не найдены для сервера.</summary>
+    public IReadOnlyList<InventoryItem> TeleportRunes { get; init; } = [];
+
     /// <summary>
     /// Основная вкладка банка. null — не читали (не просили, см. <see cref="WorldRequests"/>, или банка в профиле нет); пусто при
     /// <see cref="BankSlots"/> = 0 — клиент ещё не получил банк от сервера (его открывают первый раз за вход).
