@@ -2381,6 +2381,25 @@ public class BrainScenarioTests
     }
 
     [Fact]
+    public void AttackedWhileLandingFightsBack()
+    {
+        // Пытаемся сесть (игра не принимает), а на нас напали — отбиваемся с полёта, сесть пробуем после боя
+        FarmAt(10, radius: 60);
+        _settings.Combat.UseSkill = true;
+        _world.AddSkill(299);
+        _world.Flying = true;
+        _world.Position = new Position(0, 20, 0);
+        Tick();
+        Assert.Equal(["fly-toggle"], _actions.Calls);
+
+        _world.AddMob(0x80000001, "Волк", 5, targetWid: FakeWorld.HostWid);
+        for (var i = 0; i < 8; i++)
+            Tick();
+
+        Assert.Contains(_actions.Calls, call => call.StartsWith("select 80000001") || call.StartsWith("apply 299"));
+    }
+
+    [Fact]
     public void InFightStanceIsNotTouched()
     {
         // Взлетели посреди боя — бой не рвём, бьём дальше; сядем перед следующей целью

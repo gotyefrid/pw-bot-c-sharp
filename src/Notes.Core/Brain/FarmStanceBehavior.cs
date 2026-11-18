@@ -11,6 +11,7 @@ namespace Notes.Core.Brain;
 /// целью, когда боя нет: точка на земле, а перс в радиусе фарма летит — садимся; точка в воздухе, а перс на земле — взлетаем (не сразу
 /// после копки, <see cref="AfterDig"/>) и поднимаемся к центру. Пока поза не та — ход держим: пет и новая цель ждут. В бою позу не трогаем.
 /// Только для сохранённой точки фарма: у точки старта позы нет. Вне радиуса, в воде, без полётника — не трогаем.
+/// Напали, пока меняем позу, — бросаем, отбиваемся как есть, после боя пробуем снова.
 /// В наборе — после лечения, перед петом (пет зовётся по позе) и боем.
 /// </summary>
 public sealed class FarmStanceBehavior : IBehavior
@@ -33,6 +34,14 @@ public sealed class FarmStanceBehavior : IBehavior
     public bool Tick(BrainContext c)
     {
         Status = null;
+        // Напали — отбиваемся как есть (бой ход заберёт), позу меняем после боя; ждущее «сесть»/«взлететь» бросаем
+        if (TargetSelector.Aggressor(c.World) is not null)
+        {
+            foreach (var fly in c.Mine.OfType<FlyAction>().ToList())
+                c.Forget(fly);
+            return false;
+        }
+
         if (c.Mine.Any(a => a is FlyAction))
         {
             Status = "меняю позу у фарма";
