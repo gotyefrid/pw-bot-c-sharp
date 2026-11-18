@@ -11,6 +11,7 @@ using Notes.App.Mvvm;
 using Notes.App.Panels;
 using Notes.Core.Actions;
 using Notes.Core.Brain;
+using Notes.Core.Brain.Follow;
 using Notes.Core.Clicker;
 using Notes.Core.Calls;
 using Notes.Core.Clients;
@@ -1138,6 +1139,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             connection.WorldUpdated += killer.Observe;
             _notifier = new ChatNotifier(_profile.Data.Chat.Channels, () => _config.App.ChatNotify, Notify) { Active = IsRunning };
             connection.WorldUpdated += _notifier.Observe;
+            // «Следовать»: помощники других вкладок смотрят снимки главного
+            connection.WorldUpdated += LeaderBoard.Shared.Publish;
             // Окну — только от текущего подключения: прошлое ещё может гаснуть в фоне (см. Disconnect)
             connection.WorldUpdated += world =>
             {
@@ -1279,6 +1282,21 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         Combos.Observe();
         Route.ShowDistances(w);
         Clicker.ShowCurrent();
+        ShowLeaderChoices(w);
+    }
+
+    /// <summary>«Следовать»: кого можно выбрать главным — персонажи других вкладок этого окна (по свежим снимкам).</summary>
+    public IReadOnlyList<string> LeaderChoices { get; private set; } = [];
+
+    private void ShowLeaderChoices(WorldState w)
+    {
+        if (Settings.Mode != BotMode.Follow)
+            return;
+        var choices = LeaderBoard.Shared.Nicks(w.Time).Where(n => !string.Equals(n, w.Host.Name, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (choices.SequenceEqual(LeaderChoices))
+            return;
+        LeaderChoices = choices;
+        OnPropertyChanged(nameof(LeaderChoices));
     }
 
     private void ShowFailure(string message)
@@ -1361,7 +1379,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// персонажа заменяется на «Бить мобов» (<see cref="BotSettings.Normalize"/>). Вернуть — добавить сюда и убрать замену там.
     /// </summary>
     public IReadOnlyList<ModeChoice> Modes { get; } =
-        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
+        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker, BotMode.Follow }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
 
     /// <summary>Режим бота у этого персонажа. Смена во время работы останавливает бота.</summary>
     public BotMode Mode
@@ -1388,6 +1406,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     public bool ShowMobsTab => Settings.Mode == BotMode.FarmMobs;
     public bool ShowClickerTab => Settings.Mode == BotMode.Clicker;
     public bool ShowQuestsTab => Settings.Mode == BotMode.LevelUp;
+    public bool ShowFollowCard => Settings.Mode == BotMode.Follow;
     // Кликер — только свои шаги: бой, лут, банки и пет из «Общего» он не использует
     public bool ShowCommonTab => Settings.Mode != BotMode.Clicker;
 
@@ -1398,6 +1417,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         OnPropertyChanged(nameof(ShowClickerTab));
         OnPropertyChanged(nameof(ShowMobsTab));
         OnPropertyChanged(nameof(ShowQuestsTab));
+        OnPropertyChanged(nameof(ShowFollowCard));
         OnPropertyChanged(nameof(ShowCommonTab));
         // Вкладка исчезла — на «Бот»
         if ((Tab == TabResources && !ShowResourcesTab) || (Tab == TabClicker && !ShowClickerTab) || (Tab == TabMobs && !ShowMobsTab)

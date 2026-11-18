@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Notes.Core.Actions;
+using Notes.Core.Brain.Follow;
 using Notes.Core.Clicker;
 using Notes.Core.GameFiles;
 using Notes.Core.Logging;
@@ -51,6 +52,7 @@ public static class BotModes
         BotMode.GatherResources => "Собирать ресурсы",
         BotMode.Clicker => "Кликер",
         BotMode.LevelUp => "Прокачать друида",
+        BotMode.Follow => "Следовать",
         _ => "Бить мобов",
     };
 
@@ -60,9 +62,10 @@ public static class BotModes
     /// <param name="quests">Прокачка: где мобы и NPC; нет — без точек (идти можно только к тем, кого видно).</param>
     /// <param name="stats">Куда писать статистику (персонажа); нет — не ведём.</param>
     /// <param name="obstacles">Препятствия вокруг перса для обхода; нет — ходим как раньше.</param>
+    /// <param name="leaders">«Следовать»: где брать снимки главного; нет — общее табло окна (<see cref="LeaderBoard.Shared"/>).</param>
     public static IBotRunner Create(BotMode mode, ActionRunner runner, ClassSkills skills, BotSettings settings, ILogger log,
         IReadOnlyCollection<uint>? gatherTools = null, int routeStart = 0, Random? random = null, QuestGuide? quests = null,
-        IStatsSink? stats = null, Navigation.ObstacleMap? obstacles = null)
+        IStatsSink? stats = null, Navigation.ObstacleMap? obstacles = null, LeaderBoard? leaders = null)
     {
         // Копия настроек: окно может менять свои дальше (новые мозг получит через UpdateSettings)
         var context = new BrainContext(runner, skills, log, random ?? new Random())
@@ -75,6 +78,7 @@ public static class BotModes
             BotMode.GatherResources => GatherResources(context, tools, routeStart),
             BotMode.Clicker => Clicker(context),
             BotMode.LevelUp => LevelUp(context, quests ?? new QuestGuide(GuidePoints.Empty)),
+            BotMode.Follow => Follow(context, leaders ?? LeaderBoard.Shared),
             _ => FarmMobs(context, tools),
         };
     }
@@ -108,6 +112,19 @@ public static class BotModes
         return new BotBrain(context,
             [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), new LootBehavior(), quests],
             main: quests);
+    }
+
+    /// <summary>
+    /// Следовать за главным (персонаж другой вкладки): выжить → (прервать каст без цели) → пет → бой (напавших; бьёт тем, что
+    /// настроено в «Общем») → лут → идти за главным.
+    /// </summary>
+    private static BotBrain Follow(BrainContext context, LeaderBoard leaders)
+    {
+        var follow = new FollowBehavior(leaders);
+        return new BotBrain(context,
+            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(), new CombatBehavior(defendOnly: true), new LootBehavior(),
+             follow],
+            main: follow);
     }
 
     /// <summary>

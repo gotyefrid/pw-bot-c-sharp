@@ -18,6 +18,8 @@ internal sealed class FakeWorld
 
     // Как у настоящего снимка — всемирное время
     public DateTime Time { get; private set; } = new(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+    public string Name { get; set; } = "Перс";
+    public uint Wid { get; set; } = HostWid;
     public int Hp { get; set; } = 400;
     public int MaxHp { get; set; } = 500;
     public int Mp { get; set; } = 300;
@@ -92,7 +94,7 @@ internal sealed class FakeWorld
     /// <summary>Снимок. Расстояния до мобов и предметов снимок считает сам — из позиций, от того места, где сейчас персонаж.</summary>
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
-        new HostState(0x1FA1F868, HostWid, "Перс", Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
+        new HostState(0x1FA1F868, Wid, Name, Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
             { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel, Money = Money },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList(), Party = Party, MacroRunning = MacroRunning };
 

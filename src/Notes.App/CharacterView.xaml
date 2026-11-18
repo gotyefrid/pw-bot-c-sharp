@@ -211,6 +211,25 @@
               <ComboBox ItemsSource="{Binding Modes}" DisplayMemberPath="Title" SelectedValuePath="Mode" SelectedValue="{Binding Mode}"
                         ToolTip="Чем занимается бот у этого персонажа. Смена режима останавливает бота" />
             </DockPanel>
+            <!-- «Следовать»: за кем и что повторять -->
+            <StackPanel Margin="0,0,0,12" Visibility="{Binding ShowFollowCard, Converter={StaticResource Visible}}">
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Главный" VerticalAlignment="Center" Width="60"
+                           ToolTip="За кем идти. Его вкладка должна быть подключена в этом же окне бота; бота на ней запускать не нужно — играете вы" />
+                <ComboBox IsEditable="True" ItemsSource="{Binding LeaderChoices}"
+                          Text="{Binding Settings.Follow.Leader, UpdateSourceTrigger=LostFocus}"
+                          ToolTip="Ник главного персонажа — из открытых вкладок или вручную" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Догонять, если отстал больше, м" VerticalAlignment="Center"
+                           ToolTip="Ближе — стоит на месте; дальше — идёт к главному" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Follow.Distance, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
+              <WrapPanel>
+                <CheckBox Style="{StaticResource Switch}" Content="Летать за главным" IsChecked="{Binding Settings.Follow.Fly}" Margin="0,4,18,4"
+                          ToolTip="Главный взлетел — взлетать за ним. Выключено — идти под ним по земле" />
+              </WrapPanel>
+            </StackPanel>
             <DockPanel Margin="0,0,0,8">
               <TextBlock DockPanel.Dock="Right" Text="{Binding Status.HostDetails}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
               <TextBlock Text="{Binding Status.HostName}" FontSize="15" FontWeight="SemiBold" />

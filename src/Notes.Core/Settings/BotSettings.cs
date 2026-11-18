@@ -27,10 +27,11 @@ public sealed class BotSettings
     private QuestSettings _quests = new();
     private ExpDrainSettings _expDrain = new();
     private RepairSettings _repair = new();
+    private FollowSettings _follow = new();
 
     public BotSettings()
     {
-        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests, _expDrain, _repair })
+        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests, _expDrain, _repair, _follow })
             part.PropertyChanged += PartChanged;
     }
 
@@ -67,6 +68,7 @@ public sealed class BotSettings
     public QuestSettings Quests { get => _quests; set => Part(ref _quests, value); }
     public ExpDrainSettings ExpDrain { get => _expDrain; set => Part(ref _expDrain, value); }
     public RepairSettings Repair { get => _repair; set => Part(ref _repair, value); }
+    public FollowSettings Follow { get => _follow; set => Part(ref _follow, value); }
 
     // Часть заменили целиком (чтение файла, Normalize): слушаем новую
     private void Part<T>(ref T field, T value) where T : SettingsPart
@@ -161,6 +163,7 @@ public sealed class BotSettings
         Quests ??= new();
         ExpDrain ??= new();
         Repair ??= new();
+        Follow ??= new();
 
         Target.MobNames = MobNameFilter.Clean(Target.MobNames);
         Target.MobTimeoutSeconds = Clamp(Target.MobTimeoutSeconds, 10, 3600);
@@ -195,6 +198,8 @@ public sealed class BotSettings
         Route.DangerMargin = Clamp(Route.DangerMargin, 1, 50);
         Clicker.Steps = ClickerStep.Clean(Clicker.Steps);
         Quests.SkipNames = MobNameFilter.Clean(Quests.SkipNames);
+        Follow.Leader = Follow.Leader?.Trim() ?? "";
+        Follow.Distance = Clamp(Follow.Distance, FollowSettings.MinDistance, FollowSettings.MaxDistance);
         ExpDrain.MaxLevel = Clamp(ExpDrain.MaxLevel, 1, 150);
         ExpDrain.StartPercent = Clamp(ExpDrain.StartPercent, 1, 100);
         // «До» не меньше «от» — не правим молча (окно поменяло бы второе поле само), слив пишет об этом в лог
@@ -241,6 +246,8 @@ public enum BotMode
     Clicker,
     /// <summary>Прокачать друида: стартовые задания «убить» и «поговорить» (<see cref="Brain.QuestBehavior"/>).</summary>
     LevelUp,
+    /// <summary>Следовать за главным персонажем другой вкладки: идти следом, бить его цель, брать и сдавать его задания (<see cref="FollowSettings"/>).</summary>
+    Follow,
 }
 
 public sealed class ConnectionSettings
@@ -493,6 +500,37 @@ public sealed class QuestSettings : SettingsPart
 
     /// <summary>Задание с таким названием не брать.</summary>
     public bool Skips(string name) => SkipNames.Any(s => string.Equals(s.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase));
+}
+
+/// <summary>
+/// «Следовать»: за кем идти (главный — персонаж другой вкладки этого окна бота) и что за ним повторять. Бой у помощника — из
+/// «Общего».
+/// </summary>
+public sealed class FollowSettings : SettingsPart
+{
+    public const int MinDistance = 2;
+    public const int MaxDistance = 50;
+
+    private string _leader = "";
+    private int _distance = 5;
+    private bool _assist = true;
+    private bool _quests = true;
+    private bool _fly = true;
+
+    /// <summary>Ник главного; пусто — не выбран.</summary>
+    public string Leader { get => _leader; set => Set(ref _leader, value ?? ""); }
+
+    /// <summary>Отстал дальше этого, м, — догонять.</summary>
+    public int Distance { get => _distance; set => Set(ref _distance, value); }
+
+    /// <summary>Бить того, кого бьёт главный (и тех, кто бьёт его).</summary>
+    public bool Assist { get => _assist; set => Set(ref _assist, value); }
+
+    /// <summary>Брать и сдавать те же задания, что главный.</summary>
+    public bool Quests { get => _quests; set => Set(ref _quests, value); }
+
+    /// <summary>Главный взлетел — взлетать и лететь за ним; выключено — идти под ним по земле.</summary>
+    public bool Fly { get => _fly; set => Set(ref _fly, value); }
 }
 
 /// <summary>Кликер: сценарий — шаги по порядку, по кругу (<see cref="ClickerBehavior"/>).</summary>
