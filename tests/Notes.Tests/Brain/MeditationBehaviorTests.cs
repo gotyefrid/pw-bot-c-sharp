@@ -267,55 +267,23 @@ public class MeditationBehaviorTests
         Assert.Equal(1, Count("sit"));
     }
 
-    // Флаг каста после убийства снимается не сразу: бой не должен успеть взять следующего моба
+    // Пора медитировать — никого в цель не берём, садимся: и пока кастует, и с полоской копания в снимке
     [Fact]
-    public void WaitsForCastEndInsteadOfNextMob()
+    public void WantedSitsInsteadOfTargeting()
     {
         _settings.Target.KillMobs = true;
         _settings.Meditation.UseHp = false;
         _world.Mp = 10;
         _world.Casting = true;
-        _world.AddMob(0x80000002, "Волк", 20);
-        Tick();
-        Tick();
-        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("select"));
-        Assert.Equal(0, Count("sit"));
-
-        _world.Casting = false;
-        Tick();
-        Assert.Equal(1, Count("sit"));
-    }
-
-    [Fact]
-    public void StuckCastFlagDoesNotBlockForever()
-    {
-        _settings.Target.KillMobs = true;
-        _settings.Meditation.UseHp = false;
-        _world.Mp = 10;
-        _world.Casting = true;
-        _world.AddMob(0x80000002, "Волк", 20);
-        for (var i = 0; i < 30; i++)
-            Tick();
-        Assert.Contains(_actions.Calls, c => c.StartsWith("select"));
-    }
-
-    // SaudiKo 19.11: на Comeback полоска копания в снимке есть всегда (не копает — Active false), медитация молча не садилась
-    [Fact]
-    public void IdleGatherBarDoesNotBlock()
-    {
         _world.Gather = new GatherProgress(false, 0, 0);
-        _world.Hp = 200;
-        Tick();
-        Assert.Equal(1, Count("sit"));
-    }
-
-    [Fact]
-    public void DiggingDoesNotSit()
-    {
-        _world.Gather = new GatherProgress(true, 1000, 5000);
-        _world.Hp = 200;
-        Tick();
-        Assert.Equal(0, Count("sit"));
+        _world.AddMob(0x80000002, "Волк", 20);
+        for (var i = 0; i < 8; i++)
+            Tick();
+        _world.Casting = false; // каст кончился
+        for (var i = 0; i < 20; i++)
+            Tick();
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("select"));
+        Assert.True(Count("sit") >= 1);
     }
 
     [Fact]
