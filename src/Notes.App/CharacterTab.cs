@@ -1387,9 +1387,11 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>
     /// Режимы в окне. «Прокачать друида» (<see cref="BotMode.LevelUp"/>) не доделан — скрыт, чтобы не попал в релиз; сохранённый у
     /// персонажа заменяется на «Бить мобов» (<see cref="BotSettings.Normalize"/>). Вернуть — добавить сюда и убрать замену там.
+    /// «Следовать» (<see cref="BotMode.Follow"/>) тоже скрыт до релиза, но без замены: у кого он уже выбран — работает как раньше.
+    /// Вернуть — добавить сюда.
     /// </summary>
     public IReadOnlyList<ModeChoice> Modes { get; } =
-        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker, BotMode.Follow }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
+        [.. new[] { BotMode.FarmMobs, BotMode.GatherResources, BotMode.Clicker }.Select(m => new ModeChoice(m, BotModes.Title(m)))];
 
     /// <summary>Режим бота у этого персонажа. Смена во время работы останавливает бота.</summary>
     public BotMode Mode
