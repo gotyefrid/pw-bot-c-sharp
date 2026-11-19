@@ -128,6 +128,8 @@ public sealed class BotSettings
             Target.FarmCenter = name;
         if (ExpDrain.FindDeathPoint() == point)
             ExpDrain.DeathPoint = name;
+        if (Meditation.FindPoint() == point)
+            Meditation.Point = name;
         point.Name = name;
     }
 
@@ -138,8 +140,11 @@ public sealed class BotSettings
             Target.FarmCenter = "";
         if (ExpDrain.FindDeathPoint() == point)
             ExpDrain.DeathPoint = "";
+        if (Meditation.FindPoint() == point)
+            Meditation.Point = "";
         Target.FarmPoints.Remove(point);
         ExpDrain.DeathPoints.Remove(point);
+        Meditation.Points.Remove(point);
     }
 
     /// <summary>Приводит значения к допустимым (после ручной правки файла или старой версии).</summary>
@@ -191,6 +196,9 @@ public sealed class BotSettings
         Meditation.MpPercent = Clamp(Meditation.MpPercent, 0, 100);
         Meditation.StandHpPercent = Clamp(Meditation.StandHpPercent, 1, 100);
         Meditation.StandMpPercent = Clamp(Meditation.StandMpPercent, 1, 100);
+        Meditation.Point = Meditation.Point?.Trim() ?? "";
+        Meditation.Points = FarmPoint.Clean(Meditation.Points);
+        Meditation.FlightHeight = Clamp(Meditation.FlightHeight, 0, 800);
         // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
@@ -809,6 +817,25 @@ public sealed class MeditationSettings : SettingsPart
     private int _standMpPercent = 95;
     /// <summary>Вставать, когда MP поднялось до этого процента (если условие по MP включено).</summary>
     public int StandMpPercent { get => _standMpPercent; set => Set(ref _standMpPercent, value); }
+
+    private string _point = "";
+    /// <summary>
+    /// Где медитировать — название точки из <see cref="Points"/>; пусто (или точки нет) — «Здесь»: в воздухе сесть на землю под
+    /// собой, на земле — на месте.
+    /// </summary>
+    public string Point { get => _point; set => Set(ref _point, value); }
+
+    private List<FarmPoint> _points = [];
+    /// <summary>Точки медитации — свои, не точки фарма.</summary>
+    public List<FarmPoint> Points { get => _points; set => Set(ref _points, value); }
+
+    private float _flightHeight = 23;
+    /// <summary>На какой высоте лететь к точке медитации и обратно на фарм — как в игре (в памяти — в 10 раз больше).</summary>
+    public float FlightHeight { get => _flightHeight; set => Set(ref _flightHeight, value); }
+
+    /// <summary>Точка медитации; null — «Здесь».</summary>
+    public FarmPoint? FindPoint()
+        => Point.Length == 0 ? null : Points.FirstOrDefault(p => string.Equals(p.Name, Point, StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class PetSettings : SettingsPart

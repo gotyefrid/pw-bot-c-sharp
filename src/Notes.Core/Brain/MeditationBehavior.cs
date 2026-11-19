@@ -9,9 +9,12 @@ using Notes.Core.World;
 namespace Notes.Core.Brain;
 
 /// <summary>
-/// Медитация («Общее → Медитация»): сесть, когда нет боя и HP или MP (или оба — как настроено) по порогу; сидя — держать ход, пока
-/// все включённые не восстановятся до «вставать при»; тогда встать. Напали или идёт бой — встаём и отдаём ход бою.
-/// Не садимся в воздухе, в воде, во время каста и копания. Не получилось сесть — пауза, потом снова.
+/// Медитация («Общее → Медитация»): когда нет боя и HP или MP (или оба — как настроено) по порогу — сесть медитировать; сидя —
+/// держать ход, пока все включённые не поднимутся до своих порогов «вставать»; тогда встать. Где: выбрана точка медитации —
+/// долететь до неё (<see cref="FlightTrip"/> на своей высоте) и сесть на землю; «Здесь» — в воздухе сесть на землю под собой,
+/// на земле — на месте. Улетали или садились с полётника — после медитации обратно на фарм (<see cref="BrainContext.FarmSpot"/>,
+/// как велит точка: на землю или зависнуть в воздухе). Напали или идёт бой — встаём, путь бросаем, ход — бою; после боя решаем
+/// заново. Не долетели до точки — садимся «здесь». Не садимся в воде, во время каста и копания. Не сели — пауза, потом снова.
 /// В наборе — после банок и пета, перед боем.
 /// </summary>
 public sealed class MeditationBehavior : IBehavior
@@ -21,6 +24,13 @@ public sealed class MeditationBehavior : IBehavior
 
     private DateTime _nextTry = DateTime.MinValue;
     private bool _toldNoCapability;
+    private FlightTrip? _trip;
+    // Путь к месту медитации (true) или обратно на фарм (false)
+    private bool _toSeat;
+    // Улетали с фарма или садились с полётника — после медитации обратно на фарм
+    private bool _mustReturn;
+    // Не долетели до точки — в этот раз садимся «здесь»
+    private bool _here;
 
     public string Name => "медитация";
     public string? Status { get; private set; }
@@ -32,7 +42,11 @@ public sealed class MeditationBehavior : IBehavior
         var w = c.World;
         var host = w.Host;
         if (!s.Enabled)
+        {
+            _trip = null;
             return false;
+        }
+
         if (!c.Runner.Capabilities.Has(Capability.Meditate))
         {
             if (!_toldNoCapability)
@@ -45,38 +59,64 @@ public sealed class MeditationBehavior : IBehavior
         }
 
         var sitting = host.Sitting == true;
-        var disturbed = TargetSelector.Aggressor(w) is not null || c.Fight.Busy;
-
-        if (sitting)
+        if (TargetSelector.Aggressor(w) is not null || c.Fight.Busy)
         {
-            if (disturbed)
+            if (sitting && !c.Mine.Any(a => a is MeditateAction { Sit: false }))
             {
                 c.Log.Info("Медитация: напали — встаю");
                 Stand(c);
-                return false;
             }
 
-            if (Restored(host, s))
-            {
-                c.Log.Info($"Медитация: {Levels(host)} — встаю");
-                Stand(c);
-                return false;
-            }
-
-            Status = $"медитирую ({Levels(host)})";
-            return true;
-        }
-
-        // Ждём ответа на «сесть» — ход держим, чтобы никто не сдвинул перса
-        if (c.Mine.Any(a => a is MeditateAction { Sit: true }))
-        {
-            Status = "сажусь медитировать";
-            return true;
-        }
-
-        if (disturbed || c.Now < _nextTry || host.Flying == true || host.InWater == true || host.IsCasting || host.Gather is not null
-            || Restored(host, s) || !Wanted(host, s, out var why))
+            _trip = null;
             return false;
+        }
+
+        // Ждём ответа на «сесть» / «встать» — ход держим, чтобы никто не сдвинул перса
+        if (c.Mine.Any(a => a is MeditateAction))
+        {
+            Status = "медитация: сажусь или встаю";
+            return true;
+        }
+
+        if (sitting)
+        {
+            if (!Restored(host, s))
+            {
+                Status = $"медитирую ({Levels(host)})";
+                return true;
+            }
+
+            c.Log.Info($"Медитация: {Levels(host)} — встаю");
+            _here = false;
+            Stand(c);
+            Status = "медитация: встаю";
+            return true;
+        }
+
+        if (_trip is not null)
+            return Fly(c);
+
+        var why = "";
+        if (Restored(host, s) || !Wanted(host, s, out why))
+            return _mustReturn && GoBack(c);
+
+        if (c.Now < _nextTry || host.InWater == true || host.IsCasting || host.Gather is not null)
+            return false;
+
+        // Где сесть: точка медитации (если не долетели в этот раз — здесь); в воздухе над местом — сесть на землю
+        var point = _here ? null : s.FindPoint();
+        var seat = point is not null ? new Spot(point.Position, TripEnd.Ground) : new Spot(host.Position, TripEnd.Ground);
+        if (point is not null && !FlightTrip.There(c, seat))
+        {
+            c.Log.Info($"Медитация: {why} — лечу к точке «{point.Name}» ({host.Position.HorizontalDistanceTo(point.Position):0} м)");
+            return StartTrip(c, seat, toSeat: true);
+        }
+
+        if (host.Flying == true)
+        {
+            c.Log.Info($"Медитация: {why} — сажусь на землю");
+            return StartTrip(c, seat, toSeat: true);
+        }
 
         c.Log.Info($"Медитация: {why} — сажусь");
         _nextTry = c.Now + RetryPause;
@@ -87,8 +127,63 @@ public sealed class MeditationBehavior : IBehavior
         return true;
     }
 
+    private bool StartTrip(BrainContext c, Spot to, bool toSeat)
+    {
+        _trip = new FlightTrip(to, c.Settings.Meditation.FlightHeight * 10);
+        _toSeat = toSeat;
+        if (toSeat)
+            _mustReturn = true;
+        return Fly(c);
+    }
+
+    private bool Fly(BrainContext c)
+    {
+        Status = _toSeat
+            ? $"медитация: лечу на место, {c.World.Host.Position.HorizontalDistanceTo(_trip!.To):0} м"
+            : $"медитация: лечу на фарм, {c.World.Host.Position.HorizontalDistanceTo(_trip!.To):0} м";
+        var step = _trip.Step(c);
+        if (step == TripStep.Going)
+            return true;
+
+        var failed = _trip.Failed;
+        _trip = null;
+        if (_toSeat)
+        {
+            if (step == TripStep.Failed)
+            {
+                c.Log.Warning($"Медитация: не добрался до места: {failed} — сажусь здесь");
+                _here = true;
+            }
+
+            // Сесть — следующим шагом (там же проверки)
+            Status = "медитация: на месте";
+            return true;
+        }
+
+        _mustReturn = false;
+        if (step == TripStep.Failed)
+            c.Log.Warning($"Медитация: не добрался до фарма: {failed} — остаюсь здесь");
+        else
+            c.Log.Info("Медитация: вернулся на фарм");
+        return false;
+    }
+
+    // После медитации — обратно на фарм, как велит его точка; уже там или центра нет — ничего
+    private bool GoBack(BrainContext c)
+    {
+        if (c.FarmSpot is not { } spot || FlightTrip.There(c, spot))
+        {
+            _mustReturn = false;
+            return false;
+        }
+
+        c.Log.Info("Медитация: лечу обратно на фарм");
+        return StartTrip(c, spot, toSeat: false);
+    }
+
     public void OnOutcome(BrainContext c, ActionOutcome outcome)
     {
+        _trip?.OnOutcome(c, outcome);
         if (outcome.Action is MeditateAction { Sit: true } && outcome.Status is not ActionStatus.Confirmed)
             c.Log.Warning($"Медитация: сесть не получилось ({outcome.Status}) — попробую через {RetryPause.TotalSeconds:0} с");
     }
@@ -96,6 +191,9 @@ public sealed class MeditationBehavior : IBehavior
     public void Reset()
     {
         _nextTry = DateTime.MinValue;
+        _trip = null;
+        _mustReturn = false;
+        _here = false;
         Status = null;
     }
 

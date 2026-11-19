@@ -5,6 +5,7 @@ using Notes.Core.Brain;
 using Notes.Core.Logging;
 using Notes.Core.Profiles;
 using Notes.Core.Settings;
+using Notes.Core.World;
 using Notes.Tests.Fakes;
 using Xunit;
 
@@ -40,7 +41,46 @@ public class MeditationBehaviorTests
         m.StandMpPercent = 80;
     }
 
-    private void Tick(double seconds = 0.25) => Brain.Tick(_world.Wait(seconds).Snapshot());
+    private int _seen;
+    private int _flown;
+    private int _walked;
+
+    // Шаг мозга, потом ответ «игры» на то, что он отправил: полёт, бег, сесть и встать
+    private void Tick(double seconds = 0.25)
+    {
+        Brain.Tick(_world.Wait(seconds).Snapshot());
+        foreach (var call in _actions.Calls.Skip(_seen).ToList())
+        {
+            switch (call.Split(' ')[0])
+            {
+                case "fly-toggle":
+                    _world.Flying = _world.Flying != true;
+                    if (_world.Flying == false)
+                        _world.Position = _world.Position with { Height = 0 };
+                    break;
+                case "fly":
+                    _world.Position = _actions.FlyPoints[_flown++];
+                    break;
+                case "move":
+                    _world.Position = _actions.MovePoints[_walked++];
+                    break;
+                case "sit":
+                    _world.Sitting = true;
+                    break;
+                case "stand":
+                    _world.Sitting = false;
+                    break;
+            }
+        }
+        _seen = _actions.Calls.Count;
+    }
+
+    private void TickUntil(Func<bool> done, int max = 200)
+    {
+        for (var i = 0; i < max && !done(); i++)
+            Tick();
+        Assert.True(done());
+    }
 
     private int Count(string call) => _actions.Calls.Count(c => c == call);
 
@@ -138,6 +178,69 @@ public class MeditationBehaviorTests
         _world.Flying = true;
         Tick();
         Assert.Equal(0, Count("sit"));
+    }
+
+    [Fact]
+    public void FlyingHereLandsThenSits()
+    {
+        _world.Flying = true;
+        _world.Position = new Position(10, 100, 10);
+        _world.Hp = 200;
+
+        TickUntil(() => _world.Sitting == true);
+
+        Assert.False(_world.Flying);
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(10, 0, 10)) <= FlightTrip.Arrived);
+    }
+
+    [Fact]
+    public void FliesToPointThenSits()
+    {
+        _settings.Meditation.Points = [FarmPoint.At("Медитация 1", new Position(300, 0, 0))];
+        _settings.Meditation.Point = "Медитация 1";
+        _world.Hp = 200;
+
+        TickUntil(() => _world.Sitting == true);
+
+        Assert.True(_world.Position.HorizontalDistanceTo(new Position(300, 0, 0)) <= FlightTrip.Arrived);
+        Assert.False(_world.Flying);
+    }
+
+    [Fact]
+    public void AfterMeditationReturnsToAirFarm()
+    {
+        var farm = new Position(0, 300, 0);
+        _settings.Target.FarmPoints = [FarmPoint.At("Поляна", farm, flying: true)];
+        _settings.Target.FarmCenter = "Поляна";
+        _settings.Meditation.Points = [FarmPoint.At("Медитация 1", new Position(200, 0, 0))];
+        _settings.Meditation.Point = "Медитация 1";
+        _world.Flying = true;
+        _world.Position = farm;
+        _world.Hp = 200;
+
+        TickUntil(() => _world.Sitting == true);
+        _world.Hp = 500;
+        _world.Mp = 500;
+
+        TickUntil(() => _world.Sitting == false && _world.Flying == true && _world.Position.DistanceTo(farm) <= FlightTrip.Arrived);
+    }
+
+    [Fact]
+    public void AttackedOnTheWayDropsTrip()
+    {
+        _settings.Meditation.Points = [FarmPoint.At("Медитация 1", new Position(3000, 0, 0))];
+        _settings.Meditation.Point = "Медитация 1";
+        _world.Hp = 200;
+        Tick();
+        Tick();
+        var flights = _actions.FlyPoints.Count;
+
+        _world.AddMob(0x80000001, "Волк", 5, targetWid: FakeWorld.HostWid);
+        Tick();
+        Tick();
+
+        Assert.Equal(0, Count("sit"));
+        Assert.Equal(flights, _actions.FlyPoints.Count);
     }
 
     [Fact]
