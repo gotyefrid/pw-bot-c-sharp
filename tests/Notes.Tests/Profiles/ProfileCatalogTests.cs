@@ -93,9 +93,7 @@ public class ProfileCatalogTests
             profile.Data.Functions.Keys.Where(Everywhere).OrderBy(k => k));
         // Лавка из сумки (ремонт без NPC) — та же кнопка сумки, что и банк
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>()
-                .Where(c => hasRemoteBank || c is not (Capability.RemoteBank or Capability.RemoteRepair))
-                // Медитация пока не проверена на Comeback 1.3.6
-                .Where(c => id != "comeback136" || c != Capability.Meditate),
+                .Where(c => hasRemoteBank || c is not (Capability.RemoteBank or Capability.RemoteRepair)),
             c => Assert.Null(profile.Capabilities.WhyNot(c)));
         Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteBank));
         Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteRepair));
