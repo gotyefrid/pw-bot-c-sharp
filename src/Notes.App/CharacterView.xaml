@@ -930,7 +930,7 @@
             <CheckBox Style="{StaticResource Switch}" Content="Медитировать" IsChecked="{Binding Settings.Meditation.Enabled}"
                       ToolTip="Когда нет боя, перс садится медитировать (быстрее восстанавливает HP и MP) и встаёт, когда восстановился. Напали — встаёт и дерётся. В воздухе и в воде не садится" />
             <StackPanel Visibility="{Binding Settings.Meditation.Enabled, Converter={StaticResource Visible}}">
-              <CheckBox Content="Садиться по HP" IsChecked="{Binding Settings.Meditation.UseHp}" Margin="0,8,0,0" />
+              <CheckBox Style="{StaticResource Switch}" Content="Садиться по HP" IsChecked="{Binding Settings.Meditation.UseHp}" Margin="0,8,0,0" />
               <StackPanel Visibility="{Binding Settings.Meditation.UseHp, Converter={StaticResource Visible}}">
                 <DockPanel Style="{StaticResource SettingRow}">
                   <TextBlock Text="Садиться, когда HP, %" VerticalAlignment="Center" />
@@ -948,7 +948,7 @@
                   <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Meditation.StandHpPercent, UpdateSourceTrigger=PropertyChanged}" />
                 </DockPanel>
               </StackPanel>
-              <CheckBox Content="Садиться по MP" IsChecked="{Binding Settings.Meditation.UseMp}" Margin="0,8,0,0" />
+              <CheckBox Style="{StaticResource Switch}" Content="Садиться по MP" IsChecked="{Binding Settings.Meditation.UseMp}" Margin="0,8,0,0" />
               <StackPanel Visibility="{Binding Settings.Meditation.UseMp, Converter={StaticResource Visible}}">
                 <DockPanel Style="{StaticResource SettingRow}">
                   <TextBlock Text="Садиться, когда MP, %" VerticalAlignment="Center" />
@@ -966,7 +966,7 @@
                   <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Meditation.StandMpPercent, UpdateSourceTrigger=PropertyChanged}" />
                 </DockPanel>
               </StackPanel>
-              <CheckBox Content="Садиться, только когда выполнены оба условия" IsChecked="{Binding Settings.Meditation.RequireBoth}" Margin="0,8,0,0"
+              <CheckBox Style="{StaticResource Switch}" Content="Садиться, только когда выполнены оба условия" IsChecked="{Binding Settings.Meditation.RequireBoth}" Margin="0,8,0,0"
                         ToolTip="Выключено — садится, когда выполнено любое из включённых условий. Встаёт, когда и HP, и MP (включённые) поднялись до своих порогов" />
               <DockPanel Style="{StaticResource SettingRow}" Margin="0,8,0,0">
                 <TextBlock Text="Где медитировать" VerticalAlignment="Center"
