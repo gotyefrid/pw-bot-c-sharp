@@ -71,6 +71,9 @@ internal sealed class FakeWorld
     /// <summary>В воде (null — сервер не показывает).</summary>
     public bool? InWater { get; set; } = false;
 
+    /// <summary>Сидит в медитации; null — признак не найден.</summary>
+    public bool? Sitting { get; set; } = false;
+
     /// <summary>Ячеек в сумке (0 — неизвестно).</summary>
     public int BagSlots { get; set; }
 
@@ -99,7 +102,7 @@ internal sealed class FakeWorld
     public WorldState Snapshot() => new(
         Time, TimeSpan.Zero,
         new HostState(0x1FA1F868, Wid, Name, Level, Hp, MaxHp, Mp, MaxMp, Position, TargetWid, Casting, PetFoodCooldownMs)
-            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, Jumps = Jumps, InWater = InWater, Exp = Exp, ExpToLevel = ExpToLevel, Money = Money },
+            { Gather = Gather, CastingSkillId = CastingSkillId, Flying = Flying, Jumps = Jumps, InWater = InWater, Sitting = Sitting, Exp = Exp, ExpToLevel = ExpToLevel, Money = Money },
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Waypoints = Waypoints.ToList(), TeleportRunes = Bag.Where(i => Runes.Contains(i.Tid)).ToList(), Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList(), Party = Party, MacroRunning = MacroRunning };
 
     /// <param name="state">Не задано: с целью — бьёт, без — стоит.</param>

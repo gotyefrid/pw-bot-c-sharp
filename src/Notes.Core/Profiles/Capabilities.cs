@@ -42,6 +42,9 @@ public enum Capability
     /// по ней и узнаём. Лавку открываем этой кнопкой: без неё сервер не чинит («Служба недоступна», проверено на 1.4.6).
     /// </summary>
     RemoteRepair,
+
+    /// <summary>Медитация: сесть и встать (команды) и признак «сидит» — без него не узнать, сел ли.</summary>
+    Meditate,
 }
 
 /// <summary>
@@ -99,6 +102,9 @@ public sealed class Capabilities
         var durability = profile.Host.Equipment == 0 || profile.Inventory.ItemMaxDurability == 0 ? "в профиле нет прочности надетых вещей" : null;
         Set(Capability.Repair, durability ?? First(GameFunctions.NpcHello, GameFunctions.RepairItem, GameFunctions.NpcDialogClose));
         Set(Capability.RemoteRepair, durability ?? First(GameFunctions.OpenRemotePanel, GameFunctions.RepairItem));
+        Set(Capability.Meditate, profile.Packets.SitDownCommand == 0 || profile.Packets.StandUpCommand == 0
+            ? "медитация не найдена для этого сервера"
+            : profile.Host.Sitting == 0 ? "признак «сидит» не найден для этого сервера" : First(GameFunctions.SendPacket));
         return new Capabilities(missing);
     }
 }

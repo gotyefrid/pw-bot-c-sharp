@@ -21,6 +21,7 @@ public sealed class BotSettings
     private CombatSettings _combat = new();
     private LootSettings _loot = new();
     private PotionSettings _potions = new();
+    private MeditationSettings _meditation = new();
     private PetSettings _pet = new();
     private RouteSettings _route = new();
     private ClickerSettings _clicker = new();
@@ -31,7 +32,7 @@ public sealed class BotSettings
 
     public BotSettings()
     {
-        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _pet, _route, _clicker, _quests, _expDrain, _repair, _follow })
+        foreach (var part in new SettingsPart[] { _target, _combat, _loot, _potions, _meditation, _pet, _route, _clicker, _quests, _expDrain, _repair, _follow })
             part.PropertyChanged += PartChanged;
     }
 
@@ -62,6 +63,7 @@ public sealed class BotSettings
     public CombatSettings Combat { get => _combat; set => Part(ref _combat, value); }
     public LootSettings Loot { get => _loot; set => Part(ref _loot, value); }
     public PotionSettings Potions { get => _potions; set => Part(ref _potions, value); }
+    public MeditationSettings Meditation { get => _meditation; set => Part(ref _meditation, value); }
     public PetSettings Pet { get => _pet; set => Part(ref _pet, value); }
     public RouteSettings Route { get => _route; set => Part(ref _route, value); }
     public ClickerSettings Clicker { get => _clicker; set => Part(ref _clicker, value); }
@@ -157,6 +159,7 @@ public sealed class BotSettings
         Combat ??= new();
         Loot ??= new();
         Potions ??= new();
+        Meditation ??= new();
         Pet ??= new();
         Route ??= new();
         Clicker ??= new();
@@ -184,6 +187,10 @@ public sealed class BotSettings
         Potions.MpBelow = Math.Max(0, Potions.MpBelow);
         Potions.HpPotion = Potions.HpPotion?.Trim() ?? "";
         Potions.MpPotion = Potions.MpPotion?.Trim() ?? "";
+        Meditation.HpPercent = Clamp(Meditation.HpPercent, 0, 100);
+        Meditation.MpPercent = Clamp(Meditation.MpPercent, 0, 100);
+        Meditation.StandHpPercent = Clamp(Meditation.StandHpPercent, 1, 100);
+        Meditation.StandMpPercent = Clamp(Meditation.StandMpPercent, 1, 100);
         // Клеток у серверов разное число (1.3.6 — 10, Comeback 1.4.6 — 20); точный предел проверяет вызов по профилю
         Pet.Cage = Clamp(Pet.Cage, 1, 32);
         Pet.HealPercent = Clamp(Pet.HealPercent, 0, 100);
@@ -744,6 +751,64 @@ public sealed class PotionSettings : SettingsPart
     private string _mpPotion = "";
     /// <summary>Какую банку MP пить — название; пусто — «Авто», как у <see cref="HpPotion"/>.</summary>
     public string MpPotion { get => _mpPotion; set => Set(ref _mpPotion, value); }
+}
+
+/// <summary>Как сравнивать HP или MP с порогом медитации.</summary>
+public enum MeditationCompare
+{
+    /// <summary>Меньше порога.</summary>
+    Below,
+    /// <summary>Меньше или равно.</summary>
+    AtMost,
+    /// <summary>Больше порога.</summary>
+    Above,
+    /// <summary>Больше или равно.</summary>
+    AtLeast,
+}
+
+/// <summary>
+/// Медитация: сесть, когда нет боя и HP или MP (или оба) по порогу, и встать, когда все включённые восстановились до
+/// своих порогов «вставать при» (<see cref="StandHpPercent"/>, <see cref="StandMpPercent"/>).
+/// </summary>
+public sealed class MeditationSettings : SettingsPart
+{
+    private bool _enabled;
+    /// <summary>Медитировать.</summary>
+    public bool Enabled { get => _enabled; set => Set(ref _enabled, value); }
+
+    private bool _useHp = true;
+    /// <summary>Условие по HP.</summary>
+    public bool UseHp { get => _useHp; set => Set(ref _useHp, value); }
+
+    private MeditationCompare _hpCompare = MeditationCompare.Below;
+    public MeditationCompare HpCompare { get => _hpCompare; set => Set(ref _hpCompare, value); }
+
+    private int _hpPercent = 50;
+    /// <summary>Порог HP, %.</summary>
+    public int HpPercent { get => _hpPercent; set => Set(ref _hpPercent, value); }
+
+    private bool _useMp = true;
+    /// <summary>Условие по MP.</summary>
+    public bool UseMp { get => _useMp; set => Set(ref _useMp, value); }
+
+    private MeditationCompare _mpCompare = MeditationCompare.Below;
+    public MeditationCompare MpCompare { get => _mpCompare; set => Set(ref _mpCompare, value); }
+
+    private int _mpPercent = 40;
+    /// <summary>Порог MP, %.</summary>
+    public int MpPercent { get => _mpPercent; set => Set(ref _mpPercent, value); }
+
+    private bool _requireBoth;
+    /// <summary>Садиться, только когда выполнены оба включённых условия; false — любое.</summary>
+    public bool RequireBoth { get => _requireBoth; set => Set(ref _requireBoth, value); }
+
+    private int _standHpPercent = 95;
+    /// <summary>Вставать, когда HP поднялось до этого процента (если условие по HP включено).</summary>
+    public int StandHpPercent { get => _standHpPercent; set => Set(ref _standHpPercent, value); }
+
+    private int _standMpPercent = 95;
+    /// <summary>Вставать, когда MP поднялось до этого процента (если условие по MP включено).</summary>
+    public int StandMpPercent { get => _standMpPercent; set => Set(ref _standMpPercent, value); }
 }
 
 public sealed class PetSettings : SettingsPart

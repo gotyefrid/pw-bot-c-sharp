@@ -102,7 +102,7 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Прокачать друида: выжить → (прервать каст без цели) → пет → бой (напавших — первыми, потом моба задания, которого выбрали
+    /// Прокачать друида: выжить → (прервать каст без цели) → пет → медитация → бой (напавших — первыми, потом моба задания, которого выбрали
     /// задания; бьёт тем, что настроено в «Общем») → лут (как настроен; он же возвращает бой к поиску после убийства) → задания по
     /// журналу: найти моба цели и подойти к нему, ходить «умно», брать и сдавать у NPC.
     /// </summary>
@@ -114,7 +114,7 @@ public static class BotModes
     {
         var quests = new QuestBehavior(guide);
         return new BotBrain(context,
-            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(FarmCenter), new CombatBehavior(defendOnly: true, area: InFarmArea), new LootBehavior(),
+            [new SurvivalBehavior(), new UselessCastBehavior(), new PetBehavior(FarmCenter), new MeditationBehavior(), new CombatBehavior(defendOnly: true, area: InFarmArea), new LootBehavior(),
              quests],
             main: quests);
     }
@@ -134,7 +134,7 @@ public static class BotModes
     }
 
     /// <summary>
-    /// Фарм мобов: после смерти → долететь до центра фарма («Старт» издалека) → слив опыта → выжить → (прервать каст без цели) → пет → убрать в банк (после лута) → копать ресурсы в радиусе фарма →
+    /// Фарм мобов: после смерти → долететь до центра фарма («Старт» издалека) → слив опыта → выжить → (прервать каст без цели) → пет → медитация → убрать в банк (после лута) → копать ресурсы в радиусе фарма →
     /// бой → лут → вернуться в центр фарма. Первой — запись центра фарма в лог; ни она, ни прерывание каста хода не занимают.
     /// «После смерти» — встать в городе и вернуться: смерть ждали (слив опыта) — куда скажет слив, нет — в центр фарма, если включено
     /// «встать и вернуться»; пока встаёт и летит, ход у него.
@@ -145,13 +145,13 @@ public static class BotModes
         var combat = new CombatBehavior(area: InFarmArea);
         var afterDeath = new DeathReturnBehavior(c => c.FarmSpot);
         return new BotBrain(context,
-            [new FarmCenterLog(), afterDeath, new RepairBehavior(c => c.FarmSpot), new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new FarmStanceBehavior(), new PetBehavior(FarmCenter), new StashBehavior(), new GatherBehavior(tools),
+            [new FarmCenterLog(), afterDeath, new RepairBehavior(c => c.FarmSpot), new StartTripBehavior(), new ExpDrainBehavior(new DeathDrain(afterDeath), c => c.FarmSpot), new SurvivalBehavior(), new UselessCastBehavior(), new FarmStanceBehavior(), new PetBehavior(FarmCenter), new MeditationBehavior(), new StashBehavior(), new GatherBehavior(tools),
              combat, new LootBehavior(), new ReturnBehavior()],
             main: combat);
     }
 
     /// <summary>
-    /// Обход ресурсов: после смерти → выжить → (прервать каст без цели) → уйти вверх от опасного моба → пет → убрать в банк (после лута) → копать у текущей точки → защита
+    /// Обход ресурсов: после смерти → выжить → (прервать каст без цели) → уйти вверх от опасного моба → пет → медитация → убрать в банк (после лута) → копать у текущей точки → защита
     /// (бьём только напавших, опасных — никогда) → лут → к следующей точке. «После смерти» — включено «встать и вернуться»: встать в городе и долететь
     /// до точки, у которой погибли (дальше обход как обычно); выключено — стоп; пока встаёт и летит, ход у него.
     /// </summary>
@@ -160,7 +160,7 @@ public static class BotModes
         var combat = new CombatBehavior(defendOnly: true, leaveDangerous: true, area: InFarmArea);
         var route = new RouteBehavior(tools, routeStart);
         return new BotBrain(context,
-            [new DeathReturnBehavior(route.AfterDeath), new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(FarmCenter),
+            [new DeathReturnBehavior(route.AfterDeath), new SurvivalBehavior(), new UselessCastBehavior(), new EscapeBehavior(route), new PetBehavior(FarmCenter), new MeditationBehavior(),
              new StashBehavior(), new GatherBehavior(tools, route), combat, new LootBehavior(), route],
             main: combat);
     }
