@@ -87,6 +87,10 @@ public class FeedPetActionTests
     public void DoesNotWaitByDefault() => Assert.Equal(["use 4, key F1"], WithKey(new FeedPetAction()));
 
     [Fact]
+    public void WithoutWaitingSendsEachTurn()
+        => Assert.Equal(["use 4", "use 4"], _script.Step(new FeedPetAction()).Run(_script.Start(), 2));
+
+    [Fact]
     public void WaitsForStackWhenAsked()
     {
         var bot = _script.Step(new FeedPetAction { WaitConfirmed = true }).Key("F1").Start();

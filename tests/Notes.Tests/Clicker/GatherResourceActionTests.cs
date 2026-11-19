@@ -98,6 +98,15 @@ public class GatherResourceActionTests
     }
 
     [Fact]
+    public void WithoutWaitingSendsEachTurn()
+    {
+        // Без галочки — каждый раз, когда дошла очередь, прошлое «копать» не ждётся (полоску сбивать или нет — решает сценарий)
+        Resource(1, "Медная руда", 8);
+
+        Assert.Equal(["gather 1", "gather 1"], _script.Step(new GatherResourceAction()).Run(_script.Start(), 2));
+    }
+
+    [Fact]
     public void WaitsForResultWhenAsked()
     {
         Resource(1, "Медная руда", 8);

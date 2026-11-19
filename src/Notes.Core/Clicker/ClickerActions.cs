@@ -102,8 +102,9 @@ public sealed class PauseAction : ClickerAction
 
 /// <summary>
 /// Действие, итог которого видно по игре (предмет пропал с земли), — у него есть галочка «Ждать подтверждения выполнения»
-/// (<see cref="WaitConfirmed"/>). Без неё — как клавиша: ушло в игру — сделано, следующий шаг в тот же ход. С ней — следующий
-/// шаг только после подтверждения; не подтвердилось — в лог «не вышло», и дальше.
+/// (<see cref="WaitConfirmed"/>). Без неё — как клавиша: команда уходит в игру каждый раз, когда до шага дошла очередь (прошлая
+/// такая же не ждётся, <see cref="ClickerRuns.SendOver"/>), следующий шаг в тот же ход. С ней — следующий шаг только после
+/// подтверждения; не подтвердилось — в лог «не вышло», и дальше.
 /// </summary>
 public abstract class ConfirmableAction : ClickerAction
 {
@@ -120,7 +121,7 @@ public abstract class ConfirmableAction : ClickerAction
     protected abstract string What();
 
     /// <summary>Отправить действие игры — ждать его итога или нет, по галочке.</summary>
-    protected IClickerRun Send(GameAction action) => ClickerRuns.Send(action, doneWhenSent: !WaitConfirmed);
+    protected IClickerRun Send(GameAction action) => WaitConfirmed ? ClickerRuns.Send(action) : ClickerRuns.SendOver(action);
 }
 
 /// <summary>
@@ -147,9 +148,8 @@ public abstract class NearbyAction : ConfirmableAction
 
 /// <summary>
 /// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) не дальше <see cref="NearbyAction.Radius"/> —
-/// «как мышкой» (<see cref="PickupAction"/>): подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Без галочки
-/// «ждать» прошлое «поднять» не ждём — жмём снова на каждом круге (<see cref="ClickerRuns.SendOver"/>). Поднимать нечего —
-/// сделано, без предупреждения.
+/// «как мышкой» (<see cref="PickupAction"/>): подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Поднимать
+/// нечего — сделано, без предупреждения.
 /// </summary>
 public sealed class PickUpItemAction : NearbyAction
 {
@@ -176,7 +176,7 @@ public sealed class PickUpItemAction : NearbyAction
 
     public override IClickerRun Start(BrainContext c)
         => GroundItemChoice.NearestItem(c.World, Items, Radius) is { } item
-            ? WaitConfirmed ? Send(new PickupAction(item)) : ClickerRuns.SendOver(new PickupAction(item))
+            ? Send(new PickupAction(item))
             : ClickerRuns.Skipped("рядом нечего поднять");
 
     public override void Normalize()
@@ -231,8 +231,8 @@ public sealed class GatherResourceAction : NearbyAction
 
 /// <summary>
 /// Взять в цель ближайшего из <see cref="Targets"/> (пусто — кого угодно: моба, NPC, чужого пета) не дальше
-/// <see cref="NearbyAction.Radius"/> — как кликом (<see cref="SelectTargetAction"/>). Ближайший уже в цели — в игру ничего не
-/// шлёт; взять некого — сделано, без предупреждения. В цели другой, а подходящий ближе — переключит: чтобы не сбивать взятую
+/// <see cref="NearbyAction.Radius"/> — как кликом (<see cref="SelectTargetAction"/>). Ближайший уже в цели — берёт снова (как
+/// повторный клик); взять некого — сделано, без предупреждения. В цели другой, а подходящий ближе — переключит: чтобы не сбивать взятую
 /// цель, шагу ставят условие «цели нет». Подтверждение — в цели тот, кого брали.
 /// </summary>
 public sealed class TakeTargetAction : NearbyAction
@@ -259,14 +259,9 @@ public sealed class TakeTargetAction : NearbyAction
     protected override string WhatNearby() => Targets.Count == 0 ? "взять ближайшую цель" : $"взять в цель: {string.Join(", ", Targets)}";
 
     public override IClickerRun Start(BrainContext c)
-    {
-        if (TargetChoice.Nearest(c.World, Targets, Radius) is not { } target)
-            return ClickerRuns.Skipped("взять в цель некого");
-
-        return c.World.Host.TargetWid == target.Wid
-            ? ClickerRuns.Skipped($"«{target.Name}» уже в цели")
-            : Send(new SelectTargetAction(target));
-    }
+        => TargetChoice.Nearest(c.World, Targets, Radius) is { } target
+            ? Send(new SelectTargetAction(target))
+            : ClickerRuns.Skipped("взять в цель некого");
 
     public override void Normalize()
     {
@@ -500,7 +495,7 @@ public sealed class FollowMemberAction : PartyMemberAction
 /// Взять в цель члена пати — для лечения скиллом следующим шагом. <see cref="Member"/> — по нику, его всегда (условие по HP
 /// для него — отдельным условием шага); пусто — «любого первого по условию»: первого по порядку пати (как в окне пати, сам
 /// персонаж — на своём месте, если <see cref="IncludeSelf"/>), у кого HP в % меньше, больше или равно порогу. Мёртвых не берёт — лечить их нельзя. Подходящий
-/// уже в цели — в игру ничего не шлёт; никто не подходит — никого не берёт, сделано, без предупреждения. Персонаж не в пати
+/// уже в цели — берёт снова (как повторный клик); никто не подходит — никого не берёт, сделано, без предупреждения. Персонаж не в пати
 /// или выбранного в ней нет — «не вышло». Подтверждение — он в цели.
 /// </summary>
 public sealed class PartyTargetAction : ConfirmableAction
@@ -562,9 +557,7 @@ public sealed class PartyTargetAction : ConfirmableAction
         if (pick is null)
             return ClickerRuns.Skipped(ByHp ? $"в пати некого брать в цель: нет живых с HP {PartyHp.Sign(Compare)} {Percent} %" : $"«{Member}» мёртв");
 
-        return world.Host.TargetWid == pick.Wid
-            ? ClickerRuns.Skipped($"«{pick.Name}» уже в цели")
-            : Send(new SelectPlayerAction(pick.Wid, pick.Name));
+        return Send(new SelectPlayerAction(pick.Wid, pick.Name));
     }
 
     public override void Normalize()

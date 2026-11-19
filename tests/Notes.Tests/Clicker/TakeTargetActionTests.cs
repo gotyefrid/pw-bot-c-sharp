@@ -100,13 +100,13 @@ public class TakeTargetActionTests
     }
 
     [Fact]
-    public void AlreadyTakenSendsNothing()
+    public void AlreadyTakenIsTakenAgain()
     {
+        // Как повторный клик: без галочки команда уходит каждый раз, когда до шага дошла очередь
         Npc(1, "Сидящий волк", 3);
         _script.World.TargetWid = 1;
 
-        Assert.Equal(["key F1"], _script.Step(new TakeTargetAction()).Key("F1").Run(_script.Start(), 1));
-        Assert.Contains(_script.Log, e => e.Level == LogLevel.Debug && e.Message.Contains("«Сидящий волк» уже в цели"));
+        Assert.Equal(["select 1, key F1", "select 1, key F1"], _script.Step(new TakeTargetAction()).Key("F1").Run(_script.Start(), 2));
     }
 
     [Fact]
@@ -150,8 +150,9 @@ public class TakeTargetActionTests
         _script.World.TargetWid = 2;
         Assert.Equal([""], _script.Run(bot, 1));
 
+        // Подтвердилось — дальше по кругу, и снова к первому шагу
         _script.World.TargetWid = 1;
-        Assert.Equal(["key F1"], _script.Run(bot, 1));
+        Assert.Equal(["key F1, select 1"], _script.Run(bot, 1));
     }
 
     [Fact]

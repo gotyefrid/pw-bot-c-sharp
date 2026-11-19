@@ -110,13 +110,13 @@ public class PartyTargetActionTests
     }
 
     [Fact]
-    public void AlreadyInTargetSendsNothing()
+    public void AlreadyInTargetIsTakenAgain()
     {
+        // Как повторный клик: без галочки команда уходит каждый раз, когда до шага дошла очередь
         Party(friendHp: 300);
         _script.World.TargetWid = FriendWid;
 
-        Assert.Equal(["key F1"], WithKey(new PartyTargetAction()));
-        Assert.Contains(_script.Log, e => e.Message.Contains("«Друг» уже в цели"));
+        Assert.Equal([$"select {FriendWid:X}, key F1"], WithKey(new PartyTargetAction()));
     }
 
     [Fact]
@@ -127,8 +127,9 @@ public class PartyTargetActionTests
 
         Assert.Equal([$"select {FriendWid:X}", ""], _script.Run(bot, 2));
 
+        // Подтвердилось — дальше по кругу, и снова к первому шагу
         _script.World.TargetWid = FriendWid;
-        Assert.Equal(["key F1"], _script.Run(bot, 1));
+        Assert.Equal([$"key F1, select {FriendWid:X}"], _script.Run(bot, 1));
     }
 
     [Fact]
