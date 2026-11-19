@@ -60,7 +60,9 @@ public sealed class MeditationBehavior : IBehavior
         }
 
         var sitting = host.Sitting == true;
-        if (TargetSelector.Aggressor(w) is not null || c.Fight.Busy)
+        // Медитируем, только когда цели нет (мёртвый моб в цели — не цель). Напали — встаём: бой возьмёт его в цель
+        var hasTarget = host.TargetWid != 0 && w.Target is not { IsDead: true };
+        if (TargetSelector.Aggressor(w) is not null || hasTarget)
         {
             if (sitting && !c.Mine.Any(a => a is MeditateAction { Sit: false }))
             {

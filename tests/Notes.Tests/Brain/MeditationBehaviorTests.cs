@@ -287,6 +287,26 @@ public class MeditationBehaviorTests
     }
 
     [Fact]
+    public void LiveTargetDoesNotSit()
+    {
+        _world.Hp = 200;
+        _world.TargetWid = _world.AddMob(0x80000001, "Волк", 20).Wid;
+        Tick();
+        Assert.Equal(0, Count("sit"));
+    }
+
+    [Fact]
+    public void DeadTargetSits()
+    {
+        _world.Hp = 200;
+        var wolf = _world.AddMob(0x80000001, "Волк", 5);
+        _world.Replace(wolf, m => m with { Hp = 0, State = NpcState.Dead });
+        _world.TargetWid = wolf.Wid;
+        Tick();
+        Assert.Equal(1, Count("sit"));
+    }
+
+    [Fact]
     public void NoCapabilityDoesNotSit()
     {
         _actions.Capabilities = Capabilities.All.Without(Capability.Meditate, "нет");
