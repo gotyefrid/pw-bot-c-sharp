@@ -75,6 +75,11 @@ public sealed class FarmPanel : ObservableObject
         {
             AddHint = "Запомнить, где стоит персонаж сейчас, как точку для смертей",
         };
+        MeditationPoint = new PointPicker(settings, world, log, MeditateHere, s => s.Meditation.Points, s => s.Meditation.Point,
+            (s, v) => s.Meditation.Point = v, "Медитация", "точка медитации", PointsChanged)
+        {
+            AddHint = "Запомнить, где стоит персонаж сейчас, как точку медитации (лучше на земле)",
+        };
     }
 
     private BotSettings Settings => _settings();
@@ -170,6 +175,13 @@ public sealed class FarmPanel : ObservableObject
     /// <summary>Где умирать при сливе опыта: «На месте фарма» или своя точка для смертей (не точки фарма).</summary>
     public PointPicker DeathPoint { get; }
 
+    // ── Медитация ────────────────────────────────────────────────────────────
+
+    public const string MeditateHere = "Здесь";
+
+    /// <summary>Где медитировать: «Здесь» (в воздухе — сесть на землю под собой) или своя точка медитации.</summary>
+    public PointPicker MeditationPoint { get; }
+
     // ── Снимок и персонаж ────────────────────────────────────────────────────
 
     /// <summary>Окно ← настройки персонажа (при запуске и смене персонажа); скиллы пересоберутся по снимку.</summary>
@@ -208,6 +220,7 @@ public sealed class FarmPanel : ObservableObject
         UpdateAttackSkills(w);
         FarmCenter.UpdateInfo();
         DeathPoint.UpdateInfo();
+        MeditationPoint.UpdateInfo();
     }
 
     private void UpdateAttackSkills(WorldState w)
@@ -314,5 +327,6 @@ public sealed class FarmPanel : ObservableObject
     {
         FarmCenter.Load();
         DeathPoint.Load();
+        MeditationPoint.Load();
     }
 }

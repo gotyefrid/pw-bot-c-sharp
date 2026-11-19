@@ -34,6 +34,7 @@ public partial class CharacterView : UserControl
         // Правка сохранённой точки (центр фарма, место для смертей)
         model.Farm.FarmCenter.EditRequested += EditPoint;
         model.Farm.DeathPoint.EditRequested += EditPoint;
+        model.Farm.MeditationPoint.EditRequested += EditPoint;
         // Правка точки маршрута: координаты, «в воздухе», радиус и что копать
         model.Route.EditRequested += draft => new RoutePointWindow { Owner = Owner, DataContext = draft }.ShowDialog();
         model.Route.AskName = (title, current) => NameWindow.Ask(Owner, title, current);

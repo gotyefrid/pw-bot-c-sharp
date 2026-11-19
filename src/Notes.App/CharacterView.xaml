@@ -968,6 +968,19 @@
               </StackPanel>
               <CheckBox Content="Садиться, только когда выполнены оба условия" IsChecked="{Binding Settings.Meditation.RequireBoth}" Margin="0,8,0,0"
                         ToolTip="Выключено — садится, когда выполнено любое из включённых условий. Встаёт, когда и HP, и MP (включённые) поднялись до своих порогов" />
+              <DockPanel Style="{StaticResource SettingRow}" Margin="0,8,0,0">
+                <TextBlock Text="Где медитировать" VerticalAlignment="Center"
+                           ToolTip="«Здесь» — на месте: в воздухе перс сядет на землю под собой. Точка — долетит до неё, сядет на землю и помедитирует. После медитации бот возвращается на фарм: на воздушную точку — взлетит, на земляную — по земле" />
+                <app:PointPickerView DockPanel.Dock="Right" DataContext="{Binding Farm.MeditationPoint}" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}" Visibility="{Binding Farm.MeditationPoint.HasPoint, Converter={StaticResource Visible}}">
+                <TextBlock DockPanel.Dock="Right" Text="{Binding Farm.MeditationPoint.Info}" Style="{StaticResource Muted}" VerticalAlignment="Center" />
+              </DockPanel>
+              <DockPanel Style="{StaticResource SettingRow}">
+                <TextBlock Text="Высота полёта к точке и обратно" VerticalAlignment="Center"
+                           ToolTip="На какой высоте лететь к точке медитации и обратно на фарм — как в игре. И когда садится с полётника «здесь» — обратно на воздушную точку фарма" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Meditation.FlightHeight, UpdateSourceTrigger=PropertyChanged}" />
+              </DockPanel>
             </StackPanel>
           </StackPanel>
         </Border>
