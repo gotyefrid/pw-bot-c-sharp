@@ -220,6 +220,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CanRecallPet));
             OnPropertyChanged(nameof(CanStashToBank));
             OnPropertyChanged(nameof(CanRepairFromBag));
+            OnPropertyChanged(nameof(CanMeditate));
             OnPropertyChanged(nameof(Summary));
             OnPropertyChanged(nameof(Remembered));
             Chat.Refresh();
@@ -874,6 +875,9 @@ public sealed class CharacterTab : ObservableObject, IDisposable
 
     /// <summary>«Чинить из сумки» — только у сервера, где лавка открывается кнопкой в сумке (Comeback).</summary>
     public bool CanRepairFromBag => _profile.Capabilities.Has(Capability.RemoteRepair);
+
+    /// <summary>Карточка «Медитация» — только у сервера, где найдены команды «сесть/встать» и признак «сидит».</summary>
+    public bool CanMeditate => _profile.Capabilities.Has(Capability.Meditate);
 
     /// <summary>Выбор «Умно/Прямо» — только у сервера с автопутём; у остальных бег всегда по прямой.</summary>
     public bool CanChoosePath => _profile.Capabilities.Has(Capability.SmartMove);
