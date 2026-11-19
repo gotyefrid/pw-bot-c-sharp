@@ -209,6 +209,7 @@ internal sealed class FakeActions : IGameActions, IGameKeys
     public CallResult NpcTeleport(int index) => Record($"teleport {index}");
     public CallResult TeleportRune(InventoryItem rune, int waypoint) => Record($"rune {rune.Tid} {waypoint}");
     public CallResult TeamAssist(uint wid) => Record($"assist {wid:X}");
+    public CallResult Meditate(bool sit) => Record(sit ? "sit" : "stand");
     public CallResult Follow(uint wid) => Record($"follow {wid:X}");
 
     public CallResult Jump() => Record("jump");

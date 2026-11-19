@@ -67,6 +67,7 @@ public sealed class WorldReader
     // Где персонаж (MOVEENV_* клиента): 0 — земля, 1 — вода, 2 — воздух
     private const int MoveEnvWater = 1;
     private const int MoveEnvAir = 2;
+    private const int SittingBit = 0x20;
 
     public WorldReader(IMemory memory, GameRoots roots, ProfileData profile, Func<int, string?>? skillName = null)
     {
@@ -79,7 +80,7 @@ public sealed class WorldReader
 
         var h = profile.Host;
         _hostSize = BlockSize(h.NamePointer, h.CastFlag, h.Wid, h.Level, h.Hp, h.Mp, h.MaxHp, h.MaxMp, h.TargetId, h.PetFoodCooldown,
-            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.QuestItems, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv, h.Exp, h.Money, h.Class, h.JumpCount, h.JumpSpeed);
+            h.Location + 8, h.Inventory, h.Bank, h.Equipment, h.QuestItems, h.Skills, h.SkillsCount, h.PetManager, h.GatherTarget, h.WorkMan, h.GatherElapsed, h.GatherTotal, h.CastingSkill, h.MoveEnv, h.Sitting, h.Exp, h.Money, h.Class, h.JumpCount, h.JumpSpeed);
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Tid, n.Type, n.State, n.Level, n.Hp, n.MaxHp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
@@ -196,6 +197,7 @@ public sealed class WorldReader
                 : new GatherProgress(digging, block.Int32(h.GatherElapsed), block.Int32(h.GatherTotal)),
             Flying = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvAir,
             InWater = h.MoveEnv == 0 ? null : block.Int32(h.MoveEnv) == MoveEnvWater,
+            Sitting = h.Sitting == 0 ? null : (block.Int32(h.Sitting) & SittingBit) != 0,
             Exp = h.Exp == 0 ? null : block.Int32(h.Exp),
             ExpToLevel = ReadExpToLevel((int)Field(block, h.Level)),
             Money = h.Money == 0 ? null : block.Int32(h.Money),

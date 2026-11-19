@@ -91,6 +91,9 @@ public interface IGameActions
     /// <summary>«Ассист»: взять в цель то же, что у члена пати.</summary>
     CallResult TeamAssist(uint wid);
 
+    /// <summary>Медитация: сесть (<paramref name="sit"/>) или встать.</summary>
+    CallResult Meditate(bool sit);
+
     /// <summary>«Следовать» за игроком: ведёт сам клиент.</summary>
     CallResult Follow(uint wid);
 

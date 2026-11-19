@@ -667,7 +667,7 @@ internal static class WorldCommands
         s.AppendLine($"       опыт {h.Exp?.ToString() ?? "?"}/{h.ExpToLevel?.ToString() ?? "?"}{(h.ExpPercent is { } exp ? $" ({exp:0.0} %)" : "")}"
                      + $", деньги {h.Money?.ToString() ?? "?"}");
         s.AppendLine($"       HP {h.Hp}/{h.MaxHp} ({h.HpPercent} %)  MP {h.Mp}/{h.MaxMp?.ToString() ?? "?"}  {h.Position}");
-        s.AppendLine($"       каст: {(h.IsCasting ? "да" : "нет")}, корм пета: {(h.PetFoodCooldownMs == 0 ? "можно" : $"перезарядка {h.PetFoodCooldownMs / 1000.0:0} с")}");
+        s.AppendLine($"       каст: {(h.IsCasting ? "да" : "нет")}, корм пета: {(h.PetFoodCooldownMs == 0 ? "можно" : $"перезарядка {h.PetFoodCooldownMs / 1000.0:0} с")}{(h.Sitting switch { true => ", сидит (медитация)", false => "", _ => ", сидит: неизвестно" })}");
 
         var target = w.Target;
         s.AppendLine(h.TargetWid == 0 ? "Цель   нет" : target is null

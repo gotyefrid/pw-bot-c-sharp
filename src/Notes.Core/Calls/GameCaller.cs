@@ -350,6 +350,17 @@ public sealed class GameCaller : IGameActions
             ? CallResult.Refused($"вывести питомца: неверная ячейка {slot} или яйцо {eggTid}")
             : NpcService(_profile.Packets.HatchPetService, "вывести питомца (packets.hatchPetService)", (uint)slot, eggTid);
 
+    /// <summary>Медитация: сесть (<paramref name="sit"/>) или встать, как действием «Медитация» на панели. Пакет — только номер команды.</summary>
+    public CallResult Meditate(bool sit)
+    {
+        var command = sit ? _profile.Packets.SitDownCommand : _profile.Packets.StandUpCommand;
+        if (command == 0)
+            return CallResult.Refused(sit ? "медитация: команда «сесть» не найдена (packets.sitDownCommand)" : "медитация: команда «встать» не найдена (packets.standUpCommand)");
+
+        var packet = BitConverter.GetBytes((ushort)command);
+        return Call(GameFunctions.SendPacket, packet, ("size", (uint)packet.Length));
+    }
+
     /// <summary>«Ассист»: взять в цель то же, что в цели у члена пати <paramref name="wid"/>, как пунктом его меню. Цель ставит ответ сервера.</summary>
     public CallResult TeamAssist(uint wid)
     {

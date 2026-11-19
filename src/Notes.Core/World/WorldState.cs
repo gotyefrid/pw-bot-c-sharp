@@ -243,6 +243,9 @@ public sealed record HostState(
     /// <summary>Персонаж в воде; null — поле не найдено для этого сервера.</summary>
     public bool? InWater { get; init; }
 
+    /// <summary>Персонаж сидит в медитации; null — поле не найдено для этого сервера.</summary>
+    public bool? Sitting { get; init; }
+
     /// <summary>Опыт на текущем уровне; null — поле не найдено для этого сервера.</summary>
     public int? Exp { get; init; }
 

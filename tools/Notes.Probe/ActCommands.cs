@@ -26,6 +26,7 @@ internal static class ActCommands
           act target [имя]      выбрать ближайшего живого моба (в названии которого есть «имя»)
           act untarget          снять цель
           act assist НИК        «Ассист»: взять в цель то же, что у члена пати рядом (часть ника)
+          act sit / act stand   медитация: сесть / встать (packets.sitDownCommand / standUpCommand)
           act jump              прыжок, как «Пробелом» (в воздухе — второй, двойной)
           act follow НИК        «Следовать» за игроком рядом (часть ника) — ведёт сам клиент
           act select-player НИК взять в цель члена пати или самого персонажа (часть ника)
@@ -455,6 +456,12 @@ internal static class ActCommands
 
             case "jump":
                 return new JumpAction();
+
+            case "sit":
+                return new MeditateAction(true);
+
+            case "stand":
+                return new MeditateAction(false);
 
             case "untarget":
                 return new UnselectAction();

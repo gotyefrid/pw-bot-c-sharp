@@ -161,6 +161,12 @@ public sealed class PacketFormats
     /// <summary>Команда «ассист»: взять в цель то же, что в цели у члена пати (данные — его WID). 0 — не найдено.</summary>
     public uint TeamAssistCommand { get; init; }
 
+    /// <summary>Команда «медитация: сесть» (без данных). 0 — не найдено.</summary>
+    public uint SitDownCommand { get; init; }
+
+    /// <summary>Команда «медитация: встать» (без данных). 0 — не найдено.</summary>
+    public uint StandUpCommand { get; init; }
+
     /// <summary>Сообщение игре «следовать за игроком» (в очередь сообщений, postMessage; параметр — его WID). 0 — не найдено.</summary>
     public uint FollowMessage { get; init; }
 
@@ -351,6 +357,8 @@ public sealed class HostOffsets
     public uint PetManager { get; init; }
     /// <summary>Где персонаж (int): 0 — на земле, 1 — в воде, 2 — в воздухе (как MOVEENV_* в клиенте). 0 в профиле — не найдено.</summary>
     public uint MoveEnv { get; init; }
+    /// <summary>[перс + Sitting] — флаги состояния (int): бит 0x20 — сидит в медитации. 0 в профиле — не найдено.</summary>
+    public uint Sitting { get; init; }
 }
 
 public sealed class PetManagerOffsets
