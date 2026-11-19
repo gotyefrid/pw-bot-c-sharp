@@ -299,6 +299,25 @@ public class MeditationBehaviorTests
         Assert.Contains(_actions.Calls, c => c.StartsWith("select"));
     }
 
+    // SaudiKo 19.11: на Comeback полоска копания в снимке есть всегда (не копает — Active false), медитация молча не садилась
+    [Fact]
+    public void IdleGatherBarDoesNotBlock()
+    {
+        _world.Gather = new GatherProgress(false, 0, 0);
+        _world.Hp = 200;
+        Tick();
+        Assert.Equal(1, Count("sit"));
+    }
+
+    [Fact]
+    public void DiggingDoesNotSit()
+    {
+        _world.Gather = new GatherProgress(true, 1000, 5000);
+        _world.Hp = 200;
+        Tick();
+        Assert.Equal(0, Count("sit"));
+    }
+
     [Fact]
     public void NoCapabilityDoesNotSit()
     {

@@ -108,7 +108,7 @@ public sealed class MeditationBehavior : IBehavior
             return _mustReturn && GoBack(c);
         }
 
-        if (c.Now < _nextTry || host.InWater == true || host.Gather is not null)
+        if (c.Now < _nextTry || host.InWater == true || host.Gather is { Active: true })
             return false;
 
         // Докастовывает (после убийства бой прерывает каст, игра снимает флаг не сразу) — ход держим, иначе бой возьмёт
