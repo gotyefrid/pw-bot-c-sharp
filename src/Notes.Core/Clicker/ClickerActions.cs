@@ -147,8 +147,9 @@ public abstract class NearbyAction : ConfirmableAction
 
 /// <summary>
 /// Поднять с земли ближайший предмет из <see cref="Items"/> (пусто — любой, и монеты) не дальше <see cref="NearbyAction.Radius"/> —
-/// «как мышкой» (<see cref="PickupAction"/>): подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Поднимать
-/// нечего — сделано, без предупреждения.
+/// «как мышкой» (<see cref="PickupAction"/>): подбежит и поднимет игра сама. Подтверждение — предмет пропал с земли. Без галочки
+/// «ждать» прошлое «поднять» не ждём — жмём снова на каждом круге (<see cref="ClickerRuns.SendOver"/>). Поднимать нечего —
+/// сделано, без предупреждения.
 /// </summary>
 public sealed class PickUpItemAction : NearbyAction
 {
@@ -175,7 +176,7 @@ public sealed class PickUpItemAction : NearbyAction
 
     public override IClickerRun Start(BrainContext c)
         => GroundItemChoice.NearestItem(c.World, Items, Radius) is { } item
-            ? Send(new PickupAction(item))
+            ? WaitConfirmed ? Send(new PickupAction(item)) : ClickerRuns.SendOver(new PickupAction(item))
             : ClickerRuns.Skipped("рядом нечего поднять");
 
     public override void Normalize()

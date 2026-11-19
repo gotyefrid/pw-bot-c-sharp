@@ -8,7 +8,7 @@ namespace Notes.Tests.Clicker;
 
 /// <summary>
 /// Действие «Поднять предмет»: ближайший из выбранных (пусто — любой) не дальше своего радиуса (по умолчанию 10 м);
-/// без галочки «ждать» — отправило подбор и дальше, с ней — ждёт, пока предмет пропадёт с земли; поднимать нечего — дальше
+/// без галочки «ждать» — отправило подбор и дальше (на следующем круге жмёт снова, прошлое не ждёт), с ней — ждёт, пока предмет пропадёт с земли; поднимать нечего — дальше
 /// без предупреждения. Сама галочка (файл, подпись) — в <see cref="WaitConfirmedTests"/>.
 /// </summary>
 public class PickUpItemActionTests
@@ -111,12 +111,25 @@ public class PickUpItemActionTests
     }
 
     [Fact]
-    public void SameItemIsNotSentAgainWhileGameIsOnIt()
+    public void WithoutWaitingClicksAgainEachTurn()
     {
-        // По кругу — тот же предмет, а персонаж к нему ещё бежит: второй раз в игру не шлётся
+        // Без галочки прошлое «поднять» не ждём — жмём снова на каждом круге: игра могла пропустить нажатие
         Drop(1, "Мягкий мех", 8);
 
-        Assert.Equal(["pickup-approach 1", "", ""], _script.Step(new PickUpItemAction()).Run(_script.Start(), 3));
+        Assert.Equal(["pickup-approach 1", "pickup-approach 1", "pickup-approach 1"],
+            _script.Step(new PickUpItemAction()).Run(_script.Start(), 3));
+    }
+
+    [Fact]
+    public void WithoutWaitingNextItemGoesAtOnce()
+    {
+        // Прошлый предмет ещё не подтвердился, а ближе лежит другой — сразу к нему, без ожидания
+        Drop(1, "Мягкий мех", 8);
+        var bot = _script.Step(new PickUpItemAction()).Start();
+        Assert.Equal(["pickup-approach 1"], _script.Run(bot, 1));
+
+        Drop(2, "Мягкий мех", 2);
+        Assert.Equal(["pickup-approach 2"], _script.Run(bot, 1));
     }
 
     [Fact]

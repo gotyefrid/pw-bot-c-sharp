@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Notes.Core.Actions;
 using Notes.Core.Brain;
 
@@ -40,6 +41,13 @@ public static class ClickerRuns
     /// <summary>Отправить действие игры и дождаться итога по снимкам: подтвердилось — сделано, иначе — не вышло.</summary>
     /// <param name="doneWhenSent">Сделано, как только ушло (клавиша: проверять нечего; подбор без галочки «ждать») — следующий шаг в тот же ход.</param>
     public static IClickerRun Send(GameAction action, bool doneWhenSent = false) => new SendRun(action, doneWhenSent);
+
+    /// <summary>
+    /// Отправить, не дожидаясь своего прошлого такого же (тот же <see cref="GameAction.Slot"/>): прошлое забывается, новое уходит
+    /// в игру — как снова щёлкнуть мышкой. Сделано, как только ушло. Для подбора без галочки «ждать»: иначе новое «поднять»
+    /// не ушло бы, пока прошлое не подтвердится (до 3 с, если игра пропустила нажатие).
+    /// </summary>
+    public static IClickerRun SendOver(GameAction action) => new SendOverRun(action);
 
     /// <summary>Подождать: сделано, когда с первого хода прошло <paramref name="time"/> (по снимкам — с шагом 0,25 с).</summary>
     public static IClickerRun Wait(TimeSpan time) => new WaitRun(time);
@@ -84,6 +92,27 @@ public static class ClickerRuns
         {
             if (ReferenceEquals(outcome.Action, action))
                 _outcome = outcome;
+        }
+    }
+
+    private sealed class SendOverRun(GameAction action) : IClickerRun
+    {
+        private readonly IClickerRun _send = new SendRun(action, doneWhenSent: true);
+        private bool _cleared;
+
+        public StepState Tick(BrainContext c)
+        {
+            if (!_cleared)
+            {
+                _cleared = true;
+                foreach (var pending in c.Mine.Where(a => a.Slot == action.Slot).ToList())
+                    c.Forget(pending);
+            }
+            return _send.Tick(c);
+        }
+
+        public void OnOutcome(BrainContext c, ActionOutcome outcome)
+        {
         }
     }
 
