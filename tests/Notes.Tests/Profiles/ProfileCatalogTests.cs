@@ -93,7 +93,9 @@ public class ProfileCatalogTests
             profile.Data.Functions.Keys.Where(Everywhere).OrderBy(k => k));
         // Лавка из сумки (ремонт без NPC) — та же кнопка сумки, что и банк
         Assert.All(Enum.GetValues(typeof(Capability)).Cast<Capability>()
-                .Where(c => hasRemoteBank || c is not (Capability.RemoteBank or Capability.RemoteRepair)),
+                .Where(c => hasRemoteBank || c is not (Capability.RemoteBank or Capability.RemoteRepair))
+                // Медитация пока проверена только на PW Classic
+                .Where(c => id == "pwclassic136" || c != Capability.Meditate),
             c => Assert.Null(profile.Capabilities.WhyNot(c)));
         Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteBank));
         Assert.Equal(hasRemoteBank, profile.Capabilities.Has(Capability.RemoteRepair));
