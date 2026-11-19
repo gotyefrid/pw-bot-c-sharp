@@ -16,7 +16,7 @@ public interface IPotionFallback
 }
 
 /// <summary>
-/// Выжить: банка HP, когда HP ниже порога в % (и банка HP готова); банка MP, когда MP ниже порога в единицах — если такие
+/// Выжить: банка HP, когда HP ниже порога в % (и банка HP готова); банка MP, когда MP ниже порога в % — если такие
 /// банки включены. Пьём выбранную банку, «Авто» — самую слабую подходящую по уровню (только банки с перезарядкой 10 с);
 /// пока выпитая действует — такую же не пить. Выбранной нет в сумке — пишем в лог (раз за сессию) и переходим на «Авто»;
 /// не хватает уровня — пишем (раз за сессию) и пьём «Авто», выбор не трогаем.
@@ -40,7 +40,9 @@ public sealed class SurvivalBehavior : IBehavior, IPotionFallback
             && TryDrink(c, PotionKind.Hp, $"HP {host.HpPercent} % < {potions.HpPercent} %"))
             return true;
 
-        return potions.UseMp && host.Mp < potions.MpBelow && TryDrink(c, PotionKind.Mp, $"MP {host.Mp} < {potions.MpBelow}");
+        // MP без максимума в снимке — процента не знаем, банку MP не пьём
+        return potions.UseMp && host.MaxMp is int maxMp && maxMp > 0 && host.Mp * 100 < potions.MpPercent * maxMp
+               && TryDrink(c, PotionKind.Mp, $"MP {host.Mp * 100 / maxMp} % < {potions.MpPercent} %");
     }
 
     private bool TryDrink(BrainContext c, PotionKind kind, string reason)

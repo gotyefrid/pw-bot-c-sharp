@@ -43,7 +43,7 @@ public class QuestBehaviorTests
     public QuestBehaviorTests()
     {
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _world.AddSkill(_settings.Combat.AttackSkillId);
     }
 

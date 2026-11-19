@@ -31,7 +31,7 @@ public class StashBehaviorTests
     {
         _settings.Target.KillMobs = false;
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _settings.Loot.StashToBank = true;
         _settings.Loot.StashNames = ["Предметы ДК", "Карта жизни"];
     }

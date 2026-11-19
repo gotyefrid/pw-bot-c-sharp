@@ -35,7 +35,7 @@ public class RouteScenarioTests
     {
         _settings.Mode = BotMode.GatherResources;
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _world.Bag.Add(new InventoryItem(5, Pickaxe, 0, 1, null, null));
     }
 

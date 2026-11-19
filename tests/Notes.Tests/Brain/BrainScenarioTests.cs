@@ -54,7 +54,7 @@ public class BrainScenarioTests
         // По умолчанию — только то, что проверяет сценарий
         _settings.Target.KillMobs = false;
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _settings.Target.TravelFrom = 0; // «Старт» в центр фарма не летит: сценарии — не про перелёт
     }
 
@@ -162,7 +162,7 @@ public class BrainScenarioTests
     public void ChosenPotionAboveLevelWaitsForLevelAndKeepsChoice()
     {
         // «Малая микстура духа» с 40-го, персонаж 39-го: пьём «Авто», выбор не сбрасываем, в лог — один раз
-        _settings.Potions.MpBelow = 100;
+        _settings.Potions.MpPercent = 50;
         _settings.Potions.MpPotion = "Малая микстура духа";
         _world.Mp = 10;
         _world.Level = 39;
@@ -188,7 +188,7 @@ public class BrainScenarioTests
         _settings.Potions.UseHp = false;
         _settings.Potions.UseMp = false;
         _settings.Potions.HpPercent = 50;
-        _settings.Potions.MpBelow = 100;
+        _settings.Potions.MpPercent = 50;
         _world.Hp = 100;
         _world.Mp = 10;
         _world.AddPotion(1, 8617, 10, hp: 30);

@@ -38,7 +38,7 @@ public class RouteDeathTests
     {
         _settings.Mode = BotMode.GatherResources;
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _settings.Potions.UseHp = false;
         _settings.Target.ReviveAndReturn = true;
         _settings.Target.TravelHeight = 30;

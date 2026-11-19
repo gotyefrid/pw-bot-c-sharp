@@ -15,7 +15,7 @@ public class SettingsTests
         var s = new BotSettings();
 
         Assert.Equal(80, s.Potions.HpPercent);
-        Assert.Equal(100, s.Potions.MpBelow);
+        Assert.Equal(30, s.Potions.MpPercent);
         Assert.Equal(70, s.Pet.HealPercent);
         Assert.Equal(1, s.Pet.Cage);
         Assert.True(s.Pet.Feed);
@@ -51,7 +51,7 @@ public class SettingsTests
         Assert.Equal(3, s.Pet.Cage);
         Assert.True(s.Pet.Enabled);
         Assert.Equal(50, s.Potions.HpPercent);
-        Assert.Equal(100, s.Potions.MpBelow);
+        Assert.Equal(30, s.Potions.MpPercent);
         Assert.Equal(4, s.Loot.Attempts);
     }
 

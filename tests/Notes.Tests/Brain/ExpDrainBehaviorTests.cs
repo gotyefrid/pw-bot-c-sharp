@@ -61,7 +61,7 @@ public class ExpDrainBehaviorTests
     {
         _settings.Target.KillMobs = false;
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _settings.Target.TravelFrom = 0; // «Старт» в центр фарма не летит: здесь — про слив
         _settings.Potions.UseHp = false;
         _settings.Combat.UseSkill = true;

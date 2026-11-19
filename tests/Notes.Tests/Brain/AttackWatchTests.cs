@@ -35,7 +35,7 @@ public class AttackWatchTests
     public AttackWatchTests()
     {
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
     }
 
     private void Tick(double seconds = 0.25) => Brain.Tick(_world.Wait(seconds).Snapshot());

@@ -911,8 +911,8 @@
                       ToolTip="Выключено — бот банки MP не пьёт" />
             <StackPanel Visibility="{Binding Settings.Potions.UseMp, Converter={StaticResource Visible}}">
               <DockPanel Style="{StaticResource SettingRow}">
-                <TextBlock Text="Когда MP ниже (единиц)" VerticalAlignment="Center" />
-                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.MpBelow, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBlock Text="Когда MP ниже, %" VerticalAlignment="Center" />
+                <TextBox DockPanel.Dock="Right" Style="{StaticResource Number}" Text="{Binding Settings.Potions.MpPercent, UpdateSourceTrigger=PropertyChanged}" />
               </DockPanel>
               <DockPanel Style="{StaticResource SettingRow}">
                 <TextBlock Text="Банка" VerticalAlignment="Center" />

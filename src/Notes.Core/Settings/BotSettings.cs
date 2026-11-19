@@ -189,7 +189,7 @@ public sealed class BotSettings
         Loot.Attempts = Clamp(Loot.Attempts, 1, 20);
         Loot.Radius = Clamp(Loot.Radius, 1, 30);
         Potions.HpPercent = Clamp(Potions.HpPercent, 0, 100);
-        Potions.MpBelow = Math.Max(0, Potions.MpBelow);
+        Potions.MpPercent = Clamp(Potions.MpPercent, 0, 100);
         Potions.HpPotion = Potions.HpPotion?.Trim() ?? "";
         Potions.MpPotion = Potions.MpPotion?.Trim() ?? "";
         Meditation.HpPercent = Clamp(Meditation.HpPercent, 0, 100);
@@ -752,9 +752,9 @@ public sealed class PotionSettings : SettingsPart
     /// <summary>Пить банки MP.</summary>
     public bool UseMp { get => _useMp; set => Set(ref _useMp, value); }
 
-    private int _mpBelow = 100;
-    /// <summary>Пить банку MP, когда MP ниже этого числа (абсолютные единицы, как в старом боте).</summary>
-    public int MpBelow { get => _mpBelow; set => Set(ref _mpBelow, value); }
+    private int _mpPercent = 30;
+    /// <summary>Пить банку MP, когда MP ниже этого процента (как у HP). Старое «mpBelow» в единицах не читаем.</summary>
+    public int MpPercent { get => _mpPercent; set => Set(ref _mpPercent, value); }
 
     private string _mpPotion = "";
     /// <summary>Какую банку MP пить — название; пусто — «Авто», как у <see cref="HpPotion"/>.</summary>

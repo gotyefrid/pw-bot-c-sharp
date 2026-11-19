@@ -32,7 +32,7 @@ public class FollowModeTests
     {
         _settings.Mode = BotMode.Follow;
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _settings.Follow.Leader = "Главный";
         _me.AddSkill(_settings.Combat.AttackSkillId);
     }

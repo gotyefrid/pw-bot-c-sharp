@@ -38,7 +38,7 @@ public class BrainStatsTests
     public BrainStatsTests()
     {
         _settings.Pet.Enabled = false;
-        _settings.Potions.MpBelow = 0;
+        _settings.Potions.MpPercent = 0;
         _settings.Target.TravelFrom = 0;
         _settings.Target.KillMobs = true;
         _settings.Combat.UseSword = true;
