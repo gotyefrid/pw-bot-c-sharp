@@ -22,7 +22,11 @@ public sealed class MeditationBehavior : IBehavior
     /// <summary>Не сели — столько ждём перед новой попыткой.</summary>
     public static readonly TimeSpan RetryPause = TimeSpan.FromSeconds(10);
 
+    /// <summary>Пора садиться, а перс кастует, — ждём конца каста не дольше этого.</summary>
+    public static readonly TimeSpan CastWaitMax = TimeSpan.FromSeconds(5);
+
     private DateTime _nextTry = DateTime.MinValue;
+    private DateTime? _castSince;
     private bool _toldNoCapability;
     private FlightTrip? _trip;
     // Путь к месту медитации (true) или обратно на фарм (false)
@@ -61,6 +65,7 @@ public sealed class MeditationBehavior : IBehavior
         var sitting = host.Sitting == true;
         if (TargetSelector.Aggressor(w) is not null || c.Fight.Busy)
         {
+            _castSince = null;
             if (sitting && !c.Mine.Any(a => a is MeditateAction { Sit: false }))
             {
                 c.Log.Info("Медитация: напали — встаю");
@@ -98,10 +103,26 @@ public sealed class MeditationBehavior : IBehavior
 
         var why = "";
         if (Restored(host, s) || !Wanted(host, s, out why))
+        {
+            _castSince = null;
             return _mustReturn && GoBack(c);
+        }
 
-        if (c.Now < _nextTry || host.InWater == true || host.IsCasting || host.Gather is not null)
+        if (c.Now < _nextTry || host.InWater == true || host.Gather is not null)
             return false;
+
+        // Докастовывает (после убийства бой прерывает каст, игра снимает флаг не сразу) — ход держим, иначе бой возьмёт
+        // следующего моба и пауза для медитации не наступит никогда; флаг завис — через CastWaitMax отдаём ход
+        if (host.IsCasting)
+        {
+            _castSince ??= c.Now;
+            if (c.Now - _castSince > CastWaitMax)
+                return false;
+            Status = "медитация: жду конца каста";
+            return true;
+        }
+
+        _castSince = null;
 
         // Где сесть: точка медитации (если не долетели в этот раз — здесь); в воздухе над местом — сесть на землю
         var point = _here ? null : s.FindPoint();
@@ -191,6 +212,7 @@ public sealed class MeditationBehavior : IBehavior
     public void Reset()
     {
         _nextTry = DateTime.MinValue;
+        _castSince = null;
         _trip = null;
         _mustReturn = false;
         _here = false;

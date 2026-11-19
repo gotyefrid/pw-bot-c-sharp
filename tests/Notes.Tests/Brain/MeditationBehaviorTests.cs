@@ -243,6 +243,62 @@ public class MeditationBehaviorTests
         Assert.Equal(flights, _actions.FlyPoints.Count);
     }
 
+    // SaudiKo 19.11: MP 12/1884, а бот бил моба за мобом и ни разу не сел
+    [Fact]
+    public void AfterKillSitsBeforeNextMob()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSkill = true;
+        _settings.Meditation.UseHp = false;
+        _world.AddSkill(299);
+        var wolf = _world.AddMob(0x80000001, "Волк", 5);
+        _world.TargetWid = wolf.Wid;
+        _world.AddMob(0x80000002, "Волк", 20);
+        Tick();
+        Tick();
+        Assert.Contains(_actions.Calls, c => c.StartsWith("apply 299"));
+        _world.Mp = 10; // потратил в бою
+        Tick();
+        Assert.Equal(0, Count("sit"));
+        _world.Replace(wolf, m => m with { Hp = 0, State = NpcState.Dead });
+        _world.TargetWid = 0;
+        for (var i = 0; i < 20 && Count("sit") == 0; i++)
+            Tick();
+        Assert.Equal(1, Count("sit"));
+    }
+
+    // Флаг каста после убийства снимается не сразу: бой не должен успеть взять следующего моба
+    [Fact]
+    public void WaitsForCastEndInsteadOfNextMob()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Meditation.UseHp = false;
+        _world.Mp = 10;
+        _world.Casting = true;
+        _world.AddMob(0x80000002, "Волк", 20);
+        Tick();
+        Tick();
+        Assert.DoesNotContain(_actions.Calls, c => c.StartsWith("select"));
+        Assert.Equal(0, Count("sit"));
+
+        _world.Casting = false;
+        Tick();
+        Assert.Equal(1, Count("sit"));
+    }
+
+    [Fact]
+    public void StuckCastFlagDoesNotBlockForever()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Meditation.UseHp = false;
+        _world.Mp = 10;
+        _world.Casting = true;
+        _world.AddMob(0x80000002, "Волк", 20);
+        for (var i = 0; i < 30; i++)
+            Tick();
+        Assert.Contains(_actions.Calls, c => c.StartsWith("select"));
+    }
+
     [Fact]
     public void NoCapabilityDoesNotSit()
     {
