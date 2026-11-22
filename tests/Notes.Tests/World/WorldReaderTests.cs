@@ -82,8 +82,8 @@ public class WorldReaderTests
     {
         // Сервер, где поле ещё не найдено (пусто в профиле), — не знаем
         var json = new ProfileCatalog().ReadJson("comeback146");
-        Assert.Contains("\"running\": \"0x1988\"", json);
-        var unknown = ProfileJson.Parse(json.Replace("\"running\": \"0x1988\"", "\"running\": \"\""));
+        Assert.Contains("\"running\": \"0x1A40\"", json);
+        var unknown = ProfileJson.Parse(json.Replace("\"running\": \"0x1A40\"", "\"running\": \"\""));
         _memory.Map(BuildWorld(profile: unknown), 0x2000);
 
         Assert.Null(Reader(unknown).Read().MacroRunning);
@@ -175,8 +175,8 @@ public class WorldReaderTests
     {
         // Сервер, где пати ещё не найдена (пусто в профиле), — пати не читаем
         var json = new ProfileCatalog().ReadJson("comeback146");
-        Assert.Contains("\"team\": \"0x858\"", json);
-        var unknown = ProfileJson.Parse(json.Replace("\"team\": \"0x858\"", "\"team\": \"\""));
+        Assert.Contains("\"team\": \"0x910\"", json);
+        var unknown = ProfileJson.Parse(json.Replace("\"team\": \"0x910\"", "\"team\": \"\""));
         BuildWorld(profile: unknown);
 
         Assert.Null(Reader(unknown).ReadParty());
