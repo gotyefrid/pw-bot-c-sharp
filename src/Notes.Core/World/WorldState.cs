@@ -114,7 +114,7 @@ public sealed record WorldState(
     /// <summary>
     /// Моб напал на перса или пета: жив, не возвращается (возвращающийся неуязвим и уже не наш, хотя цель может ещё
     /// показывать нас) и его цель — мы. Цель толкует <see cref="NpcTracker"/>: держит её за мобом между ударами, снимает
-    /// застрявшую после отагра, а где у моба нет поля цели — догадывается по боевой стойке (<see cref="NpcInfo.Aggro"/>).
+    /// застрявшую после отагра (<see cref="NpcInfo.Aggro"/>).
     /// Что моб делает сейчас (бьёт, стоит, бежит за убегающим), не важно.
     /// </summary>
     public bool AttacksUs(NpcInfo mob)
@@ -330,8 +330,6 @@ public enum AggroSign
     Hit,
     /// <summary>Подтверждения сейчас нет, держим прежнее: стоит между ударами, цель мигнула.</summary>
     Held,
-    /// <summary>Догадка: боевая стойка или бег, а вокруг никого, кроме нас.</summary>
-    Pose,
 }
 
 public static class NpcStates
@@ -435,14 +433,11 @@ public sealed record NpcInfo(
     /// </summary>
     public bool Returning { get; init; }
 
-    /// <summary>Идёт и стал ближе к персонажу, чем на прошлом снимке (ставит <see cref="NpcTracker"/> — нужна история).</summary>
-    public bool Approaching { get; init; }
-
     /// <summary>Что делает модель: стоит, идёт, бежит, боевая стойка; <see cref="NpcPose.Unknown"/> — поле не найдено для сервера.</summary>
     public NpcPose Pose { get; init; }
 
     /// <summary>
-    /// Почему цель (<see cref="TargetWid"/>) — перс или пет: подтверждено или догадка; ставит <see cref="NpcTracker"/>.
+    /// Почему цель (<see cref="TargetWid"/>) — перс или пет: что это подтвердило; ставит <see cref="NpcTracker"/>.
     /// <see cref="AggroSign.None"/> — цель не наша или моб не толковали (снимок прямо из читателя).
     /// </summary>
     public AggroSign Aggro { get; init; }

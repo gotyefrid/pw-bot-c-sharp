@@ -66,7 +66,7 @@ public sealed class AttackWatch
 
     private static string Whom(WorldState w, NpcInfo mob) => mob.TargetWid == w.Host.Wid ? "→ на меня" : "→ на пета";
 
-    private static string Doing(NpcInfo mob) => mob.Approaching ? "идёт к нам" : mob.State.Text() ?? "?";
+    private static string Doing(NpcInfo mob) => mob.State.Text() ?? "?";
 
     // Почему решили, что напал (NpcTracker); снимок без толкования — по цели
     private static string Why(NpcInfo mob) => mob.Aggro switch
@@ -74,7 +74,6 @@ public sealed class AttackWatch
         AggroSign.Action => "его удар или каст в нас",
         AggroSign.Hit => "его удар по нам в списке ударов",
         AggroSign.Held => "бил нас раньше",
-        AggroSign.Pose => mob.Pose == NpcPose.Running ? "бежит, а вокруг никого" : "боевая стойка, а вокруг никого",
         _ => "его цель — мы",
     };
 

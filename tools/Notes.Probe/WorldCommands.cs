@@ -30,8 +30,8 @@ internal static class WorldCommands
     public static int Watch(ServerProfile profile, GameProcess game, int periodMs = 300)
     {
         var reader = CreateReader(profile, game, out _);
-        // Как видит бот: застрявшая после отагра цель снята, «идёт к нам» проставлено
-        var tracker = new NpcTracker(knowsMobTarget: profile.Data.Npc.Target != 0);
+        // Как видит бот: застрявшая после отагра цель снята
+        var tracker = new NpcTracker();
         var stop = false;
         Console.CancelKeyPress += (_, e) =>
         {
@@ -70,7 +70,7 @@ internal static class WorldCommands
     {
         var seconds = args.Select(a => int.TryParse(a, out var n) && n != game.Pid ? n : 0).FirstOrDefault(n => n is > 0 and <= 3600);
         var reader = CreateReader(profile, game, out _);
-        var tracker = new NpcTracker(knowsMobTarget: profile.Data.Npc.Target != 0);
+        var tracker = new NpcTracker();
         var stop = false;
         Console.CancelKeyPress += (_, e) =>
         {
@@ -101,7 +101,7 @@ internal static class WorldCommands
             if (w.Players.Count != players)
             {
                 players = w.Players.Count;
-                Console.WriteLine($"{stamp}  игроков вокруг: {players}{(players == 0 ? " — догадка по стойке включена" : "")}");
+                Console.WriteLine($"{stamp}  игроков вокруг: {players}");
             }
 
             foreach (var mob in w.Mobs)
@@ -143,7 +143,6 @@ internal static class WorldCommands
         AggroSign.Action => "удар или каст в нас",
         AggroSign.Hit => "удар по нам в списке ударов",
         AggroSign.Held => "бил нас раньше",
-        AggroSign.Pose => "стойка или бег, вокруг никого",
         _ => "его цель — мы",
     };
 

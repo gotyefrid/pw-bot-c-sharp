@@ -6,7 +6,7 @@ namespace Notes.Tests.World;
 
 /// <summary>
 /// Кто из мобов напал на перса или пета (<see cref="NpcTracker"/>): подтверждения (цель, удар, список ударов), память между
-/// ударами и догадка по анимации. Случаи — из записей живых клиентов 05.11 (tz-refactoring/26-мобы-и-агр.md).
+/// ударами; догадок по анимации нет. Случаи — из записей живых клиентов 05.11 (tz-refactoring/26-мобы-и-агр.md).
 /// </summary>
 public class NpcAggroTests
 {
@@ -51,19 +51,18 @@ public class NpcAggroTests
     }
 
     [Fact]
-    public void CombatPoseKeepsHold()
+    public void CombatPoseDoesNotExtendHold()
     {
-        // Моб в боевой стойке — ещё в бою, держим дольше HoldFor
+        // Держим только по подтверждениям: стойка без ударов дольше HoldFor — уже не наш
         var mob = _world.AddMob(1, "Бес пустоты", 3, targetWid: FakeWorld.HostWid, state: NpcState.Attacking);
         Next();
         _world.Replace(mob, m => m with { State = NpcState.Standing, TargetWid = 0, Pose = NpcPose.Fighting });
-        _world.Players.Add(Player(30)); // не один — догадкой не подменить
 
         Next(NpcTracker.HoldFor.TotalSeconds - 1);
-        var later = Next(NpcTracker.HoldFor.TotalSeconds - 1);
+        var later = Next(2);
 
-        Assert.Equal(FakeWorld.HostWid, later.TargetWid);
-        Assert.Equal(AggroSign.Held, later.Aggro);
+        Assert.Equal(0u, later.TargetWid);
+        Assert.Equal(AggroSign.None, later.Aggro);
     }
 
     [Fact]
@@ -185,64 +184,32 @@ public class NpcAggroTests
         Assert.Equal(AggroSign.None, stuck.Aggro);
     }
 
-    [Fact]
-    public void CombatPoseWhenAloneIsAggro()
+    [Theory]
+    [InlineData(NpcPose.Fighting)]
+    [InlineData(NpcPose.Running)]
+    public void CombatPoseWithoutHitIsNotAggro(NpcPose pose)
     {
-        // Classic: цели у бегущего моба нет, но он в боевой стойке, а вокруг никого — значит, на нас
-        var mob = _world.AddMob(1, "Бес пустоты", 15);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
+        // Classic: моб в стойке или бежит, вокруг никого, но цели и удара нет — не считаем напавшим, пока не ударит
+        var mob = _world.AddMob(1, "Бес пустоты", 15, state: NpcState.Moving);
+        _world.Replace(mob, m => m with { Pose = pose });
 
         var seen = Next();
-
-        Assert.Equal(FakeWorld.HostWid, seen.TargetWid);
-        Assert.Equal(AggroSign.Pose, seen.Aggro);
-    }
-
-    [Fact]
-    public void RunningWhenAloneIsAggro()
-    {
-        var mob = _world.AddMob(1, "Бес пустоты", 15, state: NpcState.Moving);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Running });
-
-        Assert.Equal(AggroSign.Pose, Next().Aggro);
-    }
-
-    [Fact]
-    public void RunningWhenAloneIsNotAggroWhereMobTargetIsKnown()
-    {
-        // Comeback: у моба есть поле цели, оно пустое — гуляет, хоть игра и пишет «бег» (Призрак наскальника шёл к персу)
-        var tracker = new NpcTracker(knowsMobTarget: true);
-        var mob = _world.AddMob(1, "Призрак наскальника", 38, state: NpcState.Moving);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Running });
-        tracker.Track(_world.Wait(0.25).Snapshot());
-        _world.Replace(mob, m => m with { Position = new Position(36, 0, 0) });
-
-        var seen = Assert.Single(tracker.Track(_world.Wait(0.25).Snapshot()).Npcs, n => n.Kind == NpcKind.Mob);
 
         Assert.Equal(0u, seen.TargetWid);
         Assert.Equal(AggroSign.None, seen.Aggro);
     }
 
-    [Fact]
-    public void CombatPoseWhenAloneIsNotAggroWhereMobTargetIsKnown()
-    {
-        var tracker = new NpcTracker(knowsMobTarget: true);
-        var mob = _world.AddMob(1, "Бес пустоты", 15);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
 
-        var seen = Assert.Single(tracker.Track(_world.Wait(0.25).Snapshot()).Npcs, n => n.Kind == NpcKind.Mob);
 
-        Assert.Equal(AggroSign.None, seen.Aggro);
-    }
 
     [Fact]
-    public void TargetOnUsIsAggroWhereMobTargetIsKnown()
+    public void RunningMobWithTargetOnUsIsAggro()
     {
-        var tracker = new NpcTracker(knowsMobTarget: true);
+        // Comeback: поле цели есть — бегущий к нам моб с нашей целью уже напал
         var mob = _world.AddMob(1, "Бес пустоты", 15, targetWid: FakeWorld.HostWid, state: NpcState.Moving);
         _world.Replace(mob, m => m with { Pose = NpcPose.Running });
 
-        var seen = Assert.Single(tracker.Track(_world.Wait(0.25).Snapshot()).Npcs, n => n.Kind == NpcKind.Mob);
+        var seen = Next();
 
         Assert.Equal(FakeWorld.HostWid, seen.TargetWid);
         Assert.Equal(AggroSign.Target, seen.Aggro);
@@ -260,75 +227,11 @@ public class NpcAggroTests
         Assert.Equal(AggroSign.None, Next().Aggro);
     }
 
-    [Fact]
-    public void CombatPoseWithPlayersAroundIsNotAggro()
-    {
-        var mob = _world.AddMob(1, "Бес пустоты", 15);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
-        _world.Players.Add(Player(25));
 
-        Assert.Equal(AggroSign.None, Next().Aggro);
-    }
 
-    [Fact]
-    public void CombatPoseWithForeignPetAroundIsNotAggro()
-    {
-        var mob = _world.AddMob(1, "Бес пустоты", 15);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
-        _world.Npcs.Add(new NpcInfo(7, 0x80119999, NpcKind.Pet, NpcState.Standing, 0, new Position(30, 0, 0), "Чужой пет", 0));
 
-        Assert.Equal(AggroSign.None, Next().Aggro);
-    }
 
-    [Fact]
-    public void FarCombatPoseIsNotAggro()
-    {
-        var mob = _world.AddMob(1, "Бес пустоты", NpcTracker.PoseRadius + 5);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
 
-        Assert.Equal(AggroSign.None, Next().Aggro);
-    }
-
-    [Fact]
-    public void CombatPoseGuessPicksNearestOfUs()
-    {
-        // Пет в 2 м от перса, моб за петом — догадка: на пета
-        _world.SetPet(1);
-        var mob = _world.AddMob(1, "Бес пустоты", 5);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
-
-        Assert.Equal(FakeWorld.PetWid, Next().TargetWid);
-    }
-
-    [Fact]
-    public void CombatPoseGuessFadesWhenMobCalms()
-    {
-        var mob = _world.AddMob(1, "Бес пустоты", 15);
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
-        Next();
-
-        _world.Replace(mob, m => m with { Pose = NpcPose.Standing });
-        Assert.Equal(AggroSign.Pose, Next(0.5).Aggro); // анимация мигает — догадку держим недолго
-        Assert.Equal(AggroSign.None, Next(NpcTracker.PoseGrace.TotalSeconds).Aggro);
-    }
-
-    [Fact]
-    public void NoPoseGuessAfterReturnUntilMobCalms()
-    {
-        // Отагрился и бежит домой — его бег не догадка о нападении, пока не встанет или не пойдёт шагом
-        var mob = _world.AddMob(1, "Бес пустоты", 15, targetWid: FakeWorld.HostWid);
-        Next();
-        _world.Replace(mob, m => m with { Returning = true, State = NpcState.Moving, Pose = NpcPose.Running, TargetWid = 0 });
-        Next();
-
-        _world.Replace(mob, m => m with { Returning = false });
-        Assert.Equal(AggroSign.None, Next().Aggro);
-
-        _world.Replace(mob, m => m with { State = NpcState.Standing, Pose = NpcPose.Standing });
-        Next();
-        _world.Replace(mob, m => m with { Pose = NpcPose.Fighting });
-        Assert.Equal(AggroSign.Pose, Next().Aggro);
-    }
 
     [Fact]
     public void RecalledPetIsNoLongerTheVictim()

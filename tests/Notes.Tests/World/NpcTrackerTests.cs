@@ -4,7 +4,7 @@ using Xunit;
 
 namespace Notes.Tests.World;
 
-/// <summary>Толкование мобов по истории снимков: застрявшая цель после отагра, «идёт к нам».</summary>
+/// <summary>Толкование мобов по истории снимков: застрявшая цель после отагра.</summary>
 public class NpcTrackerTests
 {
     private readonly FakeWorld _world = new();
@@ -43,42 +43,6 @@ public class NpcTrackerTests
         Assert.Equal(FakeWorld.PetWid, Next().TargetWid);
     }
 
-    [Fact]
-    public void MovingMobGettingCloserIsApproaching()
-    {
-        var mob = _world.AddMob(1, "Волк", 20, state: NpcState.Moving);
-        Assert.False(Next().Approaching);
 
-        _world.Replace(mob, m => m with { Position = new Position(18, 0, 0) });
-        Assert.True(Next().Approaching);
 
-        _world.Replace(mob, m => m with { Position = new Position(19, 0, 0) });
-        Assert.False(Next().Approaching);
-    }
-
-    [Fact]
-    public void HostComingCloserIsNotMobApproaching()
-    {
-        // Стоящий моб, к которому бежит персонаж, — не «идёт к нам»: нужно и «идёт», и ближе
-        _world.AddMob(1, "Волк", 20);
-        Next();
-
-        _world.Position = new Position(5, 0, 0);
-
-        Assert.False(Next().Approaching);
-    }
-
-    [Fact]
-    public void VanishedMobIsForgotten()
-    {
-        // Моб исчез (убит, респавн с тем же WID) — его прошлое расстояние не делает нового «идущим к нам»
-        _world.AddMob(1, "Волк", 20, state: NpcState.Moving);
-        Next();
-        _world.Npcs.Clear();
-        _tracker.Track(_world.Snapshot());
-
-        _world.AddMob(1, "Волк", 15, state: NpcState.Moving);
-
-        Assert.False(Next().Approaching);
-    }
 }

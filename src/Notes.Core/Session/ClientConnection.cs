@@ -89,8 +89,8 @@ public sealed class ClientConnection : IDisposable
             _log.Warning(e.Message);
         }
         var reader = new WorldReader(game, _roots, profile, id => _skillNames.Get(id));
-        // Читатель — факты из памяти, трекер — то, что требует истории (застрявшая цель, «идёт к нам»)
-        var tracker = new NpcTracker(knowsMobTarget: profile.Npc.Target != 0);
+        // Читатель — факты из памяти, трекер — то, что требует истории (застрявшая цель, кто напал)
+        var tracker = new NpcTracker();
         _requests = reader.Requests;
         _monitor = new WorldMonitor(() => tracker.Track(reader.Read()), SnapshotPeriod);
         _monitor.Updated += world => WorldUpdated?.Invoke(world);
