@@ -8,7 +8,7 @@ namespace Notes.Patcher;
 
 /// <summary>
 /// Окно патчера: раздел PWCLASSIC, выбор client.exe, список патчей и журнал.
-/// Логика самих патчей — в <see cref="FlightPatch"/>; окно только показывает состояние и запускает действия.
+/// Логика самих патчей — в <see cref="FlightPatch"/> и <see cref="DoorPatch"/>; окно только показывает состояние и запускает действия.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -19,6 +19,7 @@ public partial class MainWindow : Window
     private static readonly Brush MutedBrush = CreateBrush(0x6B, 0x72, 0x80);
 
     private readonly PatchItem _flightPatch;
+    private readonly PatchItem _doorPatch;
 
     public MainWindow()
     {
@@ -29,7 +30,12 @@ public partial class MainWindow : Window
             "Убирает разгон при полёте — скорость набирается сразу. Максимальная скорость не меняется: она зависит от надетого полётника.",
             ApplyFlight,
             RevertFlight);
-        PatchesList.ItemsSource = new[] { _flightPatch };
+        _doorPatch = new PatchItem(
+            "Двери подземелья",
+            "Через закрытые двери подземелья можно пройти. Двери остаются на месте и выглядят закрытыми; стены и NPC не меняются.",
+            ApplyDoor,
+            RevertDoor);
+        PatchesList.ItemsSource = new[] { _flightPatch, _doorPatch };
 
         var near = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "client.exe");
         if (File.Exists(near))
@@ -82,6 +88,34 @@ public partial class MainWindow : Window
 
     /// <summary>Перепроверить выбранный файл и обновить строку патча.</summary>
     private void RefreshState()
+    {
+        RefreshFlight();
+        RefreshDoor();
+    }
+
+    /// <summary>Строка «Двери подземелья»: своё состояние, общий заголовок клиента не трогает.</summary>
+    private void RefreshDoor()
+    {
+        var path = ClientPathBox.Text.Trim();
+        DoorPatch.State state;
+        try
+        {
+            state = path.Length > 0 && File.Exists(path) ? DoorPatch.Detect(path, out _) : DoorPatch.State.Unreadable;
+        }
+        catch (Exception)
+        {
+            state = DoorPatch.State.Unreadable;
+        }
+
+        if (state == DoorPatch.State.Original)
+            _doorPatch.SetState(PatchState.NotApplied, "не применён", "Пропатчить", true);
+        else if (state == DoorPatch.State.Patched)
+            _doorPatch.SetState(PatchState.Applied, "применён", "Откатить", true);
+        else
+            _doorPatch.SetState(PatchState.Unavailable, "недоступен", "—", false);
+    }
+
+    private void RefreshFlight()
     {
         var path = ClientPathBox.Text.Trim();
         if (path.Length == 0)
@@ -151,10 +185,15 @@ public partial class MainWindow : Window
 
     private void RevertFlight() => RunPatch(() => FlightPatch.Revert(ClientPathBox.Text.Trim(), Log));
 
+    private void ApplyDoor() => RunPatch(() => DoorPatch.Apply(ClientPathBox.Text.Trim(), Log));
+
+    private void RevertDoor() => RunPatch(() => DoorPatch.Revert(ClientPathBox.Text.Trim(), Log));
+
     /// <summary>Общий запуск патча/отката: блокирует кнопку, пишет журнал, обновляет состояние.</summary>
     private void RunPatch(Action patch)
     {
         _flightPatch.Busy = true;
+        _doorPatch.Busy = true;
         try
         {
             Log("---");
@@ -173,6 +212,7 @@ public partial class MainWindow : Window
         finally
         {
             _flightPatch.Busy = false;
+            _doorPatch.Busy = false;
             RefreshState();
         }
     }
