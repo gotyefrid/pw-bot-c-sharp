@@ -71,8 +71,10 @@ public static class TargetSelector
 
     private static bool First(NpcInfo mob, Func<NpcInfo, bool>? first) => first?.Invoke(mob) == true;
 
-    /// <summary>Эффект моба — из «бить первыми» (<see cref="Settings.TargetSettings.FirstEffects"/>).</summary>
-    public static bool HasFirstEffect(NpcInfo mob, TargetSettings target) => mob.Effect != 0 && target.FirstEffects.Contains(mob.Effect);
+    /// <summary>
+    /// Опасный эффект: из тех, кто бьёт перса или пета, такого моба бьём первым, даже с полным HP — «Усиленная атака», «Берсерк».
+    /// </summary>
+    public static bool HasFirstEffect(NpcInfo mob) => mob.Effect is MobEffects.StrongAttack or MobEffects.Berserk;
 
     /// <summary>Самый опасный моб (<see cref="Before"/>). null — никто из мобов нас не бьёт.</summary>
     public static NpcInfo? MostDangerous(WorldState w, bool hitsUsFirst, bool petTakesAggro, out Threat threat, Func<uint, bool>? petHit = null,

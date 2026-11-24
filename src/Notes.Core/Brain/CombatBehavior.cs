@@ -245,7 +245,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             {
                 Threat.HitsMe => $"{danger.Name} бьёт меня — перевожу бой и пета на него, {name} подождёт",
                 Threat.PetUntouched => $"{danger.Name} бьёт пета, а пет его ещё не бил — пусть ударит, {name} подождёт",
-                _ when threat == current && danger.Effect != mob.Effect && TargetSelector.HasFirstEffect(danger, c.Settings.Target)
+                _ when threat == current && danger.Effect != mob.Effect && TargetSelector.HasFirstEffect(danger)
                     => $"{danger.Name} «{danger.EffectName}» — сначала его, {name} подождёт",
                 _ when threat == current => $"{danger.Name} слабее (HP {danger.Hp} < {mob.Hp}) — добиваю его",
                 _ => $"{danger.Name} бьёт нас — переключаюсь",
@@ -297,7 +297,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             : TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c), PetInFight(c) ? _petTags.Hit : null);
 
     // Эффект моба из «бить первыми» (настройки цели)
-    private static Func<NpcInfo, bool> First(BrainContext c) => m => TargetSelector.HasFirstEffect(m, c.Settings.Target);
+    private static Func<NpcInfo, bool> First(BrainContext c) => m => TargetSelector.HasFirstEffect(m);
 
     // Пет призван и бьёт по приказам боя: правила пета — сначала петом ударить всех, кто бьёт пета, потом добивать слабого
     private static bool PetInFight(BrainContext c) => c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
@@ -534,7 +534,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         if (MostDangerous(c, out var top) is { } first && first.Wid != mob.Wid)
             return $"сначала {(fight.Phase == FightPhase.Fighting && fight.Mob == first.Wid ? "добиваю " : "")}{first.Name}: "
                    + (top != threat ? top == Threat.HitsMe ? "он бьёт меня" : top == Threat.PetUntouched ? "он бьёт пета, а пет его ещё не бил" : "он опаснее"
-                       : TargetSelector.HasFirstEffect(first, c.Settings.Target) && !TargetSelector.HasFirstEffect(mob, c.Settings.Target) ? $"у него «{first.EffectName}»"
+                       : TargetSelector.HasFirstEffect(first) && !TargetSelector.HasFirstEffect(mob) ? $"у него «{first.EffectName}»"
                        : PetInFight(c) && top == Threat.HitsUs && first.Hp != mob.Hp ? "он слабее" : "он ближе");
 
         switch (fight.Phase)

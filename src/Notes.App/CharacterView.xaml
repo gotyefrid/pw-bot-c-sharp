@@ -660,21 +660,6 @@
             <CheckBox Style="{StaticResource Switch}" Content="Нападать на мобов" IsChecked="{Binding Settings.Target.KillMobs}"
                       ToolTip="Выключено — бот только пьёт банки и следит за петом" />
             <CheckBox Style="{StaticResource Switch}" Content="Сначала тех, кто бьёт меня или пета" IsChecked="{Binding Settings.Target.PreferAggressive}" />
-            <Expander Header="Из них первыми — мобов с эффектом" Margin="0,4,0,4"
-                      ToolTip="Эффект — надпись под рамкой цели. Из тех, кто бьёт вас или пета, бот сначала бьёт моба с отмеченным эффектом, даже с полным HP">
-              <ItemsControl ItemsSource="{Binding FirstEffects}" Margin="0,4,0,0">
-                <ItemsControl.ItemsPanel>
-                  <ItemsPanelTemplate>
-                    <WrapPanel />
-                  </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate>
-                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsChecked}" Margin="0,2,14,2" />
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </Expander>
             <DockPanel Style="{StaticResource SettingRow}">
               <TextBlock Text="Радиус фарма, м" VerticalAlignment="Center"
                          ToolTip="Новые цели (мобы, ресурсы) — только в этом радиусе от центра фарма. Кто бьёт вас или пета — всегда. 0 — без ограничения" />

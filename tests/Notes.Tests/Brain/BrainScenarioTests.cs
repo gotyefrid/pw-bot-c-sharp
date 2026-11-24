@@ -2177,12 +2177,12 @@ public class BrainScenarioTests
     }
 
     [Fact]
-    public void FirstEffectsOffDoesNotSwitch()
+    public void HarmlessEffectDoesNotSwitch()
     {
-        _settings.Target.FirstEffects = [];
+        // «Усиленная магическая защита» — не опасный эффект, ради него не переключаемся
         PetFightsWolf(hp: 100);
         _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 300);
-        WithEffect(0x80000002, MobEffects.Berserk);
+        WithEffect(0x80000002, 4);
         PetHits(0x80000002);
         Tick();
         Tick();
