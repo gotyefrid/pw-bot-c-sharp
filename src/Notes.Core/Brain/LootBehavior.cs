@@ -29,6 +29,9 @@ public sealed class LootBehavior : IBehavior
     // лут: пусто на первом снимке — ещё не «ничего не упало». Ждём ещё снимок-другой, потом уже идём дальше
     private static readonly TimeSpan DropWait = TimeSpan.FromSeconds(0.5);
     // Предметы не поднимаются (сумка полна, а мы этого не видим) — сколько неудач подряд терпим и на сколько бросаем
+    // Ближе этого к предмету обход препятствий не нужен — подбираем с места. 3 м — начальная прикидка, проверить в игре
+    private const float PickupReach = 3f;
+
     private const int ItemFailuresToPause = 2;
     private static readonly TimeSpan ItemPause = TimeSpan.FromMinutes(3);
     // Неудачи «подряд» — только если между ними не дольше этого: старая неудача (часы назад) о сумке сейчас ничего не говорит
@@ -129,8 +132,9 @@ public sealed class LootBehavior : IBehavior
             return Done(c);
         }
 
-        // Предмет за камнем, домом или деревом — сначала обходим: подбор «как мышкой» бежит по прямой и упирается
-        if (_walk.Step(c, item.Position, item.Name))
+        // Предмет за камнем, домом или деревом — сначала обходим: подбор «как мышкой» бежит по прямой и упирается.
+        // Рядом (PickupReach) не обходим: подбор дотянется с места
+        if (_walk.Step(c, item.Position, item.Name, within: PickupReach))
         {
             Status = $"лут: обхожу препятствие к {item.Name}";
             return true;
