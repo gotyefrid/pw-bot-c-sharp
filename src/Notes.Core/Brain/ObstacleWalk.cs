@@ -95,6 +95,14 @@ public sealed class ObstacleWalk
             _next++;
         }
 
+        // Дошли до конца пути, а прямая до цели всё ещё «закрыта» (цель у самого камня) — ближе обход не подведёт: дальше как
+        // обычно. Иначе шаг в точку, где уже стоим, «дошли, 0 м» — и так по кругу
+        if (_next == _path.Points.Count - 1 && here.DistanceTo(end) <= Reached)
+        {
+            c.Log.Debug($"Обход до {what}: дошли до конца пути, {here.DistanceTo(goal):0.0} м — дальше как обычно");
+            return Stop(c);
+        }
+
         return Walk(c, me, here, _path.Points[_next], what, area);
     }
 
