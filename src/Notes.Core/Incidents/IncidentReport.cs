@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -145,6 +145,8 @@ public static class IncidentReport
             parts.Add($"HP {m.Hp}");
         if (m.Aggressive == true)
             parts.Add("агр.");
+        if (m.EffectName is { } effect)
+            parts.Add(effect);
         if (m.Returning)
             parts.Add("возвращается");
         return string.Join(", ", parts) + Target(w, m.TargetWid, ", цель → ");

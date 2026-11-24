@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -435,6 +435,12 @@ public sealed record NpcInfo(
 
     /// <summary>Что делает модель: стоит, идёт, бежит, боевая стойка; <see cref="NpcPose.Unknown"/> — поле не найдено для сервера.</summary>
     public NpcPose Pose { get; init; }
+
+    /// <summary>Эффект моба — надпись под рамкой цели (<see cref="MobEffects"/>): «Усиленная атака», «Берсерк»; 0 — нет или неизвестно.</summary>
+    public int Effect { get; init; }
+
+    /// <summary>Название эффекта (<see cref="MobEffects.Name"/>); null — эффекта нет.</summary>
+    public string? EffectName => MobEffects.Name(Effect);
 
     /// <summary>
     /// Почему цель (<see cref="TargetWid"/>) — перс или пет: что это подтвердило; ставит <see cref="NpcTracker"/>.

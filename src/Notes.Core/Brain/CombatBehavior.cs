@@ -165,7 +165,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         _lastMacro = DateTime.MinValue;
         _lastPetOrder = DateTime.MinValue;
         _combo.NewFight();
-        c.Log.Info($"Бой: {mob.Name} 0x{mob.Wid:X8}, {mob.Offset}{(why.Length > 0 ? " — " + why : "")}");
+        c.Log.Info($"Бой: {mob.Name} 0x{mob.Wid:X8}{(mob.EffectName is { } effect ? $" «{effect}»" : "")}, {mob.Offset}{(why.Length > 0 ? " — " + why : "")}");
     }
 
     // ── Бой ──────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 using Notes.Core.GameFiles;
 
@@ -472,6 +472,8 @@ public sealed class NpcOffsets
     public uint ReturningFlag { get; init; }
     /// <summary>Что делает модель моба — номер действия (стоит, идёт, бежит, боевая стойка, падает; <see cref="World.NpcPose"/>); 0 — не найдено.</summary>
     public uint Pose { get; init; }
+    /// <summary>Эффект моба — надпись под рамкой цели (<see cref="World.MobEffects"/>); 0 — не найдено.</summary>
+    public uint Effect { get; init; }
 }
 
 /// <summary>

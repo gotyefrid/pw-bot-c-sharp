@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -84,7 +84,7 @@ public sealed class WorldReader
         var n = profile.Npc;
         // Расстояние из памяти не читаем — считаем из координат (WorldState); его смещение нужно только сверке в Probe selftest
         _npcSize = BlockSize(n.Wid, n.Tid, n.Type, n.State, n.Level, n.Hp, n.MaxHp, n.Target, n.CastTarget, n.AttackTarget, n.PetTarget, n.NamePointer, n.Location + 8, n.Essence,
-            n.Returning, n.Pose);
+            n.Returning, n.Pose, n.Effect);
         var g = profile.GroundItem;
         _itemSize = BlockSize(g.Id, g.Tid, g.Kind, g.NamePointer, g.Location + 8);
         var pl = profile.Player;
@@ -318,6 +318,7 @@ public sealed class WorldReader
             Tid = (int)Field(b, n.Tid),
             Returning = n.Returning != 0 && (b.UInt32(n.Returning) & n.ReturningFlag) != 0,
             Pose = n.Pose == 0 ? NpcPose.Unknown : NpcStates.Pose(b.UInt32(n.Pose)),
+            Effect = (int)Field(b, n.Effect),
         };
         if (kind == NpcKind.Npc && n.Essence != 0 && _teleports.Destinations(b.UInt32(n.Essence)) is { } teleports)
             npc = npc with { Teleports = teleports };
