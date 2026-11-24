@@ -2069,6 +2069,81 @@ public class BrainScenarioTests
         Assert.Empty(_actions.Calls);
     }
 
+    // ── Пет цепляет всех, кто бьёт его, потом добиваем слабого ─────────────────
+
+    private uint _attackNode;
+
+    private void PetHits(uint mobWid)
+        => _world.Attacks.Add(new AttackEvent(++_attackNode, 0, FakeWorld.PetWid, 0, [new AttackHit(mobWid, 100, 0)]));
+
+    // Пет бьёт Волка (Волк бьёт пета); бой — с Волком
+    private NpcInfo PetFightsWolf(int hp = 100)
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Pet.Enabled = true;
+        _world.SetPet(1);
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.PetWid, hp: hp);
+        _world.TargetWid = a.Wid;
+        PetHits(a.Wid);
+        Tick();
+        Tick();
+        return a;
+    }
+
+    [Fact]
+    public void MobHittingPetUntouchedByPetTakesFight()
+    {
+        PetFightsWolf();
+
+        // Кабан бьёт пета, а пет его ещё не бил — лечение пета перевело бы Кабана на перса: сначала пусть пет ударит его
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 100);
+        Tick();
+
+        Assert.Equal("select 80000002", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("пет его ещё не бил"));
+    }
+
+    [Fact]
+    public void MobTouchedByPetDoesNotTakeFightWhenStronger()
+    {
+        PetFightsWolf(hp: 100);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 300);
+        PetHits(0x80000002);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void WeakerMobTouchedByPetTakesFight()
+    {
+        PetFightsWolf(hp: 300);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 100);
+        PetHits(0x80000002);
+        Tick();
+
+        Assert.Equal("select 80000002", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("слабее"));
+    }
+
+    [Fact]
+    public void WithoutPetWeakerMobDoesNotTakeFight()
+    {
+        // Пета нет — по HP не мечемся, как раньше
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.HostWid, hp: 300);
+        _world.TargetWid = a.Wid;
+        Tick();
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.HostWid, hp: 100);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
     // ── Снимать мобов с себя петом ──────────────────────────────────────────────
 
     [Fact]

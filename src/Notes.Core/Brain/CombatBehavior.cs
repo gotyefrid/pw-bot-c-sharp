@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
@@ -55,6 +55,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
 
     private readonly Dictionary<uint, DateTime> _gaveUp = [];
     private readonly AttackWatch _attacks = new();
+    private readonly PetTags _petTags = new();
     // Когда бой последний раз получал ход: не получил — ход занял кто-то до него
     private DateTime _tickedAt;
 
@@ -77,6 +78,8 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     public bool Tick(BrainContext c)
     {
         _tickedAt = c.Now;
+        // Удары пета этого снимка — до выбора цели (Observe приходит после хода)
+        _petTags.Observe(c.World);
         var fight = c.Fight;
         if (!defendOnly && !c.Settings.Target.KillMobs)
         {
@@ -231,12 +234,20 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         if (_lowestHp > 0 && c.Now - _lowestHpAt > NoDamageLimit)
             return GiveUp(c, mob, $"HP не падает {NoDamageLimit.TotalSeconds:0} с");
 
-        // Другой моб опаснее текущего — бой (и пет) переходят на него. Бьёт меня, а текущий — пета: пет прочнее, пусть держит обоих
-        if (MostDangerous(c, out var threat) is { } danger && danger.Wid != mob.Wid && threat > ThreatOf(c, mob))
+        // Другой моб опаснее текущего — бой (и пет) переходят на него. Бьёт меня, а текущий — пета: пет прочнее, пусть держит обоих.
+        // Бьёт пета, а пет его не трогал — пет бьёт его хоть раз (иначе лечение пета переведёт его на перса). С петом из тех, кого
+        // пет держит, — на самого слабого
+        var current = ThreatOf(c, mob);
+        if (MostDangerous(c, out var threat) is { } danger && danger.Wid != mob.Wid
+            && TargetSelector.Switch(danger, threat, mob, current, PetInFight(c)))
         {
-            c.Log.Info(threat == Threat.HitsMe
-                ? $"{danger.Name} бьёт меня — перевожу бой и пета на него, {name} подождёт"
-                : $"{danger.Name} бьёт нас — переключаюсь");
+            c.Log.Info(threat switch
+            {
+                Threat.HitsMe => $"{danger.Name} бьёт меня — перевожу бой и пета на него, {name} подождёт",
+                Threat.PetUntouched => $"{danger.Name} бьёт пета, а пет его ещё не бил — пусть ударит, {name} подождёт",
+                _ when threat == current => $"{danger.Name} слабее (HP {danger.Hp} < {mob.Hp}) — добиваю его",
+                _ => $"{danger.Name} бьёт нас — переключаюсь",
+            });
             fight.Abort();
             return c.Submit(new SelectTargetAction(danger));
         }
@@ -272,7 +283,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         foreach (var mob in c.World.Mobs)
         {
             var t = ThreatOf(c, mob);
-            if (t != Threat.None && (best is null || t > threat || t == threat && mob.Offset.Direct < best.Offset.Direct))
+            if (t != Threat.None && (best is null || TargetSelector.Before(mob, t, best, threat, PetInFight(c))))
                 (best, threat) = (mob, t);
         }
 
@@ -280,7 +291,11 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     }
 
     private Threat ThreatOf(BrainContext c, NpcInfo mob)
-        => Leaves(c, mob) ? Threat.None : TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c));
+        => Leaves(c, mob) ? Threat.None
+            : TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c), PetInFight(c) ? _petTags.Hit : null);
+
+    // Пет призван и бьёт по приказам боя: правила пета — сначала петом ударить всех, кто бьёт пета, потом добивать слабого
+    private static bool PetInFight(BrainContext c) => c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
 
     private bool Leaves(BrainContext c, NpcInfo mob) => leaveDangerous && DangerZones.Flee(mob, c.Settings.Route);
 
@@ -486,7 +501,11 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     {
     }
 
-    public void Observe(BrainContext c, IBehavior? acted) => _attacks.Observe(c, mob => Verdict(c, mob, acted));
+    public void Observe(BrainContext c, IBehavior? acted)
+    {
+        _petTags.Observe(c.World);
+        _attacks.Observe(c, mob => Verdict(c, mob, acted));
+    }
 
     /// <summary>
     /// Что бой делает с напавшим и почему — для лога нападений. Те же правила, что в <see cref="Search"/>, <see cref="Fight"/>
@@ -509,12 +528,14 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             return "«сначала тех, кто бьёт» выключено — не отвлекаюсь";
         if (MostDangerous(c, out var top) is { } first && first.Wid != mob.Wid)
             return $"сначала {(fight.Phase == FightPhase.Fighting && fight.Mob == first.Wid ? "добиваю " : "")}{first.Name}: "
-                   + (top > threat ? "он бьёт меня, этот — пета" : "он ближе");
+                   + (top != threat ? top == Threat.HitsMe ? "он бьёт меня" : top == Threat.PetUntouched ? "он бьёт пета, а пет его ещё не бил" : "он опаснее"
+                       : PetInFight(c) && top == Threat.HitsUs && first.Hp != mob.Hp ? "он слабее" : "он ближе");
 
         switch (fight.Phase)
         {
             case FightPhase.Fighting:
-                return c.World.Npcs.FirstOrDefault(n => n.Wid == fight.Mob) is { } current && threat <= ThreatOf(c, current)
+                return c.World.Npcs.FirstOrDefault(n => n.Wid == fight.Mob) is { } current
+                       && !TargetSelector.Switch(mob, threat, current, ThreatOf(c, current), PetInFight(c))
                     ? $"{fight.MobName} не менее опасен — сначала добиваю его"
                     : "переключаюсь на него";
             case FightPhase.Looting:
@@ -544,6 +565,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         _walk.Reset();
         _gaveUp.Clear();
         _attacks.Reset();
+        _petTags.Reset();
         Status = null;
     }
 }
