@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -266,6 +266,38 @@ public sealed class TargetCondition : ClickerCondition
             _ => c.World.Target is { } target ? $"цель — {target.Name}" : "цель есть",
         };
     }
+}
+
+/// <summary>Эффект моба в списке окна; 0 — любой.</summary>
+public sealed record MobEffectOption(int Id, string Name);
+
+/// <summary>
+/// У моба в цели эффект (надпись под рамкой цели, <see cref="MobEffects"/>): выбранный или любой (<see cref="Effect"/> 0);
+/// «нет эффекта» — то же с «НЕ». Цели нет, в цели не моб или эффект на сервере не читается — не выполнено.
+/// </summary>
+public sealed class TargetEffectCondition : ClickerCondition
+{
+    private int _effect = MobEffects.StrongAttack;
+
+    /// <summary>Эффекты для выбора в окне: «любой эффект» и все по порядку.</summary>
+    public static IReadOnlyList<MobEffectOption> Options { get; } =
+        [new(0, "любой эффект"), .. MobEffects.All.Select(e => new MobEffectOption(e.Id, e.Name))];
+
+    /// <summary>Номер эффекта (<see cref="MobEffects"/>); 0 — любой.</summary>
+    public int Effect { get => _effect; set => Set(ref _effect, value); }
+
+    private string Title => Effect == 0 ? "любой эффект" : $"«{MobEffects.Name(Effect)}»";
+
+    protected override string What() => $"у цели {Title}";
+
+    protected override string? Holds(BrainContext c)
+    {
+        if (c.World.Target is not { Effect: not 0 } mob)
+            return null;
+        return Effect == 0 || mob.Effect == Effect ? $"у цели {mob.Name} «{mob.EffectName}»" : null;
+    }
+
+    public override void Normalize() => Effect = Math.Max(0, Effect);
 }
 
 /// <summary>

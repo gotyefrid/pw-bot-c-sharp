@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -65,6 +65,7 @@ public static class ClickerKinds
         .Add<SkillCooldownCondition>("SkillCooldown", "Скилл на перезарядке")
         .Add<MacroRunningCondition>("MacroRunning", "Макрос идёт")
         .Add<TargetCondition>("Target", "Цель персонажа")
+        .Add<TargetEffectCondition>("TargetEffect", "Эффект моба в цели")
         .Add<ItemNearbyCondition>("ItemNearby", "Рядом лежит предмет")
         .Add<ResourceNearbyCondition>("ResourceNearby", "Рядом можно копать")
         .Add<TargetNearbyCondition>("TargetNearby", "Рядом можно взять цель")
