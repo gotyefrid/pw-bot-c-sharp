@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Notes.Core.Settings;
 using Notes.Core.World;
@@ -141,11 +141,12 @@ public sealed class SkillComboPicker
             ComboCheck.SkillReady => world.Skill(condition.SkillId) is { IsReady: true },
             ComboCheck.SkillCooling => world.Skill(condition.SkillId) is { IsReady: false },
             ComboCheck.LastSkill => LastSkill == condition.SkillId,
+            ComboCheck.MobEffect => (condition.Value == 0 ? mob.Effect != 0 : mob.Effect == condition.Value) != condition.Below,
             _ => value is { } v && (condition.Below ? v < condition.Value : v > condition.Value),
         };
         if (met)
             return null;
-        if (condition.AboutSkill)
+        if (condition.AboutSkill || condition.AboutEffect)
             return $"не выполнено «{condition.Text}»";
         return value is { } now ? $"не выполнено «{condition.Text}» (сейчас {now:0})" : $"неизвестно для «{condition.Text}»";
     }

@@ -221,6 +221,31 @@ public class SkillComboPickerTests
     }
 
     [Fact]
+    public void MobEffectConditions()
+    {
+        // У моба «Усиленная магическая защита» — магический скилл не жмём, физический жмём
+        _world.AddSkill(1);
+        _world.Replace(_mob, m => m with { Effect = 4 });
+
+        Assert.Null(Picked([Row(1, Num(ComboCheck.MobEffect, below: true, 4))]));
+        Assert.Equal(1, Picked([Row(1, Num(ComboCheck.MobEffect, below: false, 4))]));
+        Assert.Null(Picked([Row(1, Num(ComboCheck.MobEffect, below: false, MobEffects.Berserk))]));
+        Assert.Equal(1, Picked([Row(1, Num(ComboCheck.MobEffect, below: false, 0))]));
+
+        // Эффекта нет: «есть любой» — нет, «нет Берсерка» — да
+        _world.Replace(_mob, m => m with { Effect = 0 });
+        Assert.Null(Picked([Row(1, Num(ComboCheck.MobEffect, below: false, 0))]));
+        Assert.Equal(1, Picked([Row(1, Num(ComboCheck.MobEffect, below: true, MobEffects.Berserk))]));
+    }
+
+    [Fact]
+    public void MobEffectConditionText()
+    {
+        Assert.Equal("у моба нет «Усиленная магическая защита»", Num(ComboCheck.MobEffect, below: true, 4).Text);
+        Assert.Equal("у моба есть любой эффект", Num(ComboCheck.MobEffect, below: false, 0).Text);
+    }
+
+    [Fact]
     public void SkillConditions()
     {
         _world.AddSkill(1);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
@@ -85,6 +85,14 @@ public sealed class ComboCondition
     [JsonIgnore]
     public bool AboutSkill => Check is ComboCheck.SkillReady or ComboCheck.SkillCooling or ComboCheck.LastSkill;
 
+    /// <summary>Проверка про эффект моба: «есть / нет» и какой эффект.</summary>
+    [JsonIgnore]
+    public bool AboutEffect => Check == ComboCheck.MobEffect;
+
+    /// <summary>Эффект условия «эффект моба»: «Берсерк»; 0 — «любой эффект».</summary>
+    [JsonIgnore]
+    public string EffectText => Value == 0 ? "любой эффект" : $"«{World.MobEffects.Name(Value)}»";
+
     /// <summary>Как условие читается в окне и логе: «HP моба &lt; 30%», «готов «Молния»».</summary>
     [JsonIgnore]
     public string Text
@@ -103,6 +111,7 @@ public sealed class ComboCondition
                 ComboCheck.SkillReady => $"готов {skill}",
                 ComboCheck.SkillCooling => $"на перезарядке {skill}",
                 ComboCheck.LastSkill => $"последним был {skill}",
+                ComboCheck.MobEffect => $"у моба {(Below ? "нет" : "есть")} {EffectText}",
                 _ => Check.ToString(),
             };
         }
@@ -142,4 +151,10 @@ public enum ComboCheck
 
     /// <summary>Последним в этом бою связка нажала скилл <see cref="ComboCondition.SkillId"/>.</summary>
     LastSkill,
+
+    /// <summary>
+    /// У моба есть эффект <see cref="ComboCondition.Value"/> (<see cref="World.MobEffects"/>; 0 — любой), с
+    /// <see cref="ComboCondition.Below"/> — нет его.
+    /// </summary>
+    MobEffect,
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -77,6 +77,9 @@ public sealed class ComboLine(int number, ComboRow row, Action edited) : Observa
 /// <summary>Проверка в списке условия: «HP моба, %».</summary>
 public sealed record ComboCheckChoice(ComboCheck Check, string Title);
 
+/// <summary>Эффект моба в условии связки; 0 — любой.</summary>
+public sealed record ComboEffectChoice(int Id, string Name);
+
 /// <summary>Больше или меньше: «&lt;» / «&gt;».</summary>
 public sealed record ComboOpChoice(bool Below, string Title);
 
@@ -91,10 +94,19 @@ public sealed class ComboConditionLine(ComboCondition condition, ObservableColle
 
     private static readonly IReadOnlyList<ComboOpChoice> AllOps = [new(true, "<"), new(false, ">")];
 
+    private static readonly IReadOnlyList<ComboOpChoice> AllEffectOps = [new(false, "есть"), new(true, "нет")];
+
+    private static readonly IReadOnlyList<ComboEffectChoice> AllEffects =
+        [new(0, "любой эффект"), .. Core.World.MobEffects.All.Select(e => new ComboEffectChoice(e.Id, e.Name))];
+
     // Списки — свойства экземпляра: привязка окна к статическому свойству через строку не находит его
     public IReadOnlyList<ComboCheckChoice> Checks => AllChecks;
 
     public IReadOnlyList<ComboOpChoice> Ops => AllOps;
+
+    public IReadOnlyList<ComboOpChoice> EffectOps => AllEffectOps;
+
+    public IReadOnlyList<ComboEffectChoice> Effects => AllEffects;
 
     public ComboCondition Condition { get; } = condition;
 
@@ -122,7 +134,9 @@ public sealed class ComboConditionLine(ComboCondition condition, ObservableColle
 
     public bool AboutSkill => Condition.AboutSkill;
 
-    public bool AboutNumber => !Condition.AboutSkill;
+    public bool AboutNumber => !Condition.AboutSkill && !Condition.AboutEffect;
+
+    public bool AboutEffect => Condition.AboutEffect;
 
     public bool Below
     {
@@ -173,6 +187,7 @@ public sealed class ComboConditionLine(ComboCondition condition, ObservableColle
         OnPropertyChanged(nameof(Check));
         OnPropertyChanged(nameof(AboutSkill));
         OnPropertyChanged(nameof(AboutNumber));
+        OnPropertyChanged(nameof(AboutEffect));
         OnPropertyChanged(nameof(Below));
         OnPropertyChanged(nameof(Value));
         OnPropertyChanged(nameof(SkillId));

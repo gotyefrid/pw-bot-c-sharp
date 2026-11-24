@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.World;
@@ -15,7 +15,7 @@ public static class ComboEditing
     public static IReadOnlyList<ComboCheck> Checks { get; } =
     [
         ComboCheck.MobHp, ComboCheck.MyHp, ComboCheck.MyMp, ComboCheck.Distance, ComboCheck.FightSeconds,
-        ComboCheck.SkillReady, ComboCheck.SkillCooling, ComboCheck.LastSkill,
+        ComboCheck.SkillReady, ComboCheck.SkillCooling, ComboCheck.LastSkill, ComboCheck.MobEffect,
     ];
 
     /// <summary>Проверка в списке окна: «HP моба, %», «скилл готов».</summary>
@@ -29,6 +29,7 @@ public static class ComboEditing
         ComboCheck.SkillReady => "скилл готов",
         ComboCheck.SkillCooling => "скилл на перезарядке",
         ComboCheck.LastSkill => "последним был скилл",
+        ComboCheck.MobEffect => "эффект моба",
         _ => check.ToString(),
     };
 
@@ -54,6 +55,7 @@ public static class ComboEditing
         ComboCheck.MyMp => new ComboCondition { Check = check, Below = false, Value = 30 },
         ComboCheck.Distance => new ComboCondition { Check = check, Below = true, Value = 5 },
         ComboCheck.FightSeconds => new ComboCondition { Check = check, Below = false, Value = 10 },
+        ComboCheck.MobEffect => new ComboCondition { Check = check, Below = false, Value = World.MobEffects.StrongAttack },
         _ => new ComboCondition { Check = check, SkillId = skillId, SkillName = skillName },
     };
 
@@ -66,9 +68,9 @@ public static class ComboEditing
         if (condition.Check == check)
             return;
 
-        var wasSkill = condition.AboutSkill;
+        var was = (condition.AboutSkill, condition.AboutEffect);
         condition.Check = check;
-        if (wasSkill == condition.AboutSkill)
+        if (was == (condition.AboutSkill, condition.AboutEffect))
             return;
 
         var fresh = NewCondition(check, condition.SkillId, condition.SkillName);
