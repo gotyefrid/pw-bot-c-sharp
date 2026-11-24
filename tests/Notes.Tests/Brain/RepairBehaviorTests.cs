@@ -136,6 +136,26 @@ public class RepairBehaviorTests
         Assert.True(Logged("Починил"));
     }
 
+    // Лавку закрывает та же ячейка, что банк, а ремонт сразу отдаёт ход: банк, которому пора убирать, держит ход — бой не берёт
+    // цель раньше банка
+    [Fact]
+    public void AfterRepairStashGoesBeforeNextTarget()
+    {
+        FromBag();
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        _settings.Loot.StashToBank = true;
+        _settings.Loot.StashNames = ["Карта жизни"];
+        _world.BankSlots = 4;
+        _world.Bag.Add(new InventoryItem(3, 36309, 8, 14, null, null) { Name = "Карта жизни", MaxCount = 9999 });
+        _world.AddMob(0x80100001, "Волк", 10);
+
+        TickFor(10);
+
+        var calls = _actions.Calls.Where(c => c is "shop-close" or "bank" || c.StartsWith("select")).ToList();
+        Assert.Equal(["shop-close", "bank"], calls.Take(2));
+    }
+
     [Fact]
     public void FromBagWaitsForShopWindowBeforeRepair()
     {

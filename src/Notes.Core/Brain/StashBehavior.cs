@@ -78,7 +78,10 @@ public sealed class StashBehavior : IBehavior, IMultiStepBehavior
         if (c.Runner.IsPending(ActionSlot.Bank))
         {
             Status = "банк: жду";
-            return _stage is Stage.Opening or Stage.Moving;
+            // Ячейку занял не банк (ремонт закрывает лавку и отдаёт ход), а убрать пора — ход держим: иначе бой успеет взять
+            // следующую цель раньше банка
+            return _stage is Stage.Opening or Stage.Moving
+                   || _stage == Stage.Idle && on && _due && !attacked && !c.Fight.Busy && w.Inventory.Any(i => LootFilter.Stashes(loot, i));
         }
 
         switch (_stage)
