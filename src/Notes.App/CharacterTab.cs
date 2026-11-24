@@ -144,6 +144,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
                 OnPropertyChanged(nameof(Summary));
         };
 
+        FirstEffects = MobEffectChoice.All(() => Settings);
         Pets = new PetsPanel(() => Settings, SettingsEdited);
         Potions = new PotionsPanel(() => Settings, SettingsEdited);
         Repair = new RepairPanel(() => Settings, _log, SettingsEdited);
@@ -1293,6 +1294,9 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     /// <summary>«Следовать»: кого можно выбрать главным — персонажи других вкладок этого окна (по свежим снимкам).</summary>
     public IReadOnlyList<string> LeaderChoices { get; private set; } = [];
 
+    /// <summary>«Мобы»: эффекты мобов, которых бить первыми (галочки).</summary>
+    public IReadOnlyList<MobEffectChoice> FirstEffects { get; }
+
     public sealed record FollowPathChoice(FollowPath Path, string Title);
 
     public IReadOnlyList<FollowPathChoice> FollowPaths { get; } =
@@ -1363,6 +1367,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
         Pets.Rebind();
         Potions.Rebind();
         Repair.Rebind();
+        foreach (var effect in FirstEffects)
+            effect.Rebind();
         Farm.Load();
         Route.Load();
         Combos.Load();

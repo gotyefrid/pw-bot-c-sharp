@@ -39,36 +39,51 @@ public static class TargetSelector
     }
 
     /// <summary>
-    /// Важнее ли <paramref name="mob"/>, чем <paramref name="other"/>: сначала по <see cref="Threat"/>, при равной — ближайший (по
-    /// прямой, с высотой). С петом (<paramref name="weakestFirst"/>) среди тех, кого пет уже держит (<see cref="Threat.HitsUs"/>), —
-    /// у кого меньше HP: добить скорее, чтобы меньше бил.
+    /// Важнее ли <paramref name="mob"/>, чем <paramref name="other"/>: сначала по <see cref="Threat"/>; при равной — моб с эффектом
+    /// из «бить первыми» (<paramref name="first"/>: «Усиленная атака», «Берсерк»), даже с полным HP; дальше с петом
+    /// (<paramref name="weakestFirst"/>) среди тех, кого пет уже держит (<see cref="Threat.HitsUs"/>), — у кого меньше HP: добить
+    /// скорее, чтобы меньше бил; иначе — ближайший (по прямой, с высотой).
     /// </summary>
-    public static bool Before(NpcInfo mob, Threat threat, NpcInfo other, Threat otherThreat, bool weakestFirst)
+    public static bool Before(NpcInfo mob, Threat threat, NpcInfo other, Threat otherThreat, bool weakestFirst, Func<NpcInfo, bool>? first = null)
     {
         if (threat != otherThreat)
             return threat > otherThreat;
+        if (First(mob, first) != First(other, first))
+            return First(mob, first);
         if (weakestFirst && threat == Threat.HitsUs && mob.Hp > 0 && other.Hp > 0 && mob.Hp != other.Hp)
             return mob.Hp < other.Hp;
         return mob.Offset.Direct < other.Offset.Direct;
     }
 
     /// <summary>
-    /// Бросить текущего ради другого: другой опаснее, а с петом при равной — он слабее (из тех, кого пет держит). Просто ближе — не
-    /// повод: иначе бой мечется между двумя.
+    /// Бросить текущего ради другого: другой опаснее; при равной — у него эффект из «бить первыми», а у текущего нет; при равных
+    /// и тут — с петом он слабее (из тех, кого пет держит). Просто ближе — не повод: иначе бой мечется между двумя.
     /// </summary>
-    public static bool Switch(NpcInfo other, Threat otherThreat, NpcInfo current, Threat currentThreat, bool weakestFirst)
-        => otherThreat > currentThreat
-           || weakestFirst && otherThreat == currentThreat && otherThreat == Threat.HitsUs && other.Hp > 0 && current.Hp > 0 && other.Hp < current.Hp;
+    public static bool Switch(NpcInfo other, Threat otherThreat, NpcInfo current, Threat currentThreat, bool weakestFirst,
+        Func<NpcInfo, bool>? first = null)
+    {
+        if (otherThreat != currentThreat)
+            return otherThreat > currentThreat;
+        if (First(other, first) != First(current, first))
+            return First(other, first);
+        return weakestFirst && otherThreat == Threat.HitsUs && other.Hp > 0 && current.Hp > 0 && other.Hp < current.Hp;
+    }
+
+    private static bool First(NpcInfo mob, Func<NpcInfo, bool>? first) => first?.Invoke(mob) == true;
+
+    /// <summary>Эффект моба — из «бить первыми» (<see cref="Settings.TargetSettings.FirstEffects"/>).</summary>
+    public static bool HasFirstEffect(NpcInfo mob, TargetSettings target) => mob.Effect != 0 && target.FirstEffects.Contains(mob.Effect);
 
     /// <summary>Самый опасный моб (<see cref="Before"/>). null — никто из мобов нас не бьёт.</summary>
-    public static NpcInfo? MostDangerous(WorldState w, bool hitsUsFirst, bool petTakesAggro, out Threat threat, Func<uint, bool>? petHit = null)
+    public static NpcInfo? MostDangerous(WorldState w, bool hitsUsFirst, bool petTakesAggro, out Threat threat, Func<uint, bool>? petHit = null,
+        Func<NpcInfo, bool>? first = null)
     {
         threat = Threat.None;
         NpcInfo? best = null;
         foreach (var mob in w.Mobs)
         {
             var t = ThreatOf(mob, w, hitsUsFirst, petTakesAggro, petHit);
-            if (t != Threat.None && (best is null || Before(mob, t, best, threat, petHit is not null)))
+            if (t != Threat.None && (best is null || Before(mob, t, best, threat, petHit is not null, first)))
                 (best, threat) = (mob, t);
         }
 

@@ -239,12 +239,14 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         // пет держит, — на самого слабого
         var current = ThreatOf(c, mob);
         if (MostDangerous(c, out var threat) is { } danger && danger.Wid != mob.Wid
-            && TargetSelector.Switch(danger, threat, mob, current, PetInFight(c)))
+            && TargetSelector.Switch(danger, threat, mob, current, PetInFight(c), First(c)))
         {
             c.Log.Info(threat switch
             {
                 Threat.HitsMe => $"{danger.Name} бьёт меня — перевожу бой и пета на него, {name} подождёт",
                 Threat.PetUntouched => $"{danger.Name} бьёт пета, а пет его ещё не бил — пусть ударит, {name} подождёт",
+                _ when threat == current && danger.Effect != mob.Effect && TargetSelector.HasFirstEffect(danger, c.Settings.Target)
+                    => $"{danger.Name} «{danger.EffectName}» — сначала его, {name} подождёт",
                 _ when threat == current => $"{danger.Name} слабее (HP {danger.Hp} < {mob.Hp}) — добиваю его",
                 _ => $"{danger.Name} бьёт нас — переключаюсь",
             });
@@ -283,7 +285,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         foreach (var mob in c.World.Mobs)
         {
             var t = ThreatOf(c, mob);
-            if (t != Threat.None && (best is null || TargetSelector.Before(mob, t, best, threat, PetInFight(c))))
+            if (t != Threat.None && (best is null || TargetSelector.Before(mob, t, best, threat, PetInFight(c), First(c))))
                 (best, threat) = (mob, t);
         }
 
@@ -293,6 +295,9 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     private Threat ThreatOf(BrainContext c, NpcInfo mob)
         => Leaves(c, mob) ? Threat.None
             : TargetSelector.ThreatOf(mob, c.World, HitsUsFirst(c), PetTakesAggro(c), PetInFight(c) ? _petTags.Hit : null);
+
+    // Эффект моба из «бить первыми» (настройки цели)
+    private static Func<NpcInfo, bool> First(BrainContext c) => m => TargetSelector.HasFirstEffect(m, c.Settings.Target);
 
     // Пет призван и бьёт по приказам боя: правила пета — сначала петом ударить всех, кто бьёт пета, потом добивать слабого
     private static bool PetInFight(BrainContext c) => c.Settings.Pet.Enabled && c.World.Pet is { IsSummoned: true };
@@ -529,13 +534,14 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
         if (MostDangerous(c, out var top) is { } first && first.Wid != mob.Wid)
             return $"сначала {(fight.Phase == FightPhase.Fighting && fight.Mob == first.Wid ? "добиваю " : "")}{first.Name}: "
                    + (top != threat ? top == Threat.HitsMe ? "он бьёт меня" : top == Threat.PetUntouched ? "он бьёт пета, а пет его ещё не бил" : "он опаснее"
+                       : TargetSelector.HasFirstEffect(first, c.Settings.Target) && !TargetSelector.HasFirstEffect(mob, c.Settings.Target) ? $"у него «{first.EffectName}»"
                        : PetInFight(c) && top == Threat.HitsUs && first.Hp != mob.Hp ? "он слабее" : "он ближе");
 
         switch (fight.Phase)
         {
             case FightPhase.Fighting:
                 return c.World.Npcs.FirstOrDefault(n => n.Wid == fight.Mob) is { } current
-                       && !TargetSelector.Switch(mob, threat, current, ThreatOf(c, current), PetInFight(c))
+                       && !TargetSelector.Switch(mob, threat, current, ThreatOf(c, current), PetInFight(c), First(c))
                     ? $"{fight.MobName} не менее опасен — сначала добиваю его"
                     : "переключаюсь на него";
             case FightPhase.Looting:

@@ -2128,6 +2128,68 @@ public class BrainScenarioTests
         Assert.Contains(_log, e => e.Message.Contains("слабее"));
     }
 
+    // Моб с эффектом из «бить первыми» — раньше слабого, даже с полным HP
+    private void WithEffect(uint wid, int effect)
+    {
+        var i = _world.Npcs.FindIndex(n => n.Wid == wid);
+        _world.Npcs[i] = _world.Npcs[i] with { Effect = effect };
+    }
+
+    [Fact]
+    public void MobWithFirstEffectTakesFightFromWeakerOne()
+    {
+        PetFightsWolf(hp: 100);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 300);
+        WithEffect(0x80000002, MobEffects.Berserk);
+        PetHits(0x80000002);
+        Tick();
+
+        Assert.Equal("select 80000002", LastCall);
+        Assert.Contains(_log, e => e.Message.Contains("«Берсерк» — сначала его"));
+    }
+
+    [Fact]
+    public void MobWithOtherEffectDoesNotTakeFight()
+    {
+        PetFightsWolf(hp: 100);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 300);
+        WithEffect(0x80000002, 4); // Усиленная магическая защита — не из «бить первыми»
+        PetHits(0x80000002);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
+    [Fact]
+    public void WithoutPetMobWithFirstEffectTakesFight()
+    {
+        _settings.Target.KillMobs = true;
+        _settings.Combat.UseSword = true;
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.HostWid, hp: 100);
+        _world.TargetWid = a.Wid;
+        Tick();
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.HostWid, hp: 300);
+        WithEffect(0x80000002, MobEffects.StrongAttack);
+        Tick();
+
+        Assert.Equal("select 80000002", LastCall);
+    }
+
+    [Fact]
+    public void FirstEffectsOffDoesNotSwitch()
+    {
+        _settings.Target.FirstEffects = [];
+        PetFightsWolf(hp: 100);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 300);
+        WithEffect(0x80000002, MobEffects.Berserk);
+        PetHits(0x80000002);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
     [Fact]
     public void WithoutPetWeakerMobDoesNotTakeFight()
     {

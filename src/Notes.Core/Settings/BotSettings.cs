@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -341,6 +341,13 @@ public sealed class TargetSettings : SettingsPart
     /// пет прочнее, пусть держит обоих. Без призванного пета не действует.
     /// </summary>
     public bool PetTakesAggro { get => _petTakesAggro; set => Set(ref _petTakesAggro, value); }
+
+    private List<int> _firstEffects = [World.MobEffects.StrongAttack, World.MobEffects.Berserk];
+    /// <summary>
+    /// Из тех, кто бьёт перса или пета, сначала — мобы с этими эффектами (<see cref="World.MobEffects"/>), даже с полным HP.
+    /// Пусто — эффект не важен.
+    /// </summary>
+    public List<int> FirstEffects { get => _firstEffects; set => Set(ref _firstEffects, value ?? []); }
 
     private bool _useMobList;
     /// <summary>Нападать только на мобов из списка названий (старое «Check ID»).</summary>
