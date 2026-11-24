@@ -650,8 +650,21 @@ public class ActionRunnerTests
         var potion = _world.AddPotion(2, 8618, 25, hp: 80);
 
         _runner.Submit(Bot, new UseItemAction(potion, ItemUse.Potion), _world.Snapshot());
-        _runner.Update(_world.Wait(1).Snapshot());
-        var outcome = Single(_runner.Update(_world.Wait(2.5).Snapshot()));
+        Assert.Empty(_runner.Update(_world.Wait(0.8).Snapshot()));
+        var outcome = Single(_runner.Update(_world.Wait(0.3).Snapshot()));
+
+        Assert.Equal(ActionStatus.Rejected, outcome.Status);
+    }
+
+    // Корм подтверждается дольше банки (до 1,3 с) — через секунду ещё ждём
+    [Fact]
+    public void PetFoodWaitsLongerThanPotion()
+    {
+        var food = _world.AddPotion(2, 8796, 25, hp: 80);
+
+        _runner.Submit(Bot, new UseItemAction(food, ItemUse.PetFood), _world.Snapshot());
+        Assert.Empty(_runner.Update(_world.Wait(1.5).Snapshot()));
+        var outcome = Single(_runner.Update(_world.Wait(2).Snapshot()));
 
         Assert.Equal(ActionStatus.Rejected, outcome.Status);
     }

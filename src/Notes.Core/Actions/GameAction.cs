@@ -754,7 +754,10 @@ public sealed class UseItemAction(InventoryItem item, ItemUse use, PotionKind? p
     public override string Name => $"{(Use == ItemUse.Potion ? "банка" : "корм")} tid {Item.Tid} (ячейка {Item.Slot}, ×{Item.Count})";
     public override ActionSlot Slot => ActionSlot.Item;
     public override uint SlotId => (uint)Item.Slot;
-    public override TimeSpan Timeout => TimeSpan.FromSeconds(3);
+
+    // Банка уходит из стопки за 0,3–0,8 с; нет за секунду — игра не приняла (перезарядка), жать снова, не ждать.
+    // Корм пету подтверждается дольше (до 1,3 с) — ему 3 с
+    public override TimeSpan Timeout => TimeSpan.FromSeconds(Use == ItemUse.Potion ? 1 : 3);
     public override ActionStatus TimeoutStatus => ActionStatus.Rejected;
 
     public override string? Precondition(WorldState now)
