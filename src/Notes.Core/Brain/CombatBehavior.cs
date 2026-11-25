@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Notes.Core.Actions;
@@ -309,6 +309,13 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
     // Запас к выученной дальности скилла: моб чуть сдвинется — всё ещё в радиусе
     private const float RangeMargin = 1f;
 
+    // Связке сейчас нечего жать (перезарядка, «не чаще», условие) — радиус самого короткого скилла связки: какой бы ни нажали, достанет
+    private static float? ComboRange(WorldState w, IReadOnlyList<ComboRow> rows)
+    {
+        var ranges = rows.Where(r => r.Enabled).Select(r => w.Skill(r.SkillId)?.Range).OfType<float>().ToList();
+        return ranges.Count == 0 ? null : ranges.Min();
+    }
+
     private bool Attack(BrainContext c, NpcInfo mob)
     {
         var w = c.World;
@@ -328,13 +335,16 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
                 return true;
         }
 
-        // Моба загораживает камень, дом или дерево — сначала обходим, пока прямая до него не откроется (скилл «как кнопкой»
-        // иначе ведёт перса по прямой в препятствие)
-        // Скилл бьёт сквозь препятствия, если моб в радиусе (дальность скилла, как в подсказке, с запасом 1 м) — тогда не обходим
+        // Моба загораживает камень, дом или дерево — обходим, пока прямая до него не откроется (скилл «как кнопкой» иначе ведёт
+        // перса по прямой в препятствие). Скилл бьёт сквозь препятствия: моб уже в радиусе скилла (с запасом 1 м) и не дальше
+        // «подходить на» — не обходим, бьём с места
         var combo = combat.UseSkill && combat.UseCombo ? _combo.Pick(combat.Combo, w, mob, c.Now - _fightStarted, c.Now) : null;
-        var range = combo is not null ? combo.Row is { } row ? w.Skill(row.SkillId)?.Range : null
+        var range = combo is not null ? combo.Row is { } row ? w.Skill(row.SkillId)?.Range : ComboRange(w, combat.Combo)
             : combat.UseSkill && combat.AttackMacro == 0 ? w.Skill(combat.AttackSkillId)?.Range : null;
-        if (_walk.Step(c, mob.Position, mob.Name, within: range is { } r ? r - RangeMargin : 0))
+        var within = range is { } r ? r - RangeMargin : 0;
+        if (within > 0 && combat.ComeCloser)
+            within = Math.Min(within, combat.ComeCloserDistance);
+        if (_walk.Step(c, mob.Position, mob.Name, within: within))
         {
             Status = $"обхожу препятствие к {mob.Name}";
             return true;
