@@ -12,8 +12,9 @@ namespace Notes.Core.Notify;
 /// <param name="host">Ник персонажа; не известен — «Персонаж».</param>
 /// <param name="revives">Бот встанет в городе и вернётся (иначе остановится).</param>
 /// <param name="send">Куда отдать готовый текст — разметка HTML (зовётся из потока снимков: сеть — в фоне).</param>
+/// <param name="killer">Кто убил персонажа, умершего в это время (<see cref="World.KillerLog.KillerAt"/>); не знаем — null.</param>
 public sealed class DeathNotifier(IStatsSink? inner, Func<ChatNotifySettings> settings, Func<string?> host, Func<bool> revives,
-    Action<string> send) : IStatsSink
+    Action<string> send, Func<DateTime, string?>? killer = null) : IStatsSink
 {
     public void Add(StatEvent stat)
     {
@@ -22,7 +23,7 @@ public sealed class DeathNotifier(IStatsSink? inner, Func<ChatNotifySettings> se
             return;
         var s = settings();
         if (s.CanSend && s.Death)
-            send(Format(host() ?? "Персонаж", revives()));
+            send(Format(host() ?? "Персонаж", revives(), killer?.Invoke(stat.Time)));
     }
 
     /// <summary>
@@ -32,7 +33,8 @@ public sealed class DeathNotifier(IStatsSink? inner, Func<ChatNotifySettings> se
     public static bool Revives(BotSettings s)
         => s.Target.ReviveAndReturn && s.Mode is BotMode.FarmMobs or BotMode.GatherResources;
 
-    /// <summary>«<code>Ник</code> — погиб, встану в городе и вернусь» (или «бот остановлен»).</summary>
-    public static string Format(string host, bool revives)
-        => $"{TelegramCommands.Code(host)} — погиб, {(revives ? "встану в городе и вернусь" : "бот остановлен")}";
+    /// <summary>«<code>Ник</code> — погиб (убил: Злой бык), встану в городе и вернусь» (или «бот остановлен»).</summary>
+    public static string Format(string host, bool revives, string? killer = null)
+        => $"{TelegramCommands.Code(host)} — погиб{(killer is null ? "" : $" (убил: {TelegramCommands.Escape(killer)})")}, " +
+           (revives ? "встану в городе и вернусь" : "бот остановлен");
 }

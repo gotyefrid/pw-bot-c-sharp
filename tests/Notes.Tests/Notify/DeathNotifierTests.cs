@@ -37,6 +37,14 @@ public class DeathNotifierTests
     }
 
     [Fact]
+    public void NamesKiller()
+    {
+        new DeathNotifier(null, () => _settings, () => "Ник", () => _revives, _sent.Add, _ => "игрок <Itori>").Add(Event(StatKind.Death));
+
+        Assert.Equal(["<code>Ник</code> — погиб (убил: игрок &lt;Itori&gt;), встану в городе и вернусь"], _sent);
+    }
+
+    [Fact]
     public void WithoutReviveSaysBotStopped()
     {
         _revives = false;

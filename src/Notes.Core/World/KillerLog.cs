@@ -22,6 +22,10 @@ public sealed class KillerLog
     private readonly AttackTracker _tracker = new();
     private readonly List<(DateTime Time, string Line)> _petHits = [];
     private int? _last;
+    private (DateTime Time, string Who)? _killer;
+
+    // Убийца из чата относится к смерти, если записан не раньше, чем за столько до неё (фраза приходит за 0–1 с до смерти)
+    private static readonly TimeSpan KillerWindow = TimeSpan.FromSeconds(30);
 
     /// <param name="killedBy">Фраза игры о смерти персонажа, «%s» — убийца (<see cref="Profiles.ChatOffsets.KilledBy"/>); пусто — не пишем.</param>
     /// <param name="petDied">Фраза игры о гибели пета (<see cref="Profiles.ChatOffsets.PetDied"/>); пусто — не пишем.</param>
@@ -57,13 +61,21 @@ public sealed class KillerLog
         {
             var text = message.Plain;
             if (_killedBy?.Match(text) is { Success: true } match)
-                Note(world, $"Вас убил {Who(world, match.Groups[1].Value.Trim())}");
+            {
+                var who = Who(world, match.Groups[1].Value.Trim());
+                _killer = (world.Time, who);
+                Note(world, $"Вас убил {who}");
+            }
             else if (_petDied.Length > 0 && text == _petDied)
                 Note(world, PetDeath(world.Time));
         }
 
         _last = newest;
     }
+
+    /// <summary>Кто убил персонажа, умершего в <paramref name="time"/> («Злой бык», «игрок Itori (жрец, ур. 80)»); не знаем — null.</summary>
+    public string? KillerAt(DateTime time)
+        => _killer is { } k && (time - k.Time).Duration() <= KillerWindow ? k.Who : null;
 
     private void Note(WorldState world, string line)
     {

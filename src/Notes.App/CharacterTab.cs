@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -51,6 +51,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
     private ClientConnection? _connection;
     // Запись мира вокруг смерти: одна на всё время работы — она же приёмник лога
     private readonly IncidentRecorder _incidents = new();
+    // «Кто убил» текущего подключения — для сообщения о смерти в Telegram
+    private KillerLog? _killer;
     private ServerProfile _profile;
     private bool _refreshing;
 
@@ -779,7 +781,8 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             return;
 
         // Смерть на фарме — в Telegram: её замечает статистика мозга, поэтому уведомление стоит перед книгой статистики
-        var stats = new DeathNotifier(Stats.Book, () => _config.App.ChatNotify, () => Nick, () => DeathNotifier.Revives(Settings), Notify);
+        var stats = new DeathNotifier(Stats.Book, () => _config.App.ChatNotify, () => Nick, () => DeathNotifier.Revives(Settings), Notify,
+            time => _killer?.KillerAt(time));
         var result = _connection.StartBot(Settings.Mode, Settings, routeStart ?? Route.StartIndex, transport, stats);
         switch (result.Status)
         {
@@ -1138,7 +1141,7 @@ public sealed class CharacterTab : ObservableObject, IDisposable
             connection.WorldUpdated += new DamageLog(_logger.For(LogSources.Damage)).Observe;
             // Запись мира вокруг смерти — первой: «кто убил» отмечает событие снимком, который она уже видела
             connection.WorldUpdated += _incidents.Observe;
-            var killer = new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied);
+            var killer = _killer = new KillerLog(_logger.For(LogSources.Brain), _profile.Data.Chat.KilledBy, _profile.Data.Chat.PetDied);
             killer.Noted += _incidents.Mark;
             connection.WorldUpdated += killer.Observe;
             _notifier = new ChatNotifier(_profile.Data.Chat.Channels, () => _config.App.ChatNotify, Notify) { Active = IsRunning };

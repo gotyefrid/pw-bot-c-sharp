@@ -55,6 +55,19 @@ public class KillerLogTests
     }
 
     [Fact]
+    public void KillerIsKnownOnlyNearTheDeath()
+    {
+        var now = _world.Snapshot().Time;
+        Assert.Null(_killer.KillerAt(now));
+        Lines();
+        Say("^BED293Пустынный разбойник. Запомните это имя. Так зовут вашего убийцу.");
+        Lines();
+
+        Assert.Equal("Пустынный разбойник", _killer.KillerAt(now.AddSeconds(1)));
+        Assert.Null(_killer.KillerAt(now.AddMinutes(5)));
+    }
+
+    [Fact]
     public void OldMessagesAreNotRepeated()
     {
         // Смерть была до подключения — уже в чате; то же сообщение во втором снимке — не новое
