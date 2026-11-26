@@ -247,7 +247,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
                 Threat.PetUntouched => $"{danger.Name} бьёт пета, а пет его ещё не бил — пусть ударит, {name} подождёт",
                 _ when threat == current && danger.Effect != mob.Effect && TargetSelector.HasFirstEffect(danger)
                     => $"{danger.Name} «{danger.EffectName}» — сначала его, {name} подождёт",
-                _ when threat == current => $"{danger.Name} слабее (HP {danger.Hp} < {mob.Hp}) — добиваю его",
+                _ when threat == current => $"{danger.Name} слабее (HP {danger.HpPercent} % < {mob.HpPercent} %) — добиваю его",
                 _ => $"{danger.Name} бьёт нас — переключаюсь",
             });
             fight.Abort();
@@ -545,7 +545,7 @@ public sealed class CombatBehavior(bool defendOnly = false, bool leaveDangerous 
             return $"сначала {(fight.Phase == FightPhase.Fighting && fight.Mob == first.Wid ? "добиваю " : "")}{first.Name}: "
                    + (top != threat ? top == Threat.HitsMe ? "он бьёт меня" : top == Threat.PetUntouched ? "он бьёт пета, а пет его ещё не бил" : "он опаснее"
                        : TargetSelector.HasFirstEffect(first) && !TargetSelector.HasFirstEffect(mob) ? $"у него «{first.EffectName}»"
-                       : PetInFight(c) && top == Threat.HitsUs && first.Hp != mob.Hp ? "он слабее" : "он ближе");
+                       : PetInFight(c) && top == Threat.HitsUs && TargetSelector.IsWeak(first) ? "он слабее" : "он ближе");
 
         switch (fight.Phase)
         {

@@ -2077,13 +2077,13 @@ public class BrainScenarioTests
         => _world.Attacks.Add(new AttackEvent(++_attackNode, 0, FakeWorld.PetWid, 0, [new AttackHit(mobWid, 100, 0)]));
 
     // Пет бьёт Волка (Волк бьёт пета); бой — с Волком
-    private NpcInfo PetFightsWolf(int hp = 100)
+    private NpcInfo PetFightsWolf(int hp = 100, int maxHp = 1000)
     {
         _settings.Target.KillMobs = true;
         _settings.Combat.UseSword = true;
         _settings.Pet.Enabled = true;
         _world.SetPet(1);
-        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.PetWid, hp: hp);
+        var a = _world.AddMob(0x80000001, "Волк", 4, targetWid: FakeWorld.PetWid, hp: hp, maxHp: maxHp);
         _world.TargetWid = a.Wid;
         PetHits(a.Wid);
         Tick();
@@ -2119,13 +2119,51 @@ public class BrainScenarioTests
     [Fact]
     public void WeakerMobTouchedByPetTakesFight()
     {
-        PetFightsWolf(hp: 300);
-        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 100);
+        PetFightsWolf(hp: 800);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 300, maxHp: 1000);
         PetHits(0x80000002);
         Tick();
 
         Assert.Equal("select 80000002", LastCall);
-        Assert.Contains(_log, e => e.Message.Contains("слабее"));
+        Assert.Contains(_log, e => e.Message.Contains("слабее (HP 30 % < 80 %)"));
+    }
+
+    // 90 % против 95 %: не добит ни один — бьём своего, пета не гоняем
+    [Fact]
+    public void SlightlyWeakerMobDoesNotTakeFight()
+    {
+        PetFightsWolf(hp: 950);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 900, maxHp: 1000);
+        PetHits(0x80000002);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
+    }
+
+    // Оба добиты (меньше 40 %) — добиваем того, у кого меньше процент
+    [Fact]
+    public void BothWeakLowerPercentTakesFight()
+    {
+        PetFightsWolf(hp: 350);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 200, maxHp: 1000);
+        PetHits(0x80000002);
+        Tick();
+
+        Assert.Equal("select 80000002", LastCall);
+    }
+
+    // Процент, а не HP: у Кабана HP меньше, но это 50 % — не добит
+    [Fact]
+    public void WeakIsByPercentNotByHp()
+    {
+        PetFightsWolf(hp: 900, maxHp: 1000);
+        _world.AddMob(0x80000002, "Кабан", 6, targetWid: FakeWorld.PetWid, hp: 100, maxHp: 200);
+        PetHits(0x80000002);
+        Tick();
+        Tick();
+
+        Assert.DoesNotContain("select 80000002", _actions.Calls);
     }
 
     // Моб с эффектом из «бить первыми» — раньше слабого, даже с полным HP

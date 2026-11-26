@@ -41,8 +41,8 @@ public static class TargetSelector
     /// <summary>
     /// Важнее ли <paramref name="mob"/>, чем <paramref name="other"/>: сначала по <see cref="Threat"/>; при равной — моб с эффектом
     /// из «бить первыми» (<paramref name="first"/>: «Усиленная атака», «Берсерк»), даже с полным HP; дальше с петом
-    /// (<paramref name="weakestFirst"/>) среди тех, кого пет уже держит (<see cref="Threat.HitsUs"/>), — у кого меньше HP: добить
-    /// скорее, чтобы меньше бил; иначе — ближайший (по прямой, с высотой).
+    /// (<paramref name="weakestFirst"/>) среди тех, кого пет уже держит (<see cref="Threat.HitsUs"/>), — добитый (<see cref="IsWeak"/>),
+    /// из двух добитых — у кого меньше процент HP: добить скорее, чтобы меньше бил; иначе — ближайший (по прямой, с высотой).
     /// </summary>
     public static bool Before(NpcInfo mob, Threat threat, NpcInfo other, Threat otherThreat, bool weakestFirst, Func<NpcInfo, bool>? first = null)
     {
@@ -50,14 +50,15 @@ public static class TargetSelector
             return threat > otherThreat;
         if (First(mob, first) != First(other, first))
             return First(mob, first);
-        if (weakestFirst && threat == Threat.HitsUs && mob.Hp > 0 && other.Hp > 0 && mob.Hp != other.Hp)
-            return mob.Hp < other.Hp;
+        if (weakestFirst && threat == Threat.HitsUs && (IsWeak(mob) || IsWeak(other)) && HpRatio(mob) != HpRatio(other))
+            return Weaker(mob, other);
         return mob.Offset.Direct < other.Offset.Direct;
     }
 
     /// <summary>
     /// Бросить текущего ради другого: другой опаснее; при равной — у него эффект из «бить первыми», а у текущего нет; при равных
-    /// и тут — с петом он слабее (из тех, кого пет держит). Просто ближе — не повод: иначе бой мечется между двумя.
+    /// и тут — с петом он добит (<see cref="IsWeak"/>) и слабее текущего по проценту HP (из тех, кого пет держит). Просто ближе
+    /// или чуть слабее (90 % против 95 %) — не повод: иначе бой мечется между двумя, а пета лишний раз переводить.
     /// </summary>
     public static bool Switch(NpcInfo other, Threat otherThreat, NpcInfo current, Threat currentThreat, bool weakestFirst,
         Func<NpcInfo, bool>? first = null)
@@ -66,8 +67,20 @@ public static class TargetSelector
             return otherThreat > currentThreat;
         if (First(other, first) != First(current, first))
             return First(other, first);
-        return weakestFirst && otherThreat == Threat.HitsUs && other.Hp > 0 && current.Hp > 0 && other.Hp < current.Hp;
+        return weakestFirst && otherThreat == Threat.HitsUs && IsWeak(other) && Weaker(other, current);
     }
+
+    /// <summary>Порог «добит», в процентах HP: только такого моба бьём раньше других ради того, чтобы добить.</summary>
+    public const int WeakPercent = 40;
+
+    /// <summary>Моб добит: жив и HP меньше <see cref="WeakPercent"/> % (максимум HP известен).</summary>
+    public static bool IsWeak(NpcInfo mob) => HpRatio(mob) is { } r && r < WeakPercent / 100.0;
+
+    /// <summary>Доля HP; null — HP или максимум неизвестны.</summary>
+    private static double? HpRatio(NpcInfo mob) => mob.Hp > 0 && mob.MaxHp > 0 ? (double)mob.Hp / mob.MaxHp : null;
+
+    /// <summary><paramref name="mob"/> слабее по проценту HP; неизвестный процент — как полный.</summary>
+    private static bool Weaker(NpcInfo mob, NpcInfo other) => (HpRatio(mob) ?? 1) < (HpRatio(other) ?? 1);
 
     private static bool First(NpcInfo mob, Func<NpcInfo, bool>? first) => first?.Invoke(mob) == true;
 

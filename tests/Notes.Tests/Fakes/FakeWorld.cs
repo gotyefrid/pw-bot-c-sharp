@@ -106,10 +106,11 @@ internal sealed class FakeWorld
         Npcs.ToList(), Ground.ToList(), Bag.ToList(), Skills.ToList(), Pet) { InventorySlots = BagSlots, Waypoints = Waypoints.ToList(), TeleportRunes = Bag.Where(i => Runes.Contains(i.Tid)).ToList(), Bank = Bank?.ToList(), BankSlots = BankSlots, Macros = Macros.ToList(), Attacks = Attacks.ToList(), Players = Players.ToList(), Chat = Chat.ToList(), Quests = Quests?.ToList(), AvailableQuests = AvailableQuests?.ToList(), QuestCandidates = QuestCandidates?.ToList(), QuestItems = QuestItems?.ToList(), HasFlyer = HasFlyer, Equipment = Equipment.ToList(), Party = Party, MacroRunning = MacroRunning };
 
     /// <param name="state">Не задано: с целью — бьёт, без — стоит.</param>
-    public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, NpcState? state = null, int hp = 0)
+    public NpcInfo AddMob(uint wid, string name, float distance, uint targetWid = 0, NpcState? state = null, int hp = 0,
+        int maxHp = 0)
     {
         var mob = new NpcInfo(wid, wid, NpcKind.Mob, state ?? (targetWid != 0 ? NpcState.Attacking : NpcState.Standing), targetWid,
-            new Position(distance, 0, 0), name, hp);
+            new Position(distance, 0, 0), name, hp) { MaxHp = maxHp };
         Npcs.Add(mob);
         return mob;
     }

@@ -409,6 +409,9 @@ public sealed record NpcInfo(
     /// <summary>Максимум HP — как и HP, только у выбранной цели; 0 — неизвестен.</summary>
     public int MaxHp { get; init; }
 
+    /// <summary>HP в процентах; 0 — максимум неизвестен.</summary>
+    public int HpPercent => MaxHp > 0 ? Hp * 100 / MaxHp : 0;
+
     /// <summary>Вид (tid), как в заданиях и файлах клиента; 0 — неизвестен (поле не найдено для сервера).</summary>
     public int Tid { get; init; }
 
