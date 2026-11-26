@@ -62,7 +62,7 @@ internal static class ActCommands
           act pet-summon [клетка]  призвать пета (по умолчанию 1)
           act pet-heal          вылечить призванного пета
           act pet-revive [клетка]  воскресить мёртвого пета
-          act pet-attack        приказать пету атаковать цель
+          act pet-attack [WID]  приказать пету атаковать цель; с WID (hex, как в snapshot) — этого моба, а не цель
           act pickup            подобрать ближайший предмет «как мышкой»
           act cancel            прервать каст или копание (как Esc)
           act gather            собрать ближайший ресурс (до 50 м) «как мышкой»; для руды нужна кирка в сумке
@@ -534,6 +534,10 @@ internal static class ActCommands
                 return new RevivePetAction(number ?? 1, skills.RevivePet);
 
             case "pet-attack":
+                if (args.Select(a => a.StartsWith("0x") ? a.Substring(2) : a)
+                        .FirstOrDefault(a => a.Length == 8 && uint.TryParse(a, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out _)) is { } hex)
+                    return new PetAttackAction(uint.Parse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture));
+
                 problem = "нет цели";
                 return w.Host.TargetWid == 0 ? null : new PetAttackAction(w.Host.TargetWid);
 
