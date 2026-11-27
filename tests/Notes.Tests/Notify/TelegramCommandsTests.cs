@@ -47,7 +47,7 @@ public class TelegramCommandsTests
 
     [Fact]
     public void WhisperCommandWithoutTextShowsHow()
-        => Assert.Contains("/w Персонаж Ник текст", ((ReplyRequest)Parse("/w Перс Тихоня")).Html);
+        => Assert.Contains("<code>/w</code> Персонаж Ник текст", ((ReplyRequest)Parse("/w Перс Тихоня")).Html);
 
     [Fact]
     public void TooLongTextIsRefusedWithReason()

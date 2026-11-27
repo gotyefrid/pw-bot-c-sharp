@@ -72,7 +72,7 @@ public static class TelegramCommands
             case "/w":
                 var words = rest.Split([' ', '\n', '\t'], 3, StringSplitOptions.RemoveEmptyEntries);
                 return words.Length < 3
-                    ? new ReplyRequest("Так: /w Персонаж Ник текст — от вашего персонажа (/list) игроку")
+                    ? new ReplyRequest($"Так: {Code("/w")} Персонаж Ник текст — от вашего персонажа (/list) игроку")
                     : Whisper(words[0], words[1], words[2]);
             default:
                 return new ReplyRequest(Escape(Help));
