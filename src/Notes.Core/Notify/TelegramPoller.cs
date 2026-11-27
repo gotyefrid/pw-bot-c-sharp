@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -35,6 +36,7 @@ public sealed class TelegramPoller : IDisposable
     private readonly Action<string> _info;
     private readonly Action<string> _warn;
     private readonly Fetch _fetch;
+    private readonly Action<string> _setCommands;
     private readonly ManualResetEvent _stop = new(false);
     private volatile bool _stopped;
     private volatile HttpWebRequest? _request;
@@ -53,14 +55,16 @@ public sealed class TelegramPoller : IDisposable
     /// <param name="info">Начали слушать или снова на связи.</param>
     /// <param name="warn">Что-то не так — пишется один раз, пока не наладится.</param>
     /// <param name="fetch">Запрос к Telegram; null — настоящий.</param>
+    /// <param name="setCommands">Передать Telegram меню команд для токена (сбой — исключением); null — настоящий запрос.</param>
     public TelegramPoller(Func<ChatNotifySettings> settings, Action<TelegramMessage> received, Action<string> info, Action<string> warn,
-        Fetch? fetch = null)
+        Fetch? fetch = null, Action<string>? setCommands = null)
     {
         _settings = settings;
         _received = received;
         _info = info;
         _warn = warn;
         _fetch = fetch ?? GetUpdates;
+        _setCommands = setCommands ?? SetMyCommands;
     }
 
     public void Start() => new Thread(Run) { IsBackground = true, Name = "Telegram: команды" }.Start();
@@ -141,6 +145,8 @@ public sealed class TelegramPoller : IDisposable
         if (_problem is not null || !_listening)
         {
             _info(_problem is not null ? "Команды из Telegram: снова на связи" : "Команды из Telegram: слушаю ваш чат");
+            if (!_listening)
+                SendMenu(token);
             _problem = null;
             _listening = true;
         }
@@ -159,6 +165,28 @@ public sealed class TelegramPoller : IDisposable
         if (text != _problem)
             _warn(text);
         _problem = text;
+    }
+
+    // Меню команд — раз на токен: Telegram помнит его сам, сбой — только строка в лог, команды работают и без меню
+    private void SendMenu(string token)
+    {
+        try
+        {
+            _setCommands(token);
+        }
+        catch (Exception e) when (e is not OutOfMemoryException)
+        {
+            _warn($"Telegram не принял меню команд ({e.GetBaseException().Message}) — команды работают, но без подсказок");
+        }
+    }
+
+    private static void SetMyCommands(string token)
+    {
+        var commands = string.Join(",", TelegramCommands.Menu.Select(c =>
+            $"{{\"command\":\"{c.Command}\",\"description\":\"{c.Description.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"}}"));
+        using var web = new WebClient { Encoding = Encoding.UTF8 };
+        web.Headers[HttpRequestHeader.ContentType] = "application/json";
+        web.UploadString($"https://api.telegram.org/bot{token}/setMyCommands", $"{{\"commands\":[{commands}]}}");
     }
 
     private string GetUpdates(string token, long offset, int timeoutSeconds)

@@ -24,7 +24,43 @@ public class TelegramPollerTests
         {
             _asked.Add((offset, timeout));
             return _answers.Count > 0 ? _answers.Dequeue() : """{ "ok": true, "result": [] }""";
+        }, token =>
+        {
+            _menus.Add(token);
+            if (_menuFails)
+                throw new InvalidOperationException("нет связи");
         });
+
+    private readonly List<string> _menus = [];
+    private bool _menuFails;
+
+    [Fact]
+    public void MenuIsSentOncePerToken()
+    {
+        _poller.Step();
+        _poller.Step();
+        _poller.Step();
+        Assert.Equal(["123:abc"], _menus);
+
+        _settings.Token = "456:def";
+        _poller.Step();
+        _poller.Step();
+        Assert.Equal(["123:abc", "456:def"], _menus);
+    }
+
+    [Fact]
+    public void MenuFailureOnlyWarns()
+    {
+        _menuFails = true;
+        _answers.Enqueue(Ok());
+        _answers.Enqueue(Ok(Message(1, 1, "/list")));
+
+        _poller.Step();
+        _poller.Step();
+
+        Assert.Single(_warnings);
+        Assert.Single(_received);
+    }
 
     private static string Message(long update, long id, string text, long chat = 42, string reply = "")
         => $$"""{ "update_id": {{update}}, "message": { "message_id": {{id}}, "chat": { "id": {{chat}}, "type": "private" }, "text": "{{text}}"{{reply}} } }""";

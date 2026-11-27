@@ -34,6 +34,13 @@ public static class TelegramCommands
         + "• /w Персонаж Ник текст — шепнуть от своего персонажа\n"
         + "• /list — какие персонажи подключены (ник копируется нажатием)";
 
+    /// <summary>Меню команд в Telegram (setMyCommands): команда без «/» и описание. Те же, что в <see cref="Help"/>.</summary>
+    public static readonly IReadOnlyList<(string Command, string Description)> Menu =
+    [
+        ("list", "Какие персонажи подключены"),
+        ("w", "Шепнуть: /w Персонаж Ник текст"),
+    ];
+
     /// <summary>Что просят сообщением.</summary>
     public static TelegramRequest Parse(TelegramMessage message)
     {
